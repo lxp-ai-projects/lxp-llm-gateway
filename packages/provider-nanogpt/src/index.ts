@@ -19,6 +19,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     const lastMessage = request.messages.at(-1)?.content ?? '';
 
     return {
+      requestId: context.requestId,
       providerId: this.providerId,
       model: request.model,
       outputText: `nanogpt placeholder response: ${lastMessage}`,

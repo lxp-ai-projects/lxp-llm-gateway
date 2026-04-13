@@ -1,16 +1,10 @@
 import { Module } from '@nestjs/common';
-import { NanoGptProviderAdapter } from '@lxp/provider-nanogpt';
 
-import { GatewayController } from './gateway.controller';
-import { LLM_PROVIDER } from './provider.token';
+import { HealthController } from './health.controller';
+import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
-  controllers: [GatewayController],
-  providers: [
-    {
-      provide: LLM_PROVIDER,
-      useFactory: () => new NanoGptProviderAdapter(),
-    },
-  ],
+  imports: [GatewayModule],
+  controllers: [HealthController],
 })
 export class AppModule {}

@@ -1,4 +1,7 @@
+import type { ProviderId } from '@lxp/domain';
+
 export interface GatewayChatRequest {
+  providerId?: ProviderId;
   model: string;
   messages: Array<{
     role: 'system' | 'user' | 'assistant';
@@ -8,6 +11,7 @@ export interface GatewayChatRequest {
 }
 
 export interface GatewayChatResponse {
+  requestId: string;
   providerId: string;
   model: string;
   outputText: string;
