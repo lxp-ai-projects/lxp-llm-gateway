@@ -1,0 +1,26 @@
+{
+  "name": "@lxp/gateway-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@lxp/contracts": "workspace:*",
+    "@lxp/domain": "workspace:*",
+    "@lxp/provider-nanogpt": "workspace:*",
+    "@lxp/provider-sdk": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/main.ts",
+    "lint": "eslint src --ext .ts",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
+  }
+}
