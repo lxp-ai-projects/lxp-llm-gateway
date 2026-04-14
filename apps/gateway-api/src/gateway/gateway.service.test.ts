@@ -5,7 +5,6 @@ import type { LlmProviderAdapter, ProviderExecutionContext } from '@lxp/provider
 
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayService } from './gateway.service';
-import { ProviderRegistryService } from './provider-registry.service';
 
 class FakeProvider implements LlmProviderAdapter {
   readonly providerId = 'nanogpt' as const;
@@ -27,14 +26,28 @@ class FakeProvider implements LlmProviderAdapter {
   }
 }
 
+class FakeProviderRegistryService {
+  getProvider(): LlmProviderAdapter {
+    return new FakeProvider();
+  }
+}
+
+class FakeProviderCredentialService {
+  async resolveApiKey(): Promise<string> {
+    return 'nano-secret-token';
+  }
+}
+
 test('GatewayService routes chat requests through the provider registry', async () => {
-  const registry = new ProviderRegistryService([new FakeProvider()]);
-  const service = new GatewayService(registry);
+  const service = new GatewayService(
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
 
   const response = await service.chat({
     model: 'nano-1',
     messages: [{ role: 'user', content: 'hello' }],
-  } as GatewayChatRequestDto);
+  } as GatewayChatRequestDto, 'user-1');
 
   assert.equal(response.providerId, 'nanogpt');
   assert.equal(response.model, 'nano-1');
@@ -43,8 +56,10 @@ test('GatewayService routes chat requests through the provider registry', async 
 });
 
 test('GatewayService rejects streaming until Phase 1 supports it', async () => {
-  const registry = new ProviderRegistryService([new FakeProvider()]);
-  const service = new GatewayService(registry);
+  const service = new GatewayService(
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
 
   await assert.rejects(
     () =>
@@ -52,7 +67,7 @@ test('GatewayService rejects streaming until Phase 1 supports it', async () => {
         model: 'nano-1',
         messages: [{ role: 'user', content: 'hello' }],
         stream: true,
-      } as GatewayChatRequestDto),
+      } as GatewayChatRequestDto, 'user-1'),
     /Streaming is not implemented in Phase 1/,
   );
 });

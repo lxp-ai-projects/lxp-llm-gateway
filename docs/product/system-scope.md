@@ -12,6 +12,7 @@
 - shared contracts and domain packages
 - provider abstraction package
 - first provider integration for NanoGPT
+- user, role, and provider credential foundations
 - local development infrastructure
 - foundational documentation and API contract placeholders
 

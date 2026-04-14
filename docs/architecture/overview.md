@@ -36,6 +36,8 @@ Phase 1 may use Redis or Valkey for lightweight operational state.
 
 Relational persistence is intentionally deferred until audit, metadata, and workflow requirements justify it.
 
+Provider credentials are the exception to lightweight temporary state. They should be treated as durable encrypted application data and designed toward relational persistence from the beginning.
+
 ## Security Posture
 
 The initial architecture assumes:
@@ -44,6 +46,7 @@ The initial architecture assumes:
 - encrypted provider credentials
 - clear identity boundaries
 - no unsafe browser token storage patterns
+- application-level encryption for stored provider API secrets
 
 ## Primary Risk
 

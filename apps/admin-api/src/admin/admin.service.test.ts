@@ -1,0 +1,147 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import test from 'node:test';
+
+import { EmailProtectionService } from '../security/email-protection.service';
+import { EncryptionService } from '../security/encryption.service';
+import { PasswordService } from '../security/password.service';
+import { AdminService } from './admin.service';
+
+function createRepositoryMock<T extends { id?: string }>(initialData: T[] = []) {
+  const store = [...initialData];
+
+  return {
+    data: store,
+    async findOne({ where }: { where: Partial<T> }): Promise<T | null> {
+      return (
+        store.find((item) =>
+          Object.entries(where).every(
+            ([key, value]) => item[key as keyof T] === value,
+          ),
+        ) ?? null
+      );
+    },
+    async find({ where }: { where: Array<Partial<T>> }): Promise<T[]> {
+      return store.filter((item) =>
+        where.some((condition) =>
+          Object.entries(condition).every(
+            ([key, value]) => item[key as keyof T] === value,
+          ),
+        ),
+      );
+    },
+    create(value: T): T {
+      return {
+        ...value,
+        id: value.id ?? randomUUID(),
+      };
+    },
+    async save(value: T | T[]): Promise<T | T[]> {
+      if (Array.isArray(value)) {
+        value.forEach((entry) => store.push(entry));
+        return value;
+      }
+
+      if (!value.id) {
+        value.id = randomUUID();
+      }
+      if ('createdAt' in value && !value.createdAt) {
+        value.createdAt = new Date() as never;
+      }
+      store.push(value);
+      return value;
+    },
+  };
+}
+
+function createAdminService() {
+  process.env.LXP_ENCRYPTION_MASTER_KEY =
+    'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
+  process.env.LXP_ENCRYPTION_KEY_VERSION = '1';
+  process.env.LXP_EMAIL_LOOKUP_KEY =
+    'ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=';
+
+  const userRepository = createRepositoryMock();
+  const roleRepository = createRepositoryMock([
+    {
+      id: randomUUID(),
+      name: 'user',
+      description: 'Standard user',
+    },
+    {
+      id: randomUUID(),
+      name: 'admin',
+      description: 'Admin user',
+    },
+  ]);
+  const userRoleRepository = createRepositoryMock();
+  const providerRepository = createRepositoryMock([
+    {
+      id: randomUUID(),
+      providerId: 'nanogpt',
+      displayName: 'NanoGPT',
+      status: 'active',
+    },
+  ]);
+  const credentialRepository = createRepositoryMock();
+
+  return {
+    service: new AdminService(
+      userRepository as never,
+      roleRepository as never,
+      userRoleRepository as never,
+      providerRepository as never,
+      credentialRepository as never,
+      new EmailProtectionService(new EncryptionService()),
+      new EncryptionService(),
+      new PasswordService(),
+    ),
+    repositories: {
+      userRepository,
+      userRoleRepository,
+      credentialRepository,
+    },
+  };
+}
+
+test('AdminService creates a user with protected email and assigned roles', async () => {
+  const { service, repositories } = createAdminService();
+
+  const user = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+    roles: ['admin'],
+  });
+
+  assert.ok(user.id);
+  assert.equal(user.email, 'patrick@example.com');
+  assert.deepEqual(user.roles, ['admin']);
+  assert.equal(repositories.userRepository.data.length, 1);
+  assert.equal(repositories.userRoleRepository.data.length, 1);
+});
+
+test('AdminService stores an encrypted provider credential and returns only metadata', async () => {
+  const { service, repositories } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  const credential = await service.storeProviderCredential({
+    userId: createdUser.id,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
+
+  assert.ok(credential.id);
+  assert.equal(credential.providerId, 'nanogpt');
+  assert.equal(credential.maskedHint, '***oken');
+
+  const stored = repositories.credentialRepository.data[0] as {
+    encryptedSecret: string;
+  };
+  assert.notEqual(stored.encryptedSecret, 'nano-secret-token');
+});

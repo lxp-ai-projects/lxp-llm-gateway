@@ -1,0 +1,15 @@
+@adminApiBaseUrl = http://localhost:3002
+
+### Health
+GET {{adminApiBaseUrl}}/health
+
+### Create User
+POST {{adminApiBaseUrl}}/admin/users
+Content-Type: application/json
+
+{
+  "email": "patrick@example.com",
+  "password": "Sup3rS3cret!",
+  "displayName": "Patrick",
+  "roles": ["admin"]
+}
