@@ -47,6 +47,7 @@ The initial architecture assumes:
 - clear identity boundaries
 - no unsafe browser token storage patterns
 - application-level encryption for stored provider API secrets
+- short-lived access tokens with server-side revocation support
 
 ## Primary Risk
 
