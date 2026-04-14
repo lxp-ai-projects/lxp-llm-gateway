@@ -1,10 +1,8 @@
-@adminApiBaseUrl = http://localhost:3002
-
 ### Health
-GET {{adminApiBaseUrl}}/health
+GET {{adminApiBaseUrl}}/api/v1/health
 
 ### Create User
-POST {{adminApiBaseUrl}}/admin/users
+POST {{adminApiBaseUrl}}/api/v1/admin/users
 Content-Type: application/json
 
 {

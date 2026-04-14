@@ -4,7 +4,7 @@ import type { GatewayChatResponse } from '@lxp/contracts';
 import { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayService } from './gateway.service';
 
-@Controller('v1/chat')
+@Controller('chat')
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
 

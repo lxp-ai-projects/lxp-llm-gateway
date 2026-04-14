@@ -1,11 +1,8 @@
-@gatewayApiBaseUrl = http://localhost:3001
-@userId = REPLACE_WITH_USER_ID
-
 ### Health
-GET {{gatewayApiBaseUrl}}/health
+GET {{gatewayApiBaseUrl}}/api/v1/health
 
 ### Chat Completion
-POST {{gatewayApiBaseUrl}}/v1/chat
+POST {{gatewayApiBaseUrl}}/api/v1/chat
 Content-Type: application/json
 x-user-id: {{userId}}
 

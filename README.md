@@ -29,6 +29,161 @@ This repository currently contains:
 - Frontend: React 19, Vite, React Router DOM, TanStack Query
 - Workspace: pnpm, turbo, TypeScript
 
+## Local Secrets
+
+Generate local secrets for `apps/admin-api/.env` and `apps/gateway-api/.env`.
+
+### Bash
+
+Generate a base64 32-byte key:
+
+```bash
+openssl rand -base64 32
+```
+
+Generate a strong cookie or JWT secret:
+
+```bash
+openssl rand -hex 32
+```
+
+Suggested usage:
+
+- `LXP_ENCRYPTION_MASTER_KEY`: `openssl rand -base64 32`
+- `LXP_EMAIL_LOOKUP_KEY`: `openssl rand -base64 32`
+- `LXP_COOKIE_SECRET`: `openssl rand -hex 32`
+- `LXP_JWT_PRIVATE_KEY`: use a generated private key or a strong secret for local development
+
+Generate an RSA private key for local JWT signing:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
+```
+
+### Windows PowerShell
+
+Generate a base64 32-byte key:
+
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+```
+
+Generate a strong cookie or JWT secret:
+
+```powershell
+-join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })
+```
+
+Suggested usage:
+
+- `LXP_ENCRYPTION_MASTER_KEY`: base64 32-byte key
+- `LXP_EMAIL_LOOKUP_KEY`: base64 32-byte key
+- `LXP_COOKIE_SECRET`: hex or equivalent strong random secret
+- `LXP_JWT_PRIVATE_KEY`: use a generated private key or a strong secret for local development
+
+Generate an RSA private key for local JWT signing:
+
+```powershell
+ssh-keygen -t rsa -b 2048 -m PEM -f jwt-private.pem -N '""'
+```
+
+Do not commit generated secret values.
+
+## Local Run
+
+### 1. Start local infrastructure
+
+From the repository root:
+
+```bash
+docker compose -f infra/compose/docker-compose.dev.yml up -d
+```
+
+Windows PowerShell:
+
+```powershell
+docker compose -f infra/compose/docker-compose.dev.yml up -d
+```
+
+### 2. Run database migrations
+
+From the repository root:
+
+```bash
+pnpm --filter @lxp/admin-api migration:run
+```
+
+Windows PowerShell:
+
+```powershell
+pnpm.cmd --filter @lxp/admin-api migration:run
+```
+
+This project does not auto-create tables at application startup.
+
+The database schema is initialized through TypeORM migrations, so the migration step is required before using `admin-api` or `gateway-api` against a fresh database.
+
+### 3. Start the applications
+
+Start `admin-api`:
+
+```bash
+pnpm --filter @lxp/admin-api dev
+```
+
+```powershell
+pnpm.cmd --filter @lxp/admin-api dev
+```
+
+Start `gateway-api`:
+
+```bash
+pnpm --filter @lxp/gateway-api dev
+```
+
+```powershell
+pnpm.cmd --filter @lxp/gateway-api dev
+```
+
+Start `admin-web`:
+
+```bash
+pnpm --filter @lxp/admin-web dev
+```
+
+```powershell
+pnpm.cmd --filter @lxp/admin-web dev
+```
+
+### 4. Manual endpoint testing
+
+Use the HTTP files in [queries/README.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/queries/README.md):
+
+1. run `queries/admin-api.http` to create a user
+2. copy the returned user `id`
+3. set `@userId` and `@providerApiToken` in `queries/provider-credentials.http`
+4. store the NanoGPT credential
+5. set `@userId` in `queries/gateway-api.http`
+6. run the chat request
+
+### 5. Workspace validation
+
+From the repository root:
+
+```bash
+pnpm build
+pnpm lint
+pnpm test
+```
+
+Windows PowerShell:
+
+```powershell
+pnpm.cmd build
+pnpm.cmd lint
+pnpm.cmd test
+```
+
 ## Next Steps
 
 - install dependencies with `pnpm install`

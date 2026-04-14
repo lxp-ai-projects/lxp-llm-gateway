@@ -2,7 +2,6 @@
   "name": "@lxp/admin-api",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
   "dependencies": {
     "@lxp/domain": "workspace:*",
     "@nestjs/config": "^4.0.0",
@@ -14,6 +13,7 @@
     "@node-rs/argon2": "^2.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "dotenv": "^16.6.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
@@ -21,7 +21,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsc-watch --project tsconfig.json --onSuccess \"node dist/main.js\"",
     "lint": "eslint src --ext .ts",
     "migration:generate": "typeorm-ts-node-commonjs -d src/persistence/data-source.ts migration:generate src/persistence/migrations/GeneratedMigration",
     "migration:run": "tsx ./node_modules/typeorm/cli.js migration:run -d src/persistence/data-source.ts",
@@ -30,6 +30,7 @@
   "devDependencies": {
     "pg-mem": "^3.0.5",
     "tsx": "^4.0.0",
+    "tsc-watch": "^6.2.1",
     "typeorm-ts-node-commonjs": "^0.3.20"
   }
 }

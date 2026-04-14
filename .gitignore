@@ -28,3 +28,5 @@ lerna-debug.log*
 .temp
 .tmp
 /.idea/
+http-client.private.env.json
+**/http-client.private.env.json
