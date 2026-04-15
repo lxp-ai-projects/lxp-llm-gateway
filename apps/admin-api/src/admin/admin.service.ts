@@ -43,7 +43,7 @@ export class AdminService {
     });
 
     if (existingUser) {
-      throw new ConflictException('A user with this email already exists.');
+      throw new ConflictException('Unable to create user with the provided data.');
     }
 
     const passwordHash = await this.passwordService.hashPassword(dto.password);
@@ -66,7 +66,7 @@ export class AdminService {
     });
 
     if (roles.length !== roleNames.length) {
-      throw new NotFoundException('One or more roles do not exist.');
+      throw new NotFoundException('Unable to assign one or more requested roles.');
     }
 
     await this.userRoleRepository.save(
@@ -96,9 +96,7 @@ export class AdminService {
   async bootstrapAdmin(dto: CreateUserDto) {
     const userCount = await this.userRepository.count();
     if (userCount > 0) {
-      throw new ConflictException(
-        'Bootstrap admin is only available before the first user exists.',
-      );
+      throw new ConflictException('Bootstrap is not available.');
     }
 
     return this.createUser({
@@ -112,14 +110,14 @@ export class AdminService {
       where: { userUuid: dto.userUuid },
     });
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw new NotFoundException('Unable to store the provider credential.');
     }
 
     const provider = await this.providerRepository.findOne({
       where: { providerId: dto.providerId },
     });
     if (!provider) {
-      throw new NotFoundException('Provider not found.');
+      throw new NotFoundException('Unable to store the provider credential.');
     }
 
     const existingCredential = await this.credentialRepository.findOne({
@@ -130,9 +128,7 @@ export class AdminService {
       },
     });
     if (existingCredential) {
-      throw new ConflictException(
-        'A credential with this label already exists for the user and provider.',
-      );
+      throw new ConflictException('Unable to store the provider credential.');
     }
 
     const encrypted = this.encryptionService.encrypt(dto.apiToken);

@@ -149,6 +149,6 @@ test('AuthService rejects a blacklisted access token for authenticated user look
 
   await assert.rejects(
     () => authService.getAuthenticatedUser(loginResult.accessToken),
-    /Access token has been revoked/,
+    /Invalid or expired token/,
   );
 });

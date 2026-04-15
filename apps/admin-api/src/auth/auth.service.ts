@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {ForbiddenException, Injectable, UnauthorizedException,} from '@nestjs/common';
+import {Injectable, UnauthorizedException,} from '@nestjs/common';
 import {JwtService} from '@nestjs/jwt';
 import {InjectRepository} from '@nestjs/typeorm';
 import {Repository} from 'typeorm';
@@ -34,7 +34,7 @@ export class AuthService {
     }
 
     if (user.status !== 'active') {
-      throw new ForbiddenException('User account is not active.');
+      throw new UnauthorizedException('Invalid email or password.');
     }
 
     const passwordMatches = await this.passwordService.verifyPassword(
@@ -57,7 +57,7 @@ export class AuthService {
       where: { emailHash: payload.emailHash },
     });
     if (!user || user.status !== 'active') {
-      throw new UnauthorizedException('User is not available for refresh.');
+      throw new UnauthorizedException('Invalid or expired token.');
     }
 
     const roles = await this.getUserRoles(user.id);
@@ -88,14 +88,14 @@ export class AuthService {
     const payload = await this.verifyToken(accessToken, 'access');
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(payload.jti);
     if (isBlacklisted) {
-      throw new UnauthorizedException('Access token has been revoked.');
+      throw new UnauthorizedException('Invalid or expired token.');
     }
 
     const user = await this.userRepository.findOne({
       where: { emailHash: payload.emailHash },
     });
     if (!user || user.status !== 'active') {
-      throw new UnauthorizedException('User is not available.');
+      throw new UnauthorizedException('Invalid or expired token.');
     }
 
     return this.mapAuthenticatedUser(user, payload.roles);
@@ -156,12 +156,12 @@ export class AuthService {
   private async assertRefreshTokenIsUsable(payload: AuthTokenPayload): Promise<void> {
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(payload.jti);
     if (isBlacklisted) {
-      throw new UnauthorizedException('Refresh token has been revoked.');
+      throw new UnauthorizedException('Invalid or expired token.');
     }
 
     const activeRefreshJti = await this.authTokenStore.getRefreshSession(payload.sessionId);
     if (!activeRefreshJti || activeRefreshJti !== payload.jti) {
-      throw new UnauthorizedException('Refresh token is no longer active.');
+      throw new UnauthorizedException('Invalid or expired token.');
     }
   }
 

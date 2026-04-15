@@ -171,6 +171,6 @@ test('AdminService bootstraps the first admin only once', async () => {
         displayName: 'Second',
         roles: ['admin'],
       }),
-    /Bootstrap admin is only available before the first user exists/,
+    /Bootstrap is not available/,
   );
 });

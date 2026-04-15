@@ -37,14 +37,14 @@ export class ProviderCredentialService {
       },
     });
     if (!user) {
-      throw new NotFoundException('Authenticated user could not be resolved.');
+      throw new NotFoundException('Unable to resolve the provider credential for the authenticated request.');
     }
 
     const provider = await this.providerRepository.findOne({
       where: { providerId, status: 'active' },
     });
     if (!provider) {
-      throw new NotFoundException(`Provider ${providerId} is not configured.`);
+      throw new NotFoundException('Unable to resolve the provider credential for the authenticated request.');
     }
 
     const credential = await this.credentialRepository.findOne({
@@ -59,7 +59,7 @@ export class ProviderCredentialService {
     });
     if (!credential) {
       throw new NotFoundException(
-        `No active credential found for the authenticated user and provider ${providerId}.`,
+        'Unable to resolve the provider credential for the authenticated request.',
       );
     }
 
