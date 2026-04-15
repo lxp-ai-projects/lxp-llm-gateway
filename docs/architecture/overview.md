@@ -32,9 +32,18 @@ It must not import provider-specific implementation details directly.
 
 ## Persistence Posture
 
-Phase 1 may use Redis or Valkey for lightweight operational state.
+Phase 1 already uses relational persistence for:
 
-Relational persistence is intentionally deferred until audit, metadata, and workflow requirements justify it.
+- users
+- roles
+- provider credentials
+
+Postgres is the durable source of truth for control-plane identity and encrypted provider secrets.
+
+Redis is used for short-lived auth state such as:
+
+- revoked token tracking
+- refresh rotation state
 
 ## Security Posture
 
@@ -44,6 +53,9 @@ The initial architecture assumes:
 - encrypted provider credentials
 - clear identity boundaries
 - no unsafe browser token storage patterns
+- application-level encryption for stored provider API secrets
+- short-lived access tokens with server-side revocation support
+- gateway-side identity resolution from `emailHash`, not a caller-supplied internal user id
 
 ## Primary Risk
 

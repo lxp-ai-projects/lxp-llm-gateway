@@ -1,16 +1,24 @@
 import { Module } from '@nestjs/common';
-import { NanoGptProviderAdapter } from '@lxp/provider-nanogpt';
+import { ConfigModule } from '@nestjs/config';
+import { TerminusModule } from '@nestjs/terminus';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { GatewayController } from './gateway.controller';
-import { LLM_PROVIDER } from './provider.token';
+import { buildTypeOrmOptions, validateRuntimeConfig } from './config/runtime.config';
+import { HealthController } from './health.controller';
+import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
-  controllers: [GatewayController],
-  providers: [
-    {
-      provide: LLM_PROVIDER,
-      useFactory: () => new NanoGptProviderAdapter(),
-    },
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateRuntimeConfig,
+    }),
+    TerminusModule,
+    TypeOrmModule.forRootAsync({
+      useFactory: buildTypeOrmOptions,
+    }),
+    GatewayModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

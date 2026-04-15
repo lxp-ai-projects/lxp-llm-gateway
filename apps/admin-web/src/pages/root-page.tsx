@@ -1,21 +1,41 @@
 import { useQuery } from '@tanstack/react-query';
 
 const adminApiUrl = import.meta.env.VITE_ADMIN_API_URL ?? 'http://localhost:3002';
+const gatewayApiUrl = import.meta.env.VITE_GATEWAY_API_URL ?? 'http://localhost:3001';
 
-async function fetchHealth(): Promise<{ service: string; status: string }> {
-  const response = await fetch(`${adminApiUrl}/health`);
+async function fetchHealth(baseUrl: string): Promise<{ status: string; info?: Record<string, unknown> }> {
+  const response = await fetch(`${baseUrl}/api/v1/health`);
   if (!response.ok) {
     throw new Error(`Health request failed with ${response.status}`);
   }
 
-  return response.json() as Promise<{ service: string; status: string }>;
+  return response.json() as Promise<{ status: string; info?: Record<string, unknown> }>;
 }
 
 export function RootPage() {
-  const healthQuery = useQuery({
+  const adminHealthQuery = useQuery({
     queryKey: ['admin-api-health'],
-    queryFn: fetchHealth,
+    queryFn: () => fetchHealth(adminApiUrl),
   });
+  const gatewayHealthQuery = useQuery({
+    queryKey: ['gateway-api-health'],
+    queryFn: () => fetchHealth(gatewayApiUrl),
+  });
+
+  function renderHealthStatus(
+    query: typeof adminHealthQuery,
+    serviceName: string,
+  ): string {
+    if (query.isPending) {
+      return 'Loading';
+    }
+
+    if (query.isError) {
+      return 'Unavailable';
+    }
+
+    return `${query.data?.status ?? 'unknown'} (${serviceName})`;
+  }
 
   return (
     <main className="shell">
@@ -28,9 +48,13 @@ export function RootPage() {
         <div className="status-card">
           <span className="status-label">admin-api health</span>
           <strong>
-            {healthQuery.isPending && 'Loading'}
-            {healthQuery.isError && 'Unavailable'}
-            {healthQuery.data && `${healthQuery.data.status} (${healthQuery.data.service})`}
+            {renderHealthStatus(adminHealthQuery, 'admin-api')}
+          </strong>
+        </div>
+        <div className="status-card">
+          <span className="status-label">gateway-api health</span>
+          <strong>
+            {renderHealthStatus(gatewayHealthQuery, 'gateway-api')}
           </strong>
         </div>
       </section>

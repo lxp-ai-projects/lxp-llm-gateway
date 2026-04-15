@@ -1,8 +1,14 @@
 import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import type { ProviderId } from '@lxp/domain';
 
+export interface ProviderCredential {
+  apiKey: string;
+}
+
 export interface ProviderExecutionContext {
   requestId: string;
+  userId: string;
+  providerCredential: ProviderCredential;
 }
 
 export interface ProviderModel {
@@ -25,5 +31,5 @@ export interface LlmProviderAdapter {
   chatStream?(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
-  ): Promise<ReadableStream>;
+  ): Promise<ReadableStream<Uint8Array>>;
 }

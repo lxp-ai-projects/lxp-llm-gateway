@@ -2,25 +2,36 @@
   "name": "@lxp/gateway-api",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
   "dependencies": {
     "@lxp/contracts": "workspace:*",
     "@lxp/domain": "workspace:*",
     "@lxp/provider-nanogpt": "workspace:*",
     "@lxp/provider-sdk": "workspace:*",
     "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.1",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/terminus": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "dotenv": "^16.6.1",
+    "pg": "^8.16.3",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "typeorm": "^0.3.25"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/main.ts",
+    "coverage": "tsx --test --experimental-test-coverage src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/persistence/entities/entity-metadata.test.ts",
+    "dev": "tsc-watch --project tsconfig.json --onSuccess \"node dist/main.js\"",
     "lint": "eslint src --ext .ts",
-    "test": "node --test"
+    "test": "tsx --test src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/persistence/entities/entity-metadata.test.ts"
   },
   "devDependencies": {
+    "@types/express": "^5.0.3",
+    "tsc-watch": "^6.2.1",
     "tsx": "^4.0.0"
   }
 }
