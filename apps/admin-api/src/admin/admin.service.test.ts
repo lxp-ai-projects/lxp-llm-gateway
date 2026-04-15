@@ -124,6 +124,43 @@ test('AdminService creates a user with protected email and assigned roles', asyn
   assert.equal(repositories.userRoleRepository.data.length, 1);
 });
 
+test('AdminService rejects creating a user when the email already exists', async () => {
+  const { service } = createAdminService();
+
+  await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+    roles: ['admin'],
+  });
+
+  await assert.rejects(
+    () =>
+      service.createUser({
+        email: 'patrick@example.com',
+        password: 'Sup3rS3cret!',
+        displayName: 'Patrick Again',
+        roles: ['admin'],
+      }),
+    /Unable to create user with the provided data/,
+  );
+});
+
+test('AdminService rejects creating a user when a requested role does not exist', async () => {
+  const { service } = createAdminService();
+
+  await assert.rejects(
+    () =>
+      service.createUser({
+        email: 'patrick@example.com',
+        password: 'Sup3rS3cret!',
+        displayName: 'Patrick',
+        roles: ['ghost-role'],
+      }),
+    /Unable to assign one or more requested roles/,
+  );
+});
+
 test('AdminService stores an encrypted provider credential and returns only metadata', async () => {
   const { service, repositories } = createAdminService();
   const createdUser = await service.createUser({
@@ -148,6 +185,86 @@ test('AdminService stores an encrypted provider credential and returns only meta
     encryptedSecret: string;
   };
   assert.notEqual(stored.encryptedSecret, 'nano-secret-token');
+});
+
+test('AdminService stores short provider tokens without masking them further', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  const credential = await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'short',
+    apiToken: 'abcd',
+  });
+
+  assert.equal(credential.maskedHint, 'abcd');
+});
+
+test('AdminService rejects storing a provider credential when the user does not exist', async () => {
+  const { service } = createAdminService();
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: randomUUID(),
+        providerId: 'nanogpt',
+        label: 'primary',
+        apiToken: 'nano-secret-token',
+      }),
+    /Unable to store the provider credential/,
+  );
+});
+
+test('AdminService rejects storing a provider credential when the provider does not exist', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'unknown-provider',
+        label: 'primary',
+        apiToken: 'nano-secret-token',
+      }),
+    /Unable to store the provider credential/,
+  );
+});
+
+test('AdminService rejects storing a duplicate provider credential label', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'nanogpt',
+        label: 'primary',
+        apiToken: 'another-secret-token',
+      }),
+    /Unable to store the provider credential/,
+  );
 });
 
 test('AdminService bootstraps the first admin only once', async () => {

@@ -102,6 +102,55 @@ test('GatewayService returns a provider stream when streaming is requested', asy
   assert.match(new TextDecoder().decode(firstChunk.value), /reasoning/);
 });
 
+test('GatewayService rejects non-stream requests without messages', async () => {
+  const service = new GatewayService(
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          model: 'nano-1',
+          messages: [],
+        } as GatewayChatRequestDto,
+        {
+          userId: 'user-1',
+          userUuid: 'user-public-1',
+          emailHash: 'hash-1',
+          roles: ['admin'],
+        },
+      ),
+    /At least one message is required/,
+  );
+});
+
+test('GatewayService rejects stream requests without messages', async () => {
+  const service = new GatewayService(
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chatStream(
+        {
+          model: 'nano-1',
+          messages: [],
+          stream: true,
+        } as GatewayChatRequestDto,
+        {
+          userId: 'user-1',
+          userUuid: 'user-public-1',
+          emailHash: 'hash-1',
+          roles: ['admin'],
+        },
+      ),
+    /At least one message is required/,
+  );
+});
+
 test('GatewayService rejects streaming when a provider does not support it', async () => {
   class NonStreamingProvider extends FakeProvider {
     override supportsStreaming(): boolean {

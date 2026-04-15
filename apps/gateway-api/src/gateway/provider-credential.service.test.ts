@@ -111,3 +111,84 @@ test('ProviderCredentialService throws an explicit error when credential decrypt
     /Unable to decrypt the stored credential for provider nanogpt/,
   );
 });
+
+test('ProviderCredentialService rejects missing authenticated user context', async () => {
+  const service = new ProviderCredentialService(
+    createRepositoryMock([]) as never,
+    createRepositoryMock([]) as never,
+    createRepositoryMock([]) as never,
+    { decrypt: () => 'unused' } as never,
+  );
+
+  await assert.rejects(
+    () => service.resolveApiKey('', 'nanogpt'),
+    /Missing authenticated user email hash/,
+  );
+});
+
+test('ProviderCredentialService rejects when the authenticated user cannot be resolved', async () => {
+  const service = new ProviderCredentialService(
+    createRepositoryMock([]) as never,
+    createRepositoryMock([]) as never,
+    createRepositoryMock([]) as never,
+    { decrypt: () => 'unused' } as never,
+  );
+
+  await assert.rejects(
+    () => service.resolveApiKey('missing-hash', 'nanogpt'),
+    /Unable to resolve the provider credential for the authenticated request/,
+  );
+});
+
+test('ProviderCredentialService rejects when the provider cannot be resolved', async () => {
+  const userRepository = createRepositoryMock([
+    {
+      id: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      status: 'active',
+    },
+  ]);
+
+  const service = new ProviderCredentialService(
+    userRepository as never,
+    createRepositoryMock([]) as never,
+    createRepositoryMock([]) as never,
+    { decrypt: () => 'unused' } as never,
+  );
+
+  await assert.rejects(
+    () => service.resolveApiKey('hash-1', 'nanogpt'),
+    /Unable to resolve the provider credential for the authenticated request/,
+  );
+});
+
+test('ProviderCredentialService rejects when no active credential exists', async () => {
+  const userRepository = createRepositoryMock([
+    {
+      id: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      status: 'active',
+    },
+  ]);
+  const providerRepository = createRepositoryMock([
+    {
+      id: 'provider-1',
+      providerId: 'nanogpt',
+      status: 'active',
+    },
+  ]);
+
+  const service = new ProviderCredentialService(
+    userRepository as never,
+    providerRepository as never,
+    createRepositoryMock([]) as never,
+    { decrypt: () => 'unused' } as never,
+  );
+
+  await assert.rejects(
+    () => service.resolveApiKey('hash-1', 'nanogpt'),
+    /Unable to resolve the provider credential for the authenticated request/,
+  );
+});

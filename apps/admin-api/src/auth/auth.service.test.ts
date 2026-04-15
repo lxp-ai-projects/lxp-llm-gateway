@@ -90,6 +90,64 @@ async function buildAuthService() {
   return { authService, jwtService, tokenStore, user };
 }
 
+async function buildAuthServiceWithUser(
+  overrides: Partial<UserEntity>,
+  roles = ['admin', 'user'],
+) {
+  process.env.LXP_ENCRYPTION_MASTER_KEY =
+    'AEkZcducf2qDu4KA7t9i5PnWekbV/CGYBlBwJ9qCmjQ=';
+  process.env.LXP_ENCRYPTION_KEY_VERSION = '1';
+  process.env.LXP_EMAIL_LOOKUP_KEY = 'tPWBQyo3zw8z8HgCPWVb7968QdQ6jGHQ9Nh2gWmC8qY=';
+
+  const encryptionService = new EncryptionService();
+  const emailProtectionService = new EmailProtectionService(encryptionService);
+  const passwordService = new PasswordService();
+  const tokenStore = new InMemoryAuthTokenStore();
+  const protectedEmail = emailProtectionService.protect('laurie@example.com');
+  const passwordHash = await passwordService.hashPassword('Sup3rS3cret!');
+  const user: UserEntity = {
+    id: randomUUID(),
+    userUuid: randomUUID(),
+    emailHash: protectedEmail.emailHash,
+    encryptedEmail: protectedEmail.encryptedEmail,
+    emailIv: protectedEmail.emailIv,
+    emailAuthTag: protectedEmail.emailAuthTag,
+    emailKeyVersion: protectedEmail.emailKeyVersion,
+    passwordHash,
+    displayName: 'Laurie',
+    status: 'active',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    roles: [],
+    providerCredentials: [],
+    ...overrides,
+  };
+  const userRepository = {
+    findOne: async ({ where }: { where: Partial<UserEntity> }) =>
+      where.emailHash === user.emailHash ||
+      where.id === user.id ||
+      where.userUuid === user.userUuid
+        ? user
+        : null,
+  };
+  const userRoleRepository = {
+    find: async () => roles.map((role) => ({ role: { name: role } })),
+  };
+  const jwtService = new JwtService({
+    secret: 'test-secret',
+  });
+  const authService = new AuthService(
+    userRepository as never,
+    userRoleRepository as never,
+    emailProtectionService,
+    passwordService,
+    jwtService,
+    tokenStore as never,
+  );
+
+  return { authService, jwtService, tokenStore, user };
+}
+
 test('AuthService login issues access and refresh tokens with user payload', async () => {
   const { authService, jwtService, tokenStore, user } = await buildAuthService();
 
@@ -146,6 +204,149 @@ test('AuthService rejects a blacklisted access token for authenticated user look
 
   const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
   await authService.logout(loginResult.accessToken, undefined);
+
+  await assert.rejects(
+    () => authService.getAuthenticatedUser(loginResult.accessToken),
+    /Invalid or expired token/,
+  );
+});
+
+test('AuthService returns the authenticated user profile for a valid access token', async () => {
+  const { authService, user } = await buildAuthService();
+
+  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  const authenticatedUser = await authService.getAuthenticatedUser(loginResult.accessToken);
+
+  assert.equal(authenticatedUser.userUuid, user.userUuid);
+  assert.equal(authenticatedUser.email, 'laurie@example.com');
+  assert.equal(authenticatedUser.displayName, user.displayName);
+  assert.equal(authenticatedUser.status, user.status);
+  assert.deepEqual(authenticatedUser.roles, ['admin', 'user']);
+});
+
+test('AuthService rejects login when the password is wrong', async () => {
+  const { authService } = await buildAuthService();
+
+  await assert.rejects(
+    () => authService.login('laurie@example.com', 'wrong-password'),
+    /Invalid email or password/,
+  );
+});
+
+test('AuthService rejects login when the user is inactive', async () => {
+  const { authService } = await buildAuthServiceWithUser({
+    status: 'disabled',
+  });
+
+  await assert.rejects(
+    () => authService.login('laurie@example.com', 'Sup3rS3cret!'),
+    /Invalid email or password/,
+  );
+});
+
+test('AuthService rejects refresh when the refreshed user is inactive', async () => {
+  const { authService } = await buildAuthServiceWithUser({
+    status: 'disabled',
+  });
+
+  const activeService = await buildAuthService();
+  const loginResult = await activeService.authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
+
+  await assert.rejects(
+    () => authService.refresh(loginResult.refreshToken),
+    /Invalid or expired token/,
+  );
+});
+
+test('AuthService rejects access token lookup when token type is refresh', async () => {
+  const { authService, jwtService, user } = await buildAuthService();
+  const refreshAsAccess = await jwtService.signAsync({
+    sub: user.emailHash,
+    emailHash: user.emailHash,
+    type: 'refresh',
+    roles: ['admin'],
+    sessionId: randomUUID(),
+    jti: randomUUID(),
+  } satisfies AuthTokenPayload);
+
+  await assert.rejects(
+    () => authService.getAuthenticatedUser(refreshAsAccess),
+    /Unexpected token type/,
+  );
+});
+
+test('AuthService rejects invalid access tokens', async () => {
+  const { authService } = await buildAuthService();
+
+  await assert.rejects(
+    () => authService.getAuthenticatedUser('not-a-token'),
+    /Invalid or expired token/,
+  );
+});
+
+test('AuthService rejects login when no user matches the email', async () => {
+  const { authService } = await buildAuthService();
+
+  await assert.rejects(
+    () => authService.login('unknown@example.com', 'Sup3rS3cret!'),
+    /Invalid email or password/,
+  );
+});
+
+test('AuthService rejects refresh when the token was blacklisted', async () => {
+  const { authService } = await buildAuthService();
+  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+
+  await authService.logout(undefined, loginResult.refreshToken);
+
+  await assert.rejects(
+    () => authService.refresh(loginResult.refreshToken),
+    /Invalid or expired token/,
+  );
+});
+
+test('AuthService rejects refresh when the stored session token does not match', async () => {
+  const { authService, tokenStore } = await buildAuthService();
+  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  tokenStore.refreshSessions.clear();
+
+  await assert.rejects(
+    () => authService.refresh(loginResult.refreshToken),
+    /Invalid or expired token/,
+  );
+});
+
+test('AuthService rejects refresh when token type is access', async () => {
+  const { authService } = await buildAuthService();
+  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+
+  await assert.rejects(
+    () => authService.refresh(loginResult.accessToken),
+    /Unexpected token type/,
+  );
+});
+
+test('AuthService logout ignores missing or invalid tokens', async () => {
+  const { authService, tokenStore } = await buildAuthService();
+
+  await authService.logout(undefined, 'not-a-token');
+
+  assert.equal(tokenStore.blacklistedTokens.size, 0);
+  assert.equal(tokenStore.refreshSessions.size, 0);
+});
+
+test('AuthService rejects authenticated user lookup when the resolved user is inactive', async () => {
+  const { authService } = await buildAuthServiceWithUser({
+    status: 'disabled',
+  });
+  const activeService = await buildAuthService();
+  const loginResult = await activeService.authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
 
   await assert.rejects(
     () => authService.getAuthenticatedUser(loginResult.accessToken),
