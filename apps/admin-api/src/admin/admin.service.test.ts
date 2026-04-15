@@ -232,7 +232,7 @@ test('AdminService rejects storing a provider credential when the provider does 
     () =>
       service.storeProviderCredential({
         userUuid: createdUser.userUuid,
-        providerId: 'unknown-provider',
+        providerId: 'unknown-provider' as never,
         label: 'primary',
         apiToken: 'nano-secret-token',
       }),
