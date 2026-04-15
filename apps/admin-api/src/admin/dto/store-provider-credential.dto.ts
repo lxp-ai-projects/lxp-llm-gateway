@@ -2,7 +2,7 @@ import { IsIn, IsString, IsUUID, MinLength } from 'class-validator';
 
 export class StoreProviderCredentialDto {
   @IsUUID()
-  userId!: string;
+  userUuid!: string;
 
   @IsIn(['nanogpt'])
   providerId!: 'nanogpt';

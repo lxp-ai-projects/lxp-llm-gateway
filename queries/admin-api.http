@@ -1,9 +1,21 @@
 ### Health
 GET {{adminApiBaseUrl}}/api/v1/health
 
+### Bootstrap First Admin
+POST {{adminApiBaseUrl}}/api/v1/bootstrap/admin
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}",
+  "displayName": "Patrick",
+  "roles": ["admin"]
+}
+
 ### Create User
 POST {{adminApiBaseUrl}}/api/v1/admin/users
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "email": "patrick@example.com",

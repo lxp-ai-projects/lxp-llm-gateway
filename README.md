@@ -13,6 +13,14 @@ This repository currently contains:
 - provider seam packages
 - a first NanoGPT provider placeholder
 
+The repository now includes:
+
+- JWT auth with refresh rotation and Redis-backed revocation
+- encrypted provider credential storage in Postgres
+- gateway authentication via access token `emailHash`
+- non-stream JSON chat responses with structured assistant output
+- streaming SSE passthrough for NanoGPT thinking models
+
 ## Structure
 
 - `apps/gateway-api`: data-plane gateway
@@ -157,14 +165,17 @@ pnpm.cmd --filter @lxp/admin-web dev
 
 ### 4. Manual endpoint testing
 
-Use the HTTP files in [queries/README.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/queries/README.md):
+Use the HTTP files in [queries/README.md](queries/README.md):
 
-1. run `queries/admin-api.http` to create a user
-2. copy the returned user `id`
-3. set `@userId` and `@providerApiToken` in `queries/provider-credentials.http`
-4. store the NanoGPT credential
-5. set `@userId` in `queries/gateway-api.http`
-6. run the chat request
+1. if the database is empty, run `Bootstrap First Admin` from `queries/admin-api.http`
+2. run `queries/auth.http` to obtain tokens
+3. use `queries/admin-api.http` for protected admin operations
+4. use `queries/provider-credentials.http` to resolve `userUuid` and store the NanoGPT credential
+5. use `queries/gateway-api.http` for:
+   - non-stream JSON chat
+   - stream SSE chat with thinking models
+
+See the gateway response contract in [docs/api/gateway-contract.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/api/gateway-contract.md).
 
 ### 5. Workspace validation
 
@@ -186,7 +197,6 @@ pnpm.cmd test
 
 ## Next Steps
 
-- install dependencies with `pnpm install`
-- validate the workspace with `pnpm build`
-- refine OpenAPI contracts
-- build the first end-to-end NanoGPT flow
+- add route guards to more control-plane surfaces as they appear
+- refine OpenAPI so it reflects the implemented gateway contract
+- decide how much provider-native stream data should be normalized vs passed through

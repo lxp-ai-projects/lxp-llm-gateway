@@ -1,18 +1,66 @@
+### Login
+POST {{adminApiBaseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+> {%
+    client.global.set("accessToken", response.body.accessToken);
+    client.global.set("refreshToken", response.body.refreshToken);
+%}
+
 ### Health
 GET {{gatewayApiBaseUrl}}/api/v1/health
 
 ### Chat Completion
 POST {{gatewayApiBaseUrl}}/api/v1/chat
 Content-Type: application/json
-x-user-id: {{userId}}
+Authorization: Bearer {{accessToken}}
 
 {
   "providerId": "nanogpt",
-  "model": "openai/gpt-5.2",
+  "model": "z-ai/glm-4.6",
   "messages": [
     {
       "role": "user",
-      "content": "Say hello from lxp-llm-gateway."
+      "content": "Bonjour, je m'appelle Emilie Joli. Peux-tu me dire bonjour en retour ?"
+    }
+  ]
+}
+
+### Chat Completion (Thinking)
+POST {{gatewayApiBaseUrl}}/api/v1/chat
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "providerId": "nanogpt",
+  "model": "z-ai/glm-4.6:thinking",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bonjour, je m'appelle Emilie Joli. Peux-tu me dire bonjour en retour ?"
+    }
+  ]
+}
+
+### Chat Completion Stream
+POST {{gatewayApiBaseUrl}}/api/v1/chat
+Content-Type: application/json
+Accept: text/event-stream
+Authorization: Bearer {{accessToken}}
+
+{
+  "providerId": "nanogpt",
+  "model": "z-ai/glm-4.6:thinking",
+  "stream": true,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bonjour, je m'appelle Emilie Joli. Peux-tu me dire bonjour en retour ?"
     }
   ]
 }

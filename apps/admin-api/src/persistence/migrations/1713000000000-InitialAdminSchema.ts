@@ -34,6 +34,7 @@ export class InitialAdminSchema1713000000000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE "users" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "user_uuid" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "email_hash" character varying(64) NOT NULL,
         "encrypted_email" text NOT NULL,
         "email_iv" character varying(24) NOT NULL,
@@ -45,6 +46,7 @@ export class InitialAdminSchema1713000000000 implements MigrationInterface {
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_users_id" PRIMARY KEY ("id"),
+        CONSTRAINT "UX_users_user_uuid" UNIQUE ("user_uuid"),
         CONSTRAINT "UX_users_email_hash" UNIQUE ("email_hash")
       )
     `);

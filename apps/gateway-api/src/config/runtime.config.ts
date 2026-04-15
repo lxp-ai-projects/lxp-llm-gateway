@@ -1,6 +1,7 @@
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 import { ProviderEntity } from '../persistence/entities/provider.entity';
+import { UserEntity } from '../persistence/entities/user.entity';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 
 function getRequiredString(key: string): string {
@@ -42,6 +43,7 @@ export function validateRuntimeConfig(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv
   getRequiredString('DATABASE_PASSWORD');
   getRequiredString('LXP_ENCRYPTION_MASTER_KEY');
   getRequiredString('LXP_ENCRYPTION_KEY_VERSION');
+  getRequiredString('LXP_JWT_PRIVATE_KEY');
 
   return env;
 }
@@ -55,7 +57,7 @@ export function buildTypeOrmOptions(): TypeOrmModuleOptions {
     username: process.env.DATABASE_USER,
     password: process.env.DATABASE_PASSWORD,
     ssl: getBoolean('DATABASE_SSL', false) ? { rejectUnauthorized: false } : false,
-    entities: [ProviderEntity, UserProviderCredentialEntity],
+    entities: [UserEntity, ProviderEntity, UserProviderCredentialEntity],
     synchronize: false,
     autoLoadEntities: false,
   };

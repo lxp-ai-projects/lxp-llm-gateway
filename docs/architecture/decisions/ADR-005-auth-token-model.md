@@ -33,7 +33,8 @@ Initial token posture:
 
 Suggested claims:
 
-- `sub`: user id
+- `sub`: `emailHash`
+- `emailHash`
 - `jti`: token identifier
 - `type`: `access`
 - `roles`
@@ -49,7 +50,8 @@ Suggested claims:
 
 Suggested claims or tracked fields:
 
-- `sub`: user id
+- `sub`: `emailHash`
+- `emailHash`
 - `jti`: token identifier
 - `type`: `refresh`
 - `iat`
@@ -109,3 +111,5 @@ On logout:
 - login, refresh, and logout must all be explicit server-side flows
 - auth middleware must validate JWT signature and blacklist status
 - token identifiers and session metadata must be modeled deliberately
+- downstream APIs can correlate the caller through `emailHash` without exposing the raw email address
+- the gateway must resolve the internal user record from `emailHash`; hashes are not decrypted

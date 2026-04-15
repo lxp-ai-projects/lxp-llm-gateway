@@ -58,6 +58,7 @@ export function validateRuntimeConfig(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv
   getRequiredString(env, 'LXP_ENCRYPTION_KEY_VERSION', { allowEmptyInLocal: true });
   getRequiredString(env, 'LXP_COOKIE_SECRET', { allowEmptyInLocal: true });
   getRequiredString(env, 'LXP_JWT_PRIVATE_KEY', { allowEmptyInLocal: true });
+  getRequiredString(env, 'REDIS_URL', { allowEmptyInLocal: true });
 
   return env;
 }

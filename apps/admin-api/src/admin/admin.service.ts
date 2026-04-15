@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   ConflictException,
   Injectable,
@@ -47,6 +48,7 @@ export class AdminService {
 
     const passwordHash = await this.passwordService.hashPassword(dto.password);
     const user = this.userRepository.create({
+      userUuid: randomUUID(),
       emailHash: protectedEmail.emailHash,
       encryptedEmail: protectedEmail.encryptedEmail,
       emailIv: protectedEmail.emailIv,
@@ -77,7 +79,7 @@ export class AdminService {
     );
 
     return {
-      id: user.id,
+      userUuid: user.userUuid,
       displayName: user.displayName,
       email: this.emailProtectionService.reveal({
         emailHash: user.emailHash,
@@ -91,9 +93,23 @@ export class AdminService {
     };
   }
 
+  async bootstrapAdmin(dto: CreateUserDto) {
+    const userCount = await this.userRepository.count();
+    if (userCount > 0) {
+      throw new ConflictException(
+        'Bootstrap admin is only available before the first user exists.',
+      );
+    }
+
+    return this.createUser({
+      ...dto,
+      roles: dto.roles?.length ? dto.roles : ['admin'],
+    });
+  }
+
   async storeProviderCredential(dto: StoreProviderCredentialDto) {
     const user = await this.userRepository.findOne({
-      where: { id: dto.userId },
+      where: { userUuid: dto.userUuid },
     });
     if (!user) {
       throw new NotFoundException('User not found.');
@@ -139,7 +155,7 @@ export class AdminService {
 
     return {
       id: credential.id,
-      userId: credential.userId,
+      userUuid: user.userUuid,
       providerId: provider.providerId,
       label: credential.label,
       maskedHint: credential.maskedHint,

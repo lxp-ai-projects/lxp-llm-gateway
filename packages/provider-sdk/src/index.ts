@@ -31,5 +31,5 @@ export interface LlmProviderAdapter {
   chatStream?(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
-  ): Promise<ReadableStream>;
+  ): Promise<ReadableStream<Uint8Array>>;
 }

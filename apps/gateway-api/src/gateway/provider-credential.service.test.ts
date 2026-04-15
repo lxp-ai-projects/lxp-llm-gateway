@@ -23,6 +23,14 @@ function createRepositoryMock<T>(data: T[]) {
 }
 
 test('ProviderCredentialService resolves and decrypts an active provider credential', async () => {
+  const userRepository = createRepositoryMock([
+    {
+      id: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      status: 'active',
+    },
+  ]);
   const providerRepository = createRepositoryMock([
     {
       id: 'provider-1',
@@ -48,11 +56,58 @@ test('ProviderCredentialService resolves and decrypts an active provider credent
   };
 
   const service = new ProviderCredentialService(
+    userRepository as never,
     providerRepository as never,
     credentialRepository as never,
     encryptionService as never,
   );
 
-  const apiKey = await service.resolveApiKey('user-1', 'nanogpt');
+  const apiKey = await service.resolveApiKey('hash-1', 'nanogpt');
   assert.equal(apiKey, 'nano-secret-token');
+});
+
+test('ProviderCredentialService throws an explicit error when credential decryption fails', async () => {
+  const userRepository = createRepositoryMock([
+    {
+      id: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      status: 'active',
+    },
+  ]);
+  const providerRepository = createRepositoryMock([
+    {
+      id: 'provider-1',
+      providerId: 'nanogpt',
+      status: 'active',
+    },
+  ]);
+  const credentialRepository = createRepositoryMock([
+    {
+      userId: 'user-1',
+      providerId: 'provider-1',
+      isActive: true,
+      encryptedSecret: 'cipher',
+      iv: 'iv',
+      authTag: 'tag',
+      keyVersion: 1,
+    },
+  ]);
+  const encryptionService = {
+    decrypt(): string {
+      throw new Error('Unsupported state or unable to authenticate data');
+    },
+  };
+
+  const service = new ProviderCredentialService(
+    userRepository as never,
+    providerRepository as never,
+    credentialRepository as never,
+    encryptionService as never,
+  );
+
+  await assert.rejects(
+    () => service.resolveApiKey('hash-1', 'nanogpt'),
+    /Unable to decrypt the stored credential for provider nanogpt/,
+  );
 });

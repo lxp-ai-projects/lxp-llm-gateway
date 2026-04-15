@@ -16,6 +16,14 @@ export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Index('ux_users_user_uuid', { unique: true })
+  @Column({
+    name: 'user_uuid',
+    type: 'uuid',
+    default: () => 'uuid_generate_v4()',
+  })
+  userUuid!: string;
+
   @Index('ux_users_email_hash', { unique: true })
   @Column({ name: 'email_hash', type: 'varchar', length: 64 })
   emailHash!: string;

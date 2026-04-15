@@ -48,6 +48,21 @@ test('database entity graph initializes against a Postgres-compatible in-memory 
   await dataSource.initialize();
 
   const providerRepository = dataSource.getRepository(ProviderEntity);
+  const userRepository = dataSource.getRepository(UserEntity);
+  const user = userRepository.create({
+    userUuid: randomUUID(),
+    emailHash: 'hash',
+    encryptedEmail: 'cipher',
+    emailIv: 'iv',
+    emailAuthTag: 'tag',
+    emailKeyVersion: 1,
+    passwordHash: 'hash',
+    displayName: 'Patrick',
+    status: 'active',
+  });
+  await userRepository.save(user);
+  assert.ok(user.userUuid);
+
   const provider = providerRepository.create({
     providerId: 'nanogpt',
     displayName: 'NanoGPT',

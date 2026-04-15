@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminController } from './admin.controller';
 import { buildTypeOrmOptions, validateRuntimeConfig } from './config/runtime.config';
 import { HealthController } from './health.controller';
+import { AuthModule } from './auth/auth.module';
 import { UserEntity } from './persistence/entities/user.entity';
 import { RoleEntity } from './persistence/entities/role.entity';
 import { UserRoleEntity } from './persistence/entities/user-role.entity';
@@ -33,6 +34,7 @@ import { AdminService } from './admin/admin.service';
       ProviderEntity,
       UserProviderCredentialEntity,
     ]),
+    AuthModule,
   ],
   controllers: [AdminController, HealthController],
   providers: [

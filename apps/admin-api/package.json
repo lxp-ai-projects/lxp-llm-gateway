@@ -4,18 +4,21 @@
   "version": "0.1.0",
   "dependencies": {
     "@lxp/domain": "workspace:*",
-    "@nestjs/config": "^4.0.0",
     "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.1",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/terminus": "^11.0.0",
     "@nestjs/typeorm": "^11.0.0",
     "@node-rs/argon2": "^2.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.6.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.0",
+    "redis": "^5.8.2",
     "rxjs": "^7.8.0",
     "typeorm": "^0.3.25"
   },
@@ -25,9 +28,11 @@
     "lint": "eslint src --ext .ts",
     "migration:generate": "typeorm-ts-node-commonjs -d src/persistence/data-source.ts migration:generate src/persistence/migrations/GeneratedMigration",
     "migration:run": "tsx ./node_modules/typeorm/cli.js migration:run -d src/persistence/data-source.ts",
-    "test": "tsx --test src/admin/admin.service.test.ts src/security/crypto.service.test.ts src/security/email-protection.service.test.ts src/security/password.service.test.ts src/persistence/database.integration.test.ts"
+    "test": "tsx --test src/admin/admin.service.test.ts src/auth/auth.service.test.ts src/security/crypto.service.test.ts src/security/email-protection.service.test.ts src/security/password.service.test.ts src/persistence/database.integration.test.ts"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.3",
     "pg-mem": "^3.0.5",
     "tsx": "^4.0.0",
     "tsc-watch": "^6.2.1",

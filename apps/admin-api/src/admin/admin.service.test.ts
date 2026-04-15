@@ -12,6 +12,9 @@ function createRepositoryMock<T extends { id?: string }>(initialData: T[] = []) 
 
   return {
     data: store,
+    async count(): Promise<number> {
+      return store.length;
+    },
     async findOne({ where }: { where: Partial<T> }): Promise<T | null> {
       return (
         store.find((item) =>
@@ -114,7 +117,7 @@ test('AdminService creates a user with protected email and assigned roles', asyn
     roles: ['admin'],
   });
 
-  assert.ok(user.id);
+  assert.ok(user.userUuid);
   assert.equal(user.email, 'patrick@example.com');
   assert.deepEqual(user.roles, ['admin']);
   assert.equal(repositories.userRepository.data.length, 1);
@@ -130,7 +133,7 @@ test('AdminService stores an encrypted provider credential and returns only meta
   });
 
   const credential = await service.storeProviderCredential({
-    userId: createdUser.id,
+    userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'primary',
     apiToken: 'nano-secret-token',
@@ -139,9 +142,35 @@ test('AdminService stores an encrypted provider credential and returns only meta
   assert.ok(credential.id);
   assert.equal(credential.providerId, 'nanogpt');
   assert.equal(credential.maskedHint, '***oken');
+  assert.equal(credential.userUuid, createdUser.userUuid);
 
   const stored = repositories.credentialRepository.data[0] as {
     encryptedSecret: string;
   };
   assert.notEqual(stored.encryptedSecret, 'nano-secret-token');
+});
+
+test('AdminService bootstraps the first admin only once', async () => {
+  const { service, repositories } = createAdminService();
+
+  const firstAdmin = await service.bootstrapAdmin({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+    roles: ['admin'],
+  });
+
+  assert.ok(firstAdmin.userUuid);
+  assert.equal(repositories.userRepository.data.length, 1);
+
+  await assert.rejects(
+    () =>
+      service.bootstrapAdmin({
+        email: 'second@example.com',
+        password: 'Sup3rS3cret!',
+        displayName: 'Second',
+        roles: ['admin'],
+      }),
+    /Bootstrap admin is only available before the first user exists/,
+  );
 });
