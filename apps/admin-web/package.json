@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
-    "dev": "vite",
+    "dev": "vite --host",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run"
   },

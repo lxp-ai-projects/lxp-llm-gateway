@@ -29,7 +29,7 @@ a {
 
 .auth-page {
   min-height: 100vh;
-  padding: 24px 0;
+  padding: 24px 12px;
 }
 
 .auth-grid {
@@ -83,6 +83,21 @@ a {
   border-right: 1px solid rgba(18, 34, 44, 0.08);
 }
 
+.shell-header-inner,
+.shell-actions {
+  min-width: 0;
+}
+
+.shell-brand-copy {
+  min-width: 0;
+}
+
+.shell-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status-tile,
 .section-card {
   background: rgba(255, 255, 255, 0.82);
@@ -117,9 +132,46 @@ a {
   border: 1px solid rgba(18, 34, 44, 0.08);
 }
 
+.message-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-bubble.streaming {
+  position: relative;
+}
+
+.chat-bubble.streaming::after {
+  content: '';
+  display: inline-block;
+  width: 0.65ch;
+  height: 1.1em;
+  margin-left: 4px;
+  vertical-align: text-bottom;
+  border-radius: 999px;
+  background: #0f766e;
+  animation: chat-caret-blink 1s steps(1, end) infinite;
+}
+
 .reasoning-card {
   background: linear-gradient(180deg, #fff7e8, #fffdf6);
   border: 1px solid rgba(191, 133, 0, 0.14);
+}
+
+.chat-toolbar {
+  width: 100%;
+}
+
+@keyframes chat-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0.15;
+  }
 }
 
 @media (min-width: 960px) {
@@ -131,5 +183,59 @@ a {
   .auth-grid {
     grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
     align-items: stretch;
+  }
+}
+
+@media (max-width: 47.99em) {
+  .auth-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-form-card {
+    max-width: 100%;
+    margin-left: 0;
+  }
+
+  .auth-links-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .shell-header-inner {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .shell-subtitle {
+    display: none;
+  }
+
+  .shell-actions {
+    gap: 6px;
+  }
+
+  .shell-navbar {
+    background: rgba(250, 252, 252, 0.98);
+    box-shadow: 0 16px 32px rgba(10, 18, 24, 0.18);
+  }
+
+  .chat-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .chat-model-select {
+    width: 100%;
+  }
+
+  .chat-scroll {
+    max-height: none;
+    min-height: 240px;
+  }
+
+  .chat-bubble {
+    max-width: 100%;
   }
 }

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  ForbiddenException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -16,6 +17,7 @@ import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { StoreProviderCredentialDto } from './dto/store-provider-credential.dto';
 
 @Injectable()
@@ -158,5 +160,126 @@ export class AdminService {
       isActive: credential.isActive,
       createdAt: credential.createdAt,
     };
+  }
+
+  async listUsers() {
+    const users = await this.userRepository.find({
+      relations: {
+        roles: {
+          role: true,
+        },
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    return users.map((user) => ({
+      userUuid: user.userUuid,
+      displayName: user.displayName,
+      email: this.emailProtectionService.reveal({
+        emailHash: user.emailHash,
+        encryptedEmail: user.encryptedEmail,
+        emailIv: user.emailIv,
+        emailAuthTag: user.emailAuthTag,
+        emailKeyVersion: user.emailKeyVersion,
+      }),
+      status: user.status,
+      roles: user.roles
+        .map((userRole) => userRole.role?.name)
+        .filter((roleName): roleName is string => Boolean(roleName)),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
+  }
+
+  async updateUser(userUuid: string, dto: UpdateUserDto) {
+    const user = await this.userRepository.findOne({
+      where: { userUuid },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    if (dto.displayName) {
+      user.displayName = dto.displayName;
+    }
+
+    if (dto.status) {
+      user.status = dto.status;
+    }
+
+    await this.userRepository.save(user);
+
+    if (dto.roles) {
+      const roles = await this.roleRepository.find({
+        where: dto.roles.map((name) => ({ name })),
+      });
+      if (roles.length !== dto.roles.length) {
+        throw new NotFoundException('Unable to assign one or more requested roles.');
+      }
+
+      await this.userRoleRepository.delete({ userId: user.id });
+      await this.userRoleRepository.save(
+        roles.map((role) =>
+          this.userRoleRepository.create({
+            userId: user.id,
+            roleId: role.id,
+          }),
+        ),
+      );
+    }
+
+    return this.listUsers().then((users) => users.find((entry) => entry.userUuid === userUuid));
+  }
+
+  async listProviderCredentialsForUser(userUuid: string) {
+    const user = await this.userRepository.findOne({
+      where: { userUuid },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const credentials = await this.credentialRepository.find({
+      where: { userId: user.id },
+      relations: {
+        provider: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    return credentials.map((credential) => ({
+      id: credential.id,
+      userUuid,
+      providerId: credential.provider.providerId,
+      providerDisplayName: credential.provider.displayName,
+      label: credential.label,
+      maskedHint: credential.maskedHint,
+      isActive: credential.isActive,
+      createdAt: credential.createdAt,
+      updatedAt: credential.updatedAt,
+      lastUsedAt: credential.lastUsedAt,
+    }));
+  }
+
+  async storeProviderCredentialForActor(
+    actor: { userUuid: string; roles: string[] },
+    dto: StoreProviderCredentialDto,
+  ) {
+    const targetUserUuid = dto.userUuid || actor.userUuid;
+    const isOwnCredential = targetUserUuid === actor.userUuid;
+    const isAdmin = actor.roles.includes('admin');
+
+    if (!isOwnCredential && !isAdmin) {
+      throw new ForbiddenException('You cannot manage another user provider credential.');
+    }
+
+    return this.storeProviderCredential({
+      ...dto,
+      userUuid: targetUserUuid,
+    });
   }
 }

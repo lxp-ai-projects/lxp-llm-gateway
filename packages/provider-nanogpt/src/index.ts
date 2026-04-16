@@ -1,20 +1,53 @@
 import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
+  ProviderModel,
   ProviderExecutionContext,
 } from '@lxp/provider-sdk';
 
 export class NanoGptProviderAdapter implements LlmProviderAdapter {
   private readonly baseUrl: string;
+  private readonly requestTimeoutMs: number;
 
-  constructor(baseUrl = process.env.NANOGPT_BASE_URL ?? 'https://nano-gpt.com/api/v1') {
+  constructor(
+    baseUrl = process.env.NANOGPT_BASE_URL ?? 'https://nano-gpt.com/api/v1',
+    requestTimeoutMs = Number(process.env.NANOGPT_REQUEST_TIMEOUT_MS ?? '90000'),
+  ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.requestTimeoutMs = requestTimeoutMs;
   }
 
   readonly providerId = 'nanogpt' as const;
 
   supportsStreaming(): boolean {
     return true;
+  }
+
+  async listModels(context: ProviderExecutionContext): Promise<ProviderModel[]> {
+    const response = await fetch(`${this.baseUrl}/models`, {
+      headers: {
+        authorization: `Bearer ${context.providerCredential.apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `NanoGPT model listing failed with status ${response.status}: ${errorText}`,
+      );
+    }
+
+    const payload = (await response.json()) as {
+      data?: Array<{
+        id: string;
+        name?: string;
+      }>;
+    };
+
+    return (payload.data ?? []).map((model) => ({
+      id: model.id,
+      displayName: model.name ?? model.id,
+    }));
   }
 
   async chat(
@@ -107,7 +140,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
     stream: boolean,
   ): Promise<Response> {
-    return fetch(`${this.baseUrl}/chat/completions`, {
+    return this.fetchWithTimeout(
+      `${this.baseUrl}/chat/completions`,
+      {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -119,6 +154,36 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
         stream,
         user: context.userId,
       }),
-    });
+      },
+      stream ? null : this.requestTimeoutMs,
+    );
+  }
+
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit,
+    timeoutMs: number | null,
+  ): Promise<Response> {
+    if (timeoutMs === null || timeoutMs <= 0) {
+      return fetch(url, init);
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error(`NanoGPT request timed out after ${timeoutMs} ms.`);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 }

@@ -4,22 +4,52 @@ import {
   Button,
   Card,
   Group,
+  Modal,
+  Select,
   Table,
   Text,
   TextInput,
   Title,
 } from '@mantine/core';
 import { IconSearch, IconUsersGroup } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 
 import { PageHeader } from '../components/page-header';
-
-const placeholderUsers = [
-  { displayName: 'Primary Admin', email: 'bootstrap@example.com', role: 'admin', status: 'active' },
-  { displayName: 'Patrick', email: 'patrick@example.com', role: 'user', status: 'active' },
-  { displayName: 'Laurie', email: 'laurie@example.com', role: 'admin', status: 'disabled' },
-];
+import { adminApiClient, type AdminUserSummary } from '../lib/api-client';
 
 export function UsersPage() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [selectedUser, setSelectedUser] = useState<AdminUserSummary | null>(null);
+  const [credentialsOpened, credentialsControls] = useDisclosure(false);
+  const usersQuery = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: () => adminApiClient.getUsers(),
+  });
+  const credentialsQuery = useQuery({
+    queryKey: ['admin-user-provider-credentials', selectedUser?.userUuid],
+    queryFn: () => adminApiClient.getUserProviderCredentials(selectedUser!.userUuid),
+    enabled: Boolean(selectedUser?.userUuid),
+  });
+  const updateUserMutation = useMutation({
+    mutationFn: (payload: { userUuid: string; status: 'active' | 'disabled' }) =>
+      adminApiClient.updateUser(payload.userUuid, { status: payload.status }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+
+  const filteredUsers = useMemo(
+    () =>
+      (usersQuery.data ?? []).filter((user) => {
+        const haystack = `${user.displayName} ${user.email} ${user.roles.join(' ')}`.toLowerCase();
+        return haystack.includes(search.toLowerCase());
+      }),
+    [search, usersQuery.data],
+  );
+
   return (
     <>
       <PageHeader
@@ -30,7 +60,13 @@ export function UsersPage() {
       <Card className="section-card">
         <Group justify="space-between" mb="md">
           <Title order={3}>Directory</Title>
-          <TextInput leftSection={<IconSearch size={16} />} placeholder="Search users..." w={280} />
+          <TextInput
+            leftSection={<IconSearch size={16} />}
+            placeholder="Search users..."
+            w={280}
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
         </Group>
         <Table highlightOnHover>
           <Table.Thead>
@@ -42,8 +78,8 @@ export function UsersPage() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {placeholderUsers.map((user) => (
-              <Table.Tr key={user.email}>
+            {filteredUsers.map((user) => (
+              <Table.Tr key={user.userUuid}>
                 <Table.Td>
                   <Text fw={600}>{user.displayName}</Text>
                   <Text size="sm" c="dimmed">
@@ -51,7 +87,13 @@ export function UsersPage() {
                   </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Badge variant="light">{user.role}</Badge>
+                  <Group gap="xs">
+                    {user.roles.map((role) => (
+                      <Badge key={role} variant="light">
+                        {role}
+                      </Badge>
+                    ))}
+                  </Group>
                 </Table.Td>
                 <Table.Td>
                   <Badge color={user.status === 'active' ? 'moss' : 'red'} variant="light">
@@ -60,8 +102,32 @@ export function UsersPage() {
                 </Table.Td>
                 <Table.Td>
                   <Group gap="xs">
-                    <Button size="xs" variant="light">
-                      Edit
+                    <Select
+                      data={[
+                        { value: 'active', label: 'Active' },
+                        { value: 'disabled', label: 'Disabled' },
+                      ]}
+                      value={user.status}
+                      onChange={(value) => {
+                        if (value && value !== user.status) {
+                          updateUserMutation.mutate({
+                            userUuid: user.userUuid,
+                            status: value as 'active' | 'disabled',
+                          });
+                        }
+                      }}
+                      size="xs"
+                      w={120}
+                    />
+                    <Button
+                      size="xs"
+                      variant="light"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        credentialsControls.open();
+                      }}
+                    >
+                      View credentials
                     </Button>
                     <Button size="xs" variant="subtle">
                       Reset password
@@ -74,9 +140,33 @@ export function UsersPage() {
         </Table>
       </Card>
       <Alert color="blue" icon={<IconUsersGroup size={18} />} mt="lg" title="Backend dependency">
-        This admin surface is intentionally scaffolded ahead of the final backend endpoints for pagination,
-        filtering, lifecycle actions, and primary-admin transfer rules.
+        User listing and basic lifecycle editing are now connected. Role reassignment, pagination, primary-admin
+        transfer, and password reset flow still need deeper backend support.
       </Alert>
+      <Modal
+        opened={credentialsOpened}
+        onClose={credentialsControls.close}
+        title={`Provider credentials${selectedUser ? `: ${selectedUser.displayName}` : ''}`}
+      >
+        <Table highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Provider</Table.Th>
+              <Table.Th>Label</Table.Th>
+              <Table.Th>Masked value</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {(credentialsQuery.data ?? []).map((credential) => (
+              <Table.Tr key={credential.id}>
+                <Table.Td>{credential.providerDisplayName}</Table.Td>
+                <Table.Td>{credential.label}</Table.Td>
+                <Table.Td>{credential.maskedHint ?? 'Hidden'}</Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Modal>
     </>
   );
 }

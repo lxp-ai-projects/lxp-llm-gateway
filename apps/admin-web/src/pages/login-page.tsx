@@ -31,7 +31,8 @@ export function LoginPage() {
 
   const loginMutation = useMutation({
     mutationFn: () => adminApiClient.login({ email, password }),
-    onSuccess: async () => {
+    onSuccess: async (session) => {
+      queryClient.setQueryData(['session'], session);
       await queryClient.invalidateQueries({ queryKey: ['session'] });
       navigate((location.state as { from?: string } | null)?.from ?? '/app');
     },
@@ -108,7 +109,7 @@ export function LoginPage() {
                 Sign in
               </Button>
 
-              <Group justify="space-between">
+              <Group className="auth-links-row" justify="space-between">
                 {runtimeConfigQuery.data?.registrationEnabled ? (
                   <Anchor component={Link} to="/register">
                     Create account

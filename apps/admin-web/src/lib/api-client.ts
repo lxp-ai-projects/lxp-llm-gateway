@@ -1,5 +1,33 @@
-const adminApiUrl = import.meta.env.VITE_ADMIN_API_URL ?? 'http://localhost:3002';
-const gatewayApiUrl = import.meta.env.VITE_GATEWAY_API_URL ?? 'http://localhost:3001';
+import { shouldAttemptSessionRefresh } from './http-auth';
+import { DEFAULT_STREAM_IDLE_TIMEOUT_MS } from './chat-stream';
+
+function isLoopbackHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+}
+
+function resolveApiBaseUrl(explicitUrl: string | undefined, fallbackPort: number): string {
+  if (typeof window === 'undefined') {
+    return explicitUrl ?? `http://localhost:${fallbackPort}`;
+  }
+
+  const currentUrl = new URL(window.location.origin);
+  const configuredUrl = explicitUrl ? new URL(explicitUrl) : new URL(`http://localhost:${fallbackPort}`);
+  const hostnameMismatch = configuredUrl.hostname !== currentUrl.hostname;
+  const shouldPreferCurrentHost =
+    hostnameMismatch &&
+    (isLoopbackHost(configuredUrl.hostname) || isLoopbackHost(currentUrl.hostname));
+
+  if (shouldPreferCurrentHost) {
+    configuredUrl.protocol = currentUrl.protocol;
+    configuredUrl.hostname = currentUrl.hostname;
+  }
+
+  return configuredUrl.toString().replace(/\/$/, '');
+}
+
+const adminApiUrl = resolveApiBaseUrl(import.meta.env.VITE_ADMIN_API_URL, 3002);
+const gatewayApiUrl = resolveApiBaseUrl(import.meta.env.VITE_GATEWAY_API_URL, 3001);
+let refreshInFlight: Promise<void> | null = null;
 
 export type RuntimeConfig = {
   registrationEnabled: boolean;
@@ -40,26 +68,135 @@ export type GatewayChatResponse = {
   };
 };
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
+export type GatewayChatStreamChunk = {
+  requestId?: string;
+  reasoningDelta?: string;
+  contentDelta?: string;
+  finishReason?: string | null;
+};
 
-  if (response.status === 204) {
-    return undefined as T;
+export type GatewayChatStreamResult = {
+  requestId?: string;
+  receivedReasoning: boolean;
+  receivedContent: boolean;
+  finishReason?: string | null;
+};
+
+export type ProviderModelSummary = {
+  id: string;
+  displayName: string;
+};
+
+export type ProviderCredentialSummary = {
+  id: string;
+  userUuid: string;
+  providerId: string;
+  providerDisplayName: string;
+  label: string;
+  maskedHint: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt: string | null;
+};
+
+export type AdminUserSummary = {
+  userUuid: string;
+  displayName: string;
+  email: string;
+  status: 'active' | 'disabled';
+  roles: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+async function request<T>(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
+  return requestWithSessionRefresh<T>(url, init, false);
+}
+
+async function requestWithSessionRefresh<T>(
+  url: string,
+  init: (RequestInit & { timeoutMs?: number }) | undefined,
+  hasRetried: boolean,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeoutMs = init?.timeoutMs ?? 30000;
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+      ...init,
+      signal: init?.signal ?? controller.signal,
+    }).finally(() => window.clearTimeout(timeoutId));
+
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    if (!response.ok) {
+      if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
+        await refreshBrowserSession();
+        return requestWithSessionRefresh(url, init, true);
+      }
+
+      const body = await response.text();
+      throw new Error(body || `Request failed with ${response.status}`);
+    }
+
+    return response.json() as Promise<T>;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('The request timed out before the gateway returned a response.');
+    }
+
+    throw error;
+  }
+}
+
+async function refreshBrowserSession(): Promise<void> {
+  if (refreshInFlight) {
+    return refreshInFlight;
   }
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(body || `Request failed with ${response.status}`);
+  refreshInFlight = (async () => {
+    const response = await fetch(`${adminApiUrl}/api/v1/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(body || `Session refresh failed with ${response.status}`);
+    }
+  })();
+
+  try {
+    await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
+function parseServerSentEventBlock(block: string): string | null {
+  const dataLines = block
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).replace(/^ /, ''));
+
+  if (!dataLines.length) {
+    return null;
   }
 
-  return response.json() as Promise<T>;
+  return dataLines.join('\n');
 }
 
 export const adminApiClient = {
@@ -82,7 +219,25 @@ export const adminApiClient = {
     });
 
     if (response.status === 401) {
-      return null;
+      try {
+        await refreshBrowserSession();
+      } catch {
+        return null;
+      }
+
+      const retryResponse = await fetch(`${adminApiUrl}/api/v1/auth/me`, {
+        credentials: 'include',
+      });
+
+      if (retryResponse.status === 401) {
+        return null;
+      }
+
+      if (!retryResponse.ok) {
+        throw new Error(`Session request failed with ${retryResponse.status}`);
+      }
+
+      return retryResponse.json() as Promise<SessionUser>;
     }
 
     if (!response.ok) {
@@ -92,11 +247,13 @@ export const adminApiClient = {
     return response.json() as Promise<SessionUser>;
   },
 
-  async login(payload: { email: string; password: string }): Promise<void> {
+  async login(payload: { email: string; password: string }): Promise<SessionUser | null> {
     await request(`${adminApiUrl}/api/v1/auth/login`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+
+    return this.getSession();
   },
 
   async logout(): Promise<void> {
@@ -108,11 +265,203 @@ export const adminApiClient = {
   async getHealth(): Promise<{ status: string }> {
     return request<{ status: string }>(`${adminApiUrl}/api/v1/health`);
   },
+
+  async getUsers(): Promise<AdminUserSummary[]> {
+    return request<AdminUserSummary[]>(`${adminApiUrl}/api/v1/admin/users`);
+  },
+
+  async updateUser(
+    userUuid: string,
+    payload: {
+      displayName?: string;
+      status?: 'active' | 'disabled';
+      roles?: string[];
+    },
+  ): Promise<AdminUserSummary> {
+    return request<AdminUserSummary>(`${adminApiUrl}/api/v1/admin/users/${userUuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getOwnProviderCredentials(): Promise<ProviderCredentialSummary[]> {
+    return request<ProviderCredentialSummary[]>(`${adminApiUrl}/api/v1/provider-credentials`);
+  },
+
+  async createOwnProviderCredential(payload: {
+    providerId: 'nanogpt';
+    label: string;
+    apiToken: string;
+  }): Promise<ProviderCredentialSummary> {
+    return request<ProviderCredentialSummary>(`${adminApiUrl}/api/v1/provider-credentials`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getUserProviderCredentials(userUuid: string): Promise<ProviderCredentialSummary[]> {
+    return request<ProviderCredentialSummary[]>(
+      `${adminApiUrl}/api/v1/admin/users/${userUuid}/provider-credentials`,
+    );
+  },
 };
+
+async function chatStreamWithSessionRefresh(
+  payload: {
+    providerId: string;
+    model: string;
+    stream: true;
+    messages: GatewayChatMessage[];
+  },
+  handlers: {
+    onChunk: (chunk: GatewayChatStreamChunk) => void;
+  },
+  hasRetried: boolean,
+): Promise<GatewayChatStreamResult> {
+  const controller = new AbortController();
+  let idleTimeoutId: number | undefined;
+  const resetIdleTimeout = () => {
+    if (idleTimeoutId) {
+      window.clearTimeout(idleTimeoutId);
+    }
+
+    idleTimeoutId = window.setTimeout(() => controller.abort(), DEFAULT_STREAM_IDLE_TIMEOUT_MS);
+  };
+
+  resetIdleTimeout();
+
+  const response = await fetch(`${gatewayApiUrl}/api/v1/chat`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(payload),
+    signal: controller.signal,
+  });
+
+  if (!response.ok) {
+    if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
+      await refreshBrowserSession();
+      return chatStreamWithSessionRefresh(payload, handlers, true);
+    }
+
+    const body = await response.text();
+    throw new Error(body || `Request failed with ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error('The gateway stream did not include a response body.');
+  }
+
+  const requestId = response.headers.get('x-request-id') ?? undefined;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let receivedReasoning = false;
+  let receivedContent = false;
+  let finishReason: string | null | undefined;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        const finalData = parseServerSentEventBlock(buffer);
+        if (finalData && finalData !== '[DONE]') {
+          const parsed = JSON.parse(finalData) as {
+            choices?: Array<{
+              delta?: {
+                reasoning?: string;
+                content?: string;
+              };
+              finish_reason?: string | null;
+            }>;
+          };
+
+          const choice = parsed.choices?.[0];
+          const delta = choice?.delta;
+          finishReason = choice?.finish_reason ?? finishReason;
+          receivedReasoning ||= Boolean(delta?.reasoning);
+          receivedContent ||= Boolean(delta?.content);
+
+          handlers.onChunk({
+            requestId,
+            reasoningDelta: delta?.reasoning,
+            contentDelta: delta?.content,
+            finishReason: choice?.finish_reason,
+          });
+        }
+        break;
+      }
+
+      resetIdleTimeout();
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split(/\r?\n\r?\n/);
+      buffer = parts.pop() ?? '';
+
+      for (const part of parts) {
+        const data = parseServerSentEventBlock(part);
+        if (!data || data === '[DONE]') {
+          continue;
+        }
+
+        const parsed = JSON.parse(data) as {
+          choices?: Array<{
+            delta?: {
+              reasoning?: string;
+              content?: string;
+            };
+            finish_reason?: string | null;
+          }>;
+        };
+
+        const choice = parsed.choices?.[0];
+        const delta = choice?.delta;
+        finishReason = choice?.finish_reason ?? finishReason;
+        receivedReasoning ||= Boolean(delta?.reasoning);
+        receivedContent ||= Boolean(delta?.content);
+
+        handlers.onChunk({
+          requestId,
+          reasoningDelta: delta?.reasoning,
+          contentDelta: delta?.content,
+          finishReason: choice?.finish_reason,
+        });
+      }
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(
+        `The gateway stream went idle for more than ${DEFAULT_STREAM_IDLE_TIMEOUT_MS / 1000} seconds.`,
+      );
+    }
+
+    throw error;
+  } finally {
+    if (idleTimeoutId) {
+      window.clearTimeout(idleTimeoutId);
+    }
+  }
+
+  return {
+    requestId,
+    receivedReasoning,
+    receivedContent,
+    finishReason,
+  };
+}
 
 export const gatewayApiClient = {
   async getHealth(): Promise<{ status: string }> {
     return request<{ status: string }>(`${gatewayApiUrl}/api/v1/health`);
+  },
+
+  async getModels(providerId = 'nanogpt'): Promise<{
+    providerId: string;
+    models: ProviderModelSummary[];
+  }> {
+    return request(`${gatewayApiUrl}/api/v1/models?providerId=${encodeURIComponent(providerId)}`);
   },
 
   async chat(payload: {
@@ -124,6 +473,21 @@ export const gatewayApiClient = {
     return request<GatewayChatResponse>(`${gatewayApiUrl}/api/v1/chat`, {
       method: 'POST',
       body: JSON.stringify(payload),
+      timeoutMs: 90000,
     });
+  },
+
+  async chatStream(
+    payload: {
+      providerId: string;
+      model: string;
+      stream: true;
+      messages: GatewayChatMessage[];
+    },
+    handlers: {
+      onChunk: (chunk: GatewayChatStreamChunk) => void;
+    },
+  ): Promise<GatewayChatStreamResult> {
+    return chatStreamWithSessionRefresh(payload, handlers, false);
   },
 };

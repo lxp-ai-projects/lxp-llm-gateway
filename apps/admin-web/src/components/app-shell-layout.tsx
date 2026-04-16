@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   AppShell,
   Badge,
   Box,
@@ -68,31 +69,34 @@ export function AppShellLayout() {
   return (
     <AppShell
       header={{ height: 72 }}
-      navbar={{ width: 280, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      navbar={{ width: { base: '100%', sm: 280 }, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="md"
     >
       <AppShell.Header className="glass-panel shell-header">
-        <Group h="100%" px="lg" justify="space-between">
+        <Group className="shell-header-inner" h="100%" px="lg" justify="space-between" wrap="nowrap">
           <Group gap="sm">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Box>
-              <Text fw={700}>lxp-llm-gateway</Text>
-              <Text size="sm" c="dimmed">
+            <Box className="shell-brand-copy">
+              <Text className="shell-title" fw={700}>
+                lxp-llm-gateway
+              </Text>
+              <Text className="shell-subtitle" size="sm" c="dimmed">
                 Enterprise control plane
               </Text>
             </Box>
           </Group>
-          <Group gap="sm">
+          <Group className="shell-actions" gap="sm" wrap="nowrap">
             <Badge
               color={runtimeConfigQuery.data?.gatewayOnline ? 'moss' : 'red'}
               variant="light"
             >
               {runtimeConfigQuery.data?.gatewayOnline ? 'Gateway online' : 'Gateway offline'}
             </Badge>
-            <Badge color={isAdmin ? 'ink' : 'teal'} variant="filled">
+            <Badge color={isAdmin ? 'ink' : 'teal'} variant="filled" visibleFrom="sm">
               {isAdmin ? 'Admin' : 'User'}
             </Badge>
             <Button
+              visibleFrom="sm"
               leftSection={<IconLogout size={16} />}
               onClick={() => logoutMutation.mutate()}
               loading={logoutMutation.isPending}
@@ -100,6 +104,15 @@ export function AppShellLayout() {
             >
               Logout
             </Button>
+            <ActionIcon
+              aria-label="Logout"
+              hiddenFrom="sm"
+              loading={logoutMutation.isPending}
+              onClick={() => logoutMutation.mutate()}
+              variant="subtle"
+            >
+              <IconLogout size={16} />
+            </ActionIcon>
           </Group>
         </Group>
       </AppShell.Header>
