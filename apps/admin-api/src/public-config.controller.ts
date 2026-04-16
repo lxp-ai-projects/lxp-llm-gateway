@@ -1,0 +1,19 @@
+import { Controller, Get } from '@nestjs/common';
+
+@Controller('public/runtime-config')
+export class PublicConfigController {
+  @Get()
+  getRuntimeConfig() {
+    return {
+      registrationEnabled: process.env.LXP_REGISTRATION_ENABLED === 'true',
+      forgotPasswordEnabled: process.env.LXP_FORGOT_PASSWORD_ENABLED === 'true',
+      gatewayOnline: process.env.LXP_GATEWAY_ONLINE !== 'false',
+      supportedProviders: [
+        {
+          providerId: 'nanogpt',
+          displayName: 'NanoGPT',
+        },
+      ],
+    };
+  }
+}

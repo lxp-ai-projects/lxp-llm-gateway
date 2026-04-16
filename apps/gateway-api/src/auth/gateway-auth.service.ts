@@ -14,10 +14,13 @@ export class GatewayAuthService {
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  async authenticateAccessToken(authorizationHeader?: string): Promise<GatewayAuthContext> {
-    const token = this.extractBearerToken(authorizationHeader);
+  async authenticateAccessToken(
+    authorizationHeader?: string,
+    accessTokenCookie?: string,
+  ): Promise<GatewayAuthContext> {
+    const token = accessTokenCookie ?? this.extractBearerToken(authorizationHeader);
     if (!token) {
-      throw new UnauthorizedException('Authorization header is required.');
+      throw new UnauthorizedException('Access token is required.');
     }
 
     const payload = await this.verifyAccessToken(token);

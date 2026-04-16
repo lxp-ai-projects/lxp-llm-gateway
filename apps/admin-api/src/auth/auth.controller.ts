@@ -22,6 +22,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
+  private readonly accessTokenCookieMaxAgeMs = 5 * 60 * 1000;
   private readonly refreshTokenCookieMaxAgeMs = 2 * 60 * 60 * 1000;
 
   constructor(
@@ -32,6 +33,11 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(dto.email, dto.password);
+    this.authCookieService.setAccessTokenCookie(
+      response,
+      result.accessToken,
+      this.accessTokenCookieMaxAgeMs,
+    );
     this.authCookieService.setRefreshTokenCookie(
       response,
       result.refreshToken,
@@ -55,6 +61,11 @@ export class AuthController {
     }
 
     const result = await this.authService.refresh(refreshToken);
+    this.authCookieService.setAccessTokenCookie(
+      response,
+      result.accessToken,
+      this.accessTokenCookieMaxAgeMs,
+    );
     this.authCookieService.setRefreshTokenCookie(
       response,
       result.refreshToken,
@@ -77,6 +88,7 @@ export class AuthController {
       dto.refreshToken ??
       request.cookies?.[this.authCookieService.getRefreshTokenCookieName()];
     await this.authService.logout(accessToken, refreshToken);
+    this.authCookieService.clearAccessTokenCookie(response);
     this.authCookieService.clearRefreshTokenCookie(response);
   }
 
