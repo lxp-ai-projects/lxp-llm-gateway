@@ -20,6 +20,7 @@ The repository now includes:
 - gateway authentication via access token `emailHash`
 - non-stream JSON chat responses with structured assistant output
 - streaming SSE passthrough for NanoGPT thinking models
+- one planned role-aware SPA for both admin and user control-plane workflows
 
 ## Structure
 
@@ -35,6 +36,7 @@ The repository now includes:
 
 - APIs: NestJS
 - Frontend: React 19, Vite, React Router DOM, TanStack Query
+- UI Foundation: Mantine with custom theme
 - Workspace: pnpm, turbo, TypeScript
 
 ## Local Secrets
@@ -176,6 +178,12 @@ Use the HTTP files in [queries/README.md](queries/README.md):
    - stream SSE chat with thinking models
 
 See the gateway response contract in [docs/api/gateway-contract.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/api/gateway-contract.md).
+
+UI planning and backend-aligned UI architecture are documented in:
+
+- [docs/architecture/ui-architecture.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/architecture/ui-architecture.md)
+- [docs/delivery/ui-implementation-plan.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/delivery/ui-implementation-plan.md)
+- [docs/architecture/decisions/ADR-006-web-session-and-runtime-config.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/architecture/decisions/ADR-006-web-session-and-runtime-config.md)
 
 ### 5. Workspace validation
 
