@@ -4,6 +4,7 @@ import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import type { LlmProviderAdapter, ProviderExecutionContext } from '@lxp/provider-sdk';
 
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
+import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayService } from './gateway.service';
 
 class FakeProvider implements LlmProviderAdapter {
@@ -52,8 +53,28 @@ class FakeProviderCredentialService {
   }
 }
 
+class FakeGatewayAuditService {
+  logStarted(): void {}
+
+  logSucceeded(): void {}
+
+  logFailed(): void {}
+
+  fingerprint(emailHash: string): string {
+    return emailHash;
+  }
+
+  summarizeMessages(messages: Array<{ content: string }>) {
+    return {
+      messageCount: messages.length,
+      messageCharacters: messages.reduce((total, message) => total + message.content.length, 0),
+    };
+  }
+}
+
 test('GatewayService routes chat requests through the provider registry', async () => {
   const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -78,6 +99,7 @@ test('GatewayService routes chat requests through the provider registry', async 
 
 test('GatewayService returns a provider stream when streaming is requested', async () => {
   const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -104,6 +126,7 @@ test('GatewayService returns a provider stream when streaming is requested', asy
 
 test('GatewayService rejects non-stream requests without messages', async () => {
   const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -128,6 +151,7 @@ test('GatewayService rejects non-stream requests without messages', async () => 
 
 test('GatewayService rejects stream requests without messages', async () => {
   const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -165,6 +189,7 @@ test('GatewayService rejects streaming when a provider does not support it', asy
   }
 
   const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
     new NonStreamingRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );

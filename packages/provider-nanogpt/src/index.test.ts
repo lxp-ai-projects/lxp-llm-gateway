@@ -146,3 +146,39 @@ test('NanoGptProviderAdapter returns the provider SSE body for streaming request
     globalThis.fetch = originalFetch;
   }
 });
+
+test('NanoGptProviderAdapter fails with an explicit timeout error when the provider does not respond', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (_url, init) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      signal?.addEventListener('abort', () => {
+        reject(new DOMException('The operation was aborted.', 'AbortError'));
+      });
+    })) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1', 5);
+
+    await assert.rejects(
+      () =>
+        adapter.chat(
+          {
+            model: 'z-ai/glm-4.6:thinking',
+            messages: [{ role: 'user', content: 'hello' }],
+          },
+          {
+            requestId: 'req-timeout',
+            userId: 'user-1',
+            providerCredential: {
+              apiKey: 'nano-secret-token',
+            },
+          },
+        ),
+      /NanoGPT request timed out after 5 ms/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
