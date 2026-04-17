@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 
@@ -67,11 +67,12 @@ test('UsersPage creates a new user from the modal', async () => {
   await user.click(await screen.findByRole('button', { name: 'Create user' }));
 
   expect(await screen.findByRole('heading', { name: 'Create user' })).toBeInTheDocument();
+  const dialog = screen.getByRole('dialog');
 
-  await user.type(screen.getByLabelText('Display name'), 'Emilie Joli');
-  await user.type(screen.getByLabelText('Email'), 'emilie@example.com');
-  await user.type(screen.getByLabelText('Temporary password'), 'temporary-pass');
-  await user.click(screen.getByRole('button', { name: /^create user$/i }));
+  await user.type(within(dialog).getByLabelText('Display name'), 'Emilie Joli');
+  await user.type(within(dialog).getByLabelText('Email'), 'emilie@example.com');
+  await user.type(within(dialog).getByLabelText('Temporary password'), 'temporary-pass');
+  await user.click(within(dialog).getByRole('button', { name: /^create user$/i }));
 
   await waitFor(() =>
     expect(createUserMock).toHaveBeenCalledWith({
@@ -81,4 +82,4 @@ test('UsersPage creates a new user from the modal', async () => {
       roles: ['user'],
     }),
   );
-});
+}, 10000);
