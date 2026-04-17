@@ -1,12 +1,24 @@
-import type { ReactElement, ReactNode } from 'react';
-import { Fragment } from 'react';
 import { Text, Title } from '@mantine/core';
 import type { TitleOrder } from '@mantine/core';
+import type { ReactElement, ReactNode } from 'react';
+import { Fragment } from 'react';
 
 type MarkdownTextProps = {
   value: string;
   dimmed?: boolean;
 };
+
+function normalizeMarkdownSource(value: string): string {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\s+(---+)\s+(#{1,6}\s+)/g, '\n\n$1\n\n$2')
+    .replace(/([.!?:"')])\s+(#{1,6}\s+)/g, '$1\n\n$2')
+    .replace(/\s+(#{1,6}\s+)/g, '\n\n$1')
+    .replace(/([.!?:"')])\s+(---+)\s+/g, '$1\n\n$2\n\n')
+    .replace(/\s+(---+)\s+/g, '\n\n$1\n\n')
+    .replace(/([.!?:"')])\s+(\d+\.\s+)/g, '$1\n$2')
+    .replace(/([.!?:"')])\s+([*-]\s+)/g, '$1\n$2');
+}
 
 function renderInlineMarkdown(value: string): ReactNode[] {
   const tokens = value.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g).filter(Boolean);
@@ -29,7 +41,7 @@ function renderInlineMarkdown(value: string): ReactNode[] {
 }
 
 function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
-  const lines = value.replace(/\r\n/g, '\n').split('\n');
+  const lines = normalizeMarkdownSource(value).split('\n');
   const blocks: ReactElement[] = [];
   let listItems: Array<{ kind: 'ordered' | 'unordered'; text: string }> = [];
   let paragraphLines: string[] = [];
@@ -40,7 +52,11 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
     }
 
     blocks.push(
-      <Text className="markdown-block" c={dimmed ? 'dimmed' : undefined} key={`paragraph-${blocks.length}`}>
+      <Text
+        className="markdown-block"
+        c={dimmed ? 'dimmed' : undefined}
+        key={`paragraph-${blocks.length}`}
+      >
         {renderInlineMarkdown(paragraphLines.join(' '))}
       </Text>,
     );
@@ -73,7 +89,7 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
       continue;
     }
 
-    const headingMatch = /^(#{1,3})\s+(.*)$/.exec(trimmed);
+    const headingMatch = /^(#{1,6})\s+(.*)$/.exec(trimmed);
     if (headingMatch) {
       flushParagraph();
       flushList();

@@ -178,3 +178,35 @@ test('ChatPage exports a selected conversation as JSON', async () => {
     }),
   );
 });
+
+test('ChatPage copies an assistant response once streaming is complete', async () => {
+  const user = userEvent.setup();
+  const writeTextMock = vi.spyOn(navigator.clipboard, 'writeText');
+
+  loadConversationsMock.mockResolvedValue([
+    {
+      id: 'conversation-1',
+      title: 'Copy me',
+      model: 'z-ai/glm-4.6:thinking',
+      providerId: 'nanogpt',
+      systemPrompt: 'You are a helpful assistant.',
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      messages: [
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: 'Assistant answer',
+          reasoning: '',
+          createdAt: '2026-04-16T00:00:00.000Z',
+        },
+      ],
+    },
+  ]);
+
+  renderWithProviders(<ChatPage />);
+
+  await user.click(await screen.findByRole('button', { name: 'Copy' }));
+
+  await waitFor(() => expect(writeTextMock).toHaveBeenCalledWith('Assistant answer'));
+  expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+});

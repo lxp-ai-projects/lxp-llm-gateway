@@ -47,3 +47,11 @@ Object.defineProperty(HTMLAnchorElement.prototype, 'click', {
   writable: true,
   value: () => undefined,
 });
+
+Object.defineProperty(navigator, 'clipboard', {
+  configurable: true,
+  writable: true,
+  value: {
+    writeText: async () => undefined,
+  },
+});

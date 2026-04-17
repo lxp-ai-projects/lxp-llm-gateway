@@ -4,6 +4,7 @@ import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import express from 'express';
 
 import { AppModule } from './app.module';
 
@@ -24,7 +25,10 @@ function resolveCorsOrigins(): string[] {
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  const requestBodyLimit = process.env.LXP_REQUEST_BODY_LIMIT ?? '10mb';
   app.setGlobalPrefix('api/v1');
+  app.use(express.json({ limit: requestBodyLimit }));
+  app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
   app.use(cookieParser(process.env.LXP_COOKIE_SECRET ?? ''));
   app.useGlobalPipes(
     new ValidationPipe({
