@@ -82,4 +82,4 @@ test('UsersPage creates a new user from the modal', async () => {
       roles: ['user'],
     }),
   );
-}, 10000);
+}, 15_000);

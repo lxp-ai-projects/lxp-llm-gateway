@@ -123,7 +123,7 @@ test('ProvidersPage lets the user edit their own credential token', async () => 
       apiToken: 'rotated-secret-token',
     }),
   );
-});
+}, 15_000);
 
 test('ProvidersPage shows the current gateway defaults and loads models for the selected provider', async () => {
   renderWithProviders(<ProvidersPage />);

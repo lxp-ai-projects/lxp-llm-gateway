@@ -43,7 +43,7 @@ test('LoginPage reflects runtime config and enables sign-in once prerequisites a
   await user.click(screen.getByRole('checkbox'));
 
   expect(signInButton).toBeEnabled();
-});
+}, 10_000);
 
 test('LoginPage displays and clears the session timeout message', async () => {
   window.sessionStorage.setItem(

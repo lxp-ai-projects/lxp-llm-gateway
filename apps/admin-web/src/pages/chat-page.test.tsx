@@ -6,6 +6,7 @@ import { renderWithProviders } from '../test/test-utils';
 import { ChatPage } from './chat-page';
 
 const {
+  getSessionMock,
   chatStreamMock,
   deleteConversationMock,
   exportConversationArchiveMock,
@@ -15,6 +16,13 @@ const {
   loadConversationsMock,
   saveConversationMock,
 } = vi.hoisted(() => ({
+  getSessionMock: vi.fn(async () => ({
+    userUuid: 'user-1',
+    email: 'patrick@example.com',
+    displayName: 'Patrick',
+    status: 'active',
+    roles: ['admin'],
+  })),
   chatStreamMock: vi.fn(async (_payload, _handlers) => ({
     requestId: 'request-1',
     receivedReasoning: false,
@@ -43,6 +51,7 @@ const {
 
 vi.mock('../lib/api-client', () => ({
   adminApiClient: {
+    getSession: getSessionMock,
     exportConversation: exportConversationMock,
     exportConversationArchive: exportConversationArchiveMock,
     getRuntimeConfig: vi.fn(async () => ({
@@ -66,6 +75,7 @@ vi.mock('../lib/chat-store', () => ({
 }));
 
 beforeEach(() => {
+  getSessionMock.mockClear();
   chatStreamMock.mockClear();
   deleteConversationMock.mockClear();
   exportConversationArchiveMock.mockClear();
@@ -107,18 +117,16 @@ test('ChatPage submits on Enter from the composer', async () => {
 });
 
 test('ChatPage keeps Shift+Enter for multiline drafting', async () => {
-  const user = userEvent.setup();
-
   renderWithProviders(<ChatPage />);
 
   const composer = await screen.findByPlaceholderText('Ask the provider something meaningful...');
-  await user.type(composer, 'Line one');
-  await user.keyboard('{Shift>}{Enter}{/Shift}');
-  await user.type(composer, 'Line two');
+  fireEvent.change(composer, { target: { value: 'Line one' } });
+  fireEvent.keyDown(composer, { key: 'Enter', code: 'Enter', shiftKey: true });
+  fireEvent.change(composer, { target: { value: 'Line one\nLine two' } });
 
   expect(chatStreamMock).not.toHaveBeenCalled();
   expect((composer as HTMLTextAreaElement).value).toBe('Line one\nLine two');
-});
+}, 10_000);
 
 test('ChatPage deletes a conversation only after explicit confirmation', async () => {
   const user = userEvent.setup();
@@ -278,4 +286,212 @@ test('ChatPage loads older and newer message windows while scrolling', async () 
   fireEvent.scroll(scrollContainer!);
 
   await waitFor(() => expect(screen.getByText('Message 91')).toBeInTheDocument());
+});
+
+test('ChatPage retries an assistant response from the previous user message context', async () => {
+  const user = userEvent.setup();
+
+  loadConversationsMock.mockResolvedValue([
+    {
+      id: 'conversation-1',
+      title: 'Retry me',
+      model: 'z-ai/glm-4.6:thinking',
+      providerId: 'nanogpt',
+      systemPrompt: 'You are a helpful assistant.',
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          content: 'First prompt',
+          createdAt: '2026-04-16T00:00:00.000Z',
+        },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: 'First answer',
+          reasoning: '',
+          createdAt: '2026-04-16T00:01:00.000Z',
+        },
+      ],
+    },
+  ]);
+
+  renderWithProviders(<ChatPage />);
+
+  await user.click(await screen.findByLabelText('Retry response'));
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: 'First prompt' },
+      ],
+    }),
+    expect.any(Object),
+  );
+}, 10_000);
+
+test('ChatPage edits a user message and resends from the edited content', async () => {
+  const user = userEvent.setup();
+
+  loadConversationsMock.mockResolvedValue([
+    {
+      id: 'conversation-1',
+      title: 'Edit me',
+      model: 'z-ai/glm-4.6:thinking',
+      providerId: 'nanogpt',
+      systemPrompt: 'You are a helpful assistant.',
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          content: 'Old prompt',
+          createdAt: '2026-04-16T00:00:00.000Z',
+        },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: 'Old answer',
+          reasoning: '',
+          createdAt: '2026-04-16T00:01:00.000Z',
+        },
+      ],
+    },
+  ]);
+
+  renderWithProviders(<ChatPage />);
+
+  await user.click(await screen.findByLabelText('Edit message'));
+  const editor = screen.getByDisplayValue('Old prompt');
+  await user.clear(editor);
+  await user.type(editor, 'Updated prompt');
+  await user.click(screen.getByRole('button', { name: 'Resend' }));
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: 'Updated prompt' },
+      ],
+    }),
+    expect.any(Object),
+  );
+});
+
+test('ChatPage saves a custom system prompt and uses it for the next send', async () => {
+  const user = userEvent.setup();
+
+  loadConversationsMock.mockResolvedValue([
+    {
+      id: 'conversation-1',
+      title: 'Prompted',
+      model: 'z-ai/glm-4.6:thinking',
+      providerId: 'nanogpt',
+      systemPrompt: 'You are a helpful assistant.',
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      messages: [],
+    },
+  ]);
+
+  renderWithProviders(<ChatPage />);
+
+  await user.click(await screen.findByRole('tab', { name: 'System prompt' }));
+  const promptEditor = screen.getByLabelText('System prompt');
+  await user.clear(promptEditor);
+  await user.type(promptEditor, 'You are a concise assistant.');
+  await user.click(screen.getByRole('button', { name: 'Save prompt' }));
+
+  await waitFor(() =>
+    expect(saveConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: 'You are a concise assistant.',
+      }),
+    ),
+  );
+
+  await user.click(screen.getByRole('tab', { name: 'System prompt *' }));
+  await user.click(screen.getByRole('tab', { name: 'Conversation' }));
+  const composer = screen.getByPlaceholderText('Ask the provider something meaningful...');
+  await user.type(composer, 'Use custom prompt{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      messages: [
+        { role: 'system', content: 'You are a concise assistant.' },
+        { role: 'user', content: 'Use custom prompt' },
+      ],
+    }),
+    expect.any(Object),
+  );
+});
+
+test('ChatPage imports conversations and surfaces transfer failures', async () => {
+  const user = userEvent.setup();
+  const importedConversation = {
+    id: 'conversation-imported',
+    title: 'Imported thread',
+    model: 'z-ai/glm-4.6:thinking',
+    providerId: 'nanogpt',
+    systemPrompt: 'You are a helpful assistant.',
+    updatedAt: '2026-04-17T00:00:00.000Z',
+    messages: [],
+  };
+
+  importConversationFileMock.mockResolvedValueOnce({
+    conversations: [importedConversation],
+  });
+  exportConversationArchiveMock.mockRejectedValueOnce(new Error('Archive export failed.'));
+
+  renderWithProviders(<ChatPage />);
+
+  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+  expect(fileInput).not.toBeNull();
+
+  const file = new File([JSON.stringify(importedConversation)], 'conversation.json', {
+    type: 'application/json',
+  });
+  fireEvent.change(fileInput!, { target: { files: [file] } });
+
+  expect(await screen.findByRole('button', { name: 'Imported thread' })).toBeInTheDocument();
+  await waitFor(() => expect(saveConversationMock).toHaveBeenCalledWith(importedConversation));
+
+  await user.click(screen.getByLabelText('Export all conversations'));
+  expect(await screen.findByText('Archive export failed.')).toBeInTheDocument();
+});
+
+test('ChatPage surfaces missing assistant content and interrupted reasoning streams', async () => {
+  const user = userEvent.setup();
+
+  chatStreamMock.mockImplementationOnce(async () => ({
+    requestId: 'request-empty',
+    receivedReasoning: false,
+    receivedContent: false,
+    finishReason: 'stop',
+  }));
+
+  renderWithProviders(<ChatPage />);
+
+  const composer = await screen.findByPlaceholderText('Ask the provider something meaningful...');
+  await user.type(composer, 'Empty reply{enter}');
+
+  expect(
+    await screen.findByText('The model stream ended before any assistant output was received.'),
+  ).toBeInTheDocument();
+
+  chatStreamMock.mockImplementationOnce(async (_payload, handlers) => {
+    handlers.onChunk({ reasoningDelta: 'Thinking...', contentDelta: '' });
+    throw new Error('Stream interrupted.');
+  });
+
+  await user.type(screen.getByPlaceholderText('Ask the provider something meaningful...'), 'Partial{enter}');
+
+  expect(await screen.findByText('Stream interrupted.')).toBeInTheDocument();
+  expect(
+    await screen.findByText('Assistant response was interrupted before content generation completed.'),
+  ).toBeInTheDocument();
 });

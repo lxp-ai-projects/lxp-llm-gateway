@@ -1,5 +1,5 @@
 export function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) {
+  if (typeof navigator.serviceWorker?.register !== 'function') {
     return;
   }
 
@@ -8,6 +8,10 @@ export function registerServiceWorker() {
   }
 
   window.addEventListener('load', () => {
+    if (typeof navigator.serviceWorker?.register !== 'function') {
+      return;
+    }
+
     void navigator.serviceWorker.register('/service-worker.js');
   });
 }
