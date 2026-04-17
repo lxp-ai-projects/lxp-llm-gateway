@@ -1,5 +1,5 @@
-import { Alert, Grid, Group } from '@mantine/core';
-import { IconAlertTriangle, IconLockCheck, IconPlugConnected } from '@tabler/icons-react';
+import { Alert, Grid } from '@mantine/core';
+import { IconAlertTriangle, IconLockCheck, IconPlugConnected, IconUserCircle } from '@tabler/icons-react';
 
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
@@ -16,18 +16,17 @@ export function DashboardPage() {
       <PageHeader
         title="Overview"
         description="One SPA, role-aware navigation, and a deliberate split between user self-service and administrator controls."
-        aside={
-          <Group>
-            <StatusTile
-              label="Session"
-              tone="good"
-              value={sessionQuery.data ? 'Authenticated' : 'Unavailable'}
-            />
-          </Group>
-        }
       />
 
       <Grid>
+        <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
+          <StatusTile
+            icon={<IconUserCircle size={14} />}
+            label="Session"
+            tone="good"
+            value={sessionQuery.data ? 'Authenticated' : 'Unavailable'}
+          />
+        </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
             icon={<IconLockCheck size={14} />}

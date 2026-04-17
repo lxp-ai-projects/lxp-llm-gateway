@@ -17,6 +17,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconEdit, IconKey, IconRestore, IconSettings } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { PageHeader } from '../components/page-header';
@@ -43,10 +44,14 @@ export function ProvidersPage() {
   });
 
   const supportedProviders = runtimeConfigQuery.data?.supportedProviders ?? [];
-  const providerOptions = supportedProviders.map((provider) => ({
-    value: provider.providerId,
-    label: provider.displayName,
-  }));
+  const providerOptions = useMemo(
+    () =>
+      supportedProviders.map((provider) => ({
+        value: provider.providerId,
+        label: provider.displayName,
+      })),
+    [supportedProviders],
+  );
 
   useEffect(() => {
     if (providerOptions.length > 0 && !providerId) {
@@ -185,6 +190,26 @@ export function ProvidersPage() {
     );
   }
 
+  function handleCredentialSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!label.trim() || (!editingCredentialId && !apiToken.trim())) {
+      return;
+    }
+
+    upsertCredentialMutation.mutate();
+  }
+
+  function handleDefaultsSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!providerSettingsDirty) {
+      return;
+    }
+
+    saveDefaultsMutation.mutate();
+  }
+
   return (
     <>
       <PageHeader
@@ -195,114 +220,119 @@ export function ProvidersPage() {
         <Grid.Col span={{ base: 12, lg: 5 }}>
           <Stack gap="lg">
             <Card className="section-card">
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <Title order={3}>{editingCredentialId ? 'Edit provider credential' : 'Add provider credential'}</Title>
-                  <IconKey size={18} />
-                </Group>
-                <Text c="dimmed" size="sm">
-                  Token values remain write-only. After save, only a masked hint is shown back to you.
-                </Text>
-                <Select
-                  label="Provider"
-                  data={providerOptions}
-                  onChange={(value) => setProviderId((value as 'nanogpt') ?? 'nanogpt')}
-                  value={providerId}
-                  disabled={Boolean(editingCredentialId)}
-                />
-                <TextInput
-                  label="Label"
-                  onChange={(event) => setLabel(event.currentTarget.value)}
-                  value={label}
-                />
-                <PasswordInput
-                  label={editingCredentialId ? 'Replace API token' : 'API token'}
-                  description={
-                    editingCredentialId
-                      ? 'Leave blank to keep the current token and update only the label.'
-                      : undefined
-                  }
-                  onChange={(event) => setApiToken(event.currentTarget.value)}
-                  placeholder={editingCredentialId ? 'Enter a new token only if you want to rotate it' : undefined}
-                  value={apiToken}
-                />
-                <Group justify="space-between">
-                  <Group gap="xs">
-                    {editingCredentialId ? (
-                      <Button
-                        onClick={resetCredentialForm}
-                        leftSection={<IconRestore size={16} />}
-                        variant="light"
-                      >
-                        Cancel edit
-                      </Button>
-                    ) : null}
+              <form onSubmit={handleCredentialSubmit}>
+                <Stack gap="sm">
+                  <Group justify="space-between">
+                    <Title order={3}>{editingCredentialId ? 'Edit provider credential' : 'Add provider credential'}</Title>
+                    <IconKey size={18} />
                   </Group>
-                  <Button
-                    onClick={() => upsertCredentialMutation.mutate()}
-                    loading={upsertCredentialMutation.isPending}
-                    disabled={!label.trim() || (!editingCredentialId && !apiToken.trim())}
-                  >
-                    {editingCredentialId ? 'Update credential' : 'Save credential'}
-                  </Button>
-                </Group>
-              </Stack>
+                  <Text c="dimmed" size="sm">
+                    Token values remain write-only. After save, only a masked hint is shown back to you.
+                  </Text>
+                  <Select
+                    label="Provider"
+                    data={providerOptions}
+                    onChange={(value) => setProviderId((value as 'nanogpt') ?? 'nanogpt')}
+                    value={providerId}
+                    disabled={Boolean(editingCredentialId)}
+                  />
+                  <TextInput
+                    label="Label"
+                    onChange={(event) => setLabel(event.currentTarget.value)}
+                    value={label}
+                  />
+                  <PasswordInput
+                    label={editingCredentialId ? 'Replace API token' : 'API token'}
+                    description={
+                      editingCredentialId
+                        ? 'Leave blank to keep the current token and update only the label.'
+                        : undefined
+                    }
+                    onChange={(event) => setApiToken(event.currentTarget.value)}
+                    placeholder={editingCredentialId ? 'Enter a new token only if you want to rotate it' : undefined}
+                    value={apiToken}
+                  />
+                  <Group justify="space-between">
+                    <Group gap="xs">
+                      {editingCredentialId ? (
+                        <Button
+                          type="button"
+                          onClick={resetCredentialForm}
+                          leftSection={<IconRestore size={16} />}
+                          variant="light"
+                        >
+                          Cancel edit
+                        </Button>
+                      ) : null}
+                    </Group>
+                    <Button
+                      type="submit"
+                      loading={upsertCredentialMutation.isPending}
+                      disabled={!label.trim() || (!editingCredentialId && !apiToken.trim())}
+                    >
+                      {editingCredentialId ? 'Update credential' : 'Save credential'}
+                    </Button>
+                  </Group>
+                </Stack>
+              </form>
             </Card>
 
             <Card className="section-card">
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <Title order={3}>Gateway defaults</Title>
-                  <IconSettings size={18} />
-                </Group>
-                <Text c="dimmed" size="sm">
-                  These values are used when `/api/v1/chat` is called without an explicit `providerId` and `model`.
-                </Text>
-                <Select
-                  clearable
-                  label="Default provider"
-                  placeholder={
-                    defaultProviderOptions.length
-                      ? 'Choose a provider with an active credential'
-                      : 'Add a credential first'
-                  }
-                  data={defaultProviderOptions}
-                  onChange={(value) => {
-                    setDefaultProviderId(value ?? null);
-                    setDefaultModel(null);
-                  }}
-                  value={defaultProviderId}
-                />
-                <Select
-                  clearable
-                  label="Default model"
-                  placeholder={
-                    defaultProviderId
-                      ? modelsQuery.isPending
-                        ? 'Loading provider models...'
-                        : 'Choose a default model'
-                      : 'Choose a default provider first'
-                  }
-                  data={defaultModelOptions}
-                  onChange={(value) => setDefaultModel(value ?? null)}
-                  value={defaultModel}
-                  disabled={!defaultProviderId || modelsQuery.isPending || modelsQuery.isError}
-                />
-                {modelsQuery.isError ? (
-                  <Alert color="red" icon={<IconAlertCircle size={18} />} title="Model loading failed">
-                    {modelsQuery.error instanceof Error
-                      ? modelsQuery.error.message
-                      : 'Unable to load models for the selected provider.'}
-                  </Alert>
-                ) : null}
-                <Button
-                  onClick={() => saveDefaultsMutation.mutate()}
-                  loading={saveDefaultsMutation.isPending}
-                  disabled={!providerSettingsDirty}
-                >
-                  Save defaults
-                </Button>
-              </Stack>
+              <form onSubmit={handleDefaultsSubmit}>
+                <Stack gap="sm">
+                  <Group justify="space-between">
+                    <Title order={3}>Gateway defaults</Title>
+                    <IconSettings size={18} />
+                  </Group>
+                  <Text c="dimmed" size="sm">
+                    These values are used when `/api/v1/chat` is called without an explicit `providerId` and `model`.
+                  </Text>
+                  <Select
+                    clearable
+                    label="Default provider"
+                    placeholder={
+                      defaultProviderOptions.length
+                        ? 'Choose a provider with an active credential'
+                        : 'Add a credential first'
+                    }
+                    data={defaultProviderOptions}
+                    onChange={(value) => {
+                      setDefaultProviderId(value ?? null);
+                      setDefaultModel(null);
+                    }}
+                    value={defaultProviderId}
+                  />
+                  <Select
+                    clearable
+                    label="Default model"
+                    placeholder={
+                      defaultProviderId
+                        ? modelsQuery.isPending
+                          ? 'Loading provider models...'
+                          : 'Choose a default model'
+                        : 'Choose a default provider first'
+                    }
+                    data={defaultModelOptions}
+                    onChange={(value) => setDefaultModel(value ?? null)}
+                    value={defaultModel}
+                    disabled={!defaultProviderId || modelsQuery.isPending || modelsQuery.isError}
+                  />
+                  {modelsQuery.isError ? (
+                    <Alert color="red" icon={<IconAlertCircle size={18} />} title="Model loading failed">
+                      {modelsQuery.error instanceof Error
+                        ? modelsQuery.error.message
+                        : 'Unable to load models for the selected provider.'}
+                    </Alert>
+                  ) : null}
+                  <Button
+                    type="submit"
+                    loading={saveDefaultsMutation.isPending}
+                    disabled={!providerSettingsDirty}
+                  >
+                    Save defaults
+                  </Button>
+                </Stack>
+              </form>
             </Card>
           </Stack>
         </Grid.Col>
