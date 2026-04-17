@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { StoredConversation } from './chat-store';
 import {
   appendUserMessage,
+  buildGatewayMessages,
+  DEFAULT_SYSTEM_PROMPT,
   prepareConversationForAssistantRetry,
   prepareConversationForEditedUserMessage,
 } from './chat-thread';
@@ -12,6 +14,7 @@ const baseConversation: StoredConversation = {
   title: 'Original',
   model: 'z-ai/glm-4.6:thinking',
   providerId: 'nanogpt',
+  systemPrompt: DEFAULT_SYSTEM_PROMPT,
   updatedAt: '2026-04-16T00:00:00.000Z',
   messages: [
     { id: 'user-1', role: 'user', content: 'hello', createdAt: '2026-04-16T00:00:00.000Z' },
@@ -53,5 +56,30 @@ describe('chat-thread', () => {
 
     expect(updated.messages.map((message) => message.id)).toEqual(['user-1', 'assistant-1', 'user-2']);
     expect(updated.title).toBe('second ask');
+  });
+
+  it('prepends a system message when the conversation defines one', () => {
+    const gatewayMessages = buildGatewayMessages(baseConversation);
+
+    expect(gatewayMessages[0]).toEqual({
+      role: 'system',
+      content: DEFAULT_SYSTEM_PROMPT,
+    });
+    expect(gatewayMessages[1]).toEqual({
+      role: 'user',
+      content: 'hello',
+    });
+  });
+
+  it('omits the system message when the prompt is blank', () => {
+    const gatewayMessages = buildGatewayMessages({
+      ...baseConversation,
+      systemPrompt: '   ',
+    });
+
+    expect(gatewayMessages[0]).toEqual({
+      role: 'user',
+      content: 'hello',
+    });
   });
 });

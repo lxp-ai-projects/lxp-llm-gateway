@@ -1,4 +1,23 @@
+import type { GatewayChatMessage } from './api-client';
 import type { StoredConversation, StoredConversationMessage } from './chat-store';
+
+export const DEFAULT_SYSTEM_PROMPT =
+  'You are a helpful assistant. Follow the application base guardrails and safety constraints.';
+
+export function buildGatewayMessages(conversation: StoredConversation): GatewayChatMessage[] {
+  const systemPrompt = conversation.systemPrompt?.trim();
+  const systemMessage = systemPrompt
+    ? [{ role: 'system' as const, content: systemPrompt }]
+    : [];
+
+  return [
+    ...systemMessage,
+    ...conversation.messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
+  ];
+}
 
 export function appendUserMessage(
   conversation: StoredConversation,

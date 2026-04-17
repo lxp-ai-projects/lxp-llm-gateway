@@ -15,11 +15,24 @@ describe('chat-scroll', () => {
   it('scrolls the container to the latest message', () => {
     const container = {
       scrollTop: 120,
+      clientHeight: 300,
       scrollHeight: 900,
     };
 
     scrollChatToBottom(container);
 
-    expect(container.scrollTop).toBe(900);
+    expect(container.scrollTop).toBe(600);
+  });
+
+  it('does not reassign scrollTop when already near the bottom', () => {
+    const container = {
+      scrollTop: 593,
+      clientHeight: 300,
+      scrollHeight: 900,
+    };
+
+    scrollChatToBottom(container);
+
+    expect(container.scrollTop).toBe(593);
   });
 });

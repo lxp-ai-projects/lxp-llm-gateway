@@ -6,8 +6,10 @@ import {
   Grid,
   Group,
   Loader,
+  Modal,
   Select,
   Stack,
+  Tabs,
   Text,
   Textarea,
   ThemeIcon,
@@ -20,34 +22,40 @@ import {
   IconPencil,
   IconRotateClockwise2,
   IconSend,
+  IconTrash,
   IconX,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { PageHeader } from '../components/page-header';
+import { MarkdownText } from '../components/markdown-text';
 import { gatewayApiClient } from '../lib/api-client';
 import { scrollChatToBottom, shouldStickToBottom } from '../lib/chat-scroll';
 import { shouldFlagMissingAssistantContent } from '../lib/chat-stream';
 import {
   appendUserMessage,
+  buildGatewayMessages,
+  DEFAULT_SYSTEM_PROMPT,
   prepareConversationForAssistantRetry,
   prepareConversationForEditedUserMessage,
 } from '../lib/chat-thread';
 import { createClientId } from '../lib/id';
 import {
   type StoredConversation,
+  deleteConversation,
   loadConversations,
   saveConversation,
 } from '../lib/chat-store';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 
-function createConversation(model: string): StoredConversation {
+function createConversation(model: string, systemPrompt: string): StoredConversation {
   return {
     id: createClientId(),
     title: 'New conversation',
     model,
     providerId: 'nanogpt',
+    systemPrompt,
     messages: [],
     updatedAt: new Date().toISOString(),
   };
@@ -64,7 +72,12 @@ export function ChatPage() {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
+  const [activePanel, setActivePanel] = useState<'conversation' | 'system-prompt'>('conversation');
+  const [conversationPendingDeletion, setConversationPendingDeletion] =
+    useState<StoredConversation | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const pendingAutoScrollFrameRef = useRef<number | null>(null);
   const modelsQuery = useQuery({
     queryKey: ['gateway-models', 'nanogpt'],
     queryFn: () => gatewayApiClient.getModels('nanogpt'),
@@ -92,6 +105,15 @@ export function ChatPage() {
 
   const activeConversation =
     conversations.find((conversation) => conversation.id === activeConversationId) ?? null;
+  const persistedSystemPrompt = activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+  const systemPromptDirty = systemPrompt.trim() !== persistedSystemPrompt.trim();
+
+  function withCurrentSystemPrompt(conversation: StoredConversation): StoredConversation {
+    return {
+      ...conversation,
+      systemPrompt: systemPrompt.trim(),
+    };
+  }
 
   useEffect(() => {
     if (activeConversation?.model && activeConversation.model !== model) {
@@ -100,12 +122,30 @@ export function ChatPage() {
   }, [activeConversation?.id, activeConversation?.model, model]);
 
   useEffect(() => {
+    setSystemPrompt(activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT);
+  }, [activeConversation?.id, activeConversation?.systemPrompt]);
+
+  useLayoutEffect(() => {
     const container = chatScrollRef.current;
     if (!container || !autoScrollEnabled) {
       return;
     }
 
-    scrollChatToBottom(container);
+    if (pendingAutoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(pendingAutoScrollFrameRef.current);
+    }
+
+    pendingAutoScrollFrameRef.current = requestAnimationFrame(() => {
+      scrollChatToBottom(container);
+      pendingAutoScrollFrameRef.current = null;
+    });
+
+    return () => {
+      if (pendingAutoScrollFrameRef.current !== null) {
+        cancelAnimationFrame(pendingAutoScrollFrameRef.current);
+        pendingAutoScrollFrameRef.current = null;
+      }
+    };
   }, [activeConversation?.messages, autoScrollEnabled, isStreaming]);
 
   async function persistConversationModel(nextModel: string) {
@@ -121,6 +161,27 @@ export function ChatPage() {
     };
 
     setModel(nextModel);
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === updatedConversation.id ? updatedConversation : conversation,
+      ),
+    );
+    await saveConversation(updatedConversation);
+  }
+
+  async function persistConversationSystemPrompt(nextSystemPrompt: string) {
+    setSystemPrompt(nextSystemPrompt);
+
+    if (!activeConversation) {
+      return;
+    }
+
+    const updatedConversation: StoredConversation = {
+      ...activeConversation,
+      systemPrompt: nextSystemPrompt,
+      updatedAt: new Date().toISOString(),
+    };
+
     setConversations((current) =>
       current.map((conversation) =>
         conversation.id === updatedConversation.id ? updatedConversation : conversation,
@@ -165,10 +226,7 @@ export function ChatPage() {
           providerId: 'nanogpt',
           model: effectiveModel,
           stream: true,
-          messages: baseConversation.messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
+          messages: buildGatewayMessages(baseConversation),
         },
         {
           onChunk: ({ reasoningDelta, contentDelta }) => {
@@ -263,7 +321,10 @@ export function ChatPage() {
 
   async function sendMessage(nextPrompt: string): Promise<void> {
     const effectiveModel = activeConversation?.model ?? model;
-    const currentConversation = activeConversation ?? createConversation(effectiveModel);
+    const currentConversation =
+      activeConversation
+        ? withCurrentSystemPrompt(activeConversation)
+        : createConversation(effectiveModel, systemPrompt.trim());
     const userMessage = {
       id: createClientId(),
       role: 'user' as const,
@@ -282,7 +343,11 @@ export function ChatPage() {
 
     try {
       await streamAssistantResponse(
-        prepareConversationForEditedUserMessage(activeConversation, messageId, editingContent.trim()),
+        prepareConversationForEditedUserMessage(
+          withCurrentSystemPrompt(activeConversation),
+          messageId,
+          editingContent.trim(),
+        ),
       );
     } catch (error) {
       setChatError(
@@ -298,7 +363,7 @@ export function ChatPage() {
 
     try {
       await streamAssistantResponse(
-        prepareConversationForAssistantRetry(activeConversation, messageId),
+        prepareConversationForAssistantRetry(withCurrentSystemPrompt(activeConversation), messageId),
       );
     } catch (error) {
       setChatError(
@@ -307,8 +372,57 @@ export function ChatPage() {
     }
   }
 
+  async function confirmConversationDeletion(): Promise<void> {
+    const targetConversation = conversationPendingDeletion;
+    if (!targetConversation) {
+      return;
+    }
+
+    await deleteConversation(targetConversation.id);
+    const nextConversations = conversations.filter(
+      (conversation) => conversation.id !== targetConversation.id,
+    );
+
+    setConversations(nextConversations);
+    setConversationPendingDeletion(null);
+
+    if (activeConversationId === targetConversation.id) {
+      setActiveConversationId(nextConversations[0]?.id ?? null);
+      setActivePanel('conversation');
+      setPrompt('');
+      setChatError(null);
+      setEditingMessageId(null);
+      setEditingContent('');
+    }
+  }
+
   return (
     <>
+      <Modal
+        centered
+        opened={conversationPendingDeletion !== null}
+        onClose={() => setConversationPendingDeletion(null)}
+        title="Delete conversation?"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            This permanently removes the local conversation{' '}
+            <Text component="span" fw={700} inherit>
+              {conversationPendingDeletion?.title ?? 'Untitled conversation'}
+            </Text>
+            . The operation cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button onClick={() => setConversationPendingDeletion(null)} variant="subtle">
+              Cancel
+            </Button>
+            <Button color="red" onClick={() => void confirmConversationDeletion()}>
+              Delete permanently
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
       <PageHeader
         title="Chat Lab"
         description="A lightweight provider test surface with local IndexedDB persistence and optional reasoning display when thinking models expose it."
@@ -322,7 +436,7 @@ export function ChatPage() {
               <ActionIcon
                 aria-label="Create conversation"
                 onClick={() => {
-                  const conversation = createConversation(model);
+                  const conversation = createConversation(model, systemPrompt.trim());
                   void saveConversation(conversation);
                   setAutoScrollEnabled(true);
                   setConversations((current) => [conversation, ...current]);
@@ -340,14 +454,24 @@ export function ChatPage() {
                 </Text>
               ) : (
                 conversations.map((conversation) => (
-                  <Button
-                    key={conversation.id}
-                    justify="space-between"
-                    onClick={() => setActiveConversationId(conversation.id)}
-                    variant={conversation.id === activeConversationId ? 'filled' : 'light'}
-                  >
-                    {conversation.title}
-                  </Button>
+                  <Group key={conversation.id} gap="xs" wrap="nowrap">
+                    <Button
+                      justify="space-between"
+                      onClick={() => setActiveConversationId(conversation.id)}
+                      variant={conversation.id === activeConversationId ? 'filled' : 'light'}
+                      style={{ flex: 1 }}
+                    >
+                      {conversation.title}
+                    </Button>
+                    <ActionIcon
+                      aria-label={`Delete ${conversation.title}`}
+                      color="red"
+                      onClick={() => setConversationPendingDeletion(conversation)}
+                      variant="light"
+                    >
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  </Group>
                 ))
               )}
             </Stack>
@@ -378,186 +502,251 @@ export function ChatPage() {
               />
             </Group>
 
-            <Stack gap="md">
-              {modelsQuery.isError ? (
-                <Alert color="red" icon={<IconAlertCircle size={18} />} title="Model loading failed">
-                  {modelsQuery.error instanceof Error
-                    ? modelsQuery.error.message
-                    : 'Unable to load provider models.'}
-                </Alert>
-              ) : null}
+            <Tabs value={activePanel} onChange={(value) => setActivePanel((value as 'conversation' | 'system-prompt') ?? 'conversation')}>
+              <Tabs.List mb="md">
+                <Tabs.Tab value="conversation">Conversation</Tabs.Tab>
+                <Tabs.Tab value="system-prompt">
+                  {systemPrompt.trim() !== DEFAULT_SYSTEM_PROMPT ? 'System prompt *' : 'System prompt'}
+                </Tabs.Tab>
+              </Tabs.List>
 
-              {chatError ? (
-                <Alert color="red" icon={<IconAlertCircle size={18} />} title="Chat request failed">
-                  {chatError}
-                </Alert>
-              ) : null}
+              <Tabs.Panel value="conversation">
+                <Stack gap="md">
+                  {modelsQuery.isError ? (
+                    <Alert color="red" icon={<IconAlertCircle size={18} />} title="Model loading failed">
+                      {modelsQuery.error instanceof Error
+                        ? modelsQuery.error.message
+                        : 'Unable to load provider models.'}
+                    </Alert>
+                  ) : null}
 
-              <div
-                ref={chatScrollRef}
-                className="chat-scroll"
-                onScroll={(event) => {
-                  const target = event.currentTarget;
-                  setAutoScrollEnabled(
-                    shouldStickToBottom(target.scrollTop, target.clientHeight, target.scrollHeight),
-                  );
-                }}
-              >
-                {activeConversation?.messages.length ? (
-                  activeConversation.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`chat-bubble ${message.role === 'assistant' ? 'assistant' : 'user'} ${
-                        isStreaming &&
-                        message.role === 'assistant' &&
-                        message.id === activeConversation?.messages.at(-1)?.id
-                          ? 'streaming'
-                          : ''
-                      }`}
-                    >
-                      <Group justify="space-between" mb="xs">
-                        <Text fw={700} tt="capitalize">
-                          {message.role}
-                        </Text>
-                        <Group gap={6}>
-                          {message.reasoning ? (
-                            <ThemeIcon color="brass" radius="xl" size="sm" variant="light">
-                              <IconBrain size={14} />
-                            </ThemeIcon>
-                          ) : null}
-                          {!isStreaming && message.role === 'user' ? (
-                            <ActionIcon
-                              aria-label="Edit message"
-                              onClick={() => {
-                                setEditingMessageId(message.id);
-                                setEditingContent(message.content);
-                              }}
-                              size="sm"
-                              variant="subtle"
-                            >
-                              <IconPencil size={14} />
-                            </ActionIcon>
-                          ) : null}
-                          {!isStreaming && message.role === 'assistant' ? (
-                            <ActionIcon
-                              aria-label="Retry response"
-                              onClick={() => void retryAssistantMessage(message.id)}
-                              size="sm"
-                              variant="subtle"
-                            >
-                              <IconRotateClockwise2 size={14} />
-                            </ActionIcon>
-                          ) : null}
-                        </Group>
-                      </Group>
-                      {editingMessageId === message.id ? (
-                        <Stack gap="xs">
-                          <Textarea
-                            autosize
-                            minRows={3}
-                            onChange={(event) => setEditingContent(event.currentTarget.value)}
-                            value={editingContent}
-                          />
-                          <Group justify="flex-end">
-                            <Button
-                              leftSection={<IconX size={14} />}
-                              onClick={() => {
-                                setEditingMessageId(null);
-                                setEditingContent('');
-                              }}
-                              size="xs"
-                              variant="subtle"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              disabled={!editingContent.trim()}
-                              leftSection={<IconSend size={14} />}
-                              onClick={() => void resendEditedMessage(message.id)}
-                              size="xs"
-                            >
-                              Resend
-                            </Button>
+                  {chatError ? (
+                    <Alert color="red" icon={<IconAlertCircle size={18} />} title="Chat request failed">
+                      {chatError}
+                    </Alert>
+                  ) : null}
+
+                  <div
+                    ref={chatScrollRef}
+                    className="chat-scroll"
+                    onScroll={(event) => {
+                      const target = event.currentTarget;
+                      setAutoScrollEnabled(
+                        shouldStickToBottom(target.scrollTop, target.clientHeight, target.scrollHeight),
+                      );
+                    }}
+                  >
+                    {activeConversation?.messages.length ? (
+                      activeConversation.messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`chat-bubble ${message.role === 'assistant' ? 'assistant' : 'user'} ${
+                            isStreaming &&
+                            message.role === 'assistant' &&
+                            message.id === activeConversation?.messages.at(-1)?.id
+                              ? 'streaming'
+                              : ''
+                          }`}
+                        >
+                          <Group justify="space-between" mb="xs">
+                            <Text fw={700} tt="capitalize">
+                              {message.role}
+                            </Text>
+                            <Group gap={6}>
+                              {message.reasoning ? (
+                                <ThemeIcon color="brass" radius="xl" size="sm" variant="light">
+                                  <IconBrain size={14} />
+                                </ThemeIcon>
+                              ) : null}
+                              {!isStreaming && message.role === 'user' ? (
+                                <ActionIcon
+                                  aria-label="Edit message"
+                                  onClick={() => {
+                                    setEditingMessageId(message.id);
+                                    setEditingContent(message.content);
+                                  }}
+                                  size="sm"
+                                  variant="subtle"
+                                >
+                                  <IconPencil size={14} />
+                                </ActionIcon>
+                              ) : null}
+                              {!isStreaming && message.role === 'assistant' ? (
+                                <ActionIcon
+                                  aria-label="Retry response"
+                                  onClick={() => void retryAssistantMessage(message.id)}
+                                  size="sm"
+                                  variant="subtle"
+                                >
+                                  <IconRotateClockwise2 size={14} />
+                                </ActionIcon>
+                              ) : null}
+                            </Group>
                           </Group>
-                        </Stack>
-                      ) : (
-                        <>
-                          {message.reasoning && model.includes('thinking') ? (
-                            <Card className="reasoning-card" mb="sm" p="sm">
-                              <Text size="xs" fw={700} tt="uppercase">
-                                Reasoning
-                              </Text>
-                          <Text className="message-text" size="sm" c="dimmed">
-                            {message.reasoning}
-                          </Text>
-                        </Card>
-                      ) : null}
-                          {message.content ? (
-                            <Text className="message-text">{message.content}</Text>
-                          ) : message.reasoning ? (
-                            <Text className="message-text" c="dimmed" fs="italic">
-                              Assistant response was interrupted before content generation completed.
-                            </Text>
+                          {editingMessageId === message.id ? (
+                            <Stack gap="xs">
+                              <Textarea
+                                autosize
+                                minRows={3}
+                                onChange={(event) => setEditingContent(event.currentTarget.value)}
+                                value={editingContent}
+                              />
+                              <Group justify="flex-end">
+                                <Button
+                                  leftSection={<IconX size={14} />}
+                                  onClick={() => {
+                                    setEditingMessageId(null);
+                                    setEditingContent('');
+                                  }}
+                                  size="xs"
+                                  variant="subtle"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  disabled={!editingContent.trim()}
+                                  leftSection={<IconSend size={14} />}
+                                  onClick={() => void resendEditedMessage(message.id)}
+                                  size="xs"
+                                >
+                                  Resend
+                                </Button>
+                              </Group>
+                            </Stack>
                           ) : (
-                            <Text className="message-text" c="dimmed" fs="italic">
-                              No assistant response content was received.
-                            </Text>
+                            <>
+                              {message.reasoning && model.includes('thinking') ? (
+                                <Card className="reasoning-card" mb="sm" p="sm">
+                                  <Text size="xs" fw={700} tt="uppercase">
+                                    Reasoning
+                                  </Text>
+                                  <MarkdownText dimmed value={message.reasoning} />
+                                </Card>
+                              ) : null}
+                              {message.content ? (
+                                <MarkdownText value={message.content} />
+                              ) : message.reasoning ? (
+                                <Text className="message-text" c="dimmed" fs="italic">
+                                  Assistant response was interrupted before content generation completed.
+                                </Text>
+                              ) : (
+                                <Text className="message-text" c="dimmed" fs="italic">
+                                  No assistant response content was received.
+                                </Text>
+                              )}
+                            </>
                           )}
-                        </>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <Text c="dimmed" size="sm">
-                    Start a conversation to verify provider behavior, model output, and optional thinking traces.
-                  </Text>
-                )}
-                {isStreaming ? (
-                  <Group gap="sm" mt="sm">
-                    <Loader color="teal" size="sm" />
-                    <Text size="sm" c="dimmed">
-                      Streaming provider response...
-                    </Text>
-                  </Group>
-                ) : null}
-                {modelsQuery.isPending ? (
-                  <Group gap="sm" mt="sm">
-                    <Loader color="teal" size="sm" />
-                    <Text size="sm" c="dimmed">
-                      Loading provider models...
-                    </Text>
-                  </Group>
-                ) : null}
-              </div>
+                        </div>
+                      ))
+                    ) : (
+                      <Text c="dimmed" size="sm">
+                        Start a conversation to verify provider behavior, model output, and optional thinking traces.
+                      </Text>
+                    )}
+                    {isStreaming ? (
+                      <Group gap="sm" mt="sm">
+                        <Loader color="teal" size="sm" />
+                        <Text size="sm" c="dimmed">
+                          Streaming provider response...
+                        </Text>
+                      </Group>
+                    ) : null}
+                    {modelsQuery.isPending ? (
+                      <Group gap="sm" mt="sm">
+                        <Loader color="teal" size="sm" />
+                        <Text size="sm" c="dimmed">
+                          Loading provider models...
+                        </Text>
+                      </Group>
+                    ) : null}
+                  </div>
 
-              <Textarea
-                autosize
-                minRows={4}
-                onChange={(event) => setPrompt(event.currentTarget.value)}
-                placeholder="Ask the provider something meaningful..."
-                value={prompt}
-              />
-              <Group justify="space-between">
-                <Text c="dimmed" size="sm">
-                  Selected provider: NanoGPT
-                </Text>
-                <Button
-                  disabled={
-                    !prompt.trim() ||
-                    !runtimeConfigQuery.data?.gatewayOnline ||
-                    !model ||
-                    modelsQuery.isPending ||
-                    modelsQuery.isError ||
-                    isStreaming
-                  }
-                  leftSection={<IconSend size={16} />}
-                  loading={isStreaming}
-                  onClick={() => void sendMessage(prompt.trim())}
-                >
-                  Send
-                </Button>
-              </Group>
-            </Stack>
+                  <Textarea
+                    autosize
+                    minRows={4}
+                    onChange={(event) => setPrompt(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        const nextPrompt = prompt.trim();
+                        if (
+                          nextPrompt &&
+                          runtimeConfigQuery.data?.gatewayOnline &&
+                          model &&
+                          !modelsQuery.isPending &&
+                          !modelsQuery.isError &&
+                          !isStreaming
+                        ) {
+                          void sendMessage(nextPrompt);
+                        }
+                      }
+                    }}
+                    placeholder="Ask the provider something meaningful..."
+                    value={prompt}
+                  />
+                  <Group justify="space-between">
+                    <Text c="dimmed" size="sm">
+                      Selected provider: NanoGPT
+                    </Text>
+                    <Button
+                      disabled={
+                        !prompt.trim() ||
+                        !runtimeConfigQuery.data?.gatewayOnline ||
+                        !model ||
+                        modelsQuery.isPending ||
+                        modelsQuery.isError ||
+                        isStreaming
+                      }
+                      leftSection={<IconSend size={16} />}
+                      loading={isStreaming}
+                      onClick={() => void sendMessage(prompt.trim())}
+                    >
+                      Send
+                    </Button>
+                  </Group>
+                </Stack>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="system-prompt">
+                <Stack gap="md">
+                  <Text c="dimmed" size="sm">
+                    Use this for test-time steering only. It is persisted per local conversation and prepended as a `system` message before the chat history.
+                  </Text>
+                  <Textarea
+                    autosize
+                    label="System prompt"
+                    minRows={8}
+                    maxRows={18}
+                    onChange={(event) => setSystemPrompt(event.currentTarget.value)}
+                    placeholder="I am a helpful assistant."
+                    value={systemPrompt}
+                  />
+                  <Group justify="space-between">
+                    <Text c="dimmed" size="sm">
+                      Default: helpful assistant with application guardrails.
+                    </Text>
+                    <Group>
+                      <Button
+                        onClick={() => void persistConversationSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
+                        variant="light"
+                      >
+                        Reset to default
+                      </Button>
+                      <Button
+                        disabled={!systemPromptDirty}
+                        onClick={() =>
+                          void persistConversationSystemPrompt(
+                            systemPrompt.trim() || DEFAULT_SYSTEM_PROMPT,
+                          )
+                        }
+                      >
+                        Save prompt
+                      </Button>
+                    </Group>
+                  </Group>
+                </Stack>
+              </Tabs.Panel>
+            </Tabs>
           </Card>
         </Grid.Col>
       </Grid>

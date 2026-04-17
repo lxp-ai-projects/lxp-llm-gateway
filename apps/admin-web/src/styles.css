@@ -137,6 +137,35 @@ a {
   word-break: break-word;
 }
 
+.markdown-text {
+  display: grid;
+  gap: 10px;
+}
+
+.markdown-block {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.markdown-heading {
+  margin: 0;
+}
+
+.markdown-list {
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.markdown-list li + li {
+  margin-top: 0.3rem;
+}
+
+.markdown-divider {
+  border: 0;
+  border-top: 1px solid rgba(18, 34, 44, 0.12);
+  margin: 4px 0;
+}
+
 .chat-bubble.streaming {
   position: relative;
 }

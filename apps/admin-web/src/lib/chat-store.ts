@@ -11,6 +11,7 @@ export type StoredConversation = {
   title: string;
   model: string;
   providerId: string;
+  systemPrompt?: string;
   messages: StoredConversationMessage[];
   updatedAt: string;
 };
@@ -58,6 +59,17 @@ export async function saveConversation(conversation: StoredConversation): Promis
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(storeName, 'readwrite');
     transaction.objectStore(storeName).put(conversation);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const database = await openDatabase();
+
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(storeName, 'readwrite');
+    transaction.objectStore(storeName).delete(conversationId);
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
   });
