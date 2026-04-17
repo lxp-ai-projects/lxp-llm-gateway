@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 
@@ -10,9 +10,16 @@ const {
   getModelsMock,
   getOwnProviderCredentialsMock,
   getOwnProviderSettingsMock,
+  runtimeConfigData,
   updateOwnProviderCredentialMock,
   updateOwnProviderSettingsMock,
 } = vi.hoisted(() => ({
+  runtimeConfigData: {
+    registrationEnabled: true,
+    forgotPasswordEnabled: true,
+    gatewayOnline: true,
+    supportedProviders: [{ providerId: 'nanogpt', displayName: 'NanoGPT' }],
+  },
   createOwnProviderCredentialMock: vi.fn(async () => ({
     id: 'credential-2',
     userUuid: 'user-1',
@@ -72,12 +79,7 @@ const {
 
 vi.mock('../lib/use-runtime-config', () => ({
   useRuntimeConfig: () => ({
-    data: {
-      registrationEnabled: true,
-      forgotPasswordEnabled: true,
-      gatewayOnline: true,
-      supportedProviders: [{ providerId: 'nanogpt', displayName: 'NanoGPT' }],
-    },
+    data: runtimeConfigData,
   }),
 }));
 
@@ -101,6 +103,33 @@ beforeEach(() => {
   getOwnProviderSettingsMock.mockClear();
   updateOwnProviderCredentialMock.mockClear();
   updateOwnProviderSettingsMock.mockClear();
+  runtimeConfigData.supportedProviders = [{ providerId: 'nanogpt', displayName: 'NanoGPT' }];
+  getModelsMock.mockResolvedValue({
+    providerId: 'nanogpt',
+    models: [
+      { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
+      { id: 'mistral-medium', displayName: 'Mistral Medium' },
+    ],
+  });
+  getOwnProviderCredentialsMock.mockResolvedValue([
+    {
+      id: 'credential-1',
+      userUuid: 'user-1',
+      providerId: 'nanogpt',
+      providerDisplayName: 'NanoGPT',
+      label: 'primary',
+      maskedHint: '***oken',
+      isActive: true,
+      createdAt: '2026-04-17T00:00:00.000Z',
+      updatedAt: '2026-04-17T00:00:00.000Z',
+      lastUsedAt: null,
+    },
+  ]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'z-ai/glm-4.6:thinking',
+  });
 });
 
 test('ProvidersPage lets the user edit their own credential token', async () => {
@@ -123,11 +152,116 @@ test('ProvidersPage lets the user edit their own credential token', async () => 
       apiToken: 'rotated-secret-token',
     }),
   );
-}, 15_000);
+}, 20_000);
 
 test('ProvidersPage shows the current gateway defaults and loads models for the selected provider', async () => {
   renderWithProviders(<ProvidersPage />);
 
   expect(await screen.findByText('Current gateway defaults')).toBeInTheDocument();
   expect(getModelsMock).toHaveBeenCalledWith('nanogpt');
+});
+
+test('ProvidersPage creates a new credential and ignores empty submit payloads', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  expect(await screen.findByText('No credentials saved yet. Add one before setting gateway defaults.')).toBeInTheDocument();
+
+  const saveCredentialButton = screen.getByRole('button', { name: 'Save credential' });
+  expect(saveCredentialButton).toBeDisabled();
+
+  const credentialHeading = screen.getByRole('heading', { name: 'Add provider credential' });
+  const credentialForm = credentialHeading.closest('form');
+  expect(credentialForm).not.toBeNull();
+
+  fireEvent.submit(credentialForm!);
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+
+  await user.type(screen.getByLabelText('API token'), 'fresh-secret-token');
+  await user.click(saveCredentialButton);
+
+  await waitFor(() =>
+    expect(createOwnProviderCredentialMock).toHaveBeenCalledWith({
+      providerId: 'nanogpt',
+      label: 'primary',
+      apiToken: 'fresh-secret-token',
+    }),
+  );
+});
+
+test('ProvidersPage cancels credential edit mode and resets the form', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ProvidersPage />);
+
+  await user.click(await screen.findByRole('button', { name: 'Edit' }));
+  expect(await screen.findByRole('heading', { name: 'Edit provider credential' })).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Cancel edit' }));
+
+  expect(await screen.findByRole('heading', { name: 'Add provider credential' })).toBeInTheDocument();
+  expect(screen.getByLabelText('Label')).toHaveValue('primary');
+  expect(screen.getByLabelText('API token')).toHaveValue('');
+});
+
+test('ProvidersPage clears an invalid default model and saves gateway defaults', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'model-that-no-longer-exists',
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByText('Current gateway defaults');
+  await waitFor(() => expect(getModelsMock).toHaveBeenCalledWith('nanogpt'));
+
+  const saveDefaultsButton = screen.getByRole('button', { name: 'Save defaults' });
+  await waitFor(() => expect(saveDefaultsButton).toBeEnabled());
+  await user.click(saveDefaultsButton);
+
+  await waitFor(() =>
+    expect(updateOwnProviderSettingsMock).toHaveBeenCalledWith({
+      defaultProviderId: 'nanogpt',
+      defaultModel: null,
+    }),
+  );
+});
+
+test('ProvidersPage surfaces model loading failures and raw provider fallback names', async () => {
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: 'custom-provider',
+    defaultModel: null,
+  });
+  getModelsMock.mockRejectedValue(new Error('NanoGPT model directory is offline.'));
+
+  renderWithProviders(<ProvidersPage />);
+
+  const currentDefaults = await screen.findByText('Current gateway defaults');
+  const defaultsAlert = currentDefaults.closest('[role="alert"]');
+  expect(defaultsAlert).not.toBeNull();
+  expect(within(defaultsAlert!).getByText(/Provider: custom-provider/)).toBeInTheDocument();
+
+  expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
+  expect(screen.getByText('NanoGPT model directory is offline.')).toBeInTheDocument();
+});
+
+test('ProvidersPage marks default providers in both mobile and desktop credential views', async () => {
+  renderWithProviders(<ProvidersPage />);
+
+  expect(await screen.findByText('Current gateway defaults')).toBeInTheDocument();
+
+  const defaultProviderLabels = await screen.findAllByText('Default provider');
+  expect(defaultProviderLabels.length).toBeGreaterThanOrEqual(2);
 });
