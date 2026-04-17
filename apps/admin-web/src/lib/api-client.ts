@@ -117,6 +117,13 @@ export type AdminUserSummary = {
   updatedAt: string;
 };
 
+export type AdminCreateUserInput = {
+  email: string;
+  password: string;
+  displayName: string;
+  roles?: string[];
+};
+
 export type ChatTransferConversation = {
   id: string;
   title: string;
@@ -379,6 +386,13 @@ export const adminApiClient = {
 
   async getUsers(): Promise<AdminUserSummary[]> {
     return request<AdminUserSummary[]>(`${adminApiUrl}/api/v1/admin/users`);
+  },
+
+  async createUser(payload: AdminCreateUserInput): Promise<AdminUserSummary> {
+    return request<AdminUserSummary>(`${adminApiUrl}/api/v1/admin/users`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   async updateUser(

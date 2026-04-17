@@ -5,6 +5,8 @@ import {
   Button,
   Card,
   Group,
+  MultiSelect,
+  PasswordInput,
   SimpleGrid,
   Modal,
   Select,
@@ -17,6 +19,7 @@ import {
 import { IconSearch, IconShieldCheck, IconUserCircle, IconUsersGroup } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 
 import { PageHeader } from '../components/page-header';
@@ -27,6 +30,11 @@ export function UsersPage() {
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUserSummary | null>(null);
   const [credentialsOpened, credentialsControls] = useDisclosure(false);
+  const [createUserOpened, createUserControls] = useDisclosure(false);
+  const [createDisplayName, setCreateDisplayName] = useState('');
+  const [createEmail, setCreateEmail] = useState('');
+  const [createPassword, setCreatePassword] = useState('');
+  const [createRoles, setCreateRoles] = useState<string[]>(['user']);
   const usersQuery = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => adminApiClient.getUsers(),
@@ -40,6 +48,20 @@ export function UsersPage() {
     mutationFn: (payload: { userUuid: string; status: 'active' | 'disabled' }) =>
       adminApiClient.updateUser(payload.userUuid, { status: payload.status }),
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+  const createUserMutation = useMutation({
+    mutationFn: () =>
+      adminApiClient.createUser({
+        email: createEmail.trim(),
+        password: createPassword,
+        displayName: createDisplayName.trim(),
+        roles: createRoles.length ? createRoles : ['user'],
+      }),
+    onSuccess: async () => {
+      resetCreateUserForm();
+      createUserControls.close();
       await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
@@ -90,6 +112,23 @@ export function UsersPage() {
     );
   }
 
+  function resetCreateUserForm() {
+    setCreateDisplayName('');
+    setCreateEmail('');
+    setCreatePassword('');
+    setCreateRoles(['user']);
+  }
+
+  function handleCreateUserSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!createDisplayName.trim() || !createEmail.trim() || createPassword.length < 8) {
+      return;
+    }
+
+    createUserMutation.mutate();
+  }
+
   function renderMobileUserSummary(user: AdminUserSummary) {
     const isAdmin = user.roles.includes('admin');
     const RoleIcon = isAdmin ? IconShieldCheck : IconUserCircle;
@@ -114,7 +153,13 @@ export function UsersPage() {
       <PageHeader
         title="User Management"
         description="Administrative user controls for search, lifecycle management, role assignment, and password reset workflows."
-        aside={<Button>Create user</Button>}
+        aside={
+          <Button
+            onClick={createUserControls.open}
+          >
+            Create user
+          </Button>
+        }
       />
       <Card className="section-card">
         <Group justify="space-between" mb="md" className="users-toolbar">
@@ -212,6 +257,70 @@ export function UsersPage() {
         User listing and basic lifecycle editing are now connected. Role reassignment, pagination, primary-admin
         transfer, and password reset flow still need deeper backend support.
       </Alert>
+      <Modal
+        opened={createUserOpened}
+        onClose={() => {
+          createUserControls.close();
+          resetCreateUserForm();
+        }}
+        title="Create user"
+      >
+        <form onSubmit={handleCreateUserSubmit}>
+          <Stack gap="sm">
+            <Text c="dimmed" size="sm">
+              Create a new platform account with the minimum credentials required to sign in.
+            </Text>
+            <TextInput
+              label="Display name"
+              placeholder="Emilie Joli"
+              value={createDisplayName}
+              onChange={(event) => setCreateDisplayName(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Email"
+              placeholder="emilie@example.com"
+              type="email"
+              value={createEmail}
+              onChange={(event) => setCreateEmail(event.currentTarget.value)}
+            />
+            <PasswordInput
+              label="Temporary password"
+              description="Minimum 8 characters."
+              value={createPassword}
+              onChange={(event) => setCreatePassword(event.currentTarget.value)}
+            />
+            <MultiSelect
+              label="Roles"
+              data={[
+                { value: 'user', label: 'User' },
+                { value: 'admin', label: 'Admin' },
+              ]}
+              value={createRoles}
+              onChange={setCreateRoles}
+              searchable={false}
+            />
+            <Group justify="space-between">
+              <Button
+                type="button"
+                variant="light"
+                onClick={() => {
+                  createUserControls.close();
+                  resetCreateUserForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                loading={createUserMutation.isPending}
+                disabled={!createDisplayName.trim() || !createEmail.trim() || createPassword.length < 8}
+              >
+                Create user
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
       <Modal
         opened={credentialsOpened}
         onClose={credentialsControls.close}
