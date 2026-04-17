@@ -60,3 +60,11 @@ Object.defineProperty(navigator, 'clipboard', {
     writeText: async () => undefined,
   },
 });
+
+Object.defineProperty(navigator, 'serviceWorker', {
+  configurable: true,
+  writable: true,
+  value: {
+    register: async () => ({ scope: '/' }),
+  },
+});

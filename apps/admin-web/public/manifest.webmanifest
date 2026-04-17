@@ -1,0 +1,24 @@
+{
+  "name": "lxp-llm-gateway",
+  "short_name": "LXP Gateway",
+  "description": "Enterprise control plane for the lxp-llm-gateway platform.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#edf3f5",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/pwa-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,4 +1,20 @@
-import { Alert, Button, Card, Grid, Group, PasswordInput, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
+import {
+  Accordion,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Grid,
+  Group,
+  PasswordInput,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import { IconAlertCircle, IconEdit, IconKey, IconRestore, IconSettings } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -152,6 +168,23 @@ export function ProvidersPage() {
     label: modelEntry.displayName,
   }));
 
+  function renderCredentialEditAction(credential: {
+    id: string;
+    providerId: string;
+    label: string;
+  }) {
+    return (
+      <Button
+        leftSection={<IconEdit size={14} />}
+        onClick={() => beginCredentialEdit(credential)}
+        size="xs"
+        variant="light"
+      >
+        Edit
+      </Button>
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -278,7 +311,52 @@ export function ProvidersPage() {
           <Card className="section-card">
             <Stack gap="sm">
               <Title order={3}>My credentials</Title>
-              <Table highlightOnHover>
+              <div className="provider-credentials-mobile">
+                <Accordion variant="separated" radius="lg" className="provider-credentials-accordion">
+                  {(credentialsQuery.data ?? []).map((credential) => (
+                    <Accordion.Item key={credential.id} value={credential.id} className="provider-credential-accordion-item">
+                      <Accordion.Control>
+                        <Group justify="space-between" gap="sm" wrap="nowrap" className="provider-credential-summary">
+                          <div className="provider-credential-summary-copy">
+                            <Text fw={700}>{credential.providerDisplayName}</Text>
+                            <Text size="sm" c="dimmed">
+                              {credential.label}
+                            </Text>
+                          </div>
+                          <Badge color={credential.isActive ? 'moss' : 'gray'} variant="light">
+                            {credential.isActive ? 'Active' : 'Disabled'}
+                          </Badge>
+                        </Group>
+                      </Accordion.Control>
+                      <Accordion.Panel>
+                        <Stack gap="sm">
+                          <SimpleGrid cols={2} spacing="sm" verticalSpacing="sm">
+                            <div>
+                              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                                Masked value
+                              </Text>
+                              <Text mt={4}>{credential.maskedHint ?? 'Hidden'}</Text>
+                            </div>
+                            <div>
+                              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                                Status
+                              </Text>
+                              <Text mt={4}>{credential.isActive ? 'Active' : 'Disabled'}</Text>
+                            </div>
+                          </SimpleGrid>
+                          {providerSettingsQuery.data?.defaultProviderId === credential.providerId ? (
+                            <Alert color="teal" variant="light" title="Default provider">
+                              This provider is currently used as the default gateway provider.
+                            </Alert>
+                          ) : null}
+                          <Group justify="flex-start">{renderCredentialEditAction(credential)}</Group>
+                        </Stack>
+                      </Accordion.Panel>
+                    </Accordion.Item>
+                  ))}
+                </Accordion>
+              </div>
+              <Table highlightOnHover className="provider-credentials-desktop-table">
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Provider</Table.Th>
@@ -304,16 +382,7 @@ export function ProvidersPage() {
                       <Table.Td>{credential.label}</Table.Td>
                       <Table.Td>{credential.maskedHint ?? 'Hidden'}</Table.Td>
                       <Table.Td>{credential.isActive ? 'Active' : 'Disabled'}</Table.Td>
-                      <Table.Td>
-                        <Button
-                          leftSection={<IconEdit size={14} />}
-                          onClick={() => beginCredentialEdit(credential)}
-                          size="xs"
-                          variant="light"
-                        >
-                          Edit
-                        </Button>
-                      </Table.Td>
+                      <Table.Td>{renderCredentialEditAction(credential)}</Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

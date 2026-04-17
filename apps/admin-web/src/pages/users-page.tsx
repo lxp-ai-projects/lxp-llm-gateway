@@ -1,17 +1,20 @@
 import {
+  Accordion,
   Alert,
   Badge,
   Button,
   Card,
   Group,
+  SimpleGrid,
   Modal,
   Select,
+  Stack,
   Table,
   Text,
   TextInput,
   Title,
 } from '@mantine/core';
-import { IconSearch, IconUsersGroup } from '@tabler/icons-react';
+import { IconSearch, IconShieldCheck, IconUserCircle, IconUsersGroup } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
@@ -50,6 +53,62 @@ export function UsersPage() {
     [search, usersQuery.data],
   );
 
+  function renderUserActions(user: AdminUserSummary) {
+    return (
+      <Group gap="xs" wrap="wrap" className="users-actions">
+        <Select
+          className="users-status-select"
+          data={[
+            { value: 'active', label: 'Active' },
+            { value: 'disabled', label: 'Disabled' },
+          ]}
+          value={user.status}
+          onChange={(value) => {
+            if (value && value !== user.status) {
+              updateUserMutation.mutate({
+                userUuid: user.userUuid,
+                status: value as 'active' | 'disabled',
+              });
+            }
+          }}
+          size="xs"
+        />
+        <Button
+          size="xs"
+          variant="light"
+          onClick={() => {
+            setSelectedUser(user);
+            credentialsControls.open();
+          }}
+        >
+          View credentials
+        </Button>
+        <Button size="xs" variant="subtle">
+          Reset password
+        </Button>
+      </Group>
+    );
+  }
+
+  function renderMobileUserSummary(user: AdminUserSummary) {
+    const isAdmin = user.roles.includes('admin');
+    const RoleIcon = isAdmin ? IconShieldCheck : IconUserCircle;
+
+    return (
+      <Group gap="sm" wrap="nowrap" className="users-mobile-summary">
+        <div className={`users-mobile-role-icon ${isAdmin ? 'admin' : 'user'}`}>
+          <RoleIcon size={18} />
+        </div>
+        <div className="users-mobile-summary-copy">
+          <Text fw={700}>{user.displayName}</Text>
+          <Text size="sm" c="dimmed">
+            {user.email}
+          </Text>
+        </div>
+      </Group>
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -58,86 +117,96 @@ export function UsersPage() {
         aside={<Button>Create user</Button>}
       />
       <Card className="section-card">
-        <Group justify="space-between" mb="md">
+        <Group justify="space-between" mb="md" className="users-toolbar">
           <Title order={3}>Directory</Title>
           <TextInput
+            className="users-search"
             leftSection={<IconSearch size={16} />}
             placeholder="Search users..."
-            w={280}
             value={search}
             onChange={(event) => setSearch(event.currentTarget.value)}
           />
         </Group>
-        <Table highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>User</Table.Th>
-              <Table.Th>Role</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
+        <div className="users-cards" aria-label="Mobile user cards">
+          <Accordion variant="separated" radius="lg" className="users-mobile-accordion">
             {filteredUsers.map((user) => (
-              <Table.Tr key={user.userUuid}>
-                <Table.Td>
-                  <Text fw={600}>{user.displayName}</Text>
-                  <Text size="sm" c="dimmed">
-                    {user.email}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    {user.roles.map((role) => (
-                      <Badge key={role} variant="light">
-                        {role}
-                      </Badge>
-                    ))}
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Badge color={user.status === 'active' ? 'moss' : 'red'} variant="light">
-                    {user.status}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    <Select
-                      data={[
-                        { value: 'active', label: 'Active' },
-                        { value: 'disabled', label: 'Disabled' },
-                      ]}
-                      value={user.status}
-                      onChange={(value) => {
-                        if (value && value !== user.status) {
-                          updateUserMutation.mutate({
-                            userUuid: user.userUuid,
-                            status: value as 'active' | 'disabled',
-                          });
-                        }
-                      }}
-                      size="xs"
-                      w={120}
-                    />
-                    <Button
-                      size="xs"
-                      variant="light"
-                      onClick={() => {
-                        setSelectedUser(user);
-                        credentialsControls.open();
-                      }}
-                    >
-                      View credentials
-                    </Button>
-                    <Button size="xs" variant="subtle">
-                      Reset password
-                    </Button>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
+              <Accordion.Item key={user.userUuid} value={user.userUuid} className="users-mobile-card">
+                <Accordion.Control>{renderMobileUserSummary(user)}</Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="sm">
+                    <SimpleGrid cols={2} spacing="sm" verticalSpacing="sm">
+                      <div>
+                        <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                          Roles
+                        </Text>
+                        <Group gap="xs" wrap="wrap" mt={6}>
+                          {user.roles.map((role) => (
+                            <Badge key={role} variant="light">
+                              {role}
+                            </Badge>
+                          ))}
+                        </Group>
+                      </div>
+                      <div>
+                        <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                          Status
+                        </Text>
+                        <Badge color={user.status === 'active' ? 'moss' : 'red'} variant="light" mt={6}>
+                          {user.status}
+                        </Badge>
+                      </div>
+                    </SimpleGrid>
+                    <div>
+                      <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={6}>
+                        Actions
+                      </Text>
+                      {renderUserActions(user)}
+                    </div>
+                  </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
             ))}
-          </Table.Tbody>
-        </Table>
+          </Accordion>
+        </div>
+        <Table.ScrollContainer minWidth={760} className="users-table-scroll">
+          <Table highlightOnHover className="users-table">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>User</Table.Th>
+                <Table.Th>Role</Table.Th>
+                <Table.Th>Status</Table.Th>
+                <Table.Th>Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {filteredUsers.map((user) => (
+                <Table.Tr key={user.userUuid}>
+                  <Table.Td>
+                    <Text fw={600}>{user.displayName}</Text>
+                    <Text size="sm" c="dimmed">
+                      {user.email}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap="xs" wrap="wrap">
+                      {user.roles.map((role) => (
+                        <Badge key={role} variant="light">
+                          {role}
+                        </Badge>
+                      ))}
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={user.status === 'active' ? 'moss' : 'red'} variant="light">
+                      {user.status}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>{renderUserActions(user)}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Card>
       <Alert color="blue" icon={<IconUsersGroup size={18} />} mt="lg" title="Backend dependency">
         User listing and basic lifecycle editing are now connected. Role reassignment, pagination, primary-admin
@@ -148,24 +217,58 @@ export function UsersPage() {
         onClose={credentialsControls.close}
         title={`Provider credentials${selectedUser ? `: ${selectedUser.displayName}` : ''}`}
       >
-        <Table highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Provider</Table.Th>
-              <Table.Th>Label</Table.Th>
-              <Table.Th>Masked value</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
+        <div className="provider-credentials-cards" aria-label="Mobile provider credentials">
+          <Stack gap="sm">
             {(credentialsQuery.data ?? []).map((credential) => (
-              <Table.Tr key={credential.id}>
-                <Table.Td>{credential.providerDisplayName}</Table.Td>
-                <Table.Td>{credential.label}</Table.Td>
-                <Table.Td>{credential.maskedHint ?? 'Hidden'}</Table.Td>
-              </Table.Tr>
+              <Card key={credential.id} className="provider-credential-card" padding="md" radius="lg" withBorder>
+                <Stack gap="sm">
+                  <div>
+                    <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                      Provider
+                    </Text>
+                    <Text fw={600} mt={4}>
+                      {credential.providerDisplayName}
+                    </Text>
+                  </div>
+                  <SimpleGrid cols={2} spacing="sm" verticalSpacing="sm">
+                    <div>
+                      <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                        Label
+                      </Text>
+                      <Text mt={4}>{credential.label}</Text>
+                    </div>
+                    <div>
+                      <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                        Masked value
+                      </Text>
+                      <Text mt={4}>{credential.maskedHint ?? 'Hidden'}</Text>
+                    </div>
+                  </SimpleGrid>
+                </Stack>
+              </Card>
             ))}
-          </Table.Tbody>
-        </Table>
+          </Stack>
+        </div>
+        <Table.ScrollContainer minWidth={440}>
+          <Table highlightOnHover className="provider-credentials-table">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Provider</Table.Th>
+                <Table.Th>Label</Table.Th>
+                <Table.Th>Masked value</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {(credentialsQuery.data ?? []).map((credential) => (
+                <Table.Tr key={credential.id}>
+                  <Table.Td>{credential.providerDisplayName}</Table.Td>
+                  <Table.Td>{credential.label}</Table.Td>
+                  <Table.Td>{credential.maskedHint ?? 'Hidden'}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Modal>
     </>
   );

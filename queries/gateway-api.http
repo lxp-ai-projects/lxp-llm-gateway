@@ -79,7 +79,21 @@ Authorization: Bearer {{accessToken}}
   ]
 }
 
-### Chat Completion Stream
+### Chat Completion (default provider and model)
+POST {{gatewayApiBaseUrl}}/api/v1/chat
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bonjour, je m'appelle Emilie Joli. Peux-tu me dire bonjour en retour ?"
+    }
+  ]
+}
+
+### Chat Completion Stream (default provider and model)
 POST {{gatewayApiBaseUrl}}/api/v1/chat
 Content-Type: application/json
 Accept: text/event-stream

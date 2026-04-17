@@ -30,6 +30,7 @@ import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from 'reac
 import { adminApiClient } from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 import { useSession } from '../lib/use-session';
+import { InstallAppButton } from './install-app-button';
 
 type NavigationItem = {
   label: string;
@@ -95,6 +96,7 @@ export function AppShellLayout() {
             </Box>
           </Group>
           <Group className="shell-actions" gap="sm" wrap="nowrap">
+            <InstallAppButton />
             <Badge
               color={runtimeConfigQuery.data?.gatewayOnline ? 'moss' : 'red'}
               variant="light"
