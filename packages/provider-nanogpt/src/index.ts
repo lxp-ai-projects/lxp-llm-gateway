@@ -95,7 +95,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     return {
       requestId: context.requestId,
       providerId: this.providerId,
-      model: request.model,
+      model: request.model ?? 'unknown-model',
       message: {
         role: message?.role ?? 'assistant',
         content: message?.content ?? '',

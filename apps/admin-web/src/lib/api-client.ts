@@ -28,6 +28,7 @@ function resolveApiBaseUrl(explicitUrl: string | undefined, fallbackPort: number
 const adminApiUrl = resolveApiBaseUrl(import.meta.env.VITE_ADMIN_API_URL, 3002);
 const gatewayApiUrl = resolveApiBaseUrl(import.meta.env.VITE_GATEWAY_API_URL, 3001);
 let refreshInFlight: Promise<void> | null = null;
+export const SESSION_TIMEOUT_MESSAGE_STORAGE_KEY = 'lxp.session-timeout-message';
 
 export type RuntimeConfig = {
   registrationEnabled: boolean;
@@ -98,6 +99,12 @@ export type ProviderCredentialSummary = {
   createdAt: string;
   updatedAt: string;
   lastUsedAt: string | null;
+};
+
+export type ProviderSettingsSummary = {
+  userUuid: string;
+  defaultProviderId: string | null;
+  defaultModel: string | null;
 };
 
 export type AdminUserSummary = {
@@ -191,7 +198,9 @@ async function refreshBrowserSession(): Promise<void> {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(body || `Session refresh failed with ${response.status}`);
+      const errorMessage = body || `Session refresh failed with ${response.status}`;
+      handleSessionRefreshFailure(errorMessage);
+      throw new Error(errorMessage);
     }
   })();
 
@@ -200,6 +209,25 @@ async function refreshBrowserSession(): Promise<void> {
   } finally {
     refreshInFlight = null;
   }
+}
+
+function handleSessionRefreshFailure(message: string): void {
+  const normalizedMessage = message.toLowerCase();
+  const isTimeout =
+    normalizedMessage.includes('refresh token is required') ||
+    normalizedMessage.includes('invalid or expired token');
+
+  if (!isTimeout || typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
+    'Session is timed out, you have to login again.',
+  );
+
+  const loginUrl = new URL('/login', window.location.origin);
+  window.location.assign(loginUrl.toString());
 }
 
 async function requestBlobWithSessionRefresh(
@@ -371,6 +399,22 @@ export const adminApiClient = {
     return request<ProviderCredentialSummary[]>(`${adminApiUrl}/api/v1/provider-credentials`);
   },
 
+  async updateOwnProviderCredential(
+    credentialId: string,
+    payload: {
+      label?: string;
+      apiToken?: string;
+    },
+  ): Promise<ProviderCredentialSummary> {
+    return request<ProviderCredentialSummary>(
+      `${adminApiUrl}/api/v1/provider-credentials/${credentialId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
   async createOwnProviderCredential(payload: {
     providerId: 'nanogpt';
     label: string;
@@ -378,6 +422,20 @@ export const adminApiClient = {
   }): Promise<ProviderCredentialSummary> {
     return request<ProviderCredentialSummary>(`${adminApiUrl}/api/v1/provider-credentials`, {
       method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getOwnProviderSettings(): Promise<ProviderSettingsSummary> {
+    return request<ProviderSettingsSummary>(`${adminApiUrl}/api/v1/provider-settings`);
+  },
+
+  async updateOwnProviderSettings(payload: {
+    defaultProviderId?: 'nanogpt' | null;
+    defaultModel?: string | null;
+  }): Promise<ProviderSettingsSummary> {
+    return request<ProviderSettingsSummary>(`${adminApiUrl}/api/v1/provider-settings`, {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     });
   },
@@ -435,8 +493,8 @@ export const adminApiClient = {
 
 async function chatStreamWithSessionRefresh(
   payload: {
-    providerId: string;
-    model: string;
+    providerId?: string;
+    model?: string;
     stream: true;
     messages: GatewayChatMessage[];
   },
@@ -588,12 +646,16 @@ export const gatewayApiClient = {
     providerId: string;
     models: ProviderModelSummary[];
   }> {
-    return request(`${gatewayApiUrl}/api/v1/models?providerId=${encodeURIComponent(providerId)}`);
+    const endpoint = providerId
+      ? `${gatewayApiUrl}/api/v1/models?providerId=${encodeURIComponent(providerId)}`
+      : `${gatewayApiUrl}/api/v1/models`;
+
+    return request(endpoint);
   },
 
   async chat(payload: {
-    providerId: string;
-    model: string;
+    providerId?: string;
+    model?: string;
     stream: false;
     messages: GatewayChatMessage[];
   }): Promise<GatewayChatResponse> {
@@ -606,8 +668,8 @@ export const gatewayApiClient = {
 
   async chatStream(
     payload: {
-      providerId: string;
-      model: string;
+      providerId?: string;
+      model?: string;
       stream: true;
       messages: GatewayChatMessage[];
     },

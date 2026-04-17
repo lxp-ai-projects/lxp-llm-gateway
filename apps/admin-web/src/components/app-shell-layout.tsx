@@ -25,7 +25,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { NavLink as RouterNavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { adminApiClient } from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
@@ -50,6 +50,7 @@ const navigationItems: NavigationItem[] = [
 
 export function AppShellLayout() {
   const [opened, { toggle, close }] = useDisclosure();
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const sessionQuery = useSession();
@@ -65,6 +66,14 @@ export function AppShellLayout() {
   const currentUser = sessionQuery.data;
   const isAdmin = currentUser?.roles.includes('admin') ?? false;
   const availableItems = navigationItems.filter((item) => !item.adminOnly || isAdmin);
+
+  function isNavigationItemActive(path: string): boolean {
+    if (path === '/app') {
+      return location.pathname === '/app';
+    }
+
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  }
 
   return (
     <AppShell
@@ -133,11 +142,13 @@ export function AppShellLayout() {
           <Stack gap="xs">
             {availableItems.map((item) => (
               <NavLink
+                active={isNavigationItemActive(item.to)}
                 key={item.to}
                 component={RouterNavLink}
                 description={item.adminOnly ? 'Administrator surface' : 'Workspace surface'}
                 label={item.label}
                 leftSection={<item.icon size={18} stroke={1.8} />}
+                end={item.to === '/app'}
                 onClick={close}
                 to={item.to}
               />

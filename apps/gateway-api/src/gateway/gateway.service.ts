@@ -3,6 +3,7 @@ import {
   Injectable,
   NotImplementedException,
 } from '@nestjs/common';
+import type { ProviderId } from '@lxp/domain';
 import type { GatewayChatResponse } from '@lxp/contracts';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
@@ -24,7 +25,9 @@ export class GatewayService {
     query: ListModelsQueryDto,
     authContext: GatewayAuthContext,
   ) {
-    const provider = this.providerRegistry.getProvider(query.providerId);
+    const provider = this.providerRegistry.getProvider(
+      query.providerId ?? authContext.defaultProviderId ?? undefined,
+    );
     const requestId = crypto.randomUUID();
 
     if (!provider.listModels) {
@@ -56,7 +59,9 @@ export class GatewayService {
     request: GatewayChatRequestDto,
     authContext: GatewayAuthContext,
   ): Promise<GatewayChatResponse> {
-    const provider = this.providerRegistry.getProvider(request.providerId);
+    const providerId = this.resolveProviderId(request.providerId, authContext);
+    const model = this.resolveModel(request.model, providerId, authContext);
+    const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
 
@@ -68,7 +73,7 @@ export class GatewayService {
     const auditBase = {
       requestId,
       providerId: provider.providerId,
-      model: request.model,
+      model,
       userFingerprint: this.gatewayAuditService.fingerprint(authContext.emailHash),
       stream: false,
       ...messageSummary,
@@ -81,13 +86,20 @@ export class GatewayService {
         provider.providerId,
       );
 
-      const response = await provider.chat(request, {
-        requestId,
-        userId: authContext.userId,
-        providerCredential: {
-          apiKey,
+      const response = await provider.chat(
+        {
+          ...request,
+          providerId,
+          model,
         },
-      });
+        {
+          requestId,
+          userId: authContext.userId,
+          providerCredential: {
+            apiKey,
+          },
+        },
+      );
 
       this.gatewayAuditService.logSucceeded({
         ...auditBase,
@@ -111,7 +123,9 @@ export class GatewayService {
     request: GatewayChatRequestDto,
     authContext: GatewayAuthContext,
   ): Promise<{ requestId: string; stream: ReadableStream<Uint8Array> }> {
-    const provider = this.providerRegistry.getProvider(request.providerId);
+    const providerId = this.resolveProviderId(request.providerId, authContext);
+    const model = this.resolveModel(request.model, providerId, authContext);
+    const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
 
@@ -129,7 +143,7 @@ export class GatewayService {
     const auditBase = {
       requestId,
       providerId: provider.providerId,
-      model: request.model,
+      model,
       userFingerprint: this.gatewayAuditService.fingerprint(authContext.emailHash),
       stream: true,
       ...messageSummary,
@@ -142,13 +156,20 @@ export class GatewayService {
         provider.providerId,
       );
 
-      const stream = await provider.chatStream(request, {
-        requestId,
-        userId: authContext.userId,
-        providerCredential: {
-          apiKey,
+      const stream = await provider.chatStream(
+        {
+          ...request,
+          providerId,
+          model,
         },
-      });
+        {
+          requestId,
+          userId: authContext.userId,
+          providerCredential: {
+            apiKey,
+          },
+        },
+      );
 
       this.gatewayAuditService.logSucceeded({
         ...auditBase,
@@ -169,5 +190,43 @@ export class GatewayService {
       });
       throw error;
     }
+  }
+
+  private resolveProviderId(
+    requestedProviderId: ProviderId | undefined,
+    authContext: GatewayAuthContext,
+  ): ProviderId {
+    if (requestedProviderId) {
+      return requestedProviderId;
+    }
+
+    if (authContext.defaultProviderId) {
+      return authContext.defaultProviderId;
+    }
+
+    throw new BadRequestException(
+      'No provider was supplied and no default provider is configured for the authenticated user.',
+    );
+  }
+
+  private resolveModel(
+    requestedModel: string | undefined,
+    providerId: ProviderId,
+    authContext: GatewayAuthContext,
+  ): string {
+    if (requestedModel) {
+      return requestedModel;
+    }
+
+    if (
+      authContext.defaultProviderId === providerId &&
+      authContext.defaultModel
+    ) {
+      return authContext.defaultModel;
+    }
+
+    throw new BadRequestException(
+      'No model was supplied and no default model is configured for the selected provider.',
+    );
   }
 }

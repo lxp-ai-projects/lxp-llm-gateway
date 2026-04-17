@@ -14,4 +14,6 @@ export type GatewayAuthContext = {
   userUuid: string;
   emailHash: string;
   roles: string[];
+  defaultProviderId: 'nanogpt' | null;
+  defaultModel: string | null;
 };

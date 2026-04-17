@@ -48,6 +48,11 @@ Object.defineProperty(HTMLAnchorElement.prototype, 'click', {
   value: () => undefined,
 });
 
+Object.defineProperty(Element.prototype, 'scrollIntoView', {
+  writable: true,
+  value: () => undefined,
+});
+
 Object.defineProperty(navigator, 'clipboard', {
   configurable: true,
   writable: true,

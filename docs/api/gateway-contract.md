@@ -36,9 +36,15 @@ Example:
 Fields:
 
 - `providerId?`: provider identifier, currently `nanogpt`
-- `model`: provider model name
+- `model?`: provider model name
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
+
+If `providerId` is omitted, the gateway uses the authenticated user's configured `defaultProviderId`.
+
+If `model` is omitted, the gateway uses the authenticated user's `defaultModel`, but only when it belongs to the resolved default provider.
+
+If neither explicit values nor valid defaults exist, the gateway rejects the request with a `400`.
 
 ## Non-Stream Response
 

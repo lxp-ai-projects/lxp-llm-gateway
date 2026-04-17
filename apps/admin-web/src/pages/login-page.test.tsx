@@ -5,6 +5,10 @@ import { expect, test, vi } from 'vitest';
 import { renderWithProviders } from '../test/test-utils';
 import { LoginPage } from './login-page';
 
+const { sessionTimeoutStorageKey } = vi.hoisted(() => ({
+  sessionTimeoutStorageKey: 'lxp.session-timeout-message',
+}));
+
 vi.mock('../lib/use-runtime-config', () => ({
   useRuntimeConfig: () => ({
     data: {
@@ -17,6 +21,7 @@ vi.mock('../lib/use-runtime-config', () => ({
 }));
 
 vi.mock('../lib/api-client', () => ({
+  SESSION_TIMEOUT_MESSAGE_STORAGE_KEY: sessionTimeoutStorageKey,
   adminApiClient: {
     login: vi.fn(async () => undefined),
   },
@@ -38,4 +43,18 @@ test('LoginPage reflects runtime config and enables sign-in once prerequisites a
   await user.click(screen.getByRole('checkbox'));
 
   expect(signInButton).toBeEnabled();
+});
+
+test('LoginPage displays and clears the session timeout message', async () => {
+  window.sessionStorage.setItem(
+    sessionTimeoutStorageKey,
+    'Session is timed out, you have to login again.',
+  );
+
+  renderWithProviders(<LoginPage />);
+
+  expect(
+    await screen.findByText('Session is timed out, you have to login again.'),
+  ).toBeInTheDocument();
+  expect(window.sessionStorage.getItem(sessionTimeoutStorageKey)).toBeNull();
 });

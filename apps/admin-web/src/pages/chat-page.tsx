@@ -38,6 +38,16 @@ import { adminApiClient, gatewayApiClient } from '../lib/api-client';
 import { scrollChatToBottom, shouldStickToBottom } from '../lib/chat-scroll';
 import { shouldFlagMissingAssistantContent } from '../lib/chat-stream';
 import {
+  canLoadNextChatPage,
+  canLoadPreviousChatPage,
+  CHAT_WINDOW_SCROLL_THRESHOLD_PX,
+  createInitialChatWindow,
+  loadNextChatPage,
+  loadPreviousChatPage,
+  syncChatWindow,
+  type ChatMessageWindow,
+} from '../lib/chat-window';
+import {
   appendUserMessage,
   buildGatewayMessages,
   DEFAULT_SYSTEM_PROMPT,
@@ -85,12 +95,14 @@ export function ChatPage() {
   const [transferError, setTransferError] = useState<string | null>(null);
   const [isTransferBusy, setIsTransferBusy] = useState(false);
   const [copiedAssistantMessageId, setCopiedAssistantMessageId] = useState<string | null>(null);
+  const [messageWindow, setMessageWindow] = useState<ChatMessageWindow>({ start: 0, end: 0 });
   const [composerViewportStyle, setComposerViewportStyle] = useState<
     Pick<CSSProperties, 'left' | 'width'>
   >({});
   const chatPanelRef = useRef<HTMLDivElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingAutoScrollFrameRef = useRef<number | null>(null);
+  const pendingWindowShiftRef = useRef<null | { scrollHeight: number; scrollTop: number }>(null);
   const copiedMessageTimeoutRef = useRef<number | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const modelsQuery = useQuery({
@@ -123,6 +135,15 @@ export function ChatPage() {
   const userDisplayName = sessionQuery.data?.displayName?.trim() || 'User';
   const persistedSystemPrompt = activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
   const systemPromptDirty = systemPrompt.trim() !== persistedSystemPrompt.trim();
+  const renderedMessages = activeConversation
+    ? activeConversation.messages.slice(messageWindow.start, messageWindow.end)
+    : [];
+  const hiddenMessageCountAbove = activeConversation
+    ? messageWindow.start
+    : 0;
+  const hiddenMessageCountBelow = activeConversation
+    ? Math.max(0, activeConversation.messages.length - messageWindow.end)
+    : 0;
 
   function withCurrentSystemPrompt(conversation: StoredConversation): StoredConversation {
     return {
@@ -140,6 +161,18 @@ export function ChatPage() {
   useEffect(() => {
     setSystemPrompt(activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT);
   }, [activeConversation?.id, activeConversation?.systemPrompt]);
+
+  useEffect(() => {
+    setMessageWindow(createInitialChatWindow(activeConversation?.messages.length ?? 0));
+  }, [activeConversation?.id]);
+
+  useEffect(() => {
+    setMessageWindow((current) =>
+      syncChatWindow(current, activeConversation?.messages.length ?? 0, {
+        followTail: autoScrollEnabled || isStreaming,
+      }),
+    );
+  }, [activeConversation?.messages.length, autoScrollEnabled, isStreaming]);
 
   useLayoutEffect(() => {
     const container = chatScrollRef.current;
@@ -163,6 +196,18 @@ export function ChatPage() {
       }
     };
   }, [activeConversation?.messages, autoScrollEnabled, isStreaming]);
+
+  useLayoutEffect(() => {
+    const container = chatScrollRef.current;
+    const pendingShift = pendingWindowShiftRef.current;
+
+    if (!container || !pendingShift) {
+      return;
+    }
+
+    container.scrollTop = pendingShift.scrollTop + (container.scrollHeight - pendingShift.scrollHeight);
+    pendingWindowShiftRef.current = null;
+  }, [messageWindow.start, messageWindow.end]);
 
   useLayoutEffect(() => {
     const panel = chatPanelRef.current;
@@ -525,6 +570,40 @@ export function ChatPage() {
     }
   }
 
+  function loadEarlierMessages(): void {
+    if (!activeConversation || !canLoadPreviousChatPage(messageWindow)) {
+      return;
+    }
+
+    const target = chatScrollRef.current;
+    if (target) {
+      setAutoScrollEnabled(false);
+      pendingWindowShiftRef.current = {
+        scrollHeight: target.scrollHeight,
+        scrollTop: target.scrollTop,
+      };
+    }
+
+    setMessageWindow((current) => loadPreviousChatPage(current, activeConversation.messages.length));
+  }
+
+  function loadNewerMessages(): void {
+    if (!activeConversation || !canLoadNextChatPage(messageWindow, activeConversation.messages.length)) {
+      return;
+    }
+
+    const target = chatScrollRef.current;
+    if (target) {
+      setAutoScrollEnabled(false);
+      pendingWindowShiftRef.current = {
+        scrollHeight: target.scrollHeight,
+        scrollTop: target.scrollTop,
+      };
+    }
+
+    setMessageWindow((current) => loadNextChatPage(current, activeConversation.messages.length));
+  }
+
   return (
     <>
       <input
@@ -706,13 +785,43 @@ export function ChatPage() {
                       className="chat-scroll chat-scroll-with-composer"
                       onScroll={(event) => {
                         const target = event.currentTarget;
+
+                        if (
+                          activeConversation &&
+                          target.scrollTop <= CHAT_WINDOW_SCROLL_THRESHOLD_PX &&
+                          canLoadPreviousChatPage(messageWindow)
+                        ) {
+                          loadEarlierMessages();
+                          return;
+                        }
+
+                        if (
+                          activeConversation &&
+                          target.scrollHeight - (target.scrollTop + target.clientHeight) <=
+                            CHAT_WINDOW_SCROLL_THRESHOLD_PX &&
+                          canLoadNextChatPage(messageWindow, activeConversation.messages.length)
+                        ) {
+                          loadNewerMessages();
+                          return;
+                        }
+
                         setAutoScrollEnabled(
                           shouldStickToBottom(target.scrollTop, target.clientHeight, target.scrollHeight),
                         );
                       }}
                     >
-                      {activeConversation?.messages.length ? (
-                        activeConversation.messages.map((message) => (
+                      {hiddenMessageCountAbove > 0 ? (
+                        <Button
+                          onClick={loadEarlierMessages}
+                          size="compact-xs"
+                          variant="subtle"
+                        >
+                          Load {Math.min(10, hiddenMessageCountAbove)} earlier message
+                          {hiddenMessageCountAbove > 1 ? 's' : ''}
+                        </Button>
+                      ) : null}
+                      {renderedMessages.length ? (
+                        renderedMessages.map((message) => (
                           <div
                             key={message.id}
                             className={`chat-bubble ${message.role === 'assistant' ? 'assistant' : 'user'} ${
@@ -840,6 +949,16 @@ export function ChatPage() {
                           Start a conversation to verify provider behavior, model output, and optional thinking traces.
                         </Text>
                       )}
+                      {hiddenMessageCountBelow > 0 ? (
+                        <Button
+                          onClick={loadNewerMessages}
+                          size="compact-xs"
+                          variant="subtle"
+                        >
+                          Load {Math.min(10, hiddenMessageCountBelow)} newer message
+                          {hiddenMessageCountBelow > 1 ? 's' : ''}
+                        </Button>
+                      ) : null}
                       {modelsQuery.isPending ? (
                         <Group gap="sm" mt="sm">
                           <Loader color="teal" size="sm" />

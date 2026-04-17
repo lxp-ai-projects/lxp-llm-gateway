@@ -39,6 +39,8 @@ export class GatewayAuthService {
       userUuid: user.userUuid,
       emailHash: user.emailHash,
       roles: payload.roles,
+      defaultProviderId: user.defaultProviderId,
+      defaultModel: user.defaultModel,
     };
   }
 

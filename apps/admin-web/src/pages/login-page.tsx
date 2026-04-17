@@ -14,10 +14,10 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconLockPassword } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import { adminApiClient } from '../lib/api-client';
+import { adminApiClient, SESSION_TIMEOUT_MESSAGE_STORAGE_KEY } from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 
 export function LoginPage() {
@@ -28,6 +28,17 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
+  const [sessionTimeoutMessage, setSessionTimeoutMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const message = window.sessionStorage.getItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY);
+    if (!message) {
+      return;
+    }
+
+    setSessionTimeoutMessage(message);
+    window.sessionStorage.removeItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY);
+  }, []);
 
   const loginMutation = useMutation({
     mutationFn: () => adminApiClient.login({ email, password }),
@@ -74,6 +85,12 @@ export function LoginPage() {
                   {loginMutation.error instanceof Error
                     ? loginMutation.error.message
                     : 'Unable to authenticate with the current credentials.'}
+                </Alert>
+              ) : null}
+
+              {sessionTimeoutMessage ? (
+                <Alert color="amber" icon={<IconAlertCircle size={18} />} title="Session expired">
+                  {sessionTimeoutMessage}
                 </Alert>
               ) : null}
 

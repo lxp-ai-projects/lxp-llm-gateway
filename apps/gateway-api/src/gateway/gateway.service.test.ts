@@ -21,7 +21,7 @@ class FakeProvider implements LlmProviderAdapter {
     return {
       requestId: context.requestId,
       providerId: this.providerId,
-      model: request.model,
+      model: request.model ?? 'unknown-model',
       message: {
         role: 'assistant',
         content: request.messages.at(-1)?.content ?? '',
@@ -87,6 +87,8 @@ test('GatewayService routes chat requests through the provider registry', async 
     userUuid: 'user-public-1',
     emailHash: 'hash-1',
     roles: ['admin'],
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'nano-default',
   });
 
   assert.equal(response.providerId, 'nanogpt');
@@ -115,6 +117,9 @@ test('GatewayService returns a provider stream when streaming is requested', asy
         userUuid: 'user-public-1',
         emailHash: 'hash-1',
         roles: ['admin']
+        ,
+        defaultProviderId: 'nanogpt',
+        defaultModel: 'nano-default',
       },
   );
 
@@ -143,6 +148,8 @@ test('GatewayService rejects non-stream requests without messages', async () => 
           userUuid: 'user-public-1',
           emailHash: 'hash-1',
           roles: ['admin'],
+          defaultProviderId: 'nanogpt',
+          defaultModel: 'nano-default',
         },
       ),
     /At least one message is required/,
@@ -169,6 +176,8 @@ test('GatewayService rejects stream requests without messages', async () => {
           userUuid: 'user-public-1',
           emailHash: 'hash-1',
           roles: ['admin'],
+          defaultProviderId: 'nanogpt',
+          defaultModel: 'nano-default',
         },
       ),
     /At least one message is required/,
@@ -207,8 +216,88 @@ test('GatewayService rejects streaming when a provider does not support it', asy
           userUuid: 'user-public-1',
           emailHash: 'hash-1',
           roles: ['admin'],
+          defaultProviderId: 'nanogpt',
+          defaultModel: 'nano-default',
         },
       ),
     /does not support streaming/,
+  );
+});
+
+test('GatewayService uses authenticated defaults when provider and model are omitted', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  const response = await service.chat(
+    {
+      messages: [{ role: 'user', content: 'hello' }],
+    } as GatewayChatRequestDto,
+    {
+      userId: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      roles: ['user'],
+      defaultProviderId: 'nanogpt',
+      defaultModel: 'z-ai/glm-4.6:thinking',
+    },
+  );
+
+  assert.equal(response.providerId, 'nanogpt');
+  assert.equal(response.model, 'z-ai/glm-4.6:thinking');
+});
+
+test('GatewayService rejects missing provider when no default provider exists', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          messages: [{ role: 'user', content: 'hello' }],
+        } as GatewayChatRequestDto,
+        {
+          userId: 'user-1',
+          userUuid: 'user-public-1',
+          emailHash: 'hash-1',
+          roles: ['user'],
+          defaultProviderId: null,
+          defaultModel: null,
+        },
+      ),
+    /no default provider is configured/i,
+  );
+});
+
+test('GatewayService rejects missing model when no default model exists for the selected provider', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          providerId: 'nanogpt',
+          messages: [{ role: 'user', content: 'hello' }],
+        } as GatewayChatRequestDto,
+        {
+          userId: 'user-1',
+          userUuid: 'user-public-1',
+          emailHash: 'hash-1',
+          roles: ['user'],
+          defaultProviderId: null,
+          defaultModel: null,
+        },
+      ),
+    /no default model is configured/i,
   );
 });
