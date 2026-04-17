@@ -18,11 +18,13 @@ import {
 import {
   IconAlertCircle,
   IconBrain,
+  IconDownload,
   IconMessageCircleBolt,
   IconPencil,
   IconRotateClockwise2,
   IconSend,
   IconTrash,
+  IconUpload,
   IconX,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
@@ -30,7 +32,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { PageHeader } from '../components/page-header';
 import { MarkdownText } from '../components/markdown-text';
-import { gatewayApiClient } from '../lib/api-client';
+import { adminApiClient, gatewayApiClient } from '../lib/api-client';
 import { scrollChatToBottom, shouldStickToBottom } from '../lib/chat-scroll';
 import { shouldFlagMissingAssistantContent } from '../lib/chat-stream';
 import {
@@ -76,8 +78,11 @@ export function ChatPage() {
   const [activePanel, setActivePanel] = useState<'conversation' | 'system-prompt'>('conversation');
   const [conversationPendingDeletion, setConversationPendingDeletion] =
     useState<StoredConversation | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [isTransferBusy, setIsTransferBusy] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingAutoScrollFrameRef = useRef<number | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const modelsQuery = useQuery({
     queryKey: ['gateway-models', 'nanogpt'],
     queryFn: () => gatewayApiClient.getModels('nanogpt'),
@@ -396,8 +401,80 @@ export function ChatPage() {
     }
   }
 
+  async function exportConversation(conversation: StoredConversation): Promise<void> {
+    setTransferError(null);
+    setIsTransferBusy(true);
+
+    try {
+      const exported = await adminApiClient.exportConversation(conversation);
+      downloadBlob(exported.blob, exported.fileName ?? `${conversation.title}.json`);
+    } catch (error) {
+      setTransferError(
+        error instanceof Error ? error.message : 'The conversation export failed unexpectedly.',
+      );
+    } finally {
+      setIsTransferBusy(false);
+    }
+  }
+
+  async function exportAllConversations(): Promise<void> {
+    if (!conversations.length) {
+      return;
+    }
+
+    setTransferError(null);
+    setIsTransferBusy(true);
+
+    try {
+      const exported = await adminApiClient.exportConversationArchive(conversations);
+      downloadBlob(exported.blob, exported.fileName ?? 'lxp-chat-conversations.zip');
+    } catch (error) {
+      setTransferError(
+        error instanceof Error ? error.message : 'The conversation archive export failed unexpectedly.',
+      );
+    } finally {
+      setIsTransferBusy(false);
+    }
+  }
+
+  async function importConversationFile(file: File): Promise<void> {
+    setTransferError(null);
+    setIsTransferBusy(true);
+
+    try {
+      const imported = await adminApiClient.importConversationFile(file);
+      for (const conversation of imported.conversations) {
+        await saveConversation(conversation);
+      }
+
+      const mergedConversations = mergeConversations(conversations, imported.conversations);
+      setConversations(mergedConversations);
+      setActiveConversationId(imported.conversations[0]?.id ?? mergedConversations[0]?.id ?? null);
+      setActivePanel('conversation');
+    } catch (error) {
+      setTransferError(
+        error instanceof Error ? error.message : 'The conversation import failed unexpectedly.',
+      );
+    } finally {
+      setIsTransferBusy(false);
+    }
+  }
+
   return (
     <>
+      <input
+        ref={importInputRef}
+        accept=".json,.zip,application/json,application/zip"
+        hidden
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          if (file) {
+            void importConversationFile(file);
+          }
+          event.currentTarget.value = '';
+        }}
+        type="file"
+      />
       <Modal
         centered
         opened={conversationPendingDeletion !== null}
@@ -433,21 +510,44 @@ export function ChatPage() {
           <Card className="section-card" h="100%">
             <Group justify="space-between" mb="md">
               <Title order={3}>Local conversations</Title>
-              <ActionIcon
-                aria-label="Create conversation"
-                onClick={() => {
-                  const conversation = createConversation(model, systemPrompt.trim());
-                  void saveConversation(conversation);
-                  setAutoScrollEnabled(true);
-                  setConversations((current) => [conversation, ...current]);
-                  setActiveConversationId(conversation.id);
-                }}
-                variant="light"
-              >
-                <IconMessageCircleBolt size={18} />
-              </ActionIcon>
+              <Group gap="xs">
+                <ActionIcon
+                  aria-label="Import conversations"
+                  disabled={isTransferBusy}
+                  onClick={() => importInputRef.current?.click()}
+                  variant="light"
+                >
+                  <IconUpload size={18} />
+                </ActionIcon>
+                <ActionIcon
+                  aria-label="Export all conversations"
+                  disabled={!conversations.length || isTransferBusy}
+                  onClick={() => void exportAllConversations()}
+                  variant="light"
+                >
+                  <IconDownload size={18} />
+                </ActionIcon>
+                <ActionIcon
+                  aria-label="Create conversation"
+                  onClick={() => {
+                    const conversation = createConversation(model, systemPrompt.trim());
+                    void saveConversation(conversation);
+                    setAutoScrollEnabled(true);
+                    setConversations((current) => [conversation, ...current]);
+                    setActiveConversationId(conversation.id);
+                  }}
+                  variant="light"
+                >
+                  <IconMessageCircleBolt size={18} />
+                </ActionIcon>
+              </Group>
             </Group>
             <Stack gap="sm">
+              {transferError ? (
+                <Alert color="red" icon={<IconAlertCircle size={18} />} title="Conversation transfer failed">
+                  {transferError}
+                </Alert>
+              ) : null}
               {conversations.length === 0 ? (
                 <Text c="dimmed" size="sm">
                   No local chat history yet. Conversations are stored only in this browser via IndexedDB.
@@ -464,8 +564,17 @@ export function ChatPage() {
                       {conversation.title}
                     </Button>
                     <ActionIcon
+                      aria-label={`Export ${conversation.title}`}
+                      disabled={isTransferBusy}
+                      onClick={() => void exportConversation(conversation)}
+                      variant="light"
+                    >
+                      <IconDownload size={16} />
+                    </ActionIcon>
+                    <ActionIcon
                       aria-label={`Delete ${conversation.title}`}
                       color="red"
+                      disabled={isStreaming}
                       onClick={() => setConversationPendingDeletion(conversation)}
                       variant="light"
                     >
@@ -752,4 +861,28 @@ export function ChatPage() {
       </Grid>
     </>
   );
+}
+
+function mergeConversations(
+  existingConversations: StoredConversation[],
+  importedConversations: StoredConversation[],
+): StoredConversation[] {
+  const merged = new Map(existingConversations.map((conversation) => [conversation.id, conversation]));
+
+  for (const conversation of importedConversations) {
+    merged.set(conversation.id, conversation);
+  }
+
+  return [...merged.values()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const downloadUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(downloadUrl);
 }

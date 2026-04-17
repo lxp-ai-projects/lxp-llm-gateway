@@ -6,8 +6,8 @@ import {
 } from './chat-stream';
 
 describe('chat-stream', () => {
-  it('uses a 24 second inactivity timeout by default', () => {
-    expect(DEFAULT_STREAM_IDLE_TIMEOUT_MS).toBe(24_000);
+  it('uses a 5 minute inactivity timeout by default', () => {
+    expect(DEFAULT_STREAM_IDLE_TIMEOUT_MS).toBe(300_000);
   });
 
   it('flags empty assistant content as anomalous', () => {

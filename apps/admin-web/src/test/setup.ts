@@ -32,3 +32,18 @@ Object.defineProperty(window, 'ResizeObserver', {
   writable: true,
   value: ResizeObserverMock,
 });
+
+Object.defineProperty(URL, 'createObjectURL', {
+  writable: true,
+  value: () => 'blob:test-url',
+});
+
+Object.defineProperty(URL, 'revokeObjectURL', {
+  writable: true,
+  value: () => undefined,
+});
+
+Object.defineProperty(HTMLAnchorElement.prototype, 'click', {
+  writable: true,
+  value: () => undefined,
+});

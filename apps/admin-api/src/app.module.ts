@@ -17,6 +17,8 @@ import { EmailProtectionService } from './security/email-protection.service';
 import { EncryptionService } from './security/encryption.service';
 import { PasswordService } from './security/password.service';
 import { AdminService } from './admin/admin.service';
+import { ConversationTransferController } from './conversation-transfer/conversation-transfer.controller';
+import { ConversationTransferService } from './conversation-transfer/conversation-transfer.service';
 
 @Module({
   imports: [
@@ -37,12 +39,18 @@ import { AdminService } from './admin/admin.service';
     ]),
     AuthModule,
   ],
-  controllers: [AdminController, HealthController, PublicConfigController],
+  controllers: [
+    AdminController,
+    HealthController,
+    PublicConfigController,
+    ConversationTransferController,
+  ],
   providers: [
     EncryptionService,
     EmailProtectionService,
     PasswordService,
     AdminService,
+    ConversationTransferService,
   ],
 })
 export class AppModule {}

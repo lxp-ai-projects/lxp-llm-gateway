@@ -110,6 +110,22 @@ export type AdminUserSummary = {
   updatedAt: string;
 };
 
+export type ChatTransferConversation = {
+  id: string;
+  title: string;
+  model: string;
+  providerId: string;
+  systemPrompt?: string;
+  messages: Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    reasoning?: string;
+    createdAt: string;
+  }>;
+  updatedAt: string;
+};
+
 async function request<T>(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   return requestWithSessionRefresh<T>(url, init, false);
 }
@@ -184,6 +200,73 @@ async function refreshBrowserSession(): Promise<void> {
   } finally {
     refreshInFlight = null;
   }
+}
+
+async function requestBlobWithSessionRefresh(
+  url: string,
+  init: RequestInit | undefined,
+  hasRetried: boolean,
+): Promise<{ blob: Blob; fileName: string | null }> {
+  const response = await fetch(url, {
+    credentials: 'include',
+    ...init,
+  });
+
+  if (!response.ok) {
+    if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
+      await refreshBrowserSession();
+      return requestBlobWithSessionRefresh(url, init, true);
+    }
+
+    const body = await response.text();
+    throw new Error(body || `Request failed with ${response.status}`);
+  }
+
+  return {
+    blob: await response.blob(),
+    fileName: extractContentDispositionFileName(response.headers.get('content-disposition')),
+  };
+}
+
+async function uploadFileWithSessionRefresh<T>(
+  url: string,
+  file: File,
+  hasRetried: boolean,
+): Promise<T> {
+  const formData = new FormData();
+  formData.set('file', file);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
+      await refreshBrowserSession();
+      return uploadFileWithSessionRefresh<T>(url, file, true);
+    }
+
+    const body = await response.text();
+    throw new Error(body || `Request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function extractContentDispositionFileName(headerValue: string | null): string | null {
+  if (!headerValue) {
+    return null;
+  }
+
+  const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const standardMatch = headerValue.match(/filename="([^"]+)"/i);
+  return standardMatch?.[1] ?? null;
 }
 
 function parseServerSentEventBlock(block: string): string | null {
@@ -302,6 +385,50 @@ export const adminApiClient = {
   async getUserProviderCredentials(userUuid: string): Promise<ProviderCredentialSummary[]> {
     return request<ProviderCredentialSummary[]>(
       `${adminApiUrl}/api/v1/admin/users/${userUuid}/provider-credentials`,
+    );
+  },
+
+  async exportConversation(conversation: ChatTransferConversation): Promise<{
+    blob: Blob;
+    fileName: string | null;
+  }> {
+    return requestBlobWithSessionRefresh(
+      `${adminApiUrl}/api/v1/chat-transfers/export/conversation`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ conversation }),
+      },
+      false,
+    );
+  },
+
+  async exportConversationArchive(conversations: ChatTransferConversation[]): Promise<{
+    blob: Blob;
+    fileName: string | null;
+  }> {
+    return requestBlobWithSessionRefresh(
+      `${adminApiUrl}/api/v1/chat-transfers/export/archive`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ conversations }),
+      },
+      false,
+    );
+  },
+
+  async importConversationFile(file: File): Promise<{
+    conversations: ChatTransferConversation[];
+  }> {
+    return uploadFileWithSessionRefresh(
+      `${adminApiUrl}/api/v1/chat-transfers/import`,
+      file,
+      false,
     );
   },
 };
