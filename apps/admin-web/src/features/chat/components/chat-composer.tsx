@@ -9,6 +9,7 @@ type ChatComposerProps = {
   onPromptChange: (value: string) => void;
   onPromptSubmit: () => void;
   prompt: string;
+  providerDisplayName: string;
 };
 
 export function ChatComposer({
@@ -18,6 +19,7 @@ export function ChatComposer({
   onPromptChange,
   onPromptSubmit,
   prompt,
+  providerDisplayName,
 }: ChatComposerProps) {
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -47,7 +49,7 @@ export function ChatComposer({
         >
           <Group gap="sm">
             <Text c="dimmed" size="sm">
-              Selected provider: NanoGPT
+              Selected provider: {providerDisplayName}
             </Text>
             {isStreaming ? (
               <Group gap={6}>

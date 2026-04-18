@@ -240,6 +240,9 @@ export function ChatPage() {
   }
 
   const providerCatalogPricingNote = getProviderCatalogPricingNote(providerId);
+  const selectedProviderDisplayName =
+    providerOptions.find((option) => option.value === providerId)?.label ??
+    providerId;
 
   return (
     <>
@@ -486,6 +489,7 @@ export function ChatPage() {
                         }, nextPrompt);
                       }}
                       prompt={prompt}
+                      providerDisplayName={selectedProviderDisplayName}
                     />
                   </div>
                 </Stack>
