@@ -30,6 +30,16 @@ Primary shell:
 - drawer or collapsible navigation on mobile
 - top app frame for session status and key actions
 
+The target UI composition is feature-oriented.
+
+Page files may orchestrate feature modules, but they should not remain the long-term home for:
+
+- transport clients
+- streaming controllers
+- IndexedDB persistence logic
+- formatting helpers
+- large blocks of repeated presentational markup
+
 ## Route Groups
 
 ### Public
@@ -169,6 +179,50 @@ Use IndexedDB for:
 - local UI preferences that are not security sensitive
 
 Do not store auth tokens in IndexedDB.
+
+## Refactor Posture
+
+As the UI grows, refactor toward SRP-first modules instead of adding more responsibility to already large files.
+
+Preferred direction:
+
+- thin page components
+- feature-specific hooks for orchestration
+- API code separated from view logic
+- shared presentational components only when duplication is real and stable
+
+Current high-value refactor targets include:
+
+- `src/lib/api-client.ts`
+- `src/pages/chat-page.tsx`
+
+These should be split incrementally without changing user-visible behavior first.
+
+## Browser Automation Selectors
+
+Phase 1 should prepare the SPA for future Playwright coverage.
+
+Use a minimal `data-testid` convention only where semantic queries are likely to be unstable or ambiguous.
+
+Recommended format:
+
+- `feature-element-action`
+
+Examples:
+
+- `chat-send-button`
+- `providers-save-credential`
+- `users-create-submit`
+- `auth-login-submit`
+
+Do not blanket every DOM node with test attributes.
+
+Prefer them for:
+
+- buttons and interactive controls
+- repeated list items with dynamic content
+- modals and drawers
+- page-level anchors that functional tests need to await reliably
 
 ## Design Direction
 

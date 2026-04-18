@@ -72,6 +72,18 @@ The SPA reads:
 - feature flags from a public runtime-config endpoint
 - local chat persistence from IndexedDB
 
+The UI codebase should evolve toward small feature modules rather than large page-bound files that combine transport, orchestration, persistence, and rendering concerns in one place.
+
+Refactor work that improves SRP, DRY, and testability is in scope when it preserves behavior and keeps the feature delivery posture truthful.
+
+Interactive surfaces should expose stable test anchors for future end-to-end automation.
+
+The preferred browser automation convention is a minimal `data-testid` policy applied only to:
+
+- user-triggered controls
+- durable page anchors
+- repeated dynamic items that need deterministic selection
+
 ## Primary Risk
 
 The main architectural failure mode is leaking provider-specific logic into `gateway-api`.

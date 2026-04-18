@@ -40,6 +40,14 @@ Deliver a mobile-first, role-aware SPA that is operationally useful for administ
 - gateway analytics overview
 - global circuit breaker control
 
+### Slice 5: UI Maintainability Pass
+
+- refactor oversized UI files into smaller feature modules
+- separate transport concerns from page rendering
+- separate chat orchestration from chat presentation
+- introduce stable Playwright-oriented test anchors on key interactive controls
+- preserve existing behavior while improving maintainability and testability
+
 ## Backend Prerequisites
 
 The following backend work should be present or scheduled before each UI slice is finalized:
@@ -57,6 +65,17 @@ The following backend work should be present or scheduled before each UI slice i
 - cookie-only auth requires correct CORS and cookie posture early
 - admin and user concerns can blur if navigation is not role-driven from the start
 - provider-secret workflows must remain explicit about write-only vs reset-only behavior
+- leaving large page or client files unrefactored will slow future delivery and make functional testing brittle
+
+## Refactor Order
+
+Recommended order for the maintainability pass:
+
+1. document the target structure and selector policy
+2. split `api-client.ts` into cohesive modules behind a stable facade
+3. split `chat-page.tsx` into feature components and hooks
+4. add `data-testid` only to stable interactive surfaces needed for functional tests
+5. keep unit and component tests green after each extraction step
 
 ## Acceptance Criteria
 
@@ -66,3 +85,4 @@ The following backend work should be present or scheduled before each UI slice i
 - browser auth works without exposing raw tokens to JavaScript
 - chat reasoning appears when the selected provider/model emits it
 - the gateway-offline state is visible and understandable
+- the UI codebase is prepared for future Playwright coverage with stable anchors on key user flows
