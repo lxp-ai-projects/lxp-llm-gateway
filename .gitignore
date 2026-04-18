@@ -30,3 +30,4 @@ lerna-debug.log*
 /.idea/
 http-client.private.env.json
 **/http-client.private.env.json
+/apps/admin-web/coverage/

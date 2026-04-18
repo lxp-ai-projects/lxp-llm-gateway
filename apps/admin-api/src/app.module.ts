@@ -4,8 +4,12 @@ import { TerminusModule } from '@nestjs/terminus';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AdminController } from './admin.controller';
-import { buildTypeOrmOptions, validateRuntimeConfig } from './config/runtime.config';
+import {
+  buildTypeOrmOptions,
+  validateRuntimeConfig,
+} from './config/runtime.config';
 import { HealthController } from './health.controller';
+import { PublicConfigController } from './public-config.controller';
 import { AuthModule } from './auth/auth.module';
 import { UserEntity } from './persistence/entities/user.entity';
 import { RoleEntity } from './persistence/entities/role.entity';
@@ -16,6 +20,8 @@ import { EmailProtectionService } from './security/email-protection.service';
 import { EncryptionService } from './security/encryption.service';
 import { PasswordService } from './security/password.service';
 import { AdminService } from './admin/admin.service';
+import { ConversationTransferController } from './conversation-transfer/conversation-transfer.controller';
+import { ConversationTransferService } from './conversation-transfer/conversation-transfer.service';
 
 @Module({
   imports: [
@@ -36,12 +42,18 @@ import { AdminService } from './admin/admin.service';
     ]),
     AuthModule,
   ],
-  controllers: [AdminController, HealthController],
+  controllers: [
+    AdminController,
+    HealthController,
+    PublicConfigController,
+    ConversationTransferController,
+  ],
   providers: [
     EncryptionService,
     EmailProtectionService,
     PasswordService,
     AdminService,
+    ConversationTransferService,
   ],
 })
 export class AppModule {}

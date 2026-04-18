@@ -18,9 +18,10 @@ export class GatewayChatRequestDto implements GatewayChatRequest {
   @IsIn(['nanogpt'])
   providerId?: 'nanogpt';
 
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  model!: string;
+  model?: string;
 
   @IsArray()
   @ArrayMinSize(1)

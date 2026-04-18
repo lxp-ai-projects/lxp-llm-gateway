@@ -7,7 +7,9 @@ import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
 import { AdminService } from './admin.service';
 
-function createRepositoryMock<T extends { id?: string }>(initialData: T[] = []) {
+function createRepositoryMock<T extends { id?: string }>(
+  initialData: T[] = [],
+) {
   const store = [...initialData];
 
   return {
@@ -41,7 +43,16 @@ function createRepositoryMock<T extends { id?: string }>(initialData: T[] = []) 
     },
     async save(value: T | T[]): Promise<T | T[]> {
       if (Array.isArray(value)) {
-        value.forEach((entry) => store.push(entry));
+        value.forEach((entry) => {
+          const index = store.findIndex(
+            (storedEntry) => storedEntry.id === entry.id,
+          );
+          if (index >= 0) {
+            store[index] = entry;
+          } else {
+            store.push(entry);
+          }
+        });
         return value;
       }
 
@@ -51,7 +62,14 @@ function createRepositoryMock<T extends { id?: string }>(initialData: T[] = []) 
       if ('createdAt' in value && !value.createdAt) {
         value.createdAt = new Date() as never;
       }
-      store.push(value);
+      const index = store.findIndex(
+        (storedEntry) => storedEntry.id === value.id,
+      );
+      if (index >= 0) {
+        store[index] = value;
+      } else {
+        store.push(value);
+      }
       return value;
     },
   };
@@ -187,6 +205,33 @@ test('AdminService stores an encrypted provider credential and returns only meta
   assert.notEqual(stored.encryptedSecret, 'nano-secret-token');
 });
 
+test('AdminService updates an owned provider credential without exposing the raw token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+  const createdCredential = await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
+
+  const updatedCredential = await service.updateOwnProviderCredential(
+    { userUuid: createdUser.userUuid },
+    createdCredential.id,
+    {
+      label: 'main',
+      apiToken: 'another-secret-token',
+    },
+  );
+
+  assert.equal(updatedCredential.label, 'main');
+  assert.equal(updatedCredential.maskedHint, '***oken');
+});
+
 test('AdminService stores short provider tokens without masking them further', async () => {
   const { service } = createAdminService();
   const createdUser = await service.createUser({
@@ -265,6 +310,114 @@ test('AdminService rejects storing a duplicate provider credential label', async
       }),
     /Unable to store the provider credential/,
   );
+});
+
+test('AdminService rejects updating a provider credential when the new label already exists', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  const primaryCredential = await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
+  await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'backup',
+    apiToken: 'backup-secret-token',
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateOwnProviderCredential(
+        { userUuid: createdUser.userUuid },
+        primaryCredential.id,
+        {
+          label: 'backup',
+        },
+      ),
+    /Unable to update the provider credential/,
+  );
+});
+
+test('AdminService updates provider settings for a user', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
+
+  const settings = await service.updateProviderSettingsForUser(
+    createdUser.userUuid,
+    {
+      defaultProviderId: 'nanogpt',
+      defaultModel: 'z-ai/glm-4.6:thinking',
+    },
+  );
+
+  assert.equal(settings.defaultProviderId, 'nanogpt');
+  assert.equal(settings.defaultModel, 'z-ai/glm-4.6:thinking');
+});
+
+test('AdminService rejects default provider selection without an active credential', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateProviderSettingsForUser(createdUser.userUuid, {
+        defaultProviderId: 'nanogpt',
+      }),
+    /Unable to update provider settings/,
+  );
+});
+
+test('AdminService clears default model when the default provider is cleared', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
+  await service.updateProviderSettingsForUser(createdUser.userUuid, {
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'z-ai/glm-4.6:thinking',
+  });
+
+  const settings = await service.updateProviderSettingsForUser(
+    createdUser.userUuid,
+    {
+      defaultProviderId: null,
+    },
+  );
+
+  assert.equal(settings.defaultProviderId, null);
+  assert.equal(settings.defaultModel, null);
 });
 
 test('AdminService bootstraps the first admin only once', async () => {

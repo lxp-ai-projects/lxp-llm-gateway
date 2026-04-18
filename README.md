@@ -2,6 +2,18 @@
 
 Multi-provider LLM gateway monorepo.
 
+![Backend Build](https://img.shields.io/badge/backend_build-GitHub%20Actions%20configured-0b7285?logo=githubactions)
+![Frontend Build](https://img.shields.io/badge/frontend_build-GitHub%20Actions%20configured-0b7285?logo=githubactions)
+![admin-api](https://img.shields.io/badge/admin--api-NestJS%20control%20plane-1B72E8?logo=nestjs)
+![gateway-api](https://img.shields.io/badge/gateway--api-NestJS%20data%20plane-1B72E8?logo=nestjs)
+![admin-web](https://img.shields.io/badge/admin--web-React%2019%20%2B%20Mantine-0F766E?logo=react)
+![admin-web coverage](https://img.shields.io/badge/admin--web%20coverage-90.06%25-brightgreen)
+
+Workflow files:
+
+- [Backend Build](.github/workflows/backend-build.yml)
+- [Frontend Build](.github/workflows/frontend-build.yml)
+
 ## Current State
 
 This repository currently contains:
@@ -20,6 +32,7 @@ The repository now includes:
 - gateway authentication via access token `emailHash`
 - non-stream JSON chat responses with structured assistant output
 - streaming SSE passthrough for NanoGPT thinking models
+- one planned role-aware SPA for both admin and user control-plane workflows
 
 ## Structure
 
@@ -35,6 +48,7 @@ The repository now includes:
 
 - APIs: NestJS
 - Frontend: React 19, Vite, React Router DOM, TanStack Query
+- UI Foundation: Mantine with custom theme
 - Workspace: pnpm, turbo, TypeScript
 
 ## Local Secrets
@@ -176,6 +190,12 @@ Use the HTTP files in [queries/README.md](queries/README.md):
    - stream SSE chat with thinking models
 
 See the gateway response contract in [docs/api/gateway-contract.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/api/gateway-contract.md).
+
+UI planning and backend-aligned UI architecture are documented in:
+
+- [docs/architecture/ui-architecture.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/architecture/ui-architecture.md)
+- [docs/delivery/ui-implementation-plan.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/delivery/ui-implementation-plan.md)
+- [docs/architecture/decisions/ADR-006-web-session-and-runtime-config.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/architecture/decisions/ADR-006-web-session-and-runtime-config.md)
 
 ### 5. Workspace validation
 

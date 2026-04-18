@@ -38,6 +38,7 @@ Phase 1 includes:
 - local development infrastructure with Redis or Valkey
 - an initial OpenAPI placeholder
 - basic CI-ready scripts for lint, build, and test
+- incremental UI hardening and refactor work that preserves behavior while improving maintainability, testability, and mobile operability
 
 Phase 1 does not include:
 
@@ -159,6 +160,17 @@ Responsibilities:
 - user and provider management
 - settings management
 - future admin dashboards
+
+Phase 1 frontend code should remain decomposable.
+
+Large multi-concern React files may exist temporarily during delivery, but they are not the target architecture.
+
+When the UI surface grows, refactor toward:
+
+- focused feature modules
+- small hooks with explicit state ownership
+- thin page-level orchestration
+- stable test anchors for future end-to-end automation
 
 ## Shared Package Boundaries
 

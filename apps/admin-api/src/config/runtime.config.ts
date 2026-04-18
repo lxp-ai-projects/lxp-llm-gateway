@@ -16,7 +16,8 @@ function getRequiredString(
 ): string {
   const value = env[key];
   const allowEmpty =
-    options?.allowEmptyInLocal && localTestEnvironments.has(env.NODE_ENV ?? 'development');
+    options?.allowEmptyInLocal &&
+    localTestEnvironments.has(env.NODE_ENV ?? 'development');
 
   if ((value === undefined || value === '') && !allowEmpty) {
     throw new Error(`Missing required environment variable: ${key}`);
@@ -25,7 +26,11 @@ function getRequiredString(
   return value ?? '';
 }
 
-function getNumber(env: NodeJS.ProcessEnv, key: string, fallback: number): number {
+function getNumber(
+  env: NodeJS.ProcessEnv,
+  key: string,
+  fallback: number,
+): number {
   const value = env[key];
   if (!value) {
     return fallback;
@@ -39,7 +44,11 @@ function getNumber(env: NodeJS.ProcessEnv, key: string, fallback: number): numbe
   return parsed;
 }
 
-function getBoolean(env: NodeJS.ProcessEnv, key: string, fallback: boolean): boolean {
+function getBoolean(
+  env: NodeJS.ProcessEnv,
+  key: string,
+  fallback: boolean,
+): boolean {
   const value = env[key];
   if (!value) {
     return fallback;
@@ -48,14 +57,20 @@ function getBoolean(env: NodeJS.ProcessEnv, key: string, fallback: boolean): boo
   return value.toLowerCase() === 'true';
 }
 
-export function validateRuntimeConfig(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+export function validateRuntimeConfig(
+  env: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
   getRequiredString(env, 'DATABASE_HOST', { allowEmptyInLocal: true });
   getRequiredString(env, 'DATABASE_NAME', { allowEmptyInLocal: true });
   getRequiredString(env, 'DATABASE_USER', { allowEmptyInLocal: true });
   getRequiredString(env, 'DATABASE_PASSWORD', { allowEmptyInLocal: true });
-  getRequiredString(env, 'LXP_ENCRYPTION_MASTER_KEY', { allowEmptyInLocal: true });
+  getRequiredString(env, 'LXP_ENCRYPTION_MASTER_KEY', {
+    allowEmptyInLocal: true,
+  });
   getRequiredString(env, 'LXP_EMAIL_LOOKUP_KEY', { allowEmptyInLocal: true });
-  getRequiredString(env, 'LXP_ENCRYPTION_KEY_VERSION', { allowEmptyInLocal: true });
+  getRequiredString(env, 'LXP_ENCRYPTION_KEY_VERSION', {
+    allowEmptyInLocal: true,
+  });
   getRequiredString(env, 'LXP_COOKIE_SECRET', { allowEmptyInLocal: true });
   getRequiredString(env, 'LXP_JWT_PRIVATE_KEY', { allowEmptyInLocal: true });
   getRequiredString(env, 'REDIS_URL', { allowEmptyInLocal: true });
@@ -71,7 +86,9 @@ function getBaseDataSourceOptions(): DataSourceOptions {
     database: process.env.DATABASE_NAME,
     username: process.env.DATABASE_USER,
     password: process.env.DATABASE_PASSWORD,
-    ssl: getBoolean(process.env, 'DATABASE_SSL', false) ? { rejectUnauthorized: false } : false,
+    ssl: getBoolean(process.env, 'DATABASE_SSL', false)
+      ? { rejectUnauthorized: false }
+      : false,
     entities: [
       UserEntity,
       RoleEntity,

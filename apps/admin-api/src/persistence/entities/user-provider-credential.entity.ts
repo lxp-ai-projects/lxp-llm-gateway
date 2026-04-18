@@ -13,9 +13,13 @@ import { ProviderEntity } from './provider.entity';
 import { UserEntity } from './user.entity';
 
 @Entity({ name: 'user_provider_credentials' })
-@Index('ux_user_provider_credentials_active', ['userId', 'providerId', 'label'], {
-  unique: true,
-})
+@Index(
+  'ux_user_provider_credentials_active',
+  ['userId', 'providerId', 'label'],
+  {
+    unique: true,
+  },
+)
 export class UserProviderCredentialEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

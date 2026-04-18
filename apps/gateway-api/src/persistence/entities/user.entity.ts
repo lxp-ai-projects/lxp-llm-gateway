@@ -15,4 +15,20 @@ export class UserEntity {
 
   @Column({ type: 'varchar', length: 30 })
   status!: 'active' | 'disabled';
+
+  @Column({
+    name: 'default_provider_id',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  defaultProviderId!: 'nanogpt' | null;
+
+  @Column({
+    name: 'default_model',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  defaultModel!: string | null;
 }

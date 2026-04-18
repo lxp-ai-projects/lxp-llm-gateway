@@ -9,7 +9,7 @@ paths:
       summary: Health check placeholder
       operationId: getHealth
       responses:
-        "200":
+        '200':
           description: Service is healthy
           content:
             application/json:

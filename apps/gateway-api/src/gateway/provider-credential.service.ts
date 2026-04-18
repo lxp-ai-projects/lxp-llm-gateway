@@ -25,7 +25,10 @@ export class ProviderCredentialService {
     private readonly encryptionService: EncryptionService,
   ) {}
 
-  async resolveApiKey(emailHash: string, providerId: ProviderId): Promise<string> {
+  async resolveApiKey(
+    emailHash: string,
+    providerId: ProviderId,
+  ): Promise<string> {
     if (!emailHash) {
       throw new BadRequestException('Missing authenticated user email hash.');
     }
@@ -37,14 +40,18 @@ export class ProviderCredentialService {
       },
     });
     if (!user) {
-      throw new NotFoundException('Unable to resolve the provider credential for the authenticated request.');
+      throw new NotFoundException(
+        'Unable to resolve the provider credential for the authenticated request.',
+      );
     }
 
     const provider = await this.providerRepository.findOne({
       where: { providerId, status: 'active' },
     });
     if (!provider) {
-      throw new NotFoundException('Unable to resolve the provider credential for the authenticated request.');
+      throw new NotFoundException(
+        'Unable to resolve the provider credential for the authenticated request.',
+      );
     }
 
     const credential = await this.credentialRepository.findOne({

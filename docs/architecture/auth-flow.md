@@ -23,7 +23,7 @@ The first authentication implementation should support:
    - access token with 5-minute TTL
    - refresh token with 2-hour TTL
 6. access and refresh tokens carry `emailHash`, not the raw email address
-6. server records token identifiers for revocation-aware session handling
+7. server records token identifiers for revocation-aware session handling
 
 ## Refresh Flow
 

@@ -21,7 +21,7 @@ It must not import provider-specific implementation details directly.
 
 `admin-api` manages authentication, provider credentials, and administrative settings.
 
-`admin-web` is the operator-facing interface for those control-plane workflows.
+`admin-web` is the operator-facing SPA for both administrator and end-user control-plane workflows.
 
 ### Shared Packages
 
@@ -40,10 +40,11 @@ Phase 1 already uses relational persistence for:
 
 Postgres is the durable source of truth for control-plane identity and encrypted provider secrets.
 
-Redis is used for short-lived auth state such as:
+Redis is used for short-lived auth and operational state such as:
 
 - revoked token tracking
 - refresh rotation state
+- gateway circuit-breaker state if stored outside Postgres
 
 ## Security Posture
 
@@ -53,9 +54,35 @@ The initial architecture assumes:
 - encrypted provider credentials
 - clear identity boundaries
 - no unsafe browser token storage patterns
+- cookie-only browser session posture for the SPA
 - application-level encryption for stored provider API secrets
 - short-lived access tokens with server-side revocation support
 - gateway-side identity resolution from `emailHash`, not a caller-supplied internal user id
+
+## UI Posture
+
+Phase 1 uses one SPA with role-aware navigation:
+
+- admins see administrative and user self-service surfaces
+- users see only self-service and chat-test surfaces
+
+The SPA reads:
+
+- session state from backend auth endpoints
+- feature flags from a public runtime-config endpoint
+- local chat persistence from IndexedDB
+
+The UI codebase should evolve toward small feature modules rather than large page-bound files that combine transport, orchestration, persistence, and rendering concerns in one place.
+
+Refactor work that improves SRP, DRY, and testability is in scope when it preserves behavior and keeps the feature delivery posture truthful.
+
+Interactive surfaces should expose stable test anchors for future end-to-end automation.
+
+The preferred browser automation convention is a minimal `data-testid` policy applied only to:
+
+- user-triggered controls
+- durable page anchors
+- repeated dynamic items that need deterministic selection
 
 ## Primary Risk
 

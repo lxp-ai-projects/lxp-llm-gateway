@@ -20,7 +20,8 @@ test('EmailProtectionService requires a base64-encoded 32-byte lookup key', () =
   process.env.LXP_ENCRYPTION_MASTER_KEY =
     'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
   process.env.LXP_ENCRYPTION_KEY_VERSION = '1';
-  process.env.LXP_EMAIL_LOOKUP_KEY = Buffer.from('short-key').toString('base64');
+  process.env.LXP_EMAIL_LOOKUP_KEY =
+    Buffer.from('short-key').toString('base64');
 
   assert.throws(
     () => new EmailProtectionService(new EncryptionService()),

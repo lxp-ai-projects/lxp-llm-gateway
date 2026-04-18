@@ -16,6 +16,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.6.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.0",
@@ -27,9 +28,11 @@
     "coverage": "tsx --test --experimental-test-coverage src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/persistence/entities/entity-metadata.test.ts",
     "dev": "tsc-watch --project tsconfig.json --onSuccess \"node dist/main.js\"",
     "lint": "eslint src --ext .ts",
-    "test": "tsx --test src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/persistence/entities/entity-metadata.test.ts"
+    "test": "tsx --test src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/persistence/entities/entity-metadata.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.3",
     "tsc-watch": "^6.2.1",
     "tsx": "^4.0.0"

@@ -47,6 +47,20 @@ Authorization: Bearer {{accessToken}}
   ]
 }
 
+### Chat Completion (Use User Defaults)
+POST {{gatewayApiBaseUrl}}/api/v1/chat
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bonjour, je m'appelle Emilie Joli. Peux-tu me dire bonjour en retour ?"
+    }
+  ]
+}
+
 ### Chat Completion Stream
 POST {{gatewayApiBaseUrl}}/api/v1/chat
 Content-Type: application/json
@@ -56,6 +70,36 @@ Authorization: Bearer {{accessToken}}
 {
   "providerId": "nanogpt",
   "model": "z-ai/glm-4.6:thinking",
+  "stream": true,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bonjour, je m'appelle Emilie Joli. Peux-tu me dire bonjour en retour ?"
+    }
+  ]
+}
+
+### Chat Completion (default provider and model)
+POST {{gatewayApiBaseUrl}}/api/v1/chat
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bonjour, je m'appelle Emilie Joli. Peux-tu me dire bonjour en retour ?"
+    }
+  ]
+}
+
+### Chat Completion Stream (default provider and model)
+POST {{gatewayApiBaseUrl}}/api/v1/chat
+Content-Type: application/json
+Accept: text/event-stream
+Authorization: Bearer {{accessToken}}
+
+{
   "stream": true,
   "messages": [
     {

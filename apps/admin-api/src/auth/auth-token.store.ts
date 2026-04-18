@@ -31,7 +31,11 @@ export class AuthTokenStore implements OnModuleInit, OnModuleDestroy {
     return (await this.getClient().exists(this.getBlacklistKey(jti))) === 1;
   }
 
-  async setRefreshSession(sessionId: string, refreshJti: string, ttlSeconds: number): Promise<void> {
+  async setRefreshSession(
+    sessionId: string,
+    refreshJti: string,
+    ttlSeconds: number,
+  ): Promise<void> {
     await this.getClient().set(this.getSessionKey(sessionId), refreshJti, {
       EX: Math.max(ttlSeconds, 1),
     });

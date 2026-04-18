@@ -60,9 +60,9 @@ Suggested claims or tracked fields:
 ## Storage Rules
 
 - access tokens must not be stored in `localStorage`
-- refresh tokens must not be exposed to frontend JavaScript if a cookie-based flow is used
-- the preferred posture is secure `HttpOnly` cookies for refresh tokens
-- if access tokens are exposed to the SPA, they should remain in memory only
+- refresh tokens must not be exposed to frontend JavaScript
+- the browser SPA posture is secure `HttpOnly` cookies for both access and refresh tokens
+- the frontend must rely on cookie-backed session resolution through backend endpoints rather than reading tokens directly
 
 ## Revocation and Blacklist
 
@@ -113,3 +113,4 @@ On logout:
 - token identifiers and session metadata must be modeled deliberately
 - downstream APIs can correlate the caller through `emailHash` without exposing the raw email address
 - the gateway must resolve the internal user record from `emailHash`; hashes are not decrypted
+- browser auth flows depend on cookie correctness, `credentials: 'include'`, and a dedicated session-resolution endpoint

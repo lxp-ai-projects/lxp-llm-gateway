@@ -14,7 +14,8 @@ test('EncryptionService requires the master key environment variable', () => {
 });
 
 test('EncryptionService requires a base64-encoded 32-byte master key', () => {
-  process.env.LXP_ENCRYPTION_MASTER_KEY = Buffer.from('short-key').toString('base64');
+  process.env.LXP_ENCRYPTION_MASTER_KEY =
+    Buffer.from('short-key').toString('base64');
   process.env.LXP_ENCRYPTION_KEY_VERSION = '1';
 
   assert.throws(

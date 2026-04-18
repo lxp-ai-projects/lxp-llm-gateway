@@ -15,6 +15,7 @@
 - user, role, and provider credential foundations
 - local development infrastructure
 - foundational documentation and API contract placeholders
+- incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
 
 ## Out of Scope for Phase 1
 
@@ -32,3 +33,4 @@
 - the core architecture boundaries are documented
 - the provider seam is explicit
 - the repository is ready for iterative feature implementation
+- the admin SPA remains operable on mobile and desktop without accumulating oversized, multi-responsibility modules as the feature surface grows

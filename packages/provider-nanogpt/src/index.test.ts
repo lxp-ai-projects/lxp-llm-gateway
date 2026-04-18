@@ -24,7 +24,8 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
             message: {
               role: 'assistant',
               content: 'hello from nanogpt',
-              reasoning: '1. Analyze the input. 2. Draft the answer. 3. Finalize.',
+              reasoning:
+                '1. Analyze the input. 2. Draft the answer. 3. Finalize.',
               reasoning_details: [
                 {
                   type: 'summary',
@@ -110,12 +111,15 @@ test('NanoGptProviderAdapter returns the provider SSE body for streaming request
       init,
     });
 
-    return new Response('data: {"choices":[{"delta":{"reasoning":"hi"}}]}\n\n', {
-      status: 200,
-      headers: {
-        'content-type': 'text/event-stream',
+    return new Response(
+      'data: {"choices":[{"delta":{"reasoning":"hi"}}]}\n\n',
+      {
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream',
+        },
       },
-    });
+    );
   }) as typeof fetch;
 
   try {
@@ -137,11 +141,52 @@ test('NanoGptProviderAdapter returns the provider SSE body for streaming request
 
     assert.ok(stream);
     assert.equal(calls.length, 1);
-    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as { stream?: boolean };
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      stream?: boolean;
+    };
     assert.equal(body.stream, true);
     const reader = stream?.getReader();
     const firstChunk = await reader?.read();
     assert.match(new TextDecoder().decode(firstChunk?.value), /reasoning/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter fails with an explicit timeout error when the provider does not respond', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (_url, init) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      signal?.addEventListener('abort', () => {
+        reject(new DOMException('The operation was aborted.', 'AbortError'));
+      });
+    })) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter(
+      'https://nano-gpt.com/api/v1',
+      5,
+    );
+
+    await assert.rejects(
+      () =>
+        adapter.chat(
+          {
+            model: 'z-ai/glm-4.6:thinking',
+            messages: [{ role: 'user', content: 'hello' }],
+          },
+          {
+            requestId: 'req-timeout',
+            userId: 'user-1',
+            providerCredential: {
+              apiKey: 'nano-secret-token',
+            },
+          },
+        ),
+      /NanoGPT request timed out after 5 ms/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

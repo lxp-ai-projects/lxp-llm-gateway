@@ -2,7 +2,7 @@ import type { ProviderId } from '@lxp/domain';
 
 export interface GatewayChatRequest {
   providerId?: ProviderId;
-  model: string;
+  model?: string;
   messages: Array<{
     role: 'system' | 'user' | 'assistant';
     content: string;
