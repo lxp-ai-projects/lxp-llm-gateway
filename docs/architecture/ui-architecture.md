@@ -32,6 +32,13 @@ Primary shell:
 
 The target UI composition is feature-oriented.
 
+The current direction in `admin-web/src` is:
+
+- `features/auth`
+- `features/chat`
+- `features/providers`
+- `features/users`
+
 Page files may orchestrate feature modules, but they should not remain the long-term home for:
 
 - transport clients
@@ -193,8 +200,9 @@ Preferred direction:
 
 Current high-value refactor targets include:
 
-- `src/lib/api-client.ts`
-- `src/pages/chat-page.tsx`
+- remaining chat orchestration inside `src/pages/chat-page.tsx`
+- remaining page-level orchestration in `providers` and `users`
+- stabilization of Playwright anchors on critical flows
 
 These should be split incrementally without changing user-visible behavior first.
 

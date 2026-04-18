@@ -43,6 +43,7 @@ Deliver a mobile-first, role-aware SPA that is operationally useful for administ
 ### Slice 5: UI Maintainability Pass
 
 - refactor oversized UI files into smaller feature modules
+- group UI code under `src/features/<feature-name>`
 - separate transport concerns from page rendering
 - separate chat orchestration from chat presentation
 - introduce stable Playwright-oriented test anchors on key interactive controls

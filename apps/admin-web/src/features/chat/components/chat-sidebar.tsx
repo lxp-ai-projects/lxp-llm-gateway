@@ -70,7 +70,7 @@ export function ChatSidebar({
       </Group>
       <Stack gap="sm">
         {transferError ? (
-          <Alert color="red" title="Conversation transfer failed">
+          <Alert color="red" data-testid="chat-transfer-error" title="Conversation transfer failed">
             {transferError}
           </Alert>
         ) : null}

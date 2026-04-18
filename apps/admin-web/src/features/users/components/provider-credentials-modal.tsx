@@ -17,6 +17,7 @@ export function ProviderCredentialsModal({
 }: ProviderCredentialsModalProps) {
   return (
     <Modal
+      data-testid="users-provider-credentials-modal"
       opened={opened}
       onClose={onClose}
       title={`Provider credentials${userDisplayName ? `: ${userDisplayName}` : ''}`}

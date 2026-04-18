@@ -92,7 +92,12 @@ export function ChatMessageList({
 
       <div ref={scrollRef} className="chat-scroll chat-scroll-with-composer" onScroll={onScroll}>
         {hiddenMessageCountAbove > 0 ? (
-          <Button onClick={onLoadEarlierMessages} size="compact-xs" variant="subtle">
+          <Button
+            data-testid="chat-load-earlier-messages"
+            onClick={onLoadEarlierMessages}
+            size="compact-xs"
+            variant="subtle"
+          >
             Load {Math.min(10, hiddenMessageCountAbove)} earlier message
             {hiddenMessageCountAbove > 1 ? 's' : ''}
           </Button>
@@ -147,12 +152,14 @@ export function ChatMessageList({
                 <Stack gap="xs">
                   <Textarea
                     autosize
+                    data-testid={`chat-edit-input-${message.id}`}
                     minRows={3}
                     onChange={(event) => onEditContentChange(event.currentTarget.value)}
                     value={editingContent}
                   />
                   <Group justify="flex-end">
                     <Button
+                      data-testid={`chat-cancel-edit-${message.id}`}
                       leftSection={<IconX size={14} />}
                       onClick={onCancelEdit}
                       size="xs"
@@ -161,6 +168,7 @@ export function ChatMessageList({
                       Cancel
                     </Button>
                     <Button
+                      data-testid={`chat-resend-message-${message.id}`}
                       disabled={!editingContent.trim()}
                       leftSection={<IconSend size={14} />}
                       onClick={() => onSubmitEditedMessage(message.id)}
@@ -223,7 +231,12 @@ export function ChatMessageList({
           </Text>
         )}
         {hiddenMessageCountBelow > 0 ? (
-          <Button onClick={onLoadNewerMessages} size="compact-xs" variant="subtle">
+          <Button
+            data-testid="chat-load-newer-messages"
+            onClick={onLoadNewerMessages}
+            size="compact-xs"
+            variant="subtle"
+          >
             Load {Math.min(10, hiddenMessageCountBelow)} newer message
             {hiddenMessageCountBelow > 1 ? 's' : ''}
           </Button>
