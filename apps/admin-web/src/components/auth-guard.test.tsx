@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { test, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 
 function renderAuthGuard(ui: React.ReactNode, initialEntries: string[]) {
-  return require('@testing-library/react').render(
+  return render(
     <MantineProvider theme={adminWebTheme}>
       <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
     </MantineProvider>,

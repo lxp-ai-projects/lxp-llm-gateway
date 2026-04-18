@@ -23,7 +23,7 @@ const {
     status: 'active',
     roles: ['admin'],
   })),
-  chatStreamMock: vi.fn(async (_payload, _handlers) => ({
+  chatStreamMock: vi.fn(async () => ({
     requestId: 'request-1',
     receivedReasoning: false,
     receivedContent: false,

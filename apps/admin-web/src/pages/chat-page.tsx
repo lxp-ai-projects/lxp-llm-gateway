@@ -1,19 +1,4 @@
-import {
-  Alert,
-  Button,
-  Card,
-  Grid,
-  Group,
-  Modal,
-  Select,
-  Stack,
-  Tabs,
-  Text,
-  Title,
-} from '@mantine/core';
-import {
-  IconDownload,
-} from '@tabler/icons-react';
+import { Button, Card, Grid, Group, Modal, Select, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
@@ -106,7 +91,6 @@ export function ChatPage() {
   } = useChatStreaming({
     activeConversation,
     editingContent,
-    model,
     onClearEditingState: () => {
       setEditingMessageId(null);
       setEditingContent('');

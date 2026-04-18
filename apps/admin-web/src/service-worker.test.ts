@@ -11,7 +11,7 @@ const serviceWorkerSource = readFileSync(
 );
 
 function loadServiceWorkerHarness() {
-  const handlers = new Map<string, (event: any) => void>();
+  const handlers = new Map<string, (event: unknown) => void>();
   const cacheStore = new Map<string, unknown>();
   const deletedKeys: string[] = [];
   const cacheApi = {
@@ -33,7 +33,7 @@ function loadServiceWorkerHarness() {
     },
     fetch: vi.fn(),
     self: {
-      addEventListener: vi.fn((type: string, handler: (event: any) => void) => {
+      addEventListener: vi.fn((type: string, handler: (event: unknown) => void) => {
         handlers.set(type, handler);
       }),
       skipWaiting: vi.fn(async () => undefined),

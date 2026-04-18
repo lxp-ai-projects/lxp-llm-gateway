@@ -14,7 +14,6 @@ import { saveConversation, type StoredConversation } from '../../../lib/chat-sto
 type UseChatStreamingOptions = {
   activeConversation: StoredConversation | null;
   editingContent: string;
-  model: string;
   onClearEditingState: () => void;
   onConversationActivated: (conversationId: string) => void;
   onConversationUpdated: React.Dispatch<React.SetStateAction<StoredConversation[]>>;
@@ -27,7 +26,6 @@ type UseChatStreamingOptions = {
 export function useChatStreaming({
   activeConversation,
   editingContent,
-  model,
   onClearEditingState,
   onConversationActivated,
   onConversationUpdated,

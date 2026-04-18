@@ -242,3 +242,80 @@ test('useChatStreaming resends an edited user message', async () => {
     expect.any(Object),
   );
 });
+
+test('useChatStreaming flags missing assistant content when only reasoning was received', async () => {
+  chatStreamMock.mockImplementation(async (_payload, handlers) => {
+    handlers.onChunk?.({ reasoningDelta: 'Thinking only', contentDelta: '' });
+
+    return {
+      requestId: 'request-4',
+      receivedReasoning: true,
+      receivedContent: false,
+      finishReason: 'stop',
+    };
+  });
+
+  const { hook, onSetChatError, currentConversations } = setup();
+
+  await act(async () => {
+    await hook.result.current.sendMessage(createConversation, 'Hello');
+  });
+
+  expect(onSetChatError).toHaveBeenLastCalledWith(null);
+  expect(currentConversations()[0]?.messages.at(-1)).toMatchObject({
+    role: 'assistant',
+    content: '',
+    reasoning: 'Thinking only',
+  });
+});
+
+test('useChatStreaming preserves partial assistant output when the stream fails after chunks', async () => {
+  chatStreamMock.mockImplementation(async (_payload, handlers) => {
+    handlers.onChunk?.({ reasoningDelta: 'Partial reasoning', contentDelta: 'Partial answer' });
+    throw new Error('socket reset');
+  });
+
+  const { hook, onSetChatError, currentConversations } = setup();
+
+  await act(async () => {
+    await hook.result.current.sendMessage(createConversation, 'Hello');
+  });
+
+  expect(onSetChatError).toHaveBeenLastCalledWith('socket reset');
+  expect(saveConversationMock).toHaveBeenCalled();
+  expect(currentConversations()[0]?.messages.at(-1)).toMatchObject({
+    role: 'assistant',
+    content: 'Partial answer',
+    reasoning: 'Partial reasoning',
+  });
+});
+
+test('useChatStreaming removes the draft assistant message when the stream fails before any output', async () => {
+  chatStreamMock.mockRejectedValue('fatal stream failure');
+
+  const { hook, onSetChatError, currentConversations } = setup();
+
+  await act(async () => {
+    await hook.result.current.sendMessage(createConversation, 'Hello');
+  });
+
+  expect(onSetChatError).toHaveBeenLastCalledWith(
+    'The gateway stream failed unexpectedly.',
+  );
+  expect(currentConversations()[0]?.messages).toHaveLength(2);
+  expect(currentConversations()[0]?.messages.every((message) => message.role === 'user')).toBe(
+    true,
+  );
+  expect(currentConversations()[0]?.messages.at(-1)?.content).toBe('Hello');
+});
+
+test('useChatStreaming no-ops retry and resend when there is no active conversation', async () => {
+  const { hook } = setup(null);
+
+  await act(async () => {
+    await hook.result.current.retryAssistantMessage((conversation) => conversation, 'assistant-1');
+    await hook.result.current.resendEditedMessage((conversation) => conversation, 'user-1');
+  });
+
+  expect(chatStreamMock).not.toHaveBeenCalled();
+});
