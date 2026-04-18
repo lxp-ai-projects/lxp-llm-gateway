@@ -148,7 +148,7 @@ export class AdminService {
       throw new ConflictException('Unable to store the provider credential.');
     }
 
-    const providerAccess = this.createProviderAccess(dto);
+    const providerAccess = this.createProviderAccess(dto, provider.providerId);
     const encrypted = this.encryptionService.encrypt(
       JSON.stringify(providerAccess),
     );
@@ -232,7 +232,11 @@ export class AdminService {
     }
 
     if (dto.apiToken?.trim() || dto.baseUrl?.trim()) {
-      const providerAccess = this.createProviderAccess(dto, credential);
+      const providerAccess = this.createProviderAccess(
+        dto,
+        provider.providerId,
+        credential,
+      );
       const encrypted = this.encryptionService.encrypt(
         JSON.stringify(providerAccess),
       );
@@ -486,10 +490,19 @@ export class AdminService {
       | StoreProviderCredentialDto
       | UpdateProviderCredentialDto
       | (Partial<StoreProviderCredentialDto> & Partial<UpdateProviderCredentialDto>),
+    providerIdOrCredential: string | UserProviderCredentialEntity,
     existingCredential?: UserProviderCredentialEntity,
   ): ProviderAccessConfig {
-    const providerAccess = existingCredential
-      ? this.readProviderAccess(existingCredential)
+    const resolvedExistingCredential =
+      typeof providerIdOrCredential === 'string'
+        ? existingCredential
+        : providerIdOrCredential;
+    const providerId =
+      typeof providerIdOrCredential === 'string'
+        ? providerIdOrCredential
+        : providerIdOrCredential.provider?.providerId;
+    const providerAccess = resolvedExistingCredential
+      ? this.readProviderAccess(resolvedExistingCredential)
       : {};
 
     if ('apiToken' in dto && dto.apiToken?.trim()) {
@@ -506,7 +519,37 @@ export class AdminService {
       );
     }
 
+    this.assertProviderAccessIsValid(providerId, providerAccess);
+
     return providerAccess;
+  }
+
+  private assertProviderAccessIsValid(
+    providerId: string | undefined,
+    providerAccess: ProviderAccessConfig,
+  ): void {
+    if (providerId !== 'ollama' || !providerAccess.baseUrl) {
+      return;
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(providerAccess.baseUrl);
+    } catch {
+      throw new BadRequestException(
+        'Ollama base URL must be a valid absolute URL.',
+      );
+    }
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+    if (
+      (hostname === 'ollama.com' || hostname === 'www.ollama.com') &&
+      !providerAccess.apiKey
+    ) {
+      throw new BadRequestException(
+        'Ollama cloud credentials on ollama.com require an API token.',
+      );
+    }
   }
 
   private readProviderAccess(

@@ -19,6 +19,7 @@ type ProviderOption = {
 type ProviderCredentialFormProps = {
   apiToken: string;
   baseUrl: string;
+  credentialValidationError: string | null;
   editingCredentialId: string | null;
   isPending: boolean;
   label: string;
@@ -35,6 +36,7 @@ type ProviderCredentialFormProps = {
 export function ProviderCredentialForm({
   apiToken,
   baseUrl,
+  credentialValidationError,
   editingCredentialId,
   isPending,
   label,
@@ -70,9 +72,14 @@ export function ProviderCredentialForm({
           </Text>
           {usesEndpointAccess ? (
             <Alert color="blue" variant="light" title="Endpoint-based credential">
-              Ollama credentials may rely on a local or remote base URL. API
-              tokens are optional for local instances and expected only when the
-              endpoint is protected.
+              Ollama credentials may rely on a local/runtime base URL or the
+              Ollama Cloud API on `https://ollama.com`. API tokens are optional
+              for local instances and required for Ollama Cloud.
+            </Alert>
+          ) : null}
+          {credentialValidationError ? (
+            <Alert color="red" title="Credential validation failed">
+              {credentialValidationError}
             </Alert>
           ) : null}
           <label className="form-native-field">
@@ -124,7 +131,7 @@ export function ProviderCredentialForm({
               isEditing
                 ? 'Leave blank to keep the current endpoint and update only the other fields.'
                 : usesEndpointAccess
-                  ? 'Recommended for Ollama. Example: http://127.0.0.1:11434/v1'
+                  ? 'Use http://127.0.0.1:11434 for local Ollama, or https://ollama.com for Ollama Cloud.'
                   : 'Optional override when this credential should use a non-default provider endpoint.'
             }
             label={isEditing ? 'Replace base URL' : 'Base URL'}

@@ -11,6 +11,7 @@ export function ProvidersPage() {
     apiToken,
     baseUrl,
     beginCredentialEdit,
+    credentialValidationError,
     credentials,
     currentDefaultModel,
     currentDefaultProviderDisplayName,
@@ -51,6 +52,7 @@ export function ProvidersPage() {
             <ProviderCredentialForm
               apiToken={apiToken}
               baseUrl={baseUrl}
+              credentialValidationError={credentialValidationError}
               editingCredentialId={editingCredentialId}
               isPending={isCredentialPending}
               label={label}

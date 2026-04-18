@@ -289,6 +289,26 @@ test('AdminService stores an Ollama endpoint-only credential', async () => {
   );
 });
 
+test('AdminService rejects Ollama cloud credentials on ollama.com without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'ollama',
+        label: 'cloud-without-token',
+        baseUrl: 'https://ollama.com',
+      }),
+    /require an API token/,
+  );
+});
+
 test('AdminService rejects storing a provider credential when the user does not exist', async () => {
   const { service } = createAdminService();
 

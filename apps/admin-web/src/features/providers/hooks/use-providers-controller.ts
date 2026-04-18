@@ -8,6 +8,7 @@ import {
   buildDefaultProviderOptions,
   buildProviderOptions,
   resolveProviderDisplayName,
+  validateProviderCredentialInput,
 } from '../lib/provider-utils';
 
 export function useProvidersController() {
@@ -17,6 +18,9 @@ export function useProvidersController() {
   const [label, setLabel] = useState('primary');
   const [apiToken, setApiToken] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
+  const [credentialValidationError, setCredentialValidationError] = useState<
+    string | null
+  >(null);
   const [editingCredentialId, setEditingCredentialId] = useState<string | null>(
     null,
   );
@@ -140,6 +144,7 @@ export function useProvidersController() {
     setLabel('primary');
     setApiToken('');
     setBaseUrl('');
+    setCredentialValidationError(null);
   }
 
   function beginCredentialEdit(credential: {
@@ -152,6 +157,7 @@ export function useProvidersController() {
     setLabel(credential.label);
     setApiToken('');
     setBaseUrl('');
+    setCredentialValidationError(null);
   }
 
   const defaultModelOptions = buildDefaultModelOptions(
@@ -162,6 +168,16 @@ export function useProvidersController() {
     event.preventDefault();
 
     if (!label.trim() || (!editingCredentialId && !apiToken.trim() && !baseUrl.trim())) {
+      return;
+    }
+
+    const validationError = validateProviderCredentialInput({
+      providerId,
+      apiToken,
+      baseUrl,
+    });
+    setCredentialValidationError(validationError);
+    if (validationError) {
       return;
     }
 
@@ -181,6 +197,7 @@ export function useProvidersController() {
   return {
     apiToken,
     baseUrl,
+    credentialValidationError,
     credentials: credentialsQuery.data ?? [],
     currentDefaultModel: providerSettingsQuery.data?.defaultModel ?? null,
     currentDefaultProviderDisplayName: providerSettingsQuery.data
@@ -208,15 +225,30 @@ export function useProvidersController() {
         ? modelsQuery.error.message
         : 'Unable to load models for the selected provider.'
       : null,
-    onApiTokenChange: setApiToken,
-    onBaseUrlChange: setBaseUrl,
+    onApiTokenChange: (value: string) => {
+      setApiToken(value);
+      if (credentialValidationError) {
+        setCredentialValidationError(null);
+      }
+    },
+    onBaseUrlChange: (value: string) => {
+      setBaseUrl(value);
+      if (credentialValidationError) {
+        setCredentialValidationError(null);
+      }
+    },
     onDefaultModelChange: (value: string | null) => setDefaultModel(value),
     onDefaultProviderChange: (value: string | null) => {
       setDefaultProviderId(value);
       setDefaultModel(null);
     },
     onLabelChange: setLabel,
-    onProviderChange: (value: string | null) => setProviderId(value ?? 'nanogpt'),
+    onProviderChange: (value: string | null) => {
+      setProviderId(value ?? 'nanogpt');
+      if (credentialValidationError) {
+        setCredentialValidationError(null);
+      }
+    },
     providerId,
     providerOptions,
     providerSettingsDirty,

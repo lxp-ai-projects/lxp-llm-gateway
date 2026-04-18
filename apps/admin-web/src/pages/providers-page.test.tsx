@@ -351,3 +351,31 @@ test('ProvidersPage creates an Ollama endpoint credential with a base URL', asyn
     }),
   );
 }, 20_000);
+
+test('ProvidersPage blocks Ollama Cloud credentials without an API token', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'ollama');
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'ollama-cloud');
+  await user.type(screen.getByLabelText('Base URL'), 'https://ollama.com');
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText(
+      'Ollama cloud credentials on ollama.com require an API token.',
+    ),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});

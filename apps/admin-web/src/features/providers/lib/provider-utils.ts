@@ -62,3 +62,30 @@ export function buildDefaultModelOptions(
     label: modelEntry.displayName,
   }));
 }
+
+export function validateProviderCredentialInput(input: {
+  providerId: string;
+  apiToken: string;
+  baseUrl: string;
+}): string | null {
+  if (input.providerId !== 'ollama' || !input.baseUrl.trim()) {
+    return null;
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(input.baseUrl.trim());
+  } catch {
+    return 'Ollama base URL must be a valid absolute URL.';
+  }
+
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (
+    (hostname === 'ollama.com' || hostname === 'www.ollama.com') &&
+    !input.apiToken.trim()
+  ) {
+    return 'Ollama cloud credentials on ollama.com require an API token.';
+  }
+
+  return null;
+}

@@ -278,3 +278,39 @@ test('useProvidersController surfaces model loading errors and provider fallback
     { label: 'NanoGPT', value: 'nanogpt' },
   ]);
 });
+
+test('useProvidersController blocks Ollama cloud credentials without an API token', async () => {
+  const wrapper = createWrapper();
+
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'ollama', displayName: 'Ollama' },
+  ];
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  const { result } = renderHook(() => useProvidersController(), { wrapper });
+
+  await waitFor(() => expect(result.current.providerOptions).toHaveLength(2));
+
+  await act(async () => {
+    result.current.onProviderChange('ollama');
+    result.current.onLabelChange('ollama-cloud');
+    result.current.onBaseUrlChange('https://ollama.com');
+  });
+
+  await act(async () => {
+    result.current.handleCredentialSubmit({
+      preventDefault() {},
+    } as never);
+  });
+
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+  expect(result.current.credentialValidationError).toBe(
+    'Ollama cloud credentials on ollama.com require an API token.',
+  );
+});
