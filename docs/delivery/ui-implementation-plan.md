@@ -77,6 +77,7 @@ Recommended order for the maintainability pass:
 3. split `chat-page.tsx` into feature components and hooks
 4. add `data-testid` only to stable interactive surfaces needed for functional tests
 5. keep unit and component tests green after each extraction step
+6. add direct tests on extracted feature hooks before reducing page-level coverage
 
 ## Acceptance Criteria
 

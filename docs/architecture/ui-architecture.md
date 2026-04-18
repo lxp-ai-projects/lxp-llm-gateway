@@ -200,9 +200,9 @@ Preferred direction:
 
 Current high-value refactor targets include:
 
-- remaining chat orchestration inside `src/pages/chat-page.tsx`
-- remaining page-level orchestration in `providers` and `users`
+- continued reduction of page-level orchestration as feature hooks mature
 - stabilization of Playwright anchors on critical flows
+- keeping `chat`, `providers`, and `users` feature folders testable without routing pages
 
 These should be split incrementally without changing user-visible behavior first.
 
