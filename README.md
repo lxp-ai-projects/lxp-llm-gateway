@@ -23,7 +23,7 @@ This repository currently contains:
 - NestJS API applications
 - a React 19 + Vite admin application
 - provider seam packages
-- a first NanoGPT provider placeholder
+- working provider packages for NanoGPT, OpenRouter, and Ollama
 
 The repository now includes:
 
@@ -31,7 +31,7 @@ The repository now includes:
 - encrypted provider credential storage in Postgres
 - gateway authentication via access token `emailHash`
 - non-stream JSON chat responses with structured assistant output
-- streaming SSE passthrough for NanoGPT thinking models
+- streaming support across NanoGPT, OpenRouter, and Ollama
 - one planned role-aware SPA for both admin and user control-plane workflows
 
 ## Structure
@@ -42,7 +42,9 @@ The repository now includes:
 - `packages/contracts`: transport contracts
 - `packages/domain`: framework-agnostic domain types
 - `packages/provider-sdk`: provider adapter seam
-- `packages/provider-nanogpt`: NanoGPT implementation placeholder
+- `packages/provider-nanogpt`: NanoGPT implementation
+- `packages/provider-openrouter`: OpenRouter implementation
+- `packages/provider-ollama`: Ollama implementation
 
 ## Selected Stack
 
@@ -184,10 +186,10 @@ Use the HTTP files in [queries/README.md](queries/README.md):
 1. if the database is empty, run `Bootstrap First Admin` from `queries/admin-api.http`
 2. run `queries/auth.http` to obtain tokens
 3. use `queries/admin-api.http` for protected admin operations
-4. use `queries/provider-credentials.http` to resolve `userUuid` and store the NanoGPT credential
+4. use `queries/provider-credentials.http` to resolve `userUuid` and store provider credentials for NanoGPT, OpenRouter, or Ollama
 5. use `queries/gateway-api.http` for:
    - non-stream JSON chat
-   - stream SSE chat with thinking models
+   - stream SSE chat with supported providers and thinking-capable models
 
 See the gateway response contract in [docs/api/gateway-contract.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/api/gateway-contract.md).
 

@@ -11,8 +11,7 @@
 - admin web application
 - shared contracts and domain packages
 - provider abstraction package
-- first provider integration for NanoGPT
-- initial multi-provider seam support for OpenRouter and Ollama
+- working provider integrations for NanoGPT, OpenRouter, and Ollama
 - user, role, and provider credential foundations
 - local development infrastructure
 - foundational documentation and API contract placeholders
@@ -33,5 +32,6 @@
 - all apps and packages build as placeholders
 - the core architecture boundaries are documented
 - the provider seam is explicit
+- NanoGPT, OpenRouter, and Ollama can be selected transparently through the same gateway contract
 - the repository is ready for iterative feature implementation
 - the admin SPA remains operable on mobile and desktop without accumulating oversized, multi-responsibility modules as the feature surface grows

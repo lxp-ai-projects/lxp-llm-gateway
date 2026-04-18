@@ -112,6 +112,8 @@ data: {"choices":[{"delta":{"content":"Bonjour Patrick !"}}]}
 
 This is intentionally not normalized yet. The current design keeps reasoning and content deltas intact for thinking-capable models.
 
+For native Ollama `/api/chat` streams, the adapter converts provider-native NDJSON chunks into gateway SSE chunks that keep the same `choices[0].delta.*` shape expected by the admin web client.
+
 ## Identity Resolution
 
 The gateway does not trust a caller-provided `userId`.
@@ -136,6 +138,10 @@ For NanoGPT and other OpenAI-compatible providers:
 
 For Ollama:
 
-- OpenAI compatibility can be used through an explicit provider `baseUrl`
-- local deployments may not require auth
-- cloud deployments may require bearer auth through provider-scoped headers
+- local/runtime deployments can use `http://127.0.0.1:11434` or `http://127.0.0.1:11434/v1`
+- local model listing uses `/api/tags`
+- local chat uses `/v1/chat/completions`
+- Ollama Cloud can use `https://ollama.com`
+- Ollama Cloud model listing uses `/api/tags`
+- Ollama Cloud chat uses `/api/chat`
+- Ollama Cloud requires bearer auth

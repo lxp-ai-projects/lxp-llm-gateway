@@ -7,8 +7,7 @@ The platform separates the data plane from the control plane.
 - `admin-web` talks to `admin-api`
 - clients talk to `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
-- `provider-nanogpt` is the first concrete provider implementation
-- `provider-openrouter` and `provider-ollama` are planned behind the same seam
+- `provider-nanogpt`, `provider-openrouter`, and `provider-ollama` are concrete provider implementations behind the same seam
 
 ## Boundary Rules
 
@@ -30,7 +29,8 @@ It must not import provider-specific implementation details directly.
 - `domain` contains framework-agnostic domain concepts
 - `provider-sdk` defines the provider integration seam
 - `provider-nanogpt` implements NanoGPT behind the seam
-- future provider packages implement OpenRouter and Ollama behind the same seam
+- `provider-openrouter` implements OpenRouter behind the seam
+- `provider-ollama` implements Ollama behind the seam
 
 ## Persistence Posture
 
@@ -105,6 +105,6 @@ Provider adapters receive a provider access configuration that may contain:
 This allows:
 
 - `NanoGPT` and `OpenRouter` to use bearer-token style auth
-- `Ollama` to use an explicit endpoint with optional auth headers
+- `Ollama` to use either a local/runtime endpoint or Ollama Cloud with bearer auth
 
 `gateway-api` resolves and decrypts provider access data, but it does not interpret provider-specific transport rules.

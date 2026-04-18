@@ -98,7 +98,16 @@ Examples:
 - NanoGPT: `{ "apiKey": "..." }`
 - OpenRouter: `{ "apiKey": "...", "baseUrl": "https://openrouter.ai/api/v1" }`
 - Ollama local: `{ "baseUrl": "http://127.0.0.1:11434/v1" }`
-- Ollama cloud: `{ "baseUrl": "https://ollama.com/api", "apiKey": "..." }`
+- Ollama cloud: `{ "baseUrl": "https://ollama.com", "apiKey": "..." }`
+
+The current runtime supports both Ollama access modes:
+
+- local/runtime mode:
+  - model listing via `/api/tags`
+  - chat via `/v1/chat/completions`
+- cloud mode:
+  - model listing via `/api/tags`
+  - chat via `/api/chat`
 
 ## Runtime Flow
 

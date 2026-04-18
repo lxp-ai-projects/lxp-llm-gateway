@@ -22,7 +22,7 @@ It should:
 - preserve the lessons learned from the previous project
 - avoid speculative packages and premature abstractions
 - establish healthy boundaries from day one
-- remain ready for additional providers later
+- keep provider expansion behind the seam without leaking provider-specific logic into `gateway-api`
 
 ## Initial Product Scope
 
@@ -34,8 +34,10 @@ Phase 1 includes:
 - a minimal `admin-api`
 - a minimal `admin-web`
 - a minimal provider abstraction layer
-- a single provider implementation: `NanoGPT`
-- initial provider-seam expansion for `OpenRouter` and `Ollama`
+- working provider implementations for:
+  - `NanoGPT`
+  - `OpenRouter`
+  - `Ollama`
 - local development infrastructure with Redis or Valkey
 - an initial OpenAPI placeholder
 - basic CI-ready scripts for lint, build, and test
@@ -204,18 +206,19 @@ Provider abstraction seam:
   - bearer-token providers such as `NanoGPT` and `OpenRouter`
   - endpoint-based providers such as `Ollama`
 
-### `packages/provider-nanogpt`
+### Provider Packages
 
-NanoGPT-specific implementation:
+Concrete provider implementations currently shipped in Phase 1:
+
+- `packages/provider-nanogpt`
+- `packages/provider-openrouter`
+- `packages/provider-ollama`
+
+Each package owns:
 
 - request and response mapping
 - streaming adaptation
 - provider-specific integration logic
-
-Future provider packages follow the same pattern:
-
-- `packages/provider-openrouter`
-- `packages/provider-ollama`
 
 ## Critical Architecture Rule
 
