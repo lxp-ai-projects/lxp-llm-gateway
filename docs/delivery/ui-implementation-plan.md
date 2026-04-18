@@ -4,6 +4,8 @@
 
 Deliver a mobile-first, role-aware SPA that is operationally useful for administrators and safe for end users.
 
+This document now serves as an implementation record and a Phase 2 handoff note, not only as a pre-build plan.
+
 ## Phase 1 Delivery Slices
 
 ### Slice 1: Shell and Session
@@ -14,6 +16,8 @@ Deliver a mobile-first, role-aware SPA that is operationally useful for administ
 - add cookie-based session bootstrap through `/api/v1/auth/me`
 - add protected and role-aware routes
 
+Status: delivered
+
 ### Slice 2: Public Auth Surface
 
 - login page
@@ -22,12 +26,16 @@ Deliver a mobile-first, role-aware SPA that is operationally useful for administ
 - conditional registration entry point
 - conditional forgot-password entry point
 
+Status: delivered
+
 ### Slice 3: User Surfaces
 
 - overview page
 - provider credential management
 - profile management
 - simple chat page backed by IndexedDB
+
+Status: delivered, with streaming chat, conversation import/export, local system prompt support, and mobile-first chat ergonomics
 
 ### Slice 4: Admin Surfaces
 
@@ -40,6 +48,8 @@ Deliver a mobile-first, role-aware SPA that is operationally useful for administ
 - gateway analytics overview
 - global circuit breaker control
 
+Status: delivered at Phase 1 depth
+
 ### Slice 5: UI Maintainability Pass
 
 - refactor oversized UI files into smaller feature modules
@@ -49,9 +59,11 @@ Deliver a mobile-first, role-aware SPA that is operationally useful for administ
 - introduce stable Playwright-oriented test anchors on key interactive controls
 - preserve existing behavior while improving maintainability and testability
 
-## Backend Prerequisites
+Status: substantially delivered
 
-The following backend work should be present or scheduled before each UI slice is finalized:
+## Current Phase 1 Outcome
+
+The UI now depends on working backend support for:
 
 - public runtime config endpoint
 - cookie-only browser auth behavior
@@ -59,6 +71,8 @@ The following backend work should be present or scheduled before each UI slice i
 - user management endpoints
 - analytics endpoints
 - circuit-breaker endpoints
+
+These are no longer just prerequisites; they are part of the current baseline.
 
 ## Risks
 
@@ -79,6 +93,13 @@ Recommended order for the maintainability pass:
 5. keep unit and component tests green after each extraction step
 6. add direct tests on extracted feature hooks before reducing page-level coverage
 
+This order has been followed in practice for:
+
+- `api-client` transport split
+- feature extraction under `src/features/*`
+- hook extraction for chat, providers, and users
+- selector stabilization for future E2E work
+
 ## Acceptance Criteria
 
 - the SPA renders correctly on mobile and desktop
@@ -88,3 +109,20 @@ Recommended order for the maintainability pass:
 - chat reasoning appears when the selected provider/model emits it
 - the gateway-offline state is visible and understandable
 - the UI codebase is prepared for future Playwright coverage with stable anchors on key user flows
+
+These criteria are now substantially met for the implemented Phase 1 surface.
+
+## Phase 2 Starting Point
+
+Phase 2 can start from:
+
+- a role-aware SPA already running on mobile and desktop
+- a feature-oriented frontend structure
+- high unit and component coverage
+- CI quality gates for typecheck, test, and build
+
+The next frontend priorities should focus on:
+
+- Playwright and broader E2E coverage
+- additional operational polish where needed
+- extending existing feature modules rather than rebuilding their structure

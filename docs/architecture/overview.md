@@ -5,7 +5,8 @@
 The platform separates the data plane from the control plane.
 
 - `admin-web` talks to `admin-api`
-- clients talk to `gateway-api`
+- `admin-web` talks to `gateway-api` for chat and model discovery
+- clients or trusted internal callers talk to `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
 - `provider-nanogpt` is the first concrete provider implementation
 
@@ -13,13 +14,31 @@ The platform separates the data plane from the control plane.
 
 ### Data Plane
 
-`gateway-api` handles request intake, provider dispatch, streaming, and normalized response delivery.
+`gateway-api` handles:
+
+- request intake
+- caller authentication from cookie or bearer access token
+- identity resolution from `emailHash`
+- provider credential resolution
+- provider dispatch
+- model listing
+- streaming passthrough
+- normalized non-stream response delivery
 
 It must not import provider-specific implementation details directly.
 
 ### Control Plane
 
-`admin-api` manages authentication, provider credentials, and administrative settings.
+`admin-api` manages:
+
+- login, refresh, logout, and session resolution
+- users and role-aware admin workflows
+- encrypted provider credential writes and resets
+- runtime config for the SPA
+- conversation import and export support
+- control-plane health and settings surfaces
+
+`admin-api` is the durable source of truth for control-plane identity and secret administration.
 
 `admin-web` is the operator-facing SPA for both administrator and end-user control-plane workflows.
 
@@ -32,7 +51,7 @@ It must not import provider-specific implementation details directly.
 
 ## Persistence Posture
 
-Phase 1 already uses relational persistence for:
+The current architecture uses relational persistence for:
 
 - users
 - roles
@@ -58,6 +77,8 @@ The initial architecture assumes:
 - application-level encryption for stored provider API secrets
 - short-lived access tokens with server-side revocation support
 - gateway-side identity resolution from `emailHash`, not a caller-supplied internal user id
+- generalized error handling that avoids overexposing account and token state to callers
+- write-only or masked-only handling for provider secrets in administrative workflows
 
 ## UI Posture
 
@@ -74,7 +95,9 @@ The SPA reads:
 
 The UI codebase should evolve toward small feature modules rather than large page-bound files that combine transport, orchestration, persistence, and rendering concerns in one place.
 
-Refactor work that improves SRP, DRY, and testability is in scope when it preserves behavior and keeps the feature delivery posture truthful.
+That refactor direction is already underway in `admin-web` through `features/auth`, `features/chat`, `features/providers`, and `features/users`.
+
+Refactor work that improves SRP, DRY, and testability remains in scope when it preserves behavior and keeps the feature delivery posture truthful.
 
 Interactive surfaces should expose stable test anchors for future end-to-end automation.
 
@@ -89,3 +112,14 @@ The preferred browser automation convention is a minimal `data-testid` policy ap
 The main architectural failure mode is leaking provider-specific logic into `gateway-api`.
 
 If that boundary collapses, the new repository will recreate the coupling problems it was meant to eliminate.
+
+## Phase 2 Entry Notes
+
+Phase 2 starts from an implemented foundation, not a scaffold.
+
+The main architectural priorities for the next phase are:
+
+- preserving the provider seam while adding capability
+- extending control-plane workflows without weakening secret-handling rules
+- keeping the SPA feature-oriented and testable as E2E coverage is introduced
+- avoiding regression toward oversized page modules or provider-aware gateway code
