@@ -1,7 +1,7 @@
-import { Center, Loader, Stack, Text } from '@mantine/core';
 import type { PropsWithChildren } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
+import { AuthGuardLoading } from '../features/auth/components/auth-guard-loading';
 import { useSession } from '../lib/use-session';
 
 export function AuthGuard({ children }: PropsWithChildren) {
@@ -9,14 +9,7 @@ export function AuthGuard({ children }: PropsWithChildren) {
   const sessionQuery = useSession();
 
   if (sessionQuery.isPending) {
-    return (
-      <Center mih="100vh">
-        <Stack align="center" gap="sm">
-          <Loader color="teal" />
-          <Text c="dimmed">Restoring secure session...</Text>
-        </Stack>
-      </Center>
-    );
+    return <AuthGuardLoading />;
   }
 
   if (!sessionQuery.data) {

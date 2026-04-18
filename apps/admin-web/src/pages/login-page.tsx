@@ -1,22 +1,12 @@
 import {
-  Alert,
-  Anchor,
-  Button,
-  Card,
-  Checkbox,
   Container,
-  Group,
-  PasswordInput,
-  Stack,
-  Text,
-  TextInput,
-  Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconLockPassword } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
+import { LoginFormCard } from '../features/auth/components/login-form-card';
+import { LoginHeroCard } from '../features/auth/components/login-hero-card';
 import { adminApiClient, SESSION_TIMEOUT_MESSAGE_STORAGE_KEY } from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 
@@ -53,101 +43,27 @@ export function LoginPage() {
     <div className="auth-page">
       <Container size={1180}>
         <div className="auth-grid">
-          <Card className="hero-card auth-story">
-            <Stack gap="xl">
-              <div>
-                <Text className="page-kicker">Secure control plane</Text>
-                <Title order={1}>Operate the gateway without softening the security posture.</Title>
-                <Text c="dimmed" mt="md" size="lg">
-                  Role-aware navigation, encrypted provider secrets, and browser auth carried entirely by
-                  `HttpOnly` cookies.
-                </Text>
-              </div>
-              <div className="hero-highlight">
-                <Text fw={700}>Phase 1 experience</Text>
-                <Text c="dimmed" mt="xs">
-                  Admins see operational controls and user management. Standard users see only what they need
-                  to manage provider access and validate model behavior.
-                </Text>
-              </div>
-            </Stack>
-          </Card>
-
-          <Card className="hero-card auth-form-card">
-            <Stack gap="lg">
-              <div>
-                <Text className="page-kicker">Login</Text>
-                <Title order={2}>Welcome back</Title>
-              </div>
-
-              {loginMutation.isError ? (
-                <Alert color="red" icon={<IconAlertCircle size={18} />} title="Login failed">
-                  {loginMutation.error instanceof Error
-                    ? loginMutation.error.message
-                    : 'Unable to authenticate with the current credentials.'}
-                </Alert>
-              ) : null}
-
-              {sessionTimeoutMessage ? (
-                <Alert color="amber" icon={<IconAlertCircle size={18} />} title="Session expired">
-                  {sessionTimeoutMessage}
-                </Alert>
-              ) : null}
-
-              <TextInput
-                label="Email"
-                onChange={(event) => setEmail(event.currentTarget.value)}
-                placeholder="patrick@example.com"
-                value={email}
-              />
-              <PasswordInput
-                label="Password"
-                onChange={(event) => setPassword(event.currentTarget.value)}
-                placeholder="Your password"
-                value={password}
-              />
-              <Checkbox
-                checked={acceptedPolicies}
-                label={
-                  <Text size="sm">
-                    I accept the <Anchor component={Link} to="/terms">terms</Anchor> and{' '}
-                    <Anchor component={Link} to="/privacy">privacy policy</Anchor>.
-                  </Text>
-                }
-                onChange={(event) => setAcceptedPolicies(event.currentTarget.checked)}
-              />
-              <Button
-                disabled={!acceptedPolicies || !email || !password}
-                leftSection={<IconLockPassword size={16} />}
-                loading={loginMutation.isPending}
-                onClick={() => loginMutation.mutate()}
-                size="md"
-              >
-                Sign in
-              </Button>
-
-              <Group className="auth-links-row" justify="space-between">
-                {runtimeConfigQuery.data?.registrationEnabled ? (
-                  <Anchor component={Link} to="/register">
-                    Create account
-                  </Anchor>
-                ) : (
-                  <Text c="dimmed" size="sm">
-                    Registration disabled
-                  </Text>
-                )}
-                {runtimeConfigQuery.data?.forgotPasswordEnabled ? (
-                  <Anchor component={Link} to="/forgot-password">
-                    Forgot password
-                  </Anchor>
-                ) : (
-                  <Text c="dimmed" size="sm">
-                    Recovery disabled
-                  </Text>
-                )}
-              </Group>
-            </Stack>
-          </Card>
+          <LoginHeroCard />
+          <LoginFormCard
+            acceptedPolicies={acceptedPolicies}
+            email={email}
+            forgotPasswordEnabled={Boolean(runtimeConfigQuery.data?.forgotPasswordEnabled)}
+            isPending={loginMutation.isPending}
+            loginErrorMessage={
+              loginMutation.isError
+                ? loginMutation.error instanceof Error
+                  ? loginMutation.error.message
+                  : 'Unable to authenticate with the current credentials.'
+                : null
+            }
+            onAcceptedPoliciesChange={setAcceptedPolicies}
+            onEmailChange={setEmail}
+            onPasswordChange={setPassword}
+            onSubmit={() => loginMutation.mutate()}
+            password={password}
+            registrationEnabled={Boolean(runtimeConfigQuery.data?.registrationEnabled)}
+            sessionTimeoutMessage={sessionTimeoutMessage}
+          />
         </div>
       </Container>
     </div>

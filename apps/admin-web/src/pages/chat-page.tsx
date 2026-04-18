@@ -1,39 +1,33 @@
 import {
   Alert,
-  ActionIcon,
   Button,
   Card,
   Grid,
   Group,
-  Loader,
   Modal,
   Select,
   Stack,
   Tabs,
   Text,
-  Textarea,
-  ThemeIcon,
   Title,
 } from '@mantine/core';
 import {
-  IconAlertCircle,
-  IconBrain,
-  IconCheck,
-  IconCopy,
   IconDownload,
-  IconMessageCircleBolt,
-  IconPencil,
-  IconRotateClockwise2,
-  IconSend,
-  IconTrash,
-  IconUpload,
-  IconX,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
+import { ChatComposer } from '../features/chat/components/chat-composer';
+import { ChatMessageList } from '../features/chat/components/chat-message-list';
+import { ChatSidebar } from '../features/chat/components/chat-sidebar';
+import { ChatSystemPromptPanel } from '../features/chat/components/chat-system-prompt-panel';
+import { useChatComposerViewport } from '../features/chat/hooks/use-chat-composer-viewport';
+import {
+  createConversation,
+  downloadBlob,
+  mergeConversations,
+} from '../features/chat/lib/chat-conversation-utils';
 import { PageHeader } from '../components/page-header';
-import { MarkdownText } from '../components/markdown-text';
 import { adminApiClient, gatewayApiClient } from '../lib/api-client';
 import { scrollChatToBottom, shouldStickToBottom } from '../lib/chat-scroll';
 import { shouldFlagMissingAssistantContent } from '../lib/chat-stream';
@@ -64,18 +58,6 @@ import {
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 import { useSession } from '../lib/use-session';
 
-function createConversation(model: string, systemPrompt: string): StoredConversation {
-  return {
-    id: createClientId(),
-    title: 'New conversation',
-    model,
-    providerId: 'nanogpt',
-    systemPrompt,
-    messages: [],
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 export function ChatPage() {
   const runtimeConfigQuery = useRuntimeConfig();
   const sessionQuery = useSession();
@@ -96,15 +78,13 @@ export function ChatPage() {
   const [isTransferBusy, setIsTransferBusy] = useState(false);
   const [copiedAssistantMessageId, setCopiedAssistantMessageId] = useState<string | null>(null);
   const [messageWindow, setMessageWindow] = useState<ChatMessageWindow>({ start: 0, end: 0 });
-  const [composerViewportStyle, setComposerViewportStyle] = useState<
-    Pick<CSSProperties, 'left' | 'width'>
-  >({});
   const chatPanelRef = useRef<HTMLDivElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingAutoScrollFrameRef = useRef<number | null>(null);
   const pendingWindowShiftRef = useRef<null | { scrollHeight: number; scrollTop: number }>(null);
   const copiedMessageTimeoutRef = useRef<number | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const composerViewportStyle = useChatComposerViewport(chatPanelRef, activePanel);
   const modelsQuery = useQuery({
     queryKey: ['gateway-models', 'nanogpt'],
     queryFn: () => gatewayApiClient.getModels('nanogpt'),
@@ -208,34 +188,6 @@ export function ChatPage() {
     container.scrollTop = pendingShift.scrollTop + (container.scrollHeight - pendingShift.scrollHeight);
     pendingWindowShiftRef.current = null;
   }, [messageWindow.start, messageWindow.end]);
-
-  useLayoutEffect(() => {
-    const panel = chatPanelRef.current;
-    if (!panel) {
-      return;
-    }
-
-    const updateComposerViewportStyle = () => {
-      const rect = panel.getBoundingClientRect();
-      setComposerViewportStyle({
-        left: `${Math.max(rect.left, 16)}px`,
-        width: `${Math.max(rect.width, 0)}px`,
-      });
-    };
-
-    updateComposerViewportStyle();
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateComposerViewportStyle();
-    });
-    resizeObserver.observe(panel);
-    window.addEventListener('resize', updateComposerViewportStyle);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateComposerViewportStyle);
-    };
-  }, [activePanel]);
 
   useEffect(() => {
     return () => {
@@ -651,84 +603,25 @@ export function ChatPage() {
 
       <Grid>
         <Grid.Col span={{ base: 12, lg: 4 }}>
-          <Card className="section-card" h="100%">
-            <Group justify="space-between" mb="md">
-              <Title order={3}>Local conversations</Title>
-              <Group gap="xs">
-                <ActionIcon
-                  aria-label="Import conversations"
-                  disabled={isTransferBusy}
-                  onClick={() => importInputRef.current?.click()}
-                  variant="light"
-                >
-                  <IconUpload size={18} />
-                </ActionIcon>
-                <ActionIcon
-                  aria-label="Export all conversations"
-                  disabled={!conversations.length || isTransferBusy}
-                  onClick={() => void exportAllConversations()}
-                  variant="light"
-                >
-                  <IconDownload size={18} />
-                </ActionIcon>
-                <ActionIcon
-                  aria-label="Create conversation"
-                  onClick={() => {
-                    const conversation = createConversation(model, systemPrompt.trim());
-                    void saveConversation(conversation);
-                    setAutoScrollEnabled(true);
-                    setConversations((current) => [conversation, ...current]);
-                    setActiveConversationId(conversation.id);
-                  }}
-                  variant="light"
-                >
-                  <IconMessageCircleBolt size={18} />
-                </ActionIcon>
-              </Group>
-            </Group>
-            <Stack gap="sm">
-              {transferError ? (
-                <Alert color="red" icon={<IconAlertCircle size={18} />} title="Conversation transfer failed">
-                  {transferError}
-                </Alert>
-              ) : null}
-              {conversations.length === 0 ? (
-                <Text c="dimmed" size="sm">
-                  No local chat history yet. Conversations are stored only in this browser via IndexedDB.
-                </Text>
-              ) : (
-                conversations.map((conversation) => (
-                  <Group key={conversation.id} gap="xs" wrap="nowrap">
-                    <Button
-                      justify="space-between"
-                      onClick={() => setActiveConversationId(conversation.id)}
-                      variant={conversation.id === activeConversationId ? 'filled' : 'light'}
-                      style={{ flex: 1 }}
-                    >
-                      {conversation.title}
-                    </Button>
-                    <ActionIcon
-                      aria-label={`Export ${conversation.title}`}
-                      disabled={isTransferBusy}
-                      onClick={() => void exportConversation(conversation)}
-                      variant="light"
-                    >
-                      <IconDownload size={16} />
-                    </ActionIcon>
-                    <ActionIcon
-                      aria-label={`Delete ${conversation.title}`}
-                      color="red"
-                      disabled={isStreaming}
-                      onClick={() => setConversationPendingDeletion(conversation)}
-                      variant="light"
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Group>
-                ))
-              )}
-            </Stack>
-          </Card>
+          <ChatSidebar
+            activeConversationId={activeConversationId}
+            conversations={conversations}
+            isStreaming={isStreaming}
+            isTransferBusy={isTransferBusy}
+            transferError={transferError}
+            onCreateConversation={() => {
+              const conversation = createConversation(model, systemPrompt.trim());
+              void saveConversation(conversation);
+              setAutoScrollEnabled(true);
+              setConversations((current) => [conversation, ...current]);
+              setActiveConversationId(conversation.id);
+            }}
+            onDeleteConversation={(conversation) => setConversationPendingDeletion(conversation)}
+            onExportAllConversations={() => void exportAllConversations()}
+            onExportConversation={(conversation) => void exportConversation(conversation)}
+            onImportConversations={() => importInputRef.current?.click()}
+            onSelectConversation={setActiveConversationId}
+          />
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, lg: 8 }}>
@@ -765,24 +658,40 @@ export function ChatPage() {
 
               <Tabs.Panel value="conversation">
                 <Stack gap="md">
-                  {modelsQuery.isError ? (
-                    <Alert color="red" icon={<IconAlertCircle size={18} />} title="Model loading failed">
-                      {modelsQuery.error instanceof Error
-                        ? modelsQuery.error.message
-                        : 'Unable to load provider models.'}
-                    </Alert>
-                  ) : null}
-
-                  {chatError ? (
-                    <Alert color="red" icon={<IconAlertCircle size={18} />} title="Chat request failed">
-                      {chatError}
-                    </Alert>
-                  ) : null}
-
                   <div ref={chatPanelRef} className="chat-panel">
-                    <div
-                      ref={chatScrollRef}
-                      className="chat-scroll chat-scroll-with-composer"
+                    <ChatMessageList
+                      activeConversation={activeConversation}
+                      chatError={chatError}
+                      copiedAssistantMessageId={copiedAssistantMessageId}
+                      editingContent={editingContent}
+                      editingMessageId={editingMessageId}
+                      hiddenMessageCountAbove={hiddenMessageCountAbove}
+                      hiddenMessageCountBelow={hiddenMessageCountBelow}
+                      isLoadingModels={modelsQuery.isPending}
+                      isStreaming={isStreaming}
+                      model={model}
+                      modelsErrorMessage={
+                        modelsQuery.isError
+                          ? modelsQuery.error instanceof Error
+                            ? modelsQuery.error.message
+                            : 'Unable to load provider models.'
+                          : null
+                      }
+                      onCancelEdit={() => {
+                        setEditingMessageId(null);
+                        setEditingContent('');
+                      }}
+                      onCopyAssistantMessage={(messageId, content) =>
+                        void copyAssistantMessage(messageId, content)
+                      }
+                      onEditContentChange={setEditingContent}
+                      onEditMessage={(messageId, content) => {
+                        setEditingMessageId(messageId);
+                        setEditingContent(content);
+                      }}
+                      onLoadEarlierMessages={loadEarlierMessages}
+                      onLoadNewerMessages={loadNewerMessages}
+                      onRetryAssistantMessage={(messageId) => void retryAssistantMessage(messageId)}
                       onScroll={(event) => {
                         const target = event.currentTarget;
 
@@ -809,267 +718,50 @@ export function ChatPage() {
                           shouldStickToBottom(target.scrollTop, target.clientHeight, target.scrollHeight),
                         );
                       }}
-                    >
-                      {hiddenMessageCountAbove > 0 ? (
-                        <Button
-                          onClick={loadEarlierMessages}
-                          size="compact-xs"
-                          variant="subtle"
-                        >
-                          Load {Math.min(10, hiddenMessageCountAbove)} earlier message
-                          {hiddenMessageCountAbove > 1 ? 's' : ''}
-                        </Button>
-                      ) : null}
-                      {renderedMessages.length ? (
-                        renderedMessages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={`chat-bubble ${message.role === 'assistant' ? 'assistant' : 'user'} ${
-                              isStreaming &&
-                              message.role === 'assistant' &&
-                              message.id === activeConversation?.messages.at(-1)?.id
-                                ? 'streaming'
-                                : ''
-                            }`}
-                          >
-                            <Group justify="space-between" mb="xs">
-                              <Text fw={700} tt="capitalize">
-                                {message.role === 'user' ? userDisplayName : message.role}
-                              </Text>
-                              <Group gap={6}>
-                                {message.reasoning ? (
-                                  <ThemeIcon color="brass" radius="xl" size="sm" variant="light">
-                                    <IconBrain size={14} />
-                                  </ThemeIcon>
-                                ) : null}
-                                {!isStreaming && message.role === 'user' ? (
-                                  <ActionIcon
-                                    aria-label="Edit message"
-                                    onClick={() => {
-                                      setEditingMessageId(message.id);
-                                      setEditingContent(message.content);
-                                    }}
-                                    size="sm"
-                                    variant="subtle"
-                                  >
-                                    <IconPencil size={14} />
-                                  </ActionIcon>
-                                ) : null}
-                                {!isStreaming && message.role === 'assistant' ? (
-                                  <ActionIcon
-                                    aria-label="Retry response"
-                                    onClick={() => void retryAssistantMessage(message.id)}
-                                    size="sm"
-                                    variant="subtle"
-                                  >
-                                    <IconRotateClockwise2 size={14} />
-                                  </ActionIcon>
-                                ) : null}
-                              </Group>
-                            </Group>
-                            {editingMessageId === message.id ? (
-                              <Stack gap="xs">
-                                <Textarea
-                                  autosize
-                                  minRows={3}
-                                  onChange={(event) => setEditingContent(event.currentTarget.value)}
-                                  value={editingContent}
-                                />
-                                <Group justify="flex-end">
-                                  <Button
-                                    leftSection={<IconX size={14} />}
-                                    onClick={() => {
-                                      setEditingMessageId(null);
-                                      setEditingContent('');
-                                    }}
-                                    size="xs"
-                                    variant="subtle"
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    disabled={!editingContent.trim()}
-                                    leftSection={<IconSend size={14} />}
-                                    onClick={() => void resendEditedMessage(message.id)}
-                                    size="xs"
-                                  >
-                                    Resend
-                                  </Button>
-                                </Group>
-                              </Stack>
-                            ) : (
-                              <>
-                                {message.reasoning && model.includes('thinking') ? (
-                                  <Card className="reasoning-card" mb="sm" p="sm">
-                                    <Text size="xs" fw={700} tt="uppercase">
-                                      Reasoning
-                                    </Text>
-                                    <MarkdownText dimmed value={message.reasoning} />
-                                  </Card>
-                                ) : null}
-                                {message.content ? (
-                                  <>
-                                    <MarkdownText value={message.content} />
-                                    {!isStreaming ? (
-                                      <Group justify="flex-end" mt="sm">
-                                        <Button
-                                          leftSection={
-                                            copiedAssistantMessageId === message.id ? (
-                                              <IconCheck size={14} />
-                                            ) : (
-                                              <IconCopy size={14} />
-                                            )
-                                          }
-                                          onClick={() =>
-                                            void copyAssistantMessage(message.id, message.content)
-                                          }
-                                          size="xs"
-                                          variant="subtle"
-                                        >
-                                          {copiedAssistantMessageId === message.id ? 'Copied' : 'Copy'}
-                                        </Button>
-                                      </Group>
-                                    ) : null}
-                                  </>
-                                ) : message.reasoning ? (
-                                  <Text className="message-text" c="dimmed" fs="italic">
-                                    Assistant response was interrupted before content generation completed.
-                                  </Text>
-                                ) : (
-                                  <Text className="message-text" c="dimmed" fs="italic">
-                                    No assistant response content was received.
-                                  </Text>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <Text c="dimmed" size="sm">
-                          Start a conversation to verify provider behavior, model output, and optional thinking traces.
-                        </Text>
-                      )}
-                      {hiddenMessageCountBelow > 0 ? (
-                        <Button
-                          onClick={loadNewerMessages}
-                          size="compact-xs"
-                          variant="subtle"
-                        >
-                          Load {Math.min(10, hiddenMessageCountBelow)} newer message
-                          {hiddenMessageCountBelow > 1 ? 's' : ''}
-                        </Button>
-                      ) : null}
-                      {modelsQuery.isPending ? (
-                        <Group gap="sm" mt="sm">
-                          <Loader color="teal" size="sm" />
-                          <Text size="sm" c="dimmed">
-                            Loading provider models...
-                          </Text>
-                        </Group>
-                      ) : null}
-                    </div>
+                      onSubmitEditedMessage={(messageId) => void resendEditedMessage(messageId)}
+                      renderedMessages={renderedMessages}
+                      scrollRef={chatScrollRef}
+                      userDisplayName={userDisplayName}
+                    />
 
-                    <div className="chat-composer-shell" style={composerViewportStyle}>
-                      <div className="chat-composer-card">
-                        <Textarea
-                          autosize
-                          className="chat-composer-input"
-                          minRows={1}
-                          maxRows={10}
-                          onChange={(event) => setPrompt(event.currentTarget.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' && !event.shiftKey) {
-                              event.preventDefault();
-                              const nextPrompt = prompt.trim();
-                              if (
-                                nextPrompt &&
-                                runtimeConfigQuery.data?.gatewayOnline &&
-                                model &&
-                                !modelsQuery.isPending &&
-                                !modelsQuery.isError &&
-                                !isStreaming
-                              ) {
-                                void sendMessage(nextPrompt);
-                              }
-                            }
-                          }}
-                          placeholder="Ask the provider something meaningful..."
-                          value={prompt}
-                        />
-                        <Group className="chat-composer-footer" justify="space-between" gap="sm">
-                          <Group gap="sm">
-                            <Text c="dimmed" size="sm">
-                              Selected provider: NanoGPT
-                            </Text>
-                            {isStreaming ? (
-                              <Group gap={6}>
-                                <Loader color="teal" size="xs" />
-                                <Text c="dimmed" size="sm">
-                                  Streaming response...
-                                </Text>
-                              </Group>
-                            ) : null}
-                          </Group>
-                          <Button
-                            disabled={
-                              !prompt.trim() ||
-                              !runtimeConfigQuery.data?.gatewayOnline ||
-                              !model ||
-                              modelsQuery.isPending ||
-                              modelsQuery.isError ||
-                              isStreaming
-                            }
-                            leftSection={<IconSend size={16} />}
-                            loading={isStreaming}
-                            onClick={() => void sendMessage(prompt.trim())}
-                          >
-                            Send
-                          </Button>
-                        </Group>
-                      </div>
-                    </div>
+                    <ChatComposer
+                      composerViewportStyle={composerViewportStyle}
+                      disabled={
+                        !prompt.trim() ||
+                        !runtimeConfigQuery.data?.gatewayOnline ||
+                        !model ||
+                        modelsQuery.isPending ||
+                        modelsQuery.isError ||
+                        isStreaming
+                      }
+                      isStreaming={isStreaming}
+                      onPromptChange={setPrompt}
+                      onPromptSubmit={() => {
+                        const nextPrompt = prompt.trim();
+                        if (!nextPrompt) {
+                          return;
+                        }
+
+                        void sendMessage(nextPrompt);
+                      }}
+                      prompt={prompt}
+                    />
                   </div>
                 </Stack>
               </Tabs.Panel>
 
               <Tabs.Panel value="system-prompt">
-                <Stack gap="md">
-                  <Text c="dimmed" size="sm">
-                    Use this for test-time steering only. It is persisted per local conversation and prepended as a `system` message before the chat history.
-                  </Text>
-                  <Textarea
-                    autosize
-                    label="System prompt"
-                    minRows={8}
-                    maxRows={18}
-                    onChange={(event) => setSystemPrompt(event.currentTarget.value)}
-                    placeholder="I am a helpful assistant."
-                    value={systemPrompt}
-                  />
-                  <Group justify="space-between">
-                    <Text c="dimmed" size="sm">
-                      Default: helpful assistant with application guardrails.
-                    </Text>
-                    <Group>
-                      <Button
-                        onClick={() => void persistConversationSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
-                        variant="light"
-                      >
-                        Reset to default
-                      </Button>
-                      <Button
-                        disabled={!systemPromptDirty}
-                        onClick={() =>
-                          void persistConversationSystemPrompt(
-                            systemPrompt.trim() || DEFAULT_SYSTEM_PROMPT,
-                          )
-                        }
-                      >
-                        Save prompt
-                      </Button>
-                    </Group>
-                  </Group>
-                </Stack>
+                <ChatSystemPromptPanel
+                  isDirty={systemPromptDirty}
+                  onChange={setSystemPrompt}
+                  onReset={() => void persistConversationSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
+                  onSave={() =>
+                    void persistConversationSystemPrompt(
+                      systemPrompt.trim() || DEFAULT_SYSTEM_PROMPT,
+                    )
+                  }
+                  systemPrompt={systemPrompt}
+                />
               </Tabs.Panel>
             </Tabs>
           </Card>
@@ -1077,28 +769,4 @@ export function ChatPage() {
       </Grid>
     </>
   );
-}
-
-function mergeConversations(
-  existingConversations: StoredConversation[],
-  importedConversations: StoredConversation[],
-): StoredConversation[] {
-  const merged = new Map(existingConversations.map((conversation) => [conversation.id, conversation]));
-
-  for (const conversation of importedConversations) {
-    merged.set(conversation.id, conversation);
-  }
-
-  return [...merged.values()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-}
-
-function downloadBlob(blob: Blob, fileName: string): void {
-  const downloadUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.download = fileName;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(downloadUrl);
 }
