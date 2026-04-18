@@ -47,7 +47,9 @@ export class AdminService {
     });
 
     if (existingUser) {
-      throw new ConflictException('Unable to create user with the provided data.');
+      throw new ConflictException(
+        'Unable to create user with the provided data.',
+      );
     }
 
     const passwordHash = await this.passwordService.hashPassword(dto.password);
@@ -72,7 +74,9 @@ export class AdminService {
     });
 
     if (roles.length !== roleNames.length) {
-      throw new NotFoundException('Unable to assign one or more requested roles.');
+      throw new NotFoundException(
+        'Unable to assign one or more requested roles.',
+      );
     }
 
     await this.userRoleRepository.save(
@@ -191,9 +195,11 @@ export class AdminService {
       throw new NotFoundException('Unable to update the provider credential.');
     }
 
-    const provider = credential.provider ?? (await this.providerRepository.findOne({
-      where: { id: credential.providerId },
-    }));
+    const provider =
+      credential.provider ??
+      (await this.providerRepository.findOne({
+        where: { id: credential.providerId },
+      }));
     if (!provider) {
       throw new NotFoundException('Unable to update the provider credential.');
     }
@@ -209,7 +215,9 @@ export class AdminService {
       });
 
       if (duplicateCredential && duplicateCredential.id !== credential.id) {
-        throw new ConflictException('Unable to update the provider credential.');
+        throw new ConflictException(
+          'Unable to update the provider credential.',
+        );
       }
       credential.label = nextLabel;
     }
@@ -221,7 +229,9 @@ export class AdminService {
       credential.authTag = encrypted.authTag;
       credential.keyVersion = encrypted.keyVersion;
       credential.maskedHint =
-        dto.apiToken.length <= 4 ? dto.apiToken : `***${dto.apiToken.slice(-4)}`;
+        dto.apiToken.length <= 4
+          ? dto.apiToken
+          : `***${dto.apiToken.slice(-4)}`;
     }
 
     await this.credentialRepository.save(credential);
@@ -296,7 +306,9 @@ export class AdminService {
         where: dto.roles.map((name) => ({ name })),
       });
       if (roles.length !== dto.roles.length) {
-        throw new NotFoundException('Unable to assign one or more requested roles.');
+        throw new NotFoundException(
+          'Unable to assign one or more requested roles.',
+        );
       }
 
       await this.userRoleRepository.delete({ userId: user.id });
@@ -310,7 +322,9 @@ export class AdminService {
       );
     }
 
-    return this.listUsers().then((users) => users.find((entry) => entry.userUuid === userUuid));
+    return this.listUsers().then((users) =>
+      users.find((entry) => entry.userUuid === userUuid),
+    );
   }
 
   async listProviderCredentialsForUser(userUuid: string) {
@@ -354,7 +368,9 @@ export class AdminService {
     const isAdmin = actor.roles.includes('admin');
 
     if (!isOwnCredential && !isAdmin) {
-      throw new ForbiddenException('You cannot manage another user provider credential.');
+      throw new ForbiddenException(
+        'You cannot manage another user provider credential.',
+      );
     }
 
     return this.storeProviderCredential({
@@ -378,7 +394,10 @@ export class AdminService {
     };
   }
 
-  async updateProviderSettingsForUser(userUuid: string, dto: UpdateProviderSettingsDto) {
+  async updateProviderSettingsForUser(
+    userUuid: string,
+    dto: UpdateProviderSettingsDto,
+  ) {
     const user = await this.userRepository.findOne({
       where: { userUuid },
     });
@@ -386,8 +405,14 @@ export class AdminService {
       throw new NotFoundException('User not found.');
     }
 
-    const providerIdWasUpdated = Object.prototype.hasOwnProperty.call(dto, 'defaultProviderId');
-    const modelWasUpdated = Object.prototype.hasOwnProperty.call(dto, 'defaultModel');
+    const providerIdWasUpdated = Object.prototype.hasOwnProperty.call(
+      dto,
+      'defaultProviderId',
+    );
+    const modelWasUpdated = Object.prototype.hasOwnProperty.call(
+      dto,
+      'defaultModel',
+    );
 
     if (providerIdWasUpdated) {
       if (dto.defaultProviderId === null) {

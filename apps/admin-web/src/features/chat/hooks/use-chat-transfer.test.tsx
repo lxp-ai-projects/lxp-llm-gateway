@@ -27,9 +27,9 @@ vi.mock('../../../lib/api-client', () => ({
 }));
 
 vi.mock('../lib/chat-conversation-utils', async () => {
-  const actual = await vi.importActual<typeof import('../lib/chat-conversation-utils')>(
-    '../lib/chat-conversation-utils',
-  );
+  const actual = await vi.importActual<
+    typeof import('../lib/chat-conversation-utils')
+  >('../lib/chat-conversation-utils');
 
   return {
     ...actual,
@@ -38,9 +38,9 @@ vi.mock('../lib/chat-conversation-utils', async () => {
 });
 
 vi.mock('../../../lib/chat-store', async () => {
-  const actual = await vi.importActual<typeof import('../../../lib/chat-store')>(
-    '../../../lib/chat-store',
-  );
+  const actual = await vi.importActual<
+    typeof import('../../../lib/chat-store')
+  >('../../../lib/chat-store');
 
   return {
     ...actual,
@@ -48,7 +48,9 @@ vi.mock('../../../lib/chat-store', async () => {
   };
 });
 
-function createConversation(overrides: Partial<StoredConversation> = {}): StoredConversation {
+function createConversation(
+  overrides: Partial<StoredConversation> = {},
+): StoredConversation {
   return {
     id: 'conversation-1',
     title: 'Thread',
@@ -149,14 +151,21 @@ test('useChatTransfer imports, persists, merges conversations, and activates the
     ],
   });
 
-  const { hook, currentConversations, setActiveConversationId, setActivePanel } = setup([
+  const {
+    hook,
+    currentConversations,
+    setActiveConversationId,
+    setActivePanel,
+  } = setup([
     createConversation({
       id: 'conversation-1',
       title: 'Existing thread',
       updatedAt: '2026-04-17T00:00:00.000Z',
     }),
   ]);
-  const file = new File(['{}'], 'conversation.json', { type: 'application/json' });
+  const file = new File(['{}'], 'conversation.json', {
+    type: 'application/json',
+  });
 
   await act(async () => {
     await hook.result.current.importConversationFile(file);
@@ -175,7 +184,9 @@ test('useChatTransfer surfaces export and import failures with fallback messages
   importConversationFileMock.mockRejectedValue('unexpected import failure');
 
   const { hook } = setup();
-  const file = new File(['{}'], 'conversation.json', { type: 'application/json' });
+  const file = new File(['{}'], 'conversation.json', {
+    type: 'application/json',
+  });
 
   await act(async () => {
     await hook.result.current.exportConversation(createConversation());

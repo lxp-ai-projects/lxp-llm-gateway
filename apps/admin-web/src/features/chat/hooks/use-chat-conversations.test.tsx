@@ -22,9 +22,9 @@ vi.mock('../../../lib/id', () => ({
 }));
 
 vi.mock('../../../lib/chat-store', async () => {
-  const actual = await vi.importActual<typeof import('../../../lib/chat-store')>(
-    '../../../lib/chat-store',
-  );
+  const actual = await vi.importActual<
+    typeof import('../../../lib/chat-store')
+  >('../../../lib/chat-store');
 
   return {
     ...actual,
@@ -117,7 +117,9 @@ test('useChatConversations creates and persists a new conversation with the curr
     }),
   );
   expect(result.current.activeConversationId).toBe('generated-conversation-id');
-  expect(result.current.conversations[0]?.systemPrompt).toBe('Custom system prompt');
+  expect(result.current.conversations[0]?.systemPrompt).toBe(
+    'Custom system prompt',
+  );
 });
 
 test('useChatConversations persists model and system prompt changes for the active conversation', async () => {
@@ -132,13 +134,17 @@ test('useChatConversations persists model and system prompt changes for the acti
     }),
   );
 
-  await waitFor(() => expect(result.current.activeConversation?.id).toBe('conversation-1'));
+  await waitFor(() =>
+    expect(result.current.activeConversation?.id).toBe('conversation-1'),
+  );
 
   await act(async () => {
     await result.current.persistConversationModel('mistral-medium');
   });
 
-  await waitFor(() => expect(result.current.activeConversation?.model).toBe('mistral-medium'));
+  await waitFor(() =>
+    expect(result.current.activeConversation?.model).toBe('mistral-medium'),
+  );
 
   await act(async () => {
     await result.current.persistConversationSystemPrompt('Updated prompt');
@@ -146,7 +152,9 @@ test('useChatConversations persists model and system prompt changes for the acti
 
   expect(saveConversationMock).toHaveBeenCalledTimes(2);
   expect(result.current.activeConversation?.model).toBe('mistral-medium');
-  expect(result.current.activeConversation?.systemPrompt).toBe('Updated prompt');
+  expect(result.current.activeConversation?.systemPrompt).toBe(
+    'Updated prompt',
+  );
   expect(result.current.systemPrompt).toBe('Updated prompt');
 });
 
@@ -178,10 +186,14 @@ test('useChatConversations deletes the active conversation and resets dependent 
     }),
   );
 
-  await waitFor(() => expect(result.current.activeConversationId).toBe('conversation-1'));
+  await waitFor(() =>
+    expect(result.current.activeConversationId).toBe('conversation-1'),
+  );
 
   act(() => {
-    result.current.setConversationPendingDeletion(result.current.activeConversation);
+    result.current.setConversationPendingDeletion(
+      result.current.activeConversation,
+    );
   });
 
   await act(async () => {

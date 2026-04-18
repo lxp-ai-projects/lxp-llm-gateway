@@ -1,8 +1,14 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 
 import { adminApiClient } from '../../../lib/api-client';
-import { saveConversation, type StoredConversation } from '../../../lib/chat-store';
-import { downloadBlob, mergeConversations } from '../lib/chat-conversation-utils';
+import {
+  saveConversation,
+  type StoredConversation,
+} from '../../../lib/chat-store';
+import {
+  downloadBlob,
+  mergeConversations,
+} from '../lib/chat-conversation-utils';
 
 type UseChatTransferOptions = {
   conversations: StoredConversation[];
@@ -20,16 +26,23 @@ export function useChatTransfer({
   const [transferError, setTransferError] = useState<string | null>(null);
   const [isTransferBusy, setIsTransferBusy] = useState(false);
 
-  async function exportConversation(conversation: StoredConversation): Promise<void> {
+  async function exportConversation(
+    conversation: StoredConversation,
+  ): Promise<void> {
     setTransferError(null);
     setIsTransferBusy(true);
 
     try {
       const exported = await adminApiClient.exportConversation(conversation);
-      downloadBlob(exported.blob, exported.fileName ?? `${conversation.title}.json`);
+      downloadBlob(
+        exported.blob,
+        exported.fileName ?? `${conversation.title}.json`,
+      );
     } catch (error) {
       setTransferError(
-        error instanceof Error ? error.message : 'The conversation export failed unexpectedly.',
+        error instanceof Error
+          ? error.message
+          : 'The conversation export failed unexpectedly.',
       );
     } finally {
       setIsTransferBusy(false);
@@ -45,8 +58,12 @@ export function useChatTransfer({
     setIsTransferBusy(true);
 
     try {
-      const exported = await adminApiClient.exportConversationArchive(conversations);
-      downloadBlob(exported.blob, exported.fileName ?? 'lxp-chat-conversations.zip');
+      const exported =
+        await adminApiClient.exportConversationArchive(conversations);
+      downloadBlob(
+        exported.blob,
+        exported.fileName ?? 'lxp-chat-conversations.zip',
+      );
     } catch (error) {
       setTransferError(
         error instanceof Error
@@ -68,13 +85,20 @@ export function useChatTransfer({
         await saveConversation(conversation);
       }
 
-      const mergedConversations = mergeConversations(conversations, imported.conversations);
+      const mergedConversations = mergeConversations(
+        conversations,
+        imported.conversations,
+      );
       setConversations(mergedConversations);
-      setActiveConversationId(imported.conversations[0]?.id ?? mergedConversations[0]?.id ?? null);
+      setActiveConversationId(
+        imported.conversations[0]?.id ?? mergedConversations[0]?.id ?? null,
+      );
       setActivePanel('conversation');
     } catch (error) {
       setTransferError(
-        error instanceof Error ? error.message : 'The conversation import failed unexpectedly.',
+        error instanceof Error
+          ? error.message
+          : 'The conversation import failed unexpectedly.',
       );
     } finally {
       setIsTransferBusy(false);

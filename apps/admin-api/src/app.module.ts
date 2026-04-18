@@ -4,7 +4,10 @@ import { TerminusModule } from '@nestjs/terminus';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AdminController } from './admin.controller';
-import { buildTypeOrmOptions, validateRuntimeConfig } from './config/runtime.config';
+import {
+  buildTypeOrmOptions,
+  validateRuntimeConfig,
+} from './config/runtime.config';
 import { HealthController } from './health.controller';
 import { PublicConfigController } from './public-config.controller';
 import { AuthModule } from './auth/auth.module';

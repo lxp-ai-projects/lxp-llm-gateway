@@ -16,8 +16,12 @@ export function useProvidersController() {
   const [providerId, setProviderId] = useState<'nanogpt'>('nanogpt');
   const [label, setLabel] = useState('primary');
   const [apiToken, setApiToken] = useState('');
-  const [editingCredentialId, setEditingCredentialId] = useState<string | null>(null);
-  const [defaultProviderId, setDefaultProviderId] = useState<string | null>(null);
+  const [editingCredentialId, setEditingCredentialId] = useState<string | null>(
+    null,
+  );
+  const [defaultProviderId, setDefaultProviderId] = useState<string | null>(
+    null,
+  );
   const [defaultModel, setDefaultModel] = useState<string | null>(null);
 
   const credentialsQuery = useQuery({
@@ -51,7 +55,10 @@ export function useProvidersController() {
   }, [providerSettingsQuery.data]);
 
   const defaultProviderOptions = useMemo(() => {
-    return buildDefaultProviderOptions(credentialsQuery.data ?? [], supportedProviders);
+    return buildDefaultProviderOptions(
+      credentialsQuery.data ?? [],
+      supportedProviders,
+    );
   }, [credentialsQuery.data, supportedProviders]);
 
   const modelsQuery = useQuery({
@@ -70,11 +77,18 @@ export function useProvidersController() {
       return;
     }
 
-    const modelStillExists = modelsQuery.data.models.some((entry) => entry.id === defaultModel);
+    const modelStillExists = modelsQuery.data.models.some(
+      (entry) => entry.id === defaultModel,
+    );
     if (!modelStillExists && !modelsQuery.isPending) {
       setDefaultModel(null);
     }
-  }, [defaultModel, defaultProviderId, modelsQuery.data, modelsQuery.isPending]);
+  }, [
+    defaultModel,
+    defaultProviderId,
+    modelsQuery.data,
+    modelsQuery.isPending,
+  ]);
 
   const upsertCredentialMutation = useMutation({
     mutationFn: () => {
@@ -93,7 +107,9 @@ export function useProvidersController() {
     },
     onSuccess: async () => {
       resetCredentialForm();
-      await queryClient.invalidateQueries({ queryKey: ['own-provider-credentials'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['own-provider-credentials'],
+      });
     },
   });
 
@@ -101,15 +117,18 @@ export function useProvidersController() {
     mutationFn: () =>
       adminApiClient.updateOwnProviderSettings({
         defaultProviderId: (defaultProviderId as 'nanogpt' | null) ?? null,
-        defaultModel: defaultProviderId ? defaultModel ?? null : null,
+        defaultModel: defaultProviderId ? (defaultModel ?? null) : null,
       }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['own-provider-settings'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['own-provider-settings'],
+      });
     },
   });
 
   const providerSettingsDirty =
-    defaultProviderId !== (providerSettingsQuery.data?.defaultProviderId ?? null) ||
+    defaultProviderId !==
+      (providerSettingsQuery.data?.defaultProviderId ?? null) ||
     defaultModel !== (providerSettingsQuery.data?.defaultModel ?? null);
 
   function resetCredentialForm() {
@@ -119,20 +138,20 @@ export function useProvidersController() {
     setApiToken('');
   }
 
-  function beginCredentialEdit(
-    credential: {
-      id: string;
-      providerId: string;
-      label: string;
-    },
-  ) {
+  function beginCredentialEdit(credential: {
+    id: string;
+    providerId: string;
+    label: string;
+  }) {
     setEditingCredentialId(credential.id);
     setProviderId(credential.providerId as 'nanogpt');
     setLabel(credential.label);
     setApiToken('');
   }
 
-  const defaultModelOptions = buildDefaultModelOptions(modelsQuery.data?.models ?? []);
+  const defaultModelOptions = buildDefaultModelOptions(
+    modelsQuery.data?.models ?? [],
+  );
 
   function handleCredentialSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -158,13 +177,15 @@ export function useProvidersController() {
     apiToken,
     credentials: credentialsQuery.data ?? [],
     currentDefaultModel: providerSettingsQuery.data?.defaultModel ?? null,
-    currentDefaultProviderDisplayName: providerSettingsQuery.data?.defaultProviderId
+    currentDefaultProviderDisplayName: providerSettingsQuery.data
+      ?.defaultProviderId
       ? resolveProviderDisplayName(
           supportedProviders,
           providerSettingsQuery.data.defaultProviderId,
         )
       : null,
-    currentDefaultProviderId: providerSettingsQuery.data?.defaultProviderId ?? null,
+    currentDefaultProviderId:
+      providerSettingsQuery.data?.defaultProviderId ?? null,
     defaultModel,
     defaultModelOptions,
     defaultProviderId,

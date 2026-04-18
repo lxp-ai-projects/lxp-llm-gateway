@@ -17,7 +17,8 @@
     "dev": "vite --host",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.7.0",

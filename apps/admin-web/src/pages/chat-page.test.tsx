@@ -92,7 +92,9 @@ test('ChatPage submits on Enter from the composer', async () => {
 
   renderWithProviders(<ChatPage />);
 
-  const composer = await screen.findByPlaceholderText('Ask the provider something meaningful...');
+  const composer = await screen.findByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
   await user.type(composer, 'Test prompt{enter}');
 
   await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
@@ -119,7 +121,9 @@ test('ChatPage submits on Enter from the composer', async () => {
 test('ChatPage keeps Shift+Enter for multiline drafting', async () => {
   renderWithProviders(<ChatPage />);
 
-  const composer = await screen.findByPlaceholderText('Ask the provider something meaningful...');
+  const composer = await screen.findByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
   fireEvent.change(composer, { target: { value: 'Line one' } });
   fireEvent.keyDown(composer, { key: 'Enter', code: 'Enter', shiftKey: true });
   fireEvent.change(composer, { target: { value: 'Line one\nLine two' } });
@@ -145,17 +149,25 @@ test('ChatPage deletes a conversation only after explicit confirmation', async (
 
   renderWithProviders(<ChatPage />);
 
-  expect(await screen.findByRole('button', { name: 'Delete me' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('button', { name: 'Delete me' }),
+  ).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: 'Delete Delete me' }));
-  expect(await screen.findByRole('button', { name: 'Delete permanently' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('button', { name: 'Delete permanently' }),
+  ).toBeInTheDocument();
   expect(deleteConversationMock).not.toHaveBeenCalled();
 
   await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
 
-  await waitFor(() => expect(deleteConversationMock).toHaveBeenCalledWith('conversation-1'));
   await waitFor(() =>
-    expect(screen.queryByRole('button', { name: 'Delete me' })).not.toBeInTheDocument(),
+    expect(deleteConversationMock).toHaveBeenCalledWith('conversation-1'),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('button', { name: 'Delete me' }),
+    ).not.toBeInTheDocument(),
   );
 });
 
@@ -176,7 +188,9 @@ test('ChatPage exports a selected conversation as JSON', async () => {
 
   renderWithProviders(<ChatPage />);
 
-  await user.click(await screen.findByRole('button', { name: 'Export Export me' }));
+  await user.click(
+    await screen.findByRole('button', { name: 'Export Export me' }),
+  );
 
   await waitFor(() => expect(exportConversationMock).toHaveBeenCalledTimes(1));
   expect(exportConversationMock).toHaveBeenCalledWith(
@@ -215,7 +229,9 @@ test('ChatPage copies an assistant response once streaming is complete', async (
 
   await user.click(await screen.findByRole('button', { name: 'Copy' }));
 
-  await waitFor(() => expect(writeTextMock).toHaveBeenCalledWith('Assistant answer'));
+  await waitFor(() =>
+    expect(writeTextMock).toHaveBeenCalledWith('Assistant answer'),
+  );
   expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
 });
 
@@ -241,12 +257,16 @@ test('ChatPage loads older and newer message windows while scrolling', async () 
   ]);
 
   const { container } = renderWithProviders(<ChatPage />);
-  const scrollContainer = container.querySelector('.chat-scroll') as HTMLDivElement | null;
+  const scrollContainer = container.querySelector(
+    '.chat-scroll',
+  ) as HTMLDivElement | null;
 
   expect(scrollContainer).not.toBeNull();
   expect(await screen.findByText('Message 100')).toBeInTheDocument();
   expect(screen.queryByText('Message 89')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Load 10 earlier messages' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Load 10 earlier messages' }),
+  ).toBeInTheDocument();
 
   Object.defineProperty(scrollContainer!, 'scrollTop', {
     configurable: true,
@@ -269,8 +289,12 @@ test('ChatPage loads older and newer message windows while scrolling', async () 
   fireEvent.scroll(scrollContainer!);
   fireEvent.scroll(scrollContainer!);
 
-  await waitFor(() => expect(screen.getByText('Message 51')).toBeInTheDocument());
-  expect(screen.getByRole('button', { name: 'Load 10 newer messages' })).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByText('Message 51')).toBeInTheDocument(),
+  );
+  expect(
+    screen.getByRole('button', { name: 'Load 10 newer messages' }),
+  ).toBeInTheDocument();
 
   Object.defineProperty(scrollContainer!, 'scrollTop', {
     configurable: true,
@@ -285,7 +309,9 @@ test('ChatPage loads older and newer message windows while scrolling', async () 
 
   fireEvent.scroll(scrollContainer!);
 
-  await waitFor(() => expect(screen.getByText('Message 91')).toBeInTheDocument());
+  await waitFor(() =>
+    expect(screen.getByText('Message 91')).toBeInTheDocument(),
+  );
 });
 
 test('ChatPage retries an assistant response from the previous user message context', async () => {
@@ -415,7 +441,9 @@ test('ChatPage saves a custom system prompt and uses it for the next send', asyn
 
   await user.click(screen.getByRole('tab', { name: 'System prompt *' }));
   await user.click(screen.getByRole('tab', { name: 'Conversation' }));
-  const composer = screen.getByPlaceholderText('Ask the provider something meaningful...');
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
   await user.type(composer, 'Use custom prompt{enter}');
 
   await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
@@ -445,20 +473,32 @@ test('ChatPage imports conversations and surfaces transfer failures', async () =
   importConversationFileMock.mockResolvedValueOnce({
     conversations: [importedConversation],
   });
-  exportConversationArchiveMock.mockRejectedValueOnce(new Error('Archive export failed.'));
+  exportConversationArchiveMock.mockRejectedValueOnce(
+    new Error('Archive export failed.'),
+  );
 
   renderWithProviders(<ChatPage />);
 
-  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+  const fileInput = document.querySelector(
+    'input[type="file"]',
+  ) as HTMLInputElement | null;
   expect(fileInput).not.toBeNull();
 
-  const file = new File([JSON.stringify(importedConversation)], 'conversation.json', {
-    type: 'application/json',
-  });
+  const file = new File(
+    [JSON.stringify(importedConversation)],
+    'conversation.json',
+    {
+      type: 'application/json',
+    },
+  );
   fireEvent.change(fileInput!, { target: { files: [file] } });
 
-  expect(await screen.findByRole('button', { name: 'Imported thread' })).toBeInTheDocument();
-  await waitFor(() => expect(saveConversationMock).toHaveBeenCalledWith(importedConversation));
+  expect(
+    await screen.findByRole('button', { name: 'Imported thread' }),
+  ).toBeInTheDocument();
+  await waitFor(() =>
+    expect(saveConversationMock).toHaveBeenCalledWith(importedConversation),
+  );
 
   await user.click(screen.getByLabelText('Export all conversations'));
   expect(await screen.findByText('Archive export failed.')).toBeInTheDocument();
@@ -476,11 +516,15 @@ test('ChatPage surfaces missing assistant content and interrupted reasoning stre
 
   renderWithProviders(<ChatPage />);
 
-  const composer = await screen.findByPlaceholderText('Ask the provider something meaningful...');
+  const composer = await screen.findByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
   await user.type(composer, 'Empty reply{enter}');
 
   expect(
-    await screen.findByText('The model stream ended before any assistant output was received.'),
+    await screen.findByText(
+      'The model stream ended before any assistant output was received.',
+    ),
   ).toBeInTheDocument();
 
   chatStreamMock.mockImplementationOnce(async (_payload, handlers) => {
@@ -488,10 +532,15 @@ test('ChatPage surfaces missing assistant content and interrupted reasoning stre
     throw new Error('Stream interrupted.');
   });
 
-  await user.type(screen.getByPlaceholderText('Ask the provider something meaningful...'), 'Partial{enter}');
+  await user.type(
+    screen.getByPlaceholderText('Ask the provider something meaningful...'),
+    'Partial{enter}',
+  );
 
   expect(await screen.findByText('Stream interrupted.')).toBeInTheDocument();
   expect(
-    await screen.findByText('Assistant response was interrupted before content generation completed.'),
+    await screen.findByText(
+      'Assistant response was interrupted before content generation completed.',
+    ),
   ).toBeInTheDocument();
 });

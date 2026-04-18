@@ -1,4 +1,13 @@
-import { ActionIcon, Alert, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Card,
+  Group,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import {
   IconDownload,
   IconMessageCircleBolt,
@@ -70,13 +79,18 @@ export function ChatSidebar({
       </Group>
       <Stack gap="sm">
         {transferError ? (
-          <Alert color="red" data-testid="chat-transfer-error" title="Conversation transfer failed">
+          <Alert
+            color="red"
+            data-testid="chat-transfer-error"
+            title="Conversation transfer failed"
+          >
             {transferError}
           </Alert>
         ) : null}
         {conversations.length === 0 ? (
           <Text c="dimmed" size="sm">
-            No local chat history yet. Conversations are stored only in this browser via IndexedDB.
+            No local chat history yet. Conversations are stored only in this
+            browser via IndexedDB.
           </Text>
         ) : (
           conversations.map((conversation) => (
@@ -86,7 +100,9 @@ export function ChatSidebar({
                 justify="space-between"
                 onClick={() => onSelectConversation(conversation.id)}
                 style={{ flex: 1 }}
-                variant={conversation.id === activeConversationId ? 'filled' : 'light'}
+                variant={
+                  conversation.id === activeConversationId ? 'filled' : 'light'
+                }
               >
                 {conversation.title}
               </Button>

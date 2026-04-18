@@ -1,4 +1,13 @@
-import { Alert, Button, Card, Center, Container, Stack, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  Card,
+  Center,
+  Container,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { IconMailOff } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 
@@ -21,10 +30,15 @@ export function ForgotPasswordPage() {
             </div>
             {runtimeConfigQuery.data?.forgotPasswordEnabled ? (
               <Alert color="blue" title="Backend endpoint pending">
-                The UI surface is ready, but the password recovery backend flow has not been implemented yet.
+                The UI surface is ready, but the password recovery backend flow
+                has not been implemented yet.
               </Alert>
             ) : (
-              <Alert color="red" icon={<IconMailOff size={18} />} title="Disabled by configuration">
+              <Alert
+                color="red"
+                icon={<IconMailOff size={18} />}
+                title="Disabled by configuration"
+              >
                 Forgot-password is currently disabled for this deployment.
               </Alert>
             )}

@@ -1,4 +1,13 @@
-import { Alert, Button, Card, Group, Select, Stack, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  Card,
+  Group,
+  Select,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { IconAlertCircle, IconSettings } from '@tabler/icons-react';
 
 type Option = {
@@ -42,7 +51,8 @@ export function ProviderDefaultsForm({
             <IconSettings size={18} />
           </Group>
           <Text c="dimmed" size="sm">
-            These values are used when `/api/v1/chat` is called without an explicit `providerId` and `model`.
+            These values are used when `/api/v1/chat` is called without an
+            explicit `providerId` and `model`.
           </Text>
           <Select
             clearable
@@ -61,7 +71,9 @@ export function ProviderDefaultsForm({
             clearable
             data={defaultModelOptions}
             data-testid="providers-default-model"
-            disabled={!defaultProviderId || isModelLoading || Boolean(modelErrorMessage)}
+            disabled={
+              !defaultProviderId || isModelLoading || Boolean(modelErrorMessage)
+            }
             label="Default model"
             onChange={onDefaultModelChange}
             placeholder={
@@ -74,7 +86,11 @@ export function ProviderDefaultsForm({
             value={defaultModel}
           />
           {modelErrorMessage ? (
-            <Alert color="red" icon={<IconAlertCircle size={18} />} title="Model loading failed">
+            <Alert
+              color="red"
+              icon={<IconAlertCircle size={18} />}
+              title="Model loading failed"
+            >
               {modelErrorMessage}
             </Alert>
           ) : null}

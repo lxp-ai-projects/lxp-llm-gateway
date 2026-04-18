@@ -1,6 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState, type UIEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type UIEvent,
+} from 'react';
 
-import { scrollChatToBottom, shouldStickToBottom } from '../../../lib/chat-scroll';
+import {
+  scrollChatToBottom,
+  shouldStickToBottom,
+} from '../../../lib/chat-scroll';
 import {
   canLoadNextChatPage,
   canLoadPreviousChatPage,
@@ -23,13 +32,21 @@ export function useChatMessageWindow({
   isStreaming,
 }: UseChatMessageWindowOptions) {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
-  const [messageWindow, setMessageWindow] = useState<ChatMessageWindow>({ start: 0, end: 0 });
+  const [messageWindow, setMessageWindow] = useState<ChatMessageWindow>({
+    start: 0,
+    end: 0,
+  });
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingAutoScrollFrameRef = useRef<number | null>(null);
-  const pendingWindowShiftRef = useRef<null | { scrollHeight: number; scrollTop: number }>(null);
+  const pendingWindowShiftRef = useRef<null | {
+    scrollHeight: number;
+    scrollTop: number;
+  }>(null);
 
   useEffect(() => {
-    setMessageWindow(createInitialChatWindow(activeConversation?.messages.length ?? 0));
+    setMessageWindow(
+      createInitialChatWindow(activeConversation?.messages.length ?? 0),
+    );
   }, [activeConversation?.id]);
 
   useEffect(() => {
@@ -72,7 +89,8 @@ export function useChatMessageWindow({
     }
 
     container.scrollTop =
-      pendingShift.scrollTop + (container.scrollHeight - pendingShift.scrollHeight);
+      pendingShift.scrollTop +
+      (container.scrollHeight - pendingShift.scrollHeight);
     pendingWindowShiftRef.current = null;
   }, [messageWindow.start, messageWindow.end]);
 
@@ -98,11 +116,16 @@ export function useChatMessageWindow({
       };
     }
 
-    setMessageWindow((current) => loadPreviousChatPage(current, activeConversation.messages.length));
+    setMessageWindow((current) =>
+      loadPreviousChatPage(current, activeConversation.messages.length),
+    );
   }
 
   function loadNewerMessages(): void {
-    if (!activeConversation || !canLoadNextChatPage(messageWindow, activeConversation.messages.length)) {
+    if (
+      !activeConversation ||
+      !canLoadNextChatPage(messageWindow, activeConversation.messages.length)
+    ) {
       return;
     }
 
@@ -115,7 +138,9 @@ export function useChatMessageWindow({
       };
     }
 
-    setMessageWindow((current) => loadNextChatPage(current, activeConversation.messages.length));
+    setMessageWindow((current) =>
+      loadNextChatPage(current, activeConversation.messages.length),
+    );
   }
 
   function handleScroll(event: UIEvent<HTMLDivElement>): void {
@@ -141,7 +166,11 @@ export function useChatMessageWindow({
     }
 
     setAutoScrollEnabled(
-      shouldStickToBottom(target.scrollTop, target.clientHeight, target.scrollHeight),
+      shouldStickToBottom(
+        target.scrollTop,
+        target.clientHeight,
+        target.scrollHeight,
+      ),
     );
   }
 

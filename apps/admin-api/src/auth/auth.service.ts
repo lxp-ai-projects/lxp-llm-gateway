@@ -1,15 +1,19 @@
-import {randomUUID} from 'node:crypto';
-import {Injectable, UnauthorizedException,} from '@nestjs/common';
-import {JwtService} from '@nestjs/jwt';
-import {InjectRepository} from '@nestjs/typeorm';
-import {Repository} from 'typeorm';
+import { randomUUID } from 'node:crypto';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
-import {UserRoleEntity} from '../persistence/entities/user-role.entity';
-import {UserEntity} from '../persistence/entities/user.entity';
-import {EmailProtectionService} from '../security/email-protection.service';
-import {PasswordService} from '../security/password.service';
-import {type AuthenticatedUser, type AuthTokenPayload, type TokenPair,} from './auth.types';
-import {AuthTokenStore} from './auth-token.store';
+import { UserRoleEntity } from '../persistence/entities/user-role.entity';
+import { UserEntity } from '../persistence/entities/user.entity';
+import { EmailProtectionService } from '../security/email-protection.service';
+import { PasswordService } from '../security/password.service';
+import {
+  type AuthenticatedUser,
+  type AuthTokenPayload,
+  type TokenPair,
+} from './auth.types';
+import { AuthTokenStore } from './auth-token.store';
 
 @Injectable()
 export class AuthService {
@@ -61,12 +65,18 @@ export class AuthService {
     }
 
     const roles = await this.getUserRoles(user.id);
-    await this.authTokenStore.blacklistToken(payload.jti, this.refreshTokenTtlSeconds);
+    await this.authTokenStore.blacklistToken(
+      payload.jti,
+      this.refreshTokenTtlSeconds,
+    );
 
     return this.issueTokenPair(user, roles, payload.sessionId);
   }
 
-  async logout(accessToken: string | undefined, refreshToken: string | undefined): Promise<void> {
+  async logout(
+    accessToken: string | undefined,
+    refreshToken: string | undefined,
+  ): Promise<void> {
     const accessPayload = accessToken
       ? await this.tryVerifyToken(accessToken, 'access')
       : null;
@@ -75,18 +85,26 @@ export class AuthService {
       : null;
 
     if (accessPayload) {
-      await this.authTokenStore.blacklistToken(accessPayload.jti, this.accessTokenTtlSeconds);
+      await this.authTokenStore.blacklistToken(
+        accessPayload.jti,
+        this.accessTokenTtlSeconds,
+      );
     }
 
     if (refreshPayload) {
-      await this.authTokenStore.blacklistToken(refreshPayload.jti, this.refreshTokenTtlSeconds);
+      await this.authTokenStore.blacklistToken(
+        refreshPayload.jti,
+        this.refreshTokenTtlSeconds,
+      );
       await this.authTokenStore.deleteRefreshSession(refreshPayload.sessionId);
     }
   }
 
   async getAuthenticatedUser(accessToken: string): Promise<AuthenticatedUser> {
     const payload = await this.verifyToken(accessToken, 'access');
-    const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(payload.jti);
+    const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
+      payload.jti,
+    );
     if (isBlacklisted) {
       throw new UnauthorizedException('Invalid or expired token.');
     }
@@ -153,13 +171,19 @@ export class AuthService {
     };
   }
 
-  private async assertRefreshTokenIsUsable(payload: AuthTokenPayload): Promise<void> {
-    const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(payload.jti);
+  private async assertRefreshTokenIsUsable(
+    payload: AuthTokenPayload,
+  ): Promise<void> {
+    const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
+      payload.jti,
+    );
     if (isBlacklisted) {
       throw new UnauthorizedException('Invalid or expired token.');
     }
 
-    const activeRefreshJti = await this.authTokenStore.getRefreshSession(payload.sessionId);
+    const activeRefreshJti = await this.authTokenStore.getRefreshSession(
+      payload.sessionId,
+    );
     if (!activeRefreshJti || activeRefreshJti !== payload.jti) {
       throw new UnauthorizedException('Invalid or expired token.');
     }
@@ -170,7 +194,8 @@ export class AuthService {
     tokenType: 'access' | 'refresh',
   ): Promise<AuthTokenPayload> {
     try {
-      const payload = await this.jwtService.verifyAsync<AuthTokenPayload>(token);
+      const payload =
+        await this.jwtService.verifyAsync<AuthTokenPayload>(token);
       if (payload.type !== tokenType) {
         throw new UnauthorizedException('Unexpected token type.');
       }
@@ -216,7 +241,10 @@ export class AuthService {
       .filter((roleName): roleName is string => Boolean(roleName));
   }
 
-  private mapAuthenticatedUser(user: UserEntity, roles: string[]): AuthenticatedUser {
+  private mapAuthenticatedUser(
+    user: UserEntity,
+    roles: string[],
+  ): AuthenticatedUser {
     return {
       userUuid: user.userUuid,
       email: this.emailProtectionService.reveal({

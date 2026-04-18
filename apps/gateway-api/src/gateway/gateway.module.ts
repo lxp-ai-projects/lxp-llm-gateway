@@ -19,7 +19,11 @@ import { EncryptionService } from '../security/encryption.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, ProviderEntity, UserProviderCredentialEntity]),
+    TypeOrmModule.forFeature([
+      UserEntity,
+      ProviderEntity,
+      UserProviderCredentialEntity,
+    ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

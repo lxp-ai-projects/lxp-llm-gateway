@@ -80,15 +80,18 @@ export function ProvidersPage() {
           <ProviderCredentialsPanel
             credentials={credentials}
             currentDefaultModel={currentDefaultModel}
-            currentDefaultProviderDisplayName={currentDefaultProviderDisplayName}
+            currentDefaultProviderDisplayName={
+              currentDefaultProviderDisplayName
+            }
             currentDefaultProviderId={currentDefaultProviderId}
             onEditCredential={beginCredentialEdit}
           />
         </Grid.Col>
       </Grid>
       <Alert color="blue" mt="lg" title="Boundary reminder">
-        Administrators may create or reset another user provider credential, but they should only ever see the
-        masked version of another user secret, never the raw token.
+        Administrators may create or reset another user provider credential, but
+        they should only ever see the masked version of another user secret,
+        never the raw token.
       </Alert>
     </>
   );

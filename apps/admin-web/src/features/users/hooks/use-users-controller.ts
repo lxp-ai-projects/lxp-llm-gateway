@@ -7,7 +7,9 @@ import { adminApiClient, type AdminUserSummary } from '../../../lib/api-client';
 export function useUsersController() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [selectedUser, setSelectedUser] = useState<AdminUserSummary | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserSummary | null>(
+    null,
+  );
   const [credentialsOpened, credentialsControls] = useDisclosure(false);
   const [createUserOpened, createUserControls] = useDisclosure(false);
   const [createDisplayName, setCreateDisplayName] = useState('');
@@ -21,11 +23,15 @@ export function useUsersController() {
   });
   const credentialsQuery = useQuery({
     queryKey: ['admin-user-provider-credentials', selectedUser?.userUuid],
-    queryFn: () => adminApiClient.getUserProviderCredentials(selectedUser!.userUuid),
+    queryFn: () =>
+      adminApiClient.getUserProviderCredentials(selectedUser!.userUuid),
     enabled: Boolean(selectedUser?.userUuid),
   });
   const updateUserMutation = useMutation({
-    mutationFn: (payload: { userUuid: string; status: 'active' | 'disabled' }) =>
+    mutationFn: (payload: {
+      userUuid: string;
+      status: 'active' | 'disabled';
+    }) =>
       adminApiClient.updateUser(payload.userUuid, { status: payload.status }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -49,7 +55,8 @@ export function useUsersController() {
   const filteredUsers = useMemo(
     () =>
       (usersQuery.data ?? []).filter((user) => {
-        const haystack = `${user.displayName} ${user.email} ${user.roles.join(' ')}`.toLowerCase();
+        const haystack =
+          `${user.displayName} ${user.email} ${user.roles.join(' ')}`.toLowerCase();
         return haystack.includes(search.toLowerCase());
       }),
     [search, usersQuery.data],
@@ -66,7 +73,11 @@ export function useUsersController() {
   function handleCreateUserSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!createDisplayName.trim() || !createEmail.trim() || createPassword.length < 8) {
+    if (
+      !createDisplayName.trim() ||
+      !createEmail.trim() ||
+      createPassword.length < 8
+    ) {
       return;
     }
 

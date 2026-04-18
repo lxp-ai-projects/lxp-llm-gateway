@@ -1,22 +1,31 @@
 import { DEFAULT_STREAM_IDLE_TIMEOUT_MS } from './chat-stream';
 import { shouldAttemptSessionRefresh } from './http-auth';
-import type { GatewayChatStreamChunk, GatewayChatStreamResult } from './api-client.types';
+import type {
+  GatewayChatStreamChunk,
+  GatewayChatStreamResult,
+} from './api-client.types';
 
 function isLoopbackHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1';
 }
 
-function resolveApiBaseUrl(explicitUrl: string | undefined, fallbackPort: number): string {
+function resolveApiBaseUrl(
+  explicitUrl: string | undefined,
+  fallbackPort: number,
+): string {
   if (typeof window === 'undefined') {
     return explicitUrl ?? `http://localhost:${fallbackPort}`;
   }
 
   const currentUrl = new URL(window.location.origin);
-  const configuredUrl = explicitUrl ? new URL(explicitUrl) : new URL(`http://localhost:${fallbackPort}`);
+  const configuredUrl = explicitUrl
+    ? new URL(explicitUrl)
+    : new URL(`http://localhost:${fallbackPort}`);
   const hostnameMismatch = configuredUrl.hostname !== currentUrl.hostname;
   const shouldPreferCurrentHost =
     hostnameMismatch &&
-    (isLoopbackHost(configuredUrl.hostname) || isLoopbackHost(currentUrl.hostname));
+    (isLoopbackHost(configuredUrl.hostname) ||
+      isLoopbackHost(currentUrl.hostname));
 
   if (shouldPreferCurrentHost) {
     configuredUrl.protocol = currentUrl.protocol;
@@ -26,12 +35,22 @@ function resolveApiBaseUrl(explicitUrl: string | undefined, fallbackPort: number
   return configuredUrl.toString().replace(/\/$/, '');
 }
 
-export const adminApiUrl = resolveApiBaseUrl(import.meta.env.VITE_ADMIN_API_URL, 3002);
-export const gatewayApiUrl = resolveApiBaseUrl(import.meta.env.VITE_GATEWAY_API_URL, 3001);
+export const adminApiUrl = resolveApiBaseUrl(
+  import.meta.env.VITE_ADMIN_API_URL,
+  3002,
+);
+export const gatewayApiUrl = resolveApiBaseUrl(
+  import.meta.env.VITE_GATEWAY_API_URL,
+  3001,
+);
 let refreshInFlight: Promise<void> | null = null;
-export const SESSION_TIMEOUT_MESSAGE_STORAGE_KEY = 'lxp.session-timeout-message';
+export const SESSION_TIMEOUT_MESSAGE_STORAGE_KEY =
+  'lxp.session-timeout-message';
 
-export async function request<T>(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
+export async function request<T>(
+  url: string,
+  init?: RequestInit & { timeoutMs?: number },
+): Promise<T> {
   return requestWithSessionRefresh<T>(url, init, false);
 }
 
@@ -72,7 +91,9 @@ async function requestWithSessionRefresh<T>(
     return response.json() as Promise<T>;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('The request timed out before the gateway returned a response.');
+      throw new Error(
+        'The request timed out before the gateway returned a response.',
+      );
     }
 
     throw error;
@@ -96,7 +117,8 @@ export async function refreshBrowserSession(): Promise<void> {
 
     if (!response.ok) {
       const body = await response.text();
-      const errorMessage = body || `Session refresh failed with ${response.status}`;
+      const errorMessage =
+        body || `Session refresh failed with ${response.status}`;
       handleSessionRefreshFailure(errorMessage);
       throw new Error(errorMessage);
     }
@@ -150,7 +172,9 @@ export async function requestBlobWithSessionRefresh(
 
   return {
     blob: await response.blob(),
-    fileName: extractContentDispositionFileName(response.headers.get('content-disposition')),
+    fileName: extractContentDispositionFileName(
+      response.headers.get('content-disposition'),
+    ),
   };
 }
 
@@ -181,7 +205,9 @@ export async function uploadFileWithSessionRefresh<T>(
   return response.json() as Promise<T>;
 }
 
-function extractContentDispositionFileName(headerValue: string | null): string | null {
+function extractContentDispositionFileName(
+  headerValue: string | null,
+): string | null {
   if (!headerValue) {
     return null;
   }
@@ -227,7 +253,10 @@ export async function chatStreamWithSessionRefresh(
       window.clearTimeout(idleTimeoutId);
     }
 
-    idleTimeoutId = window.setTimeout(() => controller.abort(), DEFAULT_STREAM_IDLE_TIMEOUT_MS);
+    idleTimeoutId = window.setTimeout(
+      () => controller.abort(),
+      DEFAULT_STREAM_IDLE_TIMEOUT_MS,
+    );
   };
 
   resetIdleTimeout();

@@ -23,7 +23,10 @@ class InMemoryAuthTokenStore {
     return this.blacklistedTokens.has(jti);
   }
 
-  async setRefreshSession(sessionId: string, refreshJti: string): Promise<void> {
+  async setRefreshSession(
+    sessionId: string,
+    refreshJti: string,
+  ): Promise<void> {
     this.refreshSessions.set(sessionId, refreshJti);
   }
 
@@ -40,7 +43,8 @@ async function buildAuthService() {
   process.env.LXP_ENCRYPTION_MASTER_KEY =
     'AEkZcducf2qDu4KA7t9i5PnWekbV/CGYBlBwJ9qCmjQ=';
   process.env.LXP_ENCRYPTION_KEY_VERSION = '1';
-  process.env.LXP_EMAIL_LOOKUP_KEY = 'tPWBQyo3zw8z8HgCPWVb7968QdQ6jGHQ9Nh2gWmC8qY=';
+  process.env.LXP_EMAIL_LOOKUP_KEY =
+    'tPWBQyo3zw8z8HgCPWVb7968QdQ6jGHQ9Nh2gWmC8qY=';
 
   const encryptionService = new EncryptionService();
   const emailProtectionService = new EmailProtectionService(encryptionService);
@@ -99,7 +103,8 @@ async function buildAuthServiceWithUser(
   process.env.LXP_ENCRYPTION_MASTER_KEY =
     'AEkZcducf2qDu4KA7t9i5PnWekbV/CGYBlBwJ9qCmjQ=';
   process.env.LXP_ENCRYPTION_KEY_VERSION = '1';
-  process.env.LXP_EMAIL_LOOKUP_KEY = 'tPWBQyo3zw8z8HgCPWVb7968QdQ6jGHQ9Nh2gWmC8qY=';
+  process.env.LXP_EMAIL_LOOKUP_KEY =
+    'tPWBQyo3zw8z8HgCPWVb7968QdQ6jGHQ9Nh2gWmC8qY=';
 
   const encryptionService = new EncryptionService();
   const emailProtectionService = new EmailProtectionService(encryptionService);
@@ -153,11 +158,16 @@ async function buildAuthServiceWithUser(
 }
 
 test('AuthService login issues access and refresh tokens with user payload', async () => {
-  const { authService, jwtService, tokenStore, user } = await buildAuthService();
+  const { authService, jwtService, tokenStore, user } =
+    await buildAuthService();
 
   const result = await authService.login('laurie@example.com', 'Sup3rS3cret!');
-  const accessPayload = await jwtService.verifyAsync<AuthTokenPayload>(result.accessToken);
-  const refreshPayload = await jwtService.verifyAsync<AuthTokenPayload>(result.refreshToken);
+  const accessPayload = await jwtService.verifyAsync<AuthTokenPayload>(
+    result.accessToken,
+  );
+  const refreshPayload = await jwtService.verifyAsync<AuthTokenPayload>(
+    result.refreshToken,
+  );
 
   assert.equal(accessPayload.type, 'access');
   assert.equal(refreshPayload.type, 'refresh');
@@ -165,13 +175,19 @@ test('AuthService login issues access and refresh tokens with user payload', asy
   assert.equal(accessPayload.emailHash, user.emailHash);
   assert.deepEqual(accessPayload.roles, ['admin', 'user']);
   assert.equal(refreshPayload.sessionId, accessPayload.sessionId);
-  assert.equal(await tokenStore.getRefreshSession(refreshPayload.sessionId), refreshPayload.jti);
+  assert.equal(
+    await tokenStore.getRefreshSession(refreshPayload.sessionId),
+    refreshPayload.jti,
+  );
 });
 
 test('AuthService refresh rotates the refresh token and blacklists the prior token', async () => {
   const { authService, jwtService, tokenStore } = await buildAuthService();
 
-  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
   const previousRefreshPayload = await jwtService.verifyAsync<AuthTokenPayload>(
     loginResult.refreshToken,
   );
@@ -180,7 +196,10 @@ test('AuthService refresh rotates the refresh token and blacklists the prior tok
     refreshResult.refreshToken,
   );
 
-  assert.equal(await tokenStore.isTokenBlacklisted(previousRefreshPayload.jti), true);
+  assert.equal(
+    await tokenStore.isTokenBlacklisted(previousRefreshPayload.jti),
+    true,
+  );
   assert.equal(previousRefreshPayload.sessionId, nextRefreshPayload.sessionId);
   assert.notEqual(previousRefreshPayload.jti, nextRefreshPayload.jti);
   assert.equal(
@@ -192,21 +211,34 @@ test('AuthService refresh rotates the refresh token and blacklists the prior tok
 test('AuthService logout revokes current tokens', async () => {
   const { authService, jwtService, tokenStore } = await buildAuthService();
 
-  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
-  const accessPayload = await jwtService.verifyAsync<AuthTokenPayload>(loginResult.accessToken);
-  const refreshPayload = await jwtService.verifyAsync<AuthTokenPayload>(loginResult.refreshToken);
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
+  const accessPayload = await jwtService.verifyAsync<AuthTokenPayload>(
+    loginResult.accessToken,
+  );
+  const refreshPayload = await jwtService.verifyAsync<AuthTokenPayload>(
+    loginResult.refreshToken,
+  );
 
   await authService.logout(loginResult.accessToken, loginResult.refreshToken);
 
   assert.equal(await tokenStore.isTokenBlacklisted(accessPayload.jti), true);
   assert.equal(await tokenStore.isTokenBlacklisted(refreshPayload.jti), true);
-  assert.equal(await tokenStore.getRefreshSession(refreshPayload.sessionId), null);
+  assert.equal(
+    await tokenStore.getRefreshSession(refreshPayload.sessionId),
+    null,
+  );
 });
 
 test('AuthService rejects a blacklisted access token for authenticated user lookup', async () => {
   const { authService } = await buildAuthService();
 
-  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
   await authService.logout(loginResult.accessToken, undefined);
 
   await assert.rejects(
@@ -218,8 +250,13 @@ test('AuthService rejects a blacklisted access token for authenticated user look
 test('AuthService returns the authenticated user profile for a valid access token', async () => {
   const { authService, user } = await buildAuthService();
 
-  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
-  const authenticatedUser = await authService.getAuthenticatedUser(loginResult.accessToken);
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
+  const authenticatedUser = await authService.getAuthenticatedUser(
+    loginResult.accessToken,
+  );
 
   assert.equal(authenticatedUser.userUuid, user.userUuid);
   assert.equal(authenticatedUser.email, 'laurie@example.com');
@@ -302,7 +339,10 @@ test('AuthService rejects login when no user matches the email', async () => {
 
 test('AuthService rejects refresh when the token was blacklisted', async () => {
   const { authService } = await buildAuthService();
-  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
 
   await authService.logout(undefined, loginResult.refreshToken);
 
@@ -314,7 +354,10 @@ test('AuthService rejects refresh when the token was blacklisted', async () => {
 
 test('AuthService rejects refresh when the stored session token does not match', async () => {
   const { authService, tokenStore } = await buildAuthService();
-  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
   tokenStore.refreshSessions.clear();
 
   await assert.rejects(
@@ -325,7 +368,10 @@ test('AuthService rejects refresh when the stored session token does not match',
 
 test('AuthService rejects refresh when token type is access', async () => {
   const { authService } = await buildAuthService();
-  const loginResult = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
 
   await assert.rejects(
     () => authService.refresh(loginResult.accessToken),

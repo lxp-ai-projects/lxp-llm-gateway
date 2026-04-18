@@ -21,7 +21,9 @@ function normalizeMarkdownSource(value: string): string {
 }
 
 function renderInlineMarkdown(value: string): ReactNode[] {
-  const tokens = value.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g).filter(Boolean);
+  const tokens = value
+    .split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g)
+    .filter(Boolean);
 
   return tokens.map((token, index) => {
     if (token.startsWith('**') && token.endsWith('**')) {
@@ -73,7 +75,9 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
     blocks.push(
       <ListTag className="markdown-list" key={`list-${blocks.length}`}>
         {listItems.map((item, index) => (
-          <li key={`${item.kind}-${index}`}>{renderInlineMarkdown(item.text)}</li>
+          <li key={`${item.kind}-${index}`}>
+            {renderInlineMarkdown(item.text)}
+          </li>
         ))}
       </ListTag>,
     );
@@ -93,9 +97,16 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
     if (headingMatch) {
       flushParagraph();
       flushList();
-      const headingOrder = Math.min(headingMatch[1].length + 1, 4) as TitleOrder;
+      const headingOrder = Math.min(
+        headingMatch[1].length + 1,
+        4,
+      ) as TitleOrder;
       blocks.push(
-        <Title className="markdown-heading" key={`heading-${blocks.length}`} order={headingOrder}>
+        <Title
+          className="markdown-heading"
+          key={`heading-${blocks.length}`}
+          order={headingOrder}
+        >
           {renderInlineMarkdown(headingMatch[2])}
         </Title>,
       );
@@ -105,7 +116,9 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
     if (/^---+$/.test(trimmed)) {
       flushParagraph();
       flushList();
-      blocks.push(<hr className="markdown-divider" key={`divider-${blocks.length}`} />);
+      blocks.push(
+        <hr className="markdown-divider" key={`divider-${blocks.length}`} />,
+      );
       continue;
     }
 
@@ -134,5 +147,7 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
 }
 
 export function MarkdownText({ value, dimmed = false }: MarkdownTextProps) {
-  return <div className="markdown-text">{renderMarkdownBlocks(value, dimmed)}</div>;
+  return (
+    <div className="markdown-text">{renderMarkdownBlocks(value, dimmed)}</div>
+  );
 }

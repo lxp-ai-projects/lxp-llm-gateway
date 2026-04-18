@@ -55,7 +55,9 @@ test('MarkdownText renders level 4 headings', () => {
   );
 
   expect(
-    screen.getByText('2️⃣ Scène 2 : Le Dîner (ou comment te rendre fou avant même le dessert)'),
+    screen.getByText(
+      '2️⃣ Scène 2 : Le Dîner (ou comment te rendre fou avant même le dessert)',
+    ),
   ).toBeInTheDocument();
   expect(screen.queryByText(/^####/)).not.toBeInTheDocument();
 });

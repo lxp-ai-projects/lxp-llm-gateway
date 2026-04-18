@@ -13,7 +13,14 @@ test('StatusTile renders neutral content with fallback badge text', () => {
 });
 
 test('StatusTile renders a custom icon and warning tone', () => {
-  renderWithProviders(<StatusTile label="Gateway" value="Offline" tone="warning" icon={<span>icon</span>} />);
+  renderWithProviders(
+    <StatusTile
+      label="Gateway"
+      value="Offline"
+      tone="warning"
+      icon={<span>icon</span>}
+    />,
+  );
 
   expect(screen.getByText('Gateway')).toBeInTheDocument();
   expect(screen.getByText('Offline')).toBeInTheDocument();

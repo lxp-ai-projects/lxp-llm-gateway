@@ -16,7 +16,8 @@ export class ModelsController {
   async listModels(
     @Query() query: ListModelsQueryDto,
     @Headers('authorization') authorizationHeader: string | undefined,
-    @Req() httpRequest: Request & { cookies?: Record<string, string | undefined> },
+    @Req()
+    httpRequest: Request & { cookies?: Record<string, string | undefined> },
   ) {
     const authContext = await this.gatewayAuthService.authenticateAccessToken(
       authorizationHeader,

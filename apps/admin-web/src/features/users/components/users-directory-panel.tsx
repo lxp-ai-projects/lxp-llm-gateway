@@ -12,7 +12,11 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { IconSearch, IconShieldCheck, IconUserCircle } from '@tabler/icons-react';
+import {
+  IconSearch,
+  IconShieldCheck,
+  IconUserCircle,
+} from '@tabler/icons-react';
 
 import type { AdminUserSummary } from '../../../lib/api-client';
 
@@ -96,10 +100,20 @@ export function UsersDirectoryPanel({
         />
       </Group>
       <div className="users-cards" aria-label="Mobile user cards">
-        <Accordion variant="separated" radius="lg" className="users-mobile-accordion">
+        <Accordion
+          variant="separated"
+          radius="lg"
+          className="users-mobile-accordion"
+        >
           {filteredUsers.map((user) => (
-            <Accordion.Item key={user.userUuid} value={user.userUuid} className="users-mobile-card">
-              <Accordion.Control>{renderMobileUserSummary(user)}</Accordion.Control>
+            <Accordion.Item
+              key={user.userUuid}
+              value={user.userUuid}
+              className="users-mobile-card"
+            >
+              <Accordion.Control>
+                {renderMobileUserSummary(user)}
+              </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="sm">
                   <SimpleGrid cols={2} spacing="sm" verticalSpacing="sm">
@@ -119,7 +133,11 @@ export function UsersDirectoryPanel({
                       <Text size="xs" tt="uppercase" fw={700} c="dimmed">
                         Status
                       </Text>
-                      <Badge color={user.status === 'active' ? 'moss' : 'red'} variant="light" mt={6}>
+                      <Badge
+                        color={user.status === 'active' ? 'moss' : 'red'}
+                        variant="light"
+                        mt={6}
+                      >
                         {user.status}
                       </Badge>
                     </div>
@@ -165,7 +183,10 @@ export function UsersDirectoryPanel({
                   </Group>
                 </Table.Td>
                 <Table.Td>
-                  <Badge color={user.status === 'active' ? 'moss' : 'red'} variant="light">
+                  <Badge
+                    color={user.status === 'active' ? 'moss' : 'red'}
+                    variant="light"
+                  >
                     {user.status}
                   </Badge>
                 </Table.Td>

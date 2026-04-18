@@ -43,8 +43,13 @@ describe('chat-window', () => {
   });
 
   it('syncs the existing window after conversation edits or truncation', () => {
-    expect(syncChatWindow({ start: 20, end: 40 }, 24)).toEqual({ start: 4, end: 24 });
-    expect(syncChatWindow({ start: 20, end: 40 }, 24, { followTail: true })).toEqual({
+    expect(syncChatWindow({ start: 20, end: 40 }, 24)).toEqual({
+      start: 4,
+      end: 24,
+    });
+    expect(
+      syncChatWindow({ start: 20, end: 40 }, 24, { followTail: true }),
+    ).toEqual({
       start: 14,
       end: 24,
     });

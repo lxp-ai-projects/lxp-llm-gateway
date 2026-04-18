@@ -30,7 +30,9 @@ test('request resolves undefined on 204 and surfaces plain-text backend errors',
     .mockResolvedValueOnce(new Response(null, { status: 204 }))
     .mockResolvedValueOnce(textResponse('provider exploded', { status: 500 }));
 
-  await expect(request('http://localhost:3001/api/v1/health')).resolves.toBeUndefined();
+  await expect(
+    request('http://localhost:3001/api/v1/health'),
+  ).resolves.toBeUndefined();
   await expect(request('http://localhost:3001/api/v1/health')).rejects.toThrow(
     'provider exploded',
   );
@@ -49,7 +51,10 @@ test('refreshBrowserSession shares an in-flight refresh request', async () => {
   const second = refreshBrowserSession();
   resolveRefresh?.();
 
-  await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined]);
+  await expect(Promise.all([first, second])).resolves.toEqual([
+    undefined,
+    undefined,
+  ]);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
@@ -64,23 +69,35 @@ test('refreshBrowserSession keeps non-timeout failures local without redirecting
     },
   });
 
-  vi.mocked(fetch).mockResolvedValueOnce(textResponse('backend unavailable', { status: 500 }));
+  vi.mocked(fetch).mockResolvedValueOnce(
+    textResponse('backend unavailable', { status: 500 }),
+  );
 
   await expect(refreshBrowserSession()).rejects.toThrow('backend unavailable');
-  expect(window.sessionStorage.getItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY)).toBeNull();
+  expect(
+    window.sessionStorage.getItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY),
+  ).toBeNull();
   expect(assignMock).not.toHaveBeenCalled();
 });
 
 test('requestBlobWithSessionRefresh and uploadFileWithSessionRefresh surface non-refreshable errors', async () => {
   vi.mocked(fetch)
-    .mockResolvedValueOnce(textResponse('archive export failed', { status: 500 }))
+    .mockResolvedValueOnce(
+      textResponse('archive export failed', { status: 500 }),
+    )
     .mockResolvedValueOnce(textResponse('import failed', { status: 500 }));
 
   await expect(
-    requestBlobWithSessionRefresh('http://localhost:3002/export', { method: 'POST' }, false),
+    requestBlobWithSessionRefresh(
+      'http://localhost:3002/export',
+      { method: 'POST' },
+      false,
+    ),
   ).rejects.toThrow('archive export failed');
 
-  const file = new File(['{}'], 'conversation.json', { type: 'application/json' });
+  const file = new File(['{}'], 'conversation.json', {
+    type: 'application/json',
+  });
   await expect(
     uploadFileWithSessionRefresh('http://localhost:3002/import', file, false),
   ).rejects.toThrow('import failed');

@@ -6,12 +6,16 @@ import { EncryptionService } from './encryption.service';
 function getLookupKey(): Buffer {
   const encoded = process.env.LXP_EMAIL_LOOKUP_KEY;
   if (!encoded) {
-    throw new Error('Missing required environment variable: LXP_EMAIL_LOOKUP_KEY');
+    throw new Error(
+      'Missing required environment variable: LXP_EMAIL_LOOKUP_KEY',
+    );
   }
 
   const key = Buffer.from(encoded, 'base64');
   if (key.length !== 32) {
-    throw new Error('LXP_EMAIL_LOOKUP_KEY must be a base64-encoded 32-byte key.');
+    throw new Error(
+      'LXP_EMAIL_LOOKUP_KEY must be a base64-encoded 32-byte key.',
+    );
   }
 
   return key;

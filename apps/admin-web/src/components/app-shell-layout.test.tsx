@@ -37,7 +37,9 @@ vi.mock('../lib/use-session', () => ({
 }));
 
 vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
+  const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
+    '@tanstack/react-query',
+  );
   return {
     ...actual,
     useQueryClient: () => ({
@@ -47,7 +49,10 @@ vi.mock('@tanstack/react-query', async () => {
 });
 
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  const actual =
+    await vi.importActual<typeof import('react-router-dom')>(
+      'react-router-dom',
+    );
   return {
     ...actual,
     useNavigate: () => navigateMock,
@@ -121,14 +126,24 @@ test('AppShellLayout hides admin-only links for regular users and logs out', asy
 
   renderShell('/app/chat');
 
-  expect(screen.queryByRole('link', { name: /users/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: /analytics/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: /health/i })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: /users/i }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: /analytics/i }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('link', { name: /health/i }),
+  ).not.toBeInTheDocument();
 
   const [logoutButton] = screen.getAllByRole('button', { name: /logout/i });
   await user.click(logoutButton);
 
   await waitFor(() => expect(logoutMock).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['session'] }));
+  await waitFor(() =>
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: ['session'],
+    }),
+  );
   await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/login'));
 });

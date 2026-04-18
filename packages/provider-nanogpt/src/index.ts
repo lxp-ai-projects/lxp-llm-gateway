@@ -11,7 +11,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
 
   constructor(
     baseUrl = process.env.NANOGPT_BASE_URL ?? 'https://nano-gpt.com/api/v1',
-    requestTimeoutMs = Number(process.env.NANOGPT_REQUEST_TIMEOUT_MS ?? '90000'),
+    requestTimeoutMs = Number(
+      process.env.NANOGPT_REQUEST_TIMEOUT_MS ?? '90000',
+    ),
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
@@ -23,7 +25,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     return true;
   }
 
-  async listModels(context: ProviderExecutionContext): Promise<ProviderModel[]> {
+  async listModels(
+    context: ProviderExecutionContext,
+  ): Promise<ProviderModel[]> {
     const response = await fetch(`${this.baseUrl}/models`, {
       headers: {
         authorization: `Bearer ${context.providerCredential.apiKey}`,
@@ -87,8 +91,12 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
 
     const message = payload.choices?.[0]?.message;
     const providerMetadata = Object.fromEntries(
-      Object.entries(payload).filter(([key]) =>
-        key.startsWith('x_') || key === 'id' || key === 'object' || key === 'created',
+      Object.entries(payload).filter(
+        ([key]) =>
+          key.startsWith('x_') ||
+          key === 'id' ||
+          key === 'object' ||
+          key === 'created',
       ),
     );
 
@@ -111,7 +119,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
           payload.usage?.reasoning_tokens ??
           payload.usage?.completion_tokens_details?.reasoning_tokens,
       },
-      providerMetadata: Object.keys(providerMetadata).length ? providerMetadata : undefined,
+      providerMetadata: Object.keys(providerMetadata).length
+        ? providerMetadata
+        : undefined,
     };
   }
 
@@ -143,17 +153,17 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     return this.fetchWithTimeout(
       `${this.baseUrl}/chat/completions`,
       {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${context.providerCredential.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: request.model,
-        messages: request.messages,
-        stream,
-        user: context.userId,
-      }),
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${context.providerCredential.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: request.model,
+          messages: request.messages,
+          stream,
+          user: context.userId,
+        }),
       },
       stream ? null : this.requestTimeoutMs,
     );

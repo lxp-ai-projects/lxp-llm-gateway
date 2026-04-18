@@ -18,8 +18,9 @@ export function ChatSystemPromptPanel({
   return (
     <Stack gap="md">
       <Text c="dimmed" size="sm">
-        Use this for test-time steering only. It is persisted per local conversation and prepended
-        as a `system` message before the chat history.
+        Use this for test-time steering only. It is persisted per local
+        conversation and prepended as a `system` message before the chat
+        history.
       </Text>
       <Textarea
         autosize
@@ -36,7 +37,11 @@ export function ChatSystemPromptPanel({
           Default: helpful assistant with application guardrails.
         </Text>
         <Group>
-          <Button data-testid="chat-system-prompt-reset" onClick={onReset} variant="light">
+          <Button
+            data-testid="chat-system-prompt-reset"
+            onClick={onReset}
+            variant="light"
+          >
             Reset to default
           </Button>
           <Button

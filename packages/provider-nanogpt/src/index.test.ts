@@ -24,7 +24,8 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
             message: {
               role: 'assistant',
               content: 'hello from nanogpt',
-              reasoning: '1. Analyze the input. 2. Draft the answer. 3. Finalize.',
+              reasoning:
+                '1. Analyze the input. 2. Draft the answer. 3. Finalize.',
               reasoning_details: [
                 {
                   type: 'summary',
@@ -110,12 +111,15 @@ test('NanoGptProviderAdapter returns the provider SSE body for streaming request
       init,
     });
 
-    return new Response('data: {"choices":[{"delta":{"reasoning":"hi"}}]}\n\n', {
-      status: 200,
-      headers: {
-        'content-type': 'text/event-stream',
+    return new Response(
+      'data: {"choices":[{"delta":{"reasoning":"hi"}}]}\n\n',
+      {
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream',
+        },
       },
-    });
+    );
   }) as typeof fetch;
 
   try {
@@ -137,7 +141,9 @@ test('NanoGptProviderAdapter returns the provider SSE body for streaming request
 
     assert.ok(stream);
     assert.equal(calls.length, 1);
-    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as { stream?: boolean };
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      stream?: boolean;
+    };
     assert.equal(body.stream, true);
     const reader = stream?.getReader();
     const firstChunk = await reader?.read();
@@ -159,7 +165,10 @@ test('NanoGptProviderAdapter fails with an explicit timeout error when the provi
     })) as typeof fetch;
 
   try {
-    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1', 5);
+    const adapter = new NanoGptProviderAdapter(
+      'https://nano-gpt.com/api/v1',
+      5,
+    );
 
     await assert.rejects(
       () =>

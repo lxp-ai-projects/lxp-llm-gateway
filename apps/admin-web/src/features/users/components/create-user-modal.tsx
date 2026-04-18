@@ -39,14 +39,17 @@ export function CreateUserModal({
   onSubmit,
 }: CreateUserModalProps) {
   const isSubmitDisabled =
-    !createDisplayName.trim() || !createEmail.trim() || createPassword.length < 8;
+    !createDisplayName.trim() ||
+    !createEmail.trim() ||
+    createPassword.length < 8;
 
   return (
     <Modal opened={opened} onClose={onClose} title="Create user">
       <form onSubmit={onSubmit}>
         <Stack gap="sm">
           <Text c="dimmed" size="sm">
-            Create a new platform account with the minimum credentials required to sign in.
+            Create a new platform account with the minimum credentials required
+            to sign in.
           </Text>
           <TextInput
             data-testid="users-create-display-name"
@@ -82,7 +85,12 @@ export function CreateUserModal({
             value={createRoles}
           />
           <Group justify="space-between">
-            <Button data-testid="users-create-cancel" onClick={onClose} type="button" variant="light">
+            <Button
+              data-testid="users-create-cancel"
+              onClick={onClose}
+              type="button"
+              variant="light"
+            >
               Cancel
             </Button>
             <Button

@@ -1,8 +1,16 @@
 :root {
   color: #11202a;
   background:
-    radial-gradient(circle at top left, rgba(8, 145, 178, 0.22), transparent 32%),
-    radial-gradient(circle at bottom right, rgba(217, 119, 6, 0.14), transparent 28%),
+    radial-gradient(
+      circle at top left,
+      rgba(8, 145, 178, 0.22),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(217, 119, 6, 0.14),
+      transparent 28%
+    ),
     linear-gradient(180deg, #edf3f5 0%, #dce7eb 100%);
 }
 
@@ -40,7 +48,11 @@ a {
 .hero-card {
   border: 1px solid rgba(20, 41, 53, 0.08);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 250, 251, 0.94)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.9),
+      rgba(247, 250, 251, 0.94)
+    ),
     rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(12px);
 }
@@ -58,7 +70,11 @@ a {
 .hero-highlight {
   padding: 18px 20px;
   border-radius: 18px;
-  background: linear-gradient(135deg, rgba(9, 54, 73, 0.98), rgba(20, 93, 111, 0.92));
+  background: linear-gradient(
+    135deg,
+    rgba(9, 54, 73, 0.98),
+    rgba(20, 93, 111, 0.92)
+  );
   color: #f3f7f8;
 }
 

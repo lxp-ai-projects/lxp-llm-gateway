@@ -39,10 +39,7 @@ export function UsersPage() {
         title="User Management"
         description="Administrative user controls for search, lifecycle management, role assignment, and password reset workflows."
         aside={
-          <Button
-            data-testid="users-create-open"
-            onClick={onOpenCreateUser}
-          >
+          <Button data-testid="users-create-open" onClick={onOpenCreateUser}>
             Create user
           </Button>
         }
@@ -54,9 +51,15 @@ export function UsersPage() {
         onStatusChange={onStatusChange}
         search={search}
       />
-      <Alert color="blue" icon={<IconUsersGroup size={18} />} mt="lg" title="Backend dependency">
-        User listing and basic lifecycle editing are now connected. Role reassignment, pagination, primary-admin
-        transfer, and password reset flow still need deeper backend support.
+      <Alert
+        color="blue"
+        icon={<IconUsersGroup size={18} />}
+        mt="lg"
+        title="Backend dependency"
+      >
+        User listing and basic lifecycle editing are now connected. Role
+        reassignment, pagination, primary-admin transfer, and password reset
+        flow still need deeper backend support.
       </Alert>
       <CreateUserModal
         createDisplayName={createDisplayName}

@@ -1,5 +1,10 @@
 import { Alert, Grid } from '@mantine/core';
-import { IconAlertTriangle, IconLockCheck, IconPlugConnected, IconUserCircle } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconLockCheck,
+  IconPlugConnected,
+  IconUserCircle,
+} from '@tabler/icons-react';
 
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
@@ -39,17 +44,26 @@ export function DashboardPage() {
           <StatusTile
             icon={<IconPlugConnected size={14} />}
             label="Gateway"
-            value={runtimeConfigQuery.data?.gatewayOnline ? 'Online' : 'Offline'}
+            value={
+              runtimeConfigQuery.data?.gatewayOnline ? 'Online' : 'Offline'
+            }
             tone={runtimeConfigQuery.data?.gatewayOnline ? 'good' : 'warning'}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
-          <StatusTile label="Role surface" value={isAdmin ? 'Admin + user' : 'User only'} />
+          <StatusTile
+            label="Role surface"
+            value={isAdmin ? 'Admin + user' : 'User only'}
+          />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
             label="Registration"
-            value={runtimeConfigQuery.data?.registrationEnabled ? 'Enabled' : 'Disabled'}
+            value={
+              runtimeConfigQuery.data?.registrationEnabled
+                ? 'Enabled'
+                : 'Disabled'
+            }
           />
         </Grid.Col>
       </Grid>
@@ -61,7 +75,8 @@ export function DashboardPage() {
           mt="lg"
           title="Gateway circuit breaker is active"
         >
-          User chat traffic should expect a service offline response until an administrator re-enables the gateway.
+          User chat traffic should expect a service offline response until an
+          administrator re-enables the gateway.
         </Alert>
       ) : null}
     </>

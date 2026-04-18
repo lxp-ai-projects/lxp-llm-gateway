@@ -202,7 +202,9 @@ test('adminApiClient transfer helpers delegate to blob and upload helpers', asyn
     messages: [],
     updatedAt: '2026-04-17T00:00:00.000Z',
   };
-  const file = new File(['{}'], 'conversation.json', { type: 'application/json' });
+  const file = new File(['{}'], 'conversation.json', {
+    type: 'application/json',
+  });
 
   await adminApiClient.exportConversation(conversation);
   await adminApiClient.exportConversationArchive([conversation]);

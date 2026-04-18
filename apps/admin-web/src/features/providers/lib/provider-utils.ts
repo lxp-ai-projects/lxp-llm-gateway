@@ -5,8 +5,9 @@ export function resolveProviderDisplayName(
   providerIdToResolve: string,
 ): string {
   return (
-    supportedProviders.find((provider) => provider.providerId === providerIdToResolve)?.displayName ??
-    providerIdToResolve
+    supportedProviders.find(
+      (provider) => provider.providerId === providerIdToResolve,
+    )?.displayName ?? providerIdToResolve
   );
 }
 
@@ -24,7 +25,9 @@ export function buildDefaultProviderOptions(
   supportedProviders: Array<{ providerId: string; displayName: string }>,
 ) {
   const activeProviderIds = new Set(
-    credentials.filter((credential) => credential.isActive).map((credential) => credential.providerId),
+    credentials
+      .filter((credential) => credential.isActive)
+      .map((credential) => credential.providerId),
   );
 
   return supportedProviders

@@ -17,7 +17,12 @@ const baseConversation: StoredConversation = {
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   updatedAt: '2026-04-16T00:00:00.000Z',
   messages: [
-    { id: 'user-1', role: 'user', content: 'hello', createdAt: '2026-04-16T00:00:00.000Z' },
+    {
+      id: 'user-1',
+      role: 'user',
+      content: 'hello',
+      createdAt: '2026-04-16T00:00:00.000Z',
+    },
     {
       id: 'assistant-1',
       role: 'assistant',
@@ -25,8 +30,18 @@ const baseConversation: StoredConversation = {
       reasoning: 'thinking',
       createdAt: '2026-04-16T00:00:01.000Z',
     },
-    { id: 'user-2', role: 'user', content: 'second ask', createdAt: '2026-04-16T00:00:02.000Z' },
-    { id: 'assistant-2', role: 'assistant', content: 'second reply', createdAt: '2026-04-16T00:00:03.000Z' },
+    {
+      id: 'user-2',
+      role: 'user',
+      content: 'second ask',
+      createdAt: '2026-04-16T00:00:02.000Z',
+    },
+    {
+      id: 'assistant-2',
+      role: 'assistant',
+      content: 'second reply',
+      createdAt: '2026-04-16T00:00:03.000Z',
+    },
   ],
 };
 
@@ -44,7 +59,11 @@ describe('chat-thread', () => {
   });
 
   it('truncates the thread after an edited user message', () => {
-    const updated = prepareConversationForEditedUserMessage(baseConversation, 'user-1', 'edited first ask');
+    const updated = prepareConversationForEditedUserMessage(
+      baseConversation,
+      'user-1',
+      'edited first ask',
+    );
 
     expect(updated.messages).toHaveLength(1);
     expect(updated.messages[0]?.content).toBe('edited first ask');
@@ -52,9 +71,16 @@ describe('chat-thread', () => {
   });
 
   it('truncates the thread before an assistant message for retry', () => {
-    const updated = prepareConversationForAssistantRetry(baseConversation, 'assistant-2');
+    const updated = prepareConversationForAssistantRetry(
+      baseConversation,
+      'assistant-2',
+    );
 
-    expect(updated.messages.map((message) => message.id)).toEqual(['user-1', 'assistant-1', 'user-2']);
+    expect(updated.messages.map((message) => message.id)).toEqual([
+      'user-1',
+      'assistant-1',
+      'user-2',
+    ]);
     expect(updated.title).toBe('second ask');
   });
 

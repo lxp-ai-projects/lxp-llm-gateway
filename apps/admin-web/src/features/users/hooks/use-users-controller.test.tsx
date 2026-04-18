@@ -130,7 +130,9 @@ test('useUsersController filters users and loads credentials for the selected us
   });
 
   expect(result.current.credentialsOpened).toBe(true);
-  await waitFor(() => expect(getUserProviderCredentialsMock).toHaveBeenCalledWith('user-2'));
+  await waitFor(() =>
+    expect(getUserProviderCredentialsMock).toHaveBeenCalledWith('user-2'),
+  );
   await waitFor(() => expect(result.current.credentials).toHaveLength(1));
 });
 
@@ -193,7 +195,9 @@ test('useUsersController updates user status and resets the create form on close
   });
 
   await waitFor(() =>
-    expect(updateUserMock).toHaveBeenCalledWith('user-1', { status: 'disabled' }),
+    expect(updateUserMock).toHaveBeenCalledWith('user-1', {
+      status: 'disabled',
+    }),
   );
 
   act(() => {

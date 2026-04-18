@@ -30,7 +30,8 @@ const baseConversation = {
 };
 
 test('ConversationTransferService exports and reimports a single JSON conversation', () => {
-  const exported = conversationTransferService.exportConversation(baseConversation);
+  const exported =
+    conversationTransferService.exportConversation(baseConversation);
   const imported = conversationTransferService.importConversationFile(
     exported.fileName,
     exported.content,

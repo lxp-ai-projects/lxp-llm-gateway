@@ -7,7 +7,11 @@ export function RoleGuardDenied() {
       <Title order={2} mb="md">
         Restricted surface
       </Title>
-      <Alert icon={<IconLock size={18} />} color="red" title="Administrator access required">
+      <Alert
+        icon={<IconLock size={18} />}
+        color="red"
+        title="Administrator access required"
+      >
         Your current role does not allow access to this section.
       </Alert>
     </Container>

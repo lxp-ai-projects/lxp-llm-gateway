@@ -1,13 +1,14 @@
-import {
-  Container,
-} from '@mantine/core';
+import { Container } from '@mantine/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { LoginFormCard } from '../features/auth/components/login-form-card';
 import { LoginHeroCard } from '../features/auth/components/login-hero-card';
-import { adminApiClient, SESSION_TIMEOUT_MESSAGE_STORAGE_KEY } from '../lib/api-client';
+import {
+  adminApiClient,
+  SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
+} from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 
 export function LoginPage() {
@@ -18,10 +19,14 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
-  const [sessionTimeoutMessage, setSessionTimeoutMessage] = useState<string | null>(null);
+  const [sessionTimeoutMessage, setSessionTimeoutMessage] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
-    const message = window.sessionStorage.getItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY);
+    const message = window.sessionStorage.getItem(
+      SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
+    );
     if (!message) {
       return;
     }
@@ -47,7 +52,9 @@ export function LoginPage() {
           <LoginFormCard
             acceptedPolicies={acceptedPolicies}
             email={email}
-            forgotPasswordEnabled={Boolean(runtimeConfigQuery.data?.forgotPasswordEnabled)}
+            forgotPasswordEnabled={Boolean(
+              runtimeConfigQuery.data?.forgotPasswordEnabled,
+            )}
             isPending={loginMutation.isPending}
             loginErrorMessage={
               loginMutation.isError
@@ -61,7 +68,9 @@ export function LoginPage() {
             onPasswordChange={setPassword}
             onSubmit={() => loginMutation.mutate()}
             password={password}
-            registrationEnabled={Boolean(runtimeConfigQuery.data?.registrationEnabled)}
+            registrationEnabled={Boolean(
+              runtimeConfigQuery.data?.registrationEnabled,
+            )}
             sessionTimeoutMessage={sessionTimeoutMessage}
           />
         </div>

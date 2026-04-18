@@ -99,7 +99,13 @@ test('useChatMessageWindow reacts to scroll thresholds and toggles auto follow n
 test('useChatMessageWindow follows the tail while streaming when new messages arrive', () => {
   const firstConversation = createConversation(12);
   const { result, rerender } = renderHook(
-    ({ activeConversation, isStreaming }: { activeConversation: StoredConversation; isStreaming: boolean }) =>
+    ({
+      activeConversation,
+      isStreaming,
+    }: {
+      activeConversation: StoredConversation;
+      isStreaming: boolean;
+    }) =>
       useChatMessageWindow({
         activeConversation,
         isStreaming,
@@ -130,7 +136,13 @@ test('useChatMessageWindow follows the tail while streaming when new messages ar
 test('useChatMessageWindow can attach to a scroll container and schedule bottom scrolling', () => {
   const conversation = createConversation(12);
   const { result, rerender } = renderHook(
-    ({ activeConversation, isStreaming }: { activeConversation: StoredConversation; isStreaming: boolean }) =>
+    ({
+      activeConversation,
+      isStreaming,
+    }: {
+      activeConversation: StoredConversation;
+      isStreaming: boolean;
+    }) =>
       useChatMessageWindow({
         activeConversation,
         isStreaming,

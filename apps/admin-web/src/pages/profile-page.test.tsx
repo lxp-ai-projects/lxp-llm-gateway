@@ -40,5 +40,9 @@ test('ProfilePage falls back to unavailable placeholders without a session paylo
   renderWithProviders(<ProfilePage />);
 
   expect(screen.getAllByText('Unavailable')).toHaveLength(2);
-  expect(screen.getByText(/Profile editing, password change, and per-user analytics/i)).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      /Profile editing, password change, and per-user analytics/i,
+    ),
+  ).toBeInTheDocument();
 });

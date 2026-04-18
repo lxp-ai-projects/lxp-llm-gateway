@@ -6,7 +6,11 @@ export class AuthCookieService {
   private readonly accessCookieName = 'lxp_access_token';
   private readonly refreshCookieName = 'lxp_refresh_token';
 
-  setAccessTokenCookie(response: Response, token: string, maxAgeMs: number): void {
+  setAccessTokenCookie(
+    response: Response,
+    token: string,
+    maxAgeMs: number,
+  ): void {
     response.cookie(this.accessCookieName, token, {
       httpOnly: true,
       sameSite: 'lax',
@@ -16,7 +20,11 @@ export class AuthCookieService {
     });
   }
 
-  setRefreshTokenCookie(response: Response, token: string, maxAgeMs: number): void {
+  setRefreshTokenCookie(
+    response: Response,
+    token: string,
+    maxAgeMs: number,
+  ): void {
     response.cookie(this.refreshCookieName, token, {
       httpOnly: true,
       sameSite: 'lax',

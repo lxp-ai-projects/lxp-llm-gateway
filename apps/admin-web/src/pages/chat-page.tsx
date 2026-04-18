@@ -1,4 +1,15 @@
-import { Button, Card, Grid, Group, Modal, Select, Stack, Tabs, Text, Title } from '@mantine/core';
+import {
+  Button,
+  Card,
+  Grid,
+  Group,
+  Modal,
+  Select,
+  Stack,
+  Tabs,
+  Text,
+  Title,
+} from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
@@ -29,11 +40,17 @@ export function ChatPage() {
   const [streamingSignal, setStreamingSignal] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
-  const [activePanel, setActivePanel] = useState<'conversation' | 'system-prompt'>('conversation');
+  const [activePanel, setActivePanel] = useState<
+    'conversation' | 'system-prompt'
+  >('conversation');
   const chatPanelRef = useRef<HTMLDivElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const composerViewportStyle = useChatComposerViewport(chatPanelRef, activePanel);
-  const { copiedAssistantMessageId, copyAssistantMessage } = useChatClipboard(setChatError);
+  const composerViewportStyle = useChatComposerViewport(
+    chatPanelRef,
+    activePanel,
+  );
+  const { copiedAssistantMessageId, copyAssistantMessage } =
+    useChatClipboard(setChatError);
   const {
     activeConversation,
     activeConversationId,
@@ -68,7 +85,7 @@ export function ChatPage() {
     conversations,
     setActiveConversationId,
     setActivePanel,
-      setConversations,
+    setConversations,
   });
   const {
     chatScrollRef,
@@ -117,10 +134,14 @@ export function ChatPage() {
   }, [model, modelsQuery.data]);
 
   const userDisplayName = sessionQuery.data?.displayName?.trim() || 'User';
-  const persistedSystemPrompt = activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-  const systemPromptDirty = systemPrompt.trim() !== persistedSystemPrompt.trim();
+  const persistedSystemPrompt =
+    activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+  const systemPromptDirty =
+    systemPrompt.trim() !== persistedSystemPrompt.trim();
 
-  function withCurrentSystemPrompt(conversation: StoredConversation): StoredConversation {
+  function withCurrentSystemPrompt(
+    conversation: StoredConversation,
+  ): StoredConversation {
     return {
       ...conversation,
       systemPrompt: systemPrompt.trim(),
@@ -199,9 +220,13 @@ export function ChatPage() {
               setAutoScrollEnabled(true);
               void createStoredConversation();
             }}
-            onDeleteConversation={(conversation) => setConversationPendingDeletion(conversation)}
+            onDeleteConversation={(conversation) =>
+              setConversationPendingDeletion(conversation)
+            }
             onExportAllConversations={() => void exportAllConversations()}
-            onExportConversation={(conversation) => void exportConversation(conversation)}
+            onExportConversation={(conversation) =>
+              void exportConversation(conversation)
+            }
             onImportConversations={() => importInputRef.current?.click()}
             onSelectConversation={setActiveConversationId}
           />
@@ -209,11 +234,19 @@ export function ChatPage() {
 
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Card className="section-card">
-            <Group className="chat-toolbar" justify="space-between" align="start" mb="lg">
+            <Group
+              className="chat-toolbar"
+              justify="space-between"
+              align="start"
+              mb="lg"
+            >
               <Stack gap={4}>
                 <Title order={3}>Provider test surface</Title>
                 <Text c="dimmed" size="sm">
-                  Runtime gateway status: {runtimeConfigQuery.data?.gatewayOnline ? 'online' : 'offline'}
+                  Runtime gateway status:{' '}
+                  {runtimeConfigQuery.data?.gatewayOnline
+                    ? 'online'
+                    : 'offline'}
                 </Text>
               </Stack>
               <Select
@@ -236,13 +269,28 @@ export function ChatPage() {
               />
             </Group>
 
-            <Tabs value={activePanel} onChange={(value) => setActivePanel((value as 'conversation' | 'system-prompt') ?? 'conversation')}>
+            <Tabs
+              value={activePanel}
+              onChange={(value) =>
+                setActivePanel(
+                  (value as 'conversation' | 'system-prompt') ?? 'conversation',
+                )
+              }
+            >
               <Tabs.List mb="md">
-                <Tabs.Tab data-testid="chat-tab-conversation" value="conversation">
+                <Tabs.Tab
+                  data-testid="chat-tab-conversation"
+                  value="conversation"
+                >
                   Conversation
                 </Tabs.Tab>
-                <Tabs.Tab data-testid="chat-tab-system-prompt" value="system-prompt">
-                  {systemPrompt.trim() !== DEFAULT_SYSTEM_PROMPT ? 'System prompt *' : 'System prompt'}
+                <Tabs.Tab
+                  data-testid="chat-tab-system-prompt"
+                  value="system-prompt"
+                >
+                  {systemPrompt.trim() !== DEFAULT_SYSTEM_PROMPT
+                    ? 'System prompt *'
+                    : 'System prompt'}
                 </Tabs.Tab>
               </Tabs.List>
 
@@ -282,11 +330,17 @@ export function ChatPage() {
                       onLoadEarlierMessages={loadEarlierMessages}
                       onLoadNewerMessages={loadNewerMessages}
                       onRetryAssistantMessage={(messageId) =>
-                        void retryAssistantMessage(withCurrentSystemPrompt, messageId)
+                        void retryAssistantMessage(
+                          withCurrentSystemPrompt,
+                          messageId,
+                        )
                       }
                       onScroll={handleScroll}
                       onSubmitEditedMessage={(messageId) =>
-                        void resendEditedMessage(withCurrentSystemPrompt, messageId)
+                        void resendEditedMessage(
+                          withCurrentSystemPrompt,
+                          messageId,
+                        )
                       }
                       renderedMessages={renderedMessages}
                       scrollRef={chatScrollRef}
@@ -312,10 +366,14 @@ export function ChatPage() {
                         }
 
                         void sendMessage(() => {
-                          const effectiveModel = activeConversation?.model ?? model;
+                          const effectiveModel =
+                            activeConversation?.model ?? model;
                           return activeConversation
                             ? withCurrentSystemPrompt(activeConversation)
-                            : createConversation(effectiveModel, systemPrompt.trim());
+                            : createConversation(
+                                effectiveModel,
+                                systemPrompt.trim(),
+                              );
                         }, nextPrompt);
                       }}
                       prompt={prompt}
@@ -328,7 +386,9 @@ export function ChatPage() {
                 <ChatSystemPromptPanel
                   isDirty={systemPromptDirty}
                   onChange={setSystemPrompt}
-                  onReset={() => void persistConversationSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
+                  onReset={() =>
+                    void persistConversationSystemPrompt(DEFAULT_SYSTEM_PROMPT)
+                  }
                   onSave={() =>
                     void persistConversationSystemPrompt(
                       systemPrompt.trim() || DEFAULT_SYSTEM_PROMPT,

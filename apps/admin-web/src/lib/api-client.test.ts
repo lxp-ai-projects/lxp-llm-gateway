@@ -89,16 +89,18 @@ test('adminApiClient.getSession returns null and stores the timeout message when
     );
 
   await expect(adminApiClient.getSession()).resolves.toBeNull();
-  expect(window.sessionStorage.getItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY)).toBe(
-    'Session is timed out, you have to login again.',
-  );
+  expect(
+    window.sessionStorage.getItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY),
+  ).toBe('Session is timed out, you have to login again.');
   expect(assignMock).toHaveBeenCalledWith('http://localhost:3003/login');
 });
 
 test('adminApiClient.getSession throws on non-refreshable backend failures', async () => {
   vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 500 }));
 
-  await expect(adminApiClient.getSession()).rejects.toThrow('Session request failed with 500');
+  await expect(adminApiClient.getSession()).rejects.toThrow(
+    'Session request failed with 500',
+  );
 });
 
 test('adminApiClient.logout retries once after a refreshable unauthorized response', async () => {
@@ -147,7 +149,8 @@ test('adminApiClient.exportConversationArchive retries after refresh and decodes
       new Response(new Blob(['archive']), {
         status: 200,
         headers: {
-          'content-disposition': "attachment; filename*=UTF-8''archive-%C3%A9.zip",
+          'content-disposition':
+            "attachment; filename*=UTF-8''archive-%C3%A9.zip",
         },
       }),
     );
@@ -169,7 +172,9 @@ test('adminApiClient.importConversationFile uploads multipart form data', async 
     }),
   );
 
-  const file = new File(['{}'], 'conversation.json', { type: 'application/json' });
+  const file = new File(['{}'], 'conversation.json', {
+    type: 'application/json',
+  });
   await adminApiClient.importConversationFile(file);
 
   expect(fetch).toHaveBeenCalledWith(
@@ -188,19 +193,27 @@ test('adminApiClient.importConversationFile retries after refreshable unauthoriz
     .mockResolvedValueOnce(textResponse('', { status: 200 }))
     .mockResolvedValueOnce(jsonResponse({ conversations: [] }));
 
-  const file = new File(['{}'], 'conversation.json', { type: 'application/json' });
-  await expect(adminApiClient.importConversationFile(file)).resolves.toEqual({ conversations: [] });
+  const file = new File(['{}'], 'conversation.json', {
+    type: 'application/json',
+  });
+  await expect(adminApiClient.importConversationFile(file)).resolves.toEqual({
+    conversations: [],
+  });
 });
 
 test('gatewayApiClient.chat surfaces timeout aborts with a user-facing error', async () => {
-  vi.mocked(fetch).mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'));
+  vi.mocked(fetch).mockRejectedValueOnce(
+    new DOMException('Aborted', 'AbortError'),
+  );
 
   await expect(
     gatewayApiClient.chat({
       stream: false,
       messages: [{ role: 'user', content: 'Hello' }],
     }),
-  ).rejects.toThrow('The request timed out before the gateway returned a response.');
+  ).rejects.toThrow(
+    'The request timed out before the gateway returned a response.',
+  );
 });
 
 test('gatewayApiClient.getModels encodes providerId in the query string', async () => {
@@ -270,10 +283,17 @@ test('gatewayApiClient.chatStream emits reasoning and content deltas from SSE bl
   );
 
   expect(onChunk).toHaveBeenCalledWith(
-    expect.objectContaining({ requestId: 'request-1', reasoningDelta: 'Think' }),
+    expect.objectContaining({
+      requestId: 'request-1',
+      reasoningDelta: 'Think',
+    }),
   );
   expect(onChunk).toHaveBeenCalledWith(
-    expect.objectContaining({ requestId: 'request-1', contentDelta: 'Hello', finishReason: 'stop' }),
+    expect.objectContaining({
+      requestId: 'request-1',
+      contentDelta: 'Hello',
+      finishReason: 'stop',
+    }),
   );
   expect(result).toEqual({
     requestId: 'request-1',

@@ -44,8 +44,8 @@ export async function loadConversations(): Promise<StoredConversation[]> {
     const request = transaction.objectStore(storeName).getAll();
 
     request.onsuccess = () => {
-      const result = (request.result as StoredConversation[]).sort((left, right) =>
-        right.updatedAt.localeCompare(left.updatedAt),
+      const result = (request.result as StoredConversation[]).sort(
+        (left, right) => right.updatedAt.localeCompare(left.updatedAt),
       );
       resolve(result);
     };
@@ -53,7 +53,9 @@ export async function loadConversations(): Promise<StoredConversation[]> {
   });
 }
 
-export async function saveConversation(conversation: StoredConversation): Promise<void> {
+export async function saveConversation(
+  conversation: StoredConversation,
+): Promise<void> {
   const database = await openDatabase();
 
   await new Promise<void>((resolve, reject) => {
@@ -64,7 +66,9 @@ export async function saveConversation(conversation: StoredConversation): Promis
   });
 }
 
-export async function deleteConversation(conversationId: string): Promise<void> {
+export async function deleteConversation(
+  conversationId: string,
+): Promise<void> {
   const database = await openDatabase();
 
   await new Promise<void>((resolve, reject) => {

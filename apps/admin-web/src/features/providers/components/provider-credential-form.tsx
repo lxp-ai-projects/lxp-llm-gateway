@@ -51,11 +51,16 @@ export function ProviderCredentialForm({
       <form onSubmit={onSubmit}>
         <Stack gap="sm">
           <Group justify="space-between">
-            <Title order={3}>{isEditing ? 'Edit provider credential' : 'Add provider credential'}</Title>
+            <Title order={3}>
+              {isEditing
+                ? 'Edit provider credential'
+                : 'Add provider credential'}
+            </Title>
             <IconKey size={18} />
           </Group>
           <Text c="dimmed" size="sm">
-            Token values remain write-only. After save, only a masked hint is shown back to you.
+            Token values remain write-only. After save, only a masked hint is
+            shown back to you.
           </Text>
           <Select
             data={providerOptions}
@@ -73,10 +78,18 @@ export function ProviderCredentialForm({
           />
           <PasswordInput
             data-testid="providers-token-input"
-            description={isEditing ? 'Leave blank to keep the current token and update only the label.' : undefined}
+            description={
+              isEditing
+                ? 'Leave blank to keep the current token and update only the label.'
+                : undefined
+            }
             label={isEditing ? 'Replace API token' : 'API token'}
             onChange={(event) => onApiTokenChange(event.currentTarget.value)}
-            placeholder={isEditing ? 'Enter a new token only if you want to rotate it' : undefined}
+            placeholder={
+              isEditing
+                ? 'Enter a new token only if you want to rotate it'
+                : undefined
+            }
             value={apiToken}
           />
           <Group justify="space-between">
@@ -94,7 +107,11 @@ export function ProviderCredentialForm({
               ) : null}
             </Group>
             <Button
-              data-testid={isEditing ? 'providers-update-credential' : 'providers-save-credential'}
+              data-testid={
+                isEditing
+                  ? 'providers-update-credential'
+                  : 'providers-save-credential'
+              }
               disabled={isSubmitDisabled}
               loading={isPending}
               type="submit"

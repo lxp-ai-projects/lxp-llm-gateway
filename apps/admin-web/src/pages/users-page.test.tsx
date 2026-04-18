@@ -61,9 +61,13 @@ beforeEach(() => {
 test('UsersPage creates a new user from the modal', async () => {
   renderWithProviders(<UsersPage />);
 
-  fireEvent.click((await screen.findAllByRole('button', { name: 'Create user' }))[0]!);
+  fireEvent.click(
+    (await screen.findAllByRole('button', { name: 'Create user' }))[0]!,
+  );
 
-  expect(await screen.findByRole('heading', { name: 'Create user' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { name: 'Create user' }),
+  ).toBeInTheDocument();
   const dialog = await screen.findByRole('dialog');
 
   fireEvent.change(within(dialog).getByLabelText('Display name'), {
@@ -75,7 +79,9 @@ test('UsersPage creates a new user from the modal', async () => {
   fireEvent.change(within(dialog).getByLabelText('Temporary password'), {
     target: { value: 'temporary-pass' },
   });
-  fireEvent.click(within(dialog).getByRole('button', { name: /^create user$/i }));
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: /^create user$/i }),
+  );
 
   await waitFor(() =>
     expect(createUserMock).toHaveBeenCalledWith({
@@ -125,13 +131,23 @@ test('UsersPage filters the directory and opens provider credentials for a selec
     target: { value: 'emilie' },
   });
 
-  await waitFor(() => expect(screen.getAllByText('Emilie Joli').length).toBeGreaterThan(0));
+  await waitFor(() =>
+    expect(screen.getAllByText('Emilie Joli').length).toBeGreaterThan(0),
+  );
   expect(screen.queryByText('patrick@example.com')).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getAllByRole('button', { name: 'View credentials' })[0]!);
+  fireEvent.click(
+    screen.getAllByRole('button', { name: 'View credentials' })[0]!,
+  );
 
-  expect(await screen.findByRole('heading', { name: /Provider credentials: Emilie Joli/i })).toBeInTheDocument();
-  await waitFor(() => expect(getUserProviderCredentialsMock).toHaveBeenCalledWith('user-2'));
+  expect(
+    await screen.findByRole('heading', {
+      name: /Provider credentials: Emilie Joli/i,
+    }),
+  ).toBeInTheDocument();
+  await waitFor(() =>
+    expect(getUserProviderCredentialsMock).toHaveBeenCalledWith('user-2'),
+  );
   expect(screen.getAllByText('NanoGPT').length).toBeGreaterThan(0);
   expect(screen.getAllByText('****1234').length).toBeGreaterThan(0);
 }, 15_000);
@@ -139,10 +155,14 @@ test('UsersPage filters the directory and opens provider credentials for a selec
 test('UsersPage keeps create user disabled until minimum credentials are valid and cancel resets the form', async () => {
   renderWithProviders(<UsersPage />);
 
-  fireEvent.click((await screen.findAllByRole('button', { name: 'Create user' }))[0]!);
+  fireEvent.click(
+    (await screen.findAllByRole('button', { name: 'Create user' }))[0]!,
+  );
 
   const dialog = await screen.findByRole('dialog');
-  const createButton = within(dialog).getByRole('button', { name: /^create user$/i });
+  const createButton = within(dialog).getByRole('button', {
+    name: /^create user$/i,
+  });
 
   expect(createButton).toBeDisabled();
 
@@ -165,10 +185,14 @@ test('UsersPage keeps create user disabled until minimum credentials are valid a
   expect(createButton).toBeEnabled();
 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-  fireEvent.click((await screen.findAllByRole('button', { name: 'Create user' }))[0]!);
+  fireEvent.click(
+    (await screen.findAllByRole('button', { name: 'Create user' }))[0]!,
+  );
 
   const reopenedDialog = await screen.findByRole('dialog');
   expect(within(reopenedDialog).getByLabelText('Display name')).toHaveValue('');
   expect(within(reopenedDialog).getByLabelText('Email')).toHaveValue('');
-  expect(within(reopenedDialog).getByLabelText('Temporary password')).toHaveValue('');
+  expect(
+    within(reopenedDialog).getByLabelText('Temporary password'),
+  ).toHaveValue('');
 }, 15_000);

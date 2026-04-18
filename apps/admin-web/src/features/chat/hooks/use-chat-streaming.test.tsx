@@ -16,9 +16,9 @@ vi.mock('../../../lib/api-client', () => ({
 }));
 
 vi.mock('../../../lib/chat-store', async () => {
-  const actual = await vi.importActual<typeof import('../../../lib/chat-store')>(
-    '../../../lib/chat-store',
-  );
+  const actual = await vi.importActual<
+    typeof import('../../../lib/chat-store')
+  >('../../../lib/chat-store');
 
   return {
     ...actual,
@@ -45,7 +45,9 @@ function createConversation(): StoredConversation {
   };
 }
 
-function setup(activeConversation: StoredConversation | null = createConversation()) {
+function setup(
+  activeConversation: StoredConversation | null = createConversation(),
+) {
   const onClearEditingState = vi.fn();
   const onConversationActivated = vi.fn();
   const onPromptCleared = vi.fn();
@@ -185,7 +187,10 @@ test('useChatStreaming retries an assistant message from the prior user context'
   const { hook } = setup(activeConversation);
 
   await act(async () => {
-    await hook.result.current.retryAssistantMessage((conversation) => conversation, 'assistant-1');
+    await hook.result.current.retryAssistantMessage(
+      (conversation) => conversation,
+      'assistant-1',
+    );
   });
 
   expect(chatStreamMock).toHaveBeenCalledWith(
@@ -229,7 +234,10 @@ test('useChatStreaming resends an edited user message', async () => {
   const { hook } = setup(activeConversation);
 
   await act(async () => {
-    await hook.result.current.resendEditedMessage((conversation) => conversation, 'user-1');
+    await hook.result.current.resendEditedMessage(
+      (conversation) => conversation,
+      'user-1',
+    );
   });
 
   expect(chatStreamMock).toHaveBeenCalledWith(
@@ -271,7 +279,10 @@ test('useChatStreaming flags missing assistant content when only reasoning was r
 
 test('useChatStreaming preserves partial assistant output when the stream fails after chunks', async () => {
   chatStreamMock.mockImplementation(async (_payload, handlers) => {
-    handlers.onChunk?.({ reasoningDelta: 'Partial reasoning', contentDelta: 'Partial answer' });
+    handlers.onChunk?.({
+      reasoningDelta: 'Partial reasoning',
+      contentDelta: 'Partial answer',
+    });
     throw new Error('socket reset');
   });
 
@@ -303,9 +314,11 @@ test('useChatStreaming removes the draft assistant message when the stream fails
     'The gateway stream failed unexpectedly.',
   );
   expect(currentConversations()[0]?.messages).toHaveLength(2);
-  expect(currentConversations()[0]?.messages.every((message) => message.role === 'user')).toBe(
-    true,
-  );
+  expect(
+    currentConversations()[0]?.messages.every(
+      (message) => message.role === 'user',
+    ),
+  ).toBe(true);
   expect(currentConversations()[0]?.messages.at(-1)?.content).toBe('Hello');
 });
 
@@ -313,8 +326,14 @@ test('useChatStreaming no-ops retry and resend when there is no active conversat
   const { hook } = setup(null);
 
   await act(async () => {
-    await hook.result.current.retryAssistantMessage((conversation) => conversation, 'assistant-1');
-    await hook.result.current.resendEditedMessage((conversation) => conversation, 'user-1');
+    await hook.result.current.retryAssistantMessage(
+      (conversation) => conversation,
+      'assistant-1',
+    );
+    await hook.result.current.resendEditedMessage(
+      (conversation) => conversation,
+      'user-1',
+    );
   });
 
   expect(chatStreamMock).not.toHaveBeenCalled();

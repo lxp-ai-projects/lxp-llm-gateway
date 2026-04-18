@@ -1,6 +1,10 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
-import { deleteConversation, loadConversations, saveConversation } from './chat-store';
+import {
+  deleteConversation,
+  loadConversations,
+  saveConversation,
+} from './chat-store';
 
 type FakeRequest<T> = {
   result: T;
@@ -43,7 +47,10 @@ const sampleConversation: StoredConversationRecord = {
   updatedAt: '2026-04-17T00:00:00.000Z',
 };
 
-function flush<T>(request: FakeRequest<T>, callbackName: 'onsuccess' | 'onupgradeneeded') {
+function flush<T>(
+  request: FakeRequest<T>,
+  callbackName: 'onsuccess' | 'onupgradeneeded',
+) {
   queueMicrotask(() => {
     request[callbackName]?.();
   });

@@ -80,7 +80,9 @@ test('DashboardPage shows the gateway warning banner when the circuit breaker is
 
   renderDashboard();
 
-  expect(screen.getByText('Gateway circuit breaker is active')).toBeInTheDocument();
+  expect(
+    screen.getByText('Gateway circuit breaker is active'),
+  ).toBeInTheDocument();
   expect(screen.getByText('Offline')).toBeInTheDocument();
   expect(screen.getByText('User only')).toBeInTheDocument();
   expect(screen.getByText('Disabled')).toBeInTheDocument();

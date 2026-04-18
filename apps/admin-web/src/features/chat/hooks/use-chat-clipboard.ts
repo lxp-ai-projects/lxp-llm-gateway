@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 export function useChatClipboard(setChatError: (value: string | null) => void) {
-  const [copiedAssistantMessageId, setCopiedAssistantMessageId] = useState<string | null>(null);
+  const [copiedAssistantMessageId, setCopiedAssistantMessageId] = useState<
+    string | null
+  >(null);
   const copiedMessageTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -12,7 +14,10 @@ export function useChatClipboard(setChatError: (value: string | null) => void) {
     };
   }, []);
 
-  async function copyAssistantMessage(messageId: string, content: string): Promise<void> {
+  async function copyAssistantMessage(
+    messageId: string,
+    content: string,
+  ): Promise<void> {
     try {
       await navigator.clipboard.writeText(content);
       setCopiedAssistantMessageId(messageId);
@@ -26,7 +31,9 @@ export function useChatClipboard(setChatError: (value: string | null) => void) {
         copiedMessageTimeoutRef.current = null;
       }, 1800);
     } catch {
-      setChatError('Unable to copy the assistant response from this browser session.');
+      setChatError(
+        'Unable to copy the assistant response from this browser session.',
+      );
     }
   }
 

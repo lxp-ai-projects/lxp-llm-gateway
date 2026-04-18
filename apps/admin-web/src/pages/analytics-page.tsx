@@ -16,15 +16,26 @@ export function AnalyticsPage() {
           <StatusTile label="Active users" value="Pending backend endpoint" />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 4 }}>
-          <StatusTile label="Distinct gateway users / 24h" value="Pending backend endpoint" />
+          <StatusTile
+            label="Distinct gateway users / 24h"
+            value="Pending backend endpoint"
+          />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 4 }}>
-          <StatusTile label="Gateway requests / 7d" value="Pending backend endpoint" />
+          <StatusTile
+            label="Gateway requests / 7d"
+            value="Pending backend endpoint"
+          />
         </Grid.Col>
       </Grid>
-      <Alert color="blue" icon={<IconChartBarPopular size={18} />} mt="lg" title="Backend dependency">
-        The SPA shell is ready for these analytics surfaces, but the dedicated admin analytics endpoints
-        still need to be exposed by `admin-api`.
+      <Alert
+        color="blue"
+        icon={<IconChartBarPopular size={18} />}
+        mt="lg"
+        title="Backend dependency"
+      >
+        The SPA shell is ready for these analytics surfaces, but the dedicated
+        admin analytics endpoints still need to be exposed by `admin-api`.
       </Alert>
     </>
   );

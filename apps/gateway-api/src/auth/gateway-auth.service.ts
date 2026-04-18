@@ -18,7 +18,8 @@ export class GatewayAuthService {
     authorizationHeader?: string,
     accessTokenCookie?: string,
   ): Promise<GatewayAuthContext> {
-    const token = accessTokenCookie ?? this.extractBearerToken(authorizationHeader);
+    const token =
+      accessTokenCookie ?? this.extractBearerToken(authorizationHeader);
     if (!token) {
       throw new UnauthorizedException('Access token is required.');
     }
@@ -44,9 +45,12 @@ export class GatewayAuthService {
     };
   }
 
-  private async verifyAccessToken(token: string): Promise<GatewayAuthTokenPayload> {
+  private async verifyAccessToken(
+    token: string,
+  ): Promise<GatewayAuthTokenPayload> {
     try {
-      const payload = await this.jwtService.verifyAsync<GatewayAuthTokenPayload>(token);
+      const payload =
+        await this.jwtService.verifyAsync<GatewayAuthTokenPayload>(token);
       if (payload.type !== 'access') {
         throw new UnauthorizedException('Access token is required.');
       }
@@ -68,7 +72,9 @@ export class GatewayAuthService {
 
     const [scheme, token] = authorizationHeader.split(' ');
     if (scheme?.toLowerCase() !== 'bearer' || !token) {
-      throw new UnauthorizedException('Authorization header must be a Bearer token.');
+      throw new UnauthorizedException(
+        'Authorization header must be a Bearer token.',
+      );
     }
 
     return token;

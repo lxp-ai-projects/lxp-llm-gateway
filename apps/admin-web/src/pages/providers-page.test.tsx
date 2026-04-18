@@ -103,7 +103,9 @@ beforeEach(() => {
   getOwnProviderSettingsMock.mockClear();
   updateOwnProviderCredentialMock.mockClear();
   updateOwnProviderSettingsMock.mockClear();
-  runtimeConfigData.supportedProviders = [{ providerId: 'nanogpt', displayName: 'NanoGPT' }];
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+  ];
   getModelsMock.mockResolvedValue({
     providerId: 'nanogpt',
     models: [
@@ -139,25 +141,35 @@ test('ProvidersPage lets the user edit their own credential token', async () => 
 
   await user.click(await screen.findByRole('button', { name: 'Edit' }));
 
-  expect(await screen.findByRole('heading', { name: 'Edit provider credential' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { name: 'Edit provider credential' }),
+  ).toBeInTheDocument();
 
   await user.clear(screen.getByLabelText('Label'));
   await user.type(screen.getByLabelText('Label'), 'main');
-  await user.type(screen.getByLabelText('Replace API token'), 'rotated-secret-token');
+  await user.type(
+    screen.getByLabelText('Replace API token'),
+    'rotated-secret-token',
+  );
   await user.click(screen.getByRole('button', { name: 'Update credential' }));
 
   await waitFor(() =>
-    expect(updateOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1', {
-      label: 'main',
-      apiToken: 'rotated-secret-token',
-    }),
+    expect(updateOwnProviderCredentialMock).toHaveBeenCalledWith(
+      'credential-1',
+      {
+        label: 'main',
+        apiToken: 'rotated-secret-token',
+      },
+    ),
   );
 }, 20_000);
 
 test('ProvidersPage shows the current gateway defaults and loads models for the selected provider', async () => {
   renderWithProviders(<ProvidersPage />);
 
-  expect(await screen.findByText('Current gateway defaults')).toBeInTheDocument();
+  expect(
+    await screen.findByText('Current gateway defaults'),
+  ).toBeInTheDocument();
   expect(getModelsMock).toHaveBeenCalledWith('nanogpt');
 });
 
@@ -173,12 +185,20 @@ test('ProvidersPage creates a new credential and ignores empty submit payloads',
 
   renderWithProviders(<ProvidersPage />);
 
-  expect(await screen.findByText('No credentials saved yet. Add one before setting gateway defaults.')).toBeInTheDocument();
+  expect(
+    await screen.findByText(
+      'No credentials saved yet. Add one before setting gateway defaults.',
+    ),
+  ).toBeInTheDocument();
 
-  const saveCredentialButton = screen.getByRole('button', { name: 'Save credential' });
+  const saveCredentialButton = screen.getByRole('button', {
+    name: 'Save credential',
+  });
   expect(saveCredentialButton).toBeDisabled();
 
-  const credentialHeading = screen.getByRole('heading', { name: 'Add provider credential' });
+  const credentialHeading = screen.getByRole('heading', {
+    name: 'Add provider credential',
+  });
   const credentialForm = credentialHeading.closest('form');
   expect(credentialForm).not.toBeNull();
 
@@ -203,11 +223,15 @@ test('ProvidersPage cancels credential edit mode and resets the form', async () 
   renderWithProviders(<ProvidersPage />);
 
   await user.click(await screen.findByRole('button', { name: 'Edit' }));
-  expect(await screen.findByRole('heading', { name: 'Edit provider credential' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { name: 'Edit provider credential' }),
+  ).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: 'Cancel edit' }));
 
-  expect(await screen.findByRole('heading', { name: 'Add provider credential' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { name: 'Add provider credential' }),
+  ).toBeInTheDocument();
   expect(screen.getByLabelText('Label')).toHaveValue('primary');
   expect(screen.getByLabelText('API token')).toHaveValue('');
 });
@@ -226,7 +250,9 @@ test('ProvidersPage clears an invalid default model and saves gateway defaults',
   await screen.findByText('Current gateway defaults');
   await waitFor(() => expect(getModelsMock).toHaveBeenCalledWith('nanogpt'));
 
-  const saveDefaultsButton = screen.getByRole('button', { name: 'Save defaults' });
+  const saveDefaultsButton = screen.getByRole('button', {
+    name: 'Save defaults',
+  });
   await waitFor(() => expect(saveDefaultsButton).toBeEnabled());
   await user.click(saveDefaultsButton);
 
@@ -244,23 +270,31 @@ test('ProvidersPage surfaces model loading failures and raw provider fallback na
     defaultProviderId: 'custom-provider',
     defaultModel: null,
   });
-  getModelsMock.mockRejectedValue(new Error('NanoGPT model directory is offline.'));
+  getModelsMock.mockRejectedValue(
+    new Error('NanoGPT model directory is offline.'),
+  );
 
   renderWithProviders(<ProvidersPage />);
 
   const currentDefaults = await screen.findByText('Current gateway defaults');
   const defaultsAlert = currentDefaults.closest('[role="alert"]');
   expect(defaultsAlert).not.toBeNull();
-  expect(within(defaultsAlert!).getByText(/Provider: custom-provider/)).toBeInTheDocument();
+  expect(
+    within(defaultsAlert!).getByText(/Provider: custom-provider/),
+  ).toBeInTheDocument();
 
   expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
-  expect(screen.getByText('NanoGPT model directory is offline.')).toBeInTheDocument();
+  expect(
+    screen.getByText('NanoGPT model directory is offline.'),
+  ).toBeInTheDocument();
 });
 
 test('ProvidersPage marks default providers in both mobile and desktop credential views', async () => {
   renderWithProviders(<ProvidersPage />);
 
-  expect(await screen.findByText('Current gateway defaults')).toBeInTheDocument();
+  expect(
+    await screen.findByText('Current gateway defaults'),
+  ).toBeInTheDocument();
 
   const defaultProviderLabels = await screen.findAllByText('Default provider');
   expect(defaultProviderLabels.length).toBeGreaterThanOrEqual(2);

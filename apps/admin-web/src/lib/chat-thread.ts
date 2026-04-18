@@ -1,10 +1,15 @@
 import type { GatewayChatMessage } from './api-client';
-import type { StoredConversation, StoredConversationMessage } from './chat-store';
+import type {
+  StoredConversation,
+  StoredConversationMessage,
+} from './chat-store';
 
 export const DEFAULT_SYSTEM_PROMPT =
   'You are a helpful assistant. Follow the application base guardrails and safety constraints.';
 
-export function buildGatewayMessages(conversation: StoredConversation): GatewayChatMessage[] {
+export function buildGatewayMessages(
+  conversation: StoredConversation,
+): GatewayChatMessage[] {
   const systemPrompt = conversation.systemPrompt?.trim();
   const systemMessage = systemPrompt
     ? [{ role: 'system' as const, content: systemPrompt }]
@@ -41,7 +46,9 @@ export function prepareConversationForEditedUserMessage(
   );
 
   if (targetIndex === -1) {
-    throw new Error('The selected user message could not be found for editing.');
+    throw new Error(
+      'The selected user message could not be found for editing.',
+    );
   }
 
   const targetMessage = conversation.messages[targetIndex]!;
@@ -63,19 +70,26 @@ export function prepareConversationForAssistantRetry(
   assistantMessageId: string,
 ): StoredConversation {
   const assistantIndex = conversation.messages.findIndex(
-    (message) => message.id === assistantMessageId && message.role === 'assistant',
+    (message) =>
+      message.id === assistantMessageId && message.role === 'assistant',
   );
 
   if (assistantIndex === -1) {
-    throw new Error('The selected assistant message could not be found for retry.');
+    throw new Error(
+      'The selected assistant message could not be found for retry.',
+    );
   }
 
-  const previousUserMessage = [...conversation.messages.slice(0, assistantIndex)]
+  const previousUserMessage = [
+    ...conversation.messages.slice(0, assistantIndex),
+  ]
     .reverse()
     .find((message) => message.role === 'user');
 
   if (!previousUserMessage) {
-    throw new Error('No user message was found before the selected assistant response.');
+    throw new Error(
+      'No user message was found before the selected assistant response.',
+    );
   }
 
   return {

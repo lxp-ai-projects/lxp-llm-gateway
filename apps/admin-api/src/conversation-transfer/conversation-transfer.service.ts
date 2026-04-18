@@ -30,12 +30,16 @@ export class ConversationTransferService {
     };
   }
 
-  exportConversationArchive(conversations: ConversationTransferConversation[]): {
+  exportConversationArchive(
+    conversations: ConversationTransferConversation[],
+  ): {
     content: Buffer;
     fileName: string;
   } {
     if (!conversations.length) {
-      throw new BadRequestException('At least one conversation is required for archive export.');
+      throw new BadRequestException(
+        'At least one conversation is required for archive export.',
+      );
     }
 
     const entries = conversations.map((conversation, index) => {
@@ -52,7 +56,10 @@ export class ConversationTransferService {
     };
   }
 
-  importConversationFile(fileName: string, content: Buffer): ConversationTransferConversation[] {
+  importConversationFile(
+    fileName: string,
+    content: Buffer,
+  ): ConversationTransferConversation[] {
     if (this.looksLikeZip(fileName, content)) {
       return this.parseZipArchive(content).flatMap((entry) =>
         this.parseJsonDocument(entry.data.toString('utf8')),
@@ -73,12 +80,16 @@ export class ConversationTransferService {
     };
   }
 
-  private parseJsonDocument(rawContent: string): ConversationTransferConversation[] {
+  private parseJsonDocument(
+    rawContent: string,
+  ): ConversationTransferConversation[] {
     let parsed: unknown;
     try {
       parsed = JSON.parse(rawContent);
     } catch {
-      throw new BadRequestException('The imported JSON conversation file is invalid.');
+      throw new BadRequestException(
+        'The imported JSON conversation file is invalid.',
+      );
     }
 
     if (Array.isArray(parsed)) {
@@ -91,7 +102,11 @@ export class ConversationTransferService {
       'format' in parsed &&
       (parsed as { format?: string }).format === 'lxp-chat-conversation'
     ) {
-      return [this.assertConversation((parsed as { conversation?: unknown }).conversation)];
+      return [
+        this.assertConversation(
+          (parsed as { conversation?: unknown }).conversation,
+        ),
+      ];
     }
 
     return [this.assertConversation(parsed)];
@@ -99,7 +114,9 @@ export class ConversationTransferService {
 
   private assertConversation(value: unknown): ConversationTransferConversation {
     if (!value || typeof value !== 'object') {
-      throw new BadRequestException('The imported conversation payload is invalid.');
+      throw new BadRequestException(
+        'The imported conversation payload is invalid.',
+      );
     }
 
     const candidate = value as Partial<ConversationTransferConversation>;
@@ -111,7 +128,9 @@ export class ConversationTransferService {
       !Array.isArray(candidate.messages) ||
       !candidate.updatedAt
     ) {
-      throw new BadRequestException('The imported conversation payload is missing required fields.');
+      throw new BadRequestException(
+        'The imported conversation payload is missing required fields.',
+      );
     }
 
     return candidate as ConversationTransferConversation;
@@ -120,17 +139,20 @@ export class ConversationTransferService {
   private looksLikeZip(fileName: string, content: Buffer): boolean {
     return (
       fileName.toLowerCase().endsWith('.zip') ||
-      (content.length >= 4 && content.readUInt32LE(0) === ZIP_LOCAL_FILE_HEADER_SIGNATURE)
+      (content.length >= 4 &&
+        content.readUInt32LE(0) === ZIP_LOCAL_FILE_HEADER_SIGNATURE)
     );
   }
 
   private sanitizeFileName(title: string): string {
-    return title
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 64) || 'conversation';
+    return (
+      title
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64) || 'conversation'
+    );
   }
 
   private buildZipArchive(entries: ZipEntry[]): Buffer {
@@ -203,8 +225,12 @@ export class ConversationTransferService {
     let cursor = centralDirectoryOffset;
 
     for (let index = 0; index < entryCount; index += 1) {
-      if (content.readUInt32LE(cursor) !== ZIP_CENTRAL_DIRECTORY_HEADER_SIGNATURE) {
-        throw new BadRequestException('The ZIP archive central directory is invalid.');
+      if (
+        content.readUInt32LE(cursor) !== ZIP_CENTRAL_DIRECTORY_HEADER_SIGNATURE
+      ) {
+        throw new BadRequestException(
+          'The ZIP archive central directory is invalid.',
+        );
       }
 
       const compressionMethod = content.readUInt16LE(cursor + 10);
@@ -224,8 +250,11 @@ export class ConversationTransferService {
       }
 
       const localFileNameLength = content.readUInt16LE(localHeaderOffset + 26);
-      const localExtraFieldLength = content.readUInt16LE(localHeaderOffset + 28);
-      const dataOffset = localHeaderOffset + 30 + localFileNameLength + localExtraFieldLength;
+      const localExtraFieldLength = content.readUInt16LE(
+        localHeaderOffset + 28,
+      );
+      const dataOffset =
+        localHeaderOffset + 30 + localFileNameLength + localExtraFieldLength;
       const data = content.subarray(dataOffset, dataOffset + compressedSize);
 
       if (!fileName.endsWith('.json')) {
@@ -245,8 +274,14 @@ export class ConversationTransferService {
   }
 
   private findEndOfCentralDirectoryOffset(content: Buffer): number {
-    for (let offset = content.length - 22; offset >= Math.max(0, content.length - 65_557); offset -= 1) {
-      if (content.readUInt32LE(offset) === ZIP_END_OF_CENTRAL_DIRECTORY_SIGNATURE) {
+    for (
+      let offset = content.length - 22;
+      offset >= Math.max(0, content.length - 65_557);
+      offset -= 1
+    ) {
+      if (
+        content.readUInt32LE(offset) === ZIP_END_OF_CENTRAL_DIRECTORY_SIGNATURE
+      ) {
         return offset;
       }
     }

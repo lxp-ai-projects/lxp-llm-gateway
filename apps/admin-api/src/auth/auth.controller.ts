@@ -31,7 +31,10 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     const result = await this.authService.login(dto.email, dto.password);
     this.authCookieService.setAccessTokenCookie(
       response,
@@ -105,7 +108,9 @@ export class AuthController {
 
     const [scheme, token] = authorizationHeader.split(' ');
     if (scheme?.toLowerCase() !== 'bearer' || !token) {
-      throw new UnauthorizedException('Authorization header must be a Bearer token.');
+      throw new UnauthorizedException(
+        'Authorization header must be a Bearer token.',
+      );
     }
 
     return token;

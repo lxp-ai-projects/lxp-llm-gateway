@@ -1,4 +1,13 @@
-import { Alert, Button, Card, Center, Container, Stack, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  Card,
+  Center,
+  Container,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { IconUserOff } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 
@@ -18,11 +27,15 @@ export function RegistrationPage() {
             </div>
             {runtimeConfigQuery.data?.registrationEnabled ? (
               <Alert color="blue" title="Backend flow pending">
-                Self-registration is enabled by runtime config, but the backend registration workflow still
-                needs to be implemented.
+                Self-registration is enabled by runtime config, but the backend
+                registration workflow still needs to be implemented.
               </Alert>
             ) : (
-              <Alert color="red" icon={<IconUserOff size={18} />} title="Disabled by configuration">
+              <Alert
+                color="red"
+                icon={<IconUserOff size={18} />}
+                title="Disabled by configuration"
+              >
                 Registration is currently disabled for this deployment.
               </Alert>
             )}

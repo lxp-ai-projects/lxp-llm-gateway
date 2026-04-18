@@ -18,7 +18,9 @@ import type {
 export const adminApiClient = {
   async getRuntimeConfig(): Promise<RuntimeConfig> {
     try {
-      return await request<RuntimeConfig>(`${adminApiUrl}/api/v1/public/runtime-config`);
+      return await request<RuntimeConfig>(
+        `${adminApiUrl}/api/v1/public/runtime-config`,
+      );
     } catch {
       return {
         registrationEnabled: false,
@@ -63,7 +65,10 @@ export const adminApiClient = {
     return response.json() as Promise<SessionUser>;
   },
 
-  async login(payload: { email: string; password: string }): Promise<SessionUser | null> {
+  async login(payload: {
+    email: string;
+    password: string;
+  }): Promise<SessionUser | null> {
     await request(`${adminApiUrl}/api/v1/auth/login`, {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -101,14 +106,19 @@ export const adminApiClient = {
       roles?: string[];
     },
   ): Promise<AdminUserSummary> {
-    return request<AdminUserSummary>(`${adminApiUrl}/api/v1/admin/users/${userUuid}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
+    return request<AdminUserSummary>(
+      `${adminApiUrl}/api/v1/admin/users/${userUuid}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   async getOwnProviderCredentials(): Promise<ProviderCredentialSummary[]> {
-    return request<ProviderCredentialSummary[]>(`${adminApiUrl}/api/v1/provider-credentials`);
+    return request<ProviderCredentialSummary[]>(
+      `${adminApiUrl}/api/v1/provider-credentials`,
+    );
   },
 
   async updateOwnProviderCredential(
@@ -132,27 +142,37 @@ export const adminApiClient = {
     label: string;
     apiToken: string;
   }): Promise<ProviderCredentialSummary> {
-    return request<ProviderCredentialSummary>(`${adminApiUrl}/api/v1/provider-credentials`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return request<ProviderCredentialSummary>(
+      `${adminApiUrl}/api/v1/provider-credentials`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   async getOwnProviderSettings(): Promise<ProviderSettingsSummary> {
-    return request<ProviderSettingsSummary>(`${adminApiUrl}/api/v1/provider-settings`);
+    return request<ProviderSettingsSummary>(
+      `${adminApiUrl}/api/v1/provider-settings`,
+    );
   },
 
   async updateOwnProviderSettings(payload: {
     defaultProviderId?: 'nanogpt' | null;
     defaultModel?: string | null;
   }): Promise<ProviderSettingsSummary> {
-    return request<ProviderSettingsSummary>(`${adminApiUrl}/api/v1/provider-settings`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
+    return request<ProviderSettingsSummary>(
+      `${adminApiUrl}/api/v1/provider-settings`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  async getUserProviderCredentials(userUuid: string): Promise<ProviderCredentialSummary[]> {
+  async getUserProviderCredentials(
+    userUuid: string,
+  ): Promise<ProviderCredentialSummary[]> {
     return request<ProviderCredentialSummary[]>(
       `${adminApiUrl}/api/v1/admin/users/${userUuid}/provider-credentials`,
     );
@@ -175,7 +195,9 @@ export const adminApiClient = {
     );
   },
 
-  async exportConversationArchive(conversations: ChatTransferConversation[]): Promise<{
+  async exportConversationArchive(
+    conversations: ChatTransferConversation[],
+  ): Promise<{
     blob: Blob;
     fileName: string | null;
   }> {

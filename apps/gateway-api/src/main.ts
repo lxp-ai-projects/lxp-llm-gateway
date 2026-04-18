@@ -9,7 +9,9 @@ import express from 'express';
 import { AppModule } from './app.module';
 
 function resolveCorsOrigins(): string[] {
-  const configuredOrigins = (process.env.ADMIN_WEB_ORIGIN ?? 'http://localhost:3003')
+  const configuredOrigins = (
+    process.env.ADMIN_WEB_ORIGIN ?? 'http://localhost:3003'
+  )
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);

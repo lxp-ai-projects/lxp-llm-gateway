@@ -25,8 +25,12 @@ test('RegistrationPage shows the enabled state', () => {
 
   renderWithProviders(<RegistrationPage />);
 
-  expect(screen.getByRole('heading', { name: 'Create account' })).toBeInTheDocument();
-  expect(screen.getByText(/Self-registration is enabled by runtime config/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: 'Create account' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Self-registration is enabled by runtime config/i),
+  ).toBeInTheDocument();
 });
 
 test('RegistrationPage shows the disabled state', () => {
@@ -39,5 +43,7 @@ test('RegistrationPage shows the disabled state', () => {
   renderWithProviders(<RegistrationPage />);
 
   expect(screen.getByText('Disabled by configuration')).toBeInTheDocument();
-  expect(screen.getByText(/Registration is currently disabled/i)).toBeInTheDocument();
+  expect(
+    screen.getByText(/Registration is currently disabled/i),
+  ).toBeInTheDocument();
 });

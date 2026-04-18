@@ -47,5 +47,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Typecheck frontend scope
+        run: pnpm exec turbo run typecheck --filter=@lxp/admin-web
+
       - name: Build frontend scope
         run: pnpm exec turbo run build --filter=@lxp/admin-web

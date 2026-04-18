@@ -7,7 +7,9 @@ export type ChatMessageWindow = {
   end: number;
 };
 
-export function createInitialChatWindow(totalMessages: number): ChatMessageWindow {
+export function createInitialChatWindow(
+  totalMessages: number,
+): ChatMessageWindow {
   const end = Math.max(totalMessages, 0);
   const start = Math.max(0, end - CHAT_WINDOW_PAGE_SIZE);
 
@@ -24,8 +26,14 @@ export function syncChatWindow(
   }
 
   const boundedEnd = Math.min(window.end, totalMessages);
-  const visibleCount = Math.max(0, Math.min(window.end - window.start, CHAT_WINDOW_MAX_RENDERED));
-  const boundedStart = Math.max(0, Math.min(window.start, Math.max(0, boundedEnd - visibleCount)));
+  const visibleCount = Math.max(
+    0,
+    Math.min(window.end - window.start, CHAT_WINDOW_MAX_RENDERED),
+  );
+  const boundedStart = Math.max(
+    0,
+    Math.min(window.start, Math.max(0, boundedEnd - visibleCount)),
+  );
 
   if (boundedEnd <= boundedStart) {
     return createInitialChatWindow(totalMessages);

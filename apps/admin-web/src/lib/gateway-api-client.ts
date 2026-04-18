@@ -1,4 +1,8 @@
-import { chatStreamWithSessionRefresh, gatewayApiUrl, request } from './api-base';
+import {
+  chatStreamWithSessionRefresh,
+  gatewayApiUrl,
+  request,
+} from './api-base';
 import type {
   GatewayChatMessage,
   GatewayChatResponse,

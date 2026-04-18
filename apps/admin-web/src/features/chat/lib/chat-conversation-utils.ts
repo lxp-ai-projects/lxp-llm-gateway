@@ -1,7 +1,10 @@
 import { createClientId } from '../../../lib/id';
 import type { StoredConversation } from '../../../lib/chat-store';
 
-export function createConversation(model: string, systemPrompt: string): StoredConversation {
+export function createConversation(
+  model: string,
+  systemPrompt: string,
+): StoredConversation {
   return {
     id: createClientId(),
     title: 'New conversation',
@@ -17,13 +20,20 @@ export function mergeConversations(
   existingConversations: StoredConversation[],
   importedConversations: StoredConversation[],
 ): StoredConversation[] {
-  const merged = new Map(existingConversations.map((conversation) => [conversation.id, conversation]));
+  const merged = new Map(
+    existingConversations.map((conversation) => [
+      conversation.id,
+      conversation,
+    ]),
+  );
 
   for (const conversation of importedConversations) {
     merged.set(conversation.id, conversation);
   }
 
-  return [...merged.values()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  return [...merged.values()].sort((left, right) =>
+    right.updatedAt.localeCompare(left.updatedAt),
+  );
 }
 
 export function downloadBlob(blob: Blob, fileName: string): void {

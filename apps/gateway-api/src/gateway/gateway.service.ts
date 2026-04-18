@@ -21,10 +21,7 @@ export class GatewayService {
     private readonly providerCredentialService: ProviderCredentialService,
   ) {}
 
-  async listModels(
-    query: ListModelsQueryDto,
-    authContext: GatewayAuthContext,
-  ) {
+  async listModels(query: ListModelsQueryDto, authContext: GatewayAuthContext) {
     const provider = this.providerRegistry.getProvider(
       query.providerId ?? authContext.defaultProviderId ?? undefined,
     );
@@ -69,12 +66,16 @@ export class GatewayService {
       throw new BadRequestException('At least one message is required.');
     }
 
-    const messageSummary = this.gatewayAuditService.summarizeMessages(request.messages);
+    const messageSummary = this.gatewayAuditService.summarizeMessages(
+      request.messages,
+    );
     const auditBase = {
       requestId,
       providerId: provider.providerId,
       model,
-      userFingerprint: this.gatewayAuditService.fingerprint(authContext.emailHash),
+      userFingerprint: this.gatewayAuditService.fingerprint(
+        authContext.emailHash,
+      ),
       stream: false,
       ...messageSummary,
     };
@@ -113,7 +114,8 @@ export class GatewayService {
         ...auditBase,
         durationMs: Date.now() - startedAt,
         outcome: 'failure',
-        error: error instanceof Error ? error.message : 'Unknown gateway error.',
+        error:
+          error instanceof Error ? error.message : 'Unknown gateway error.',
       });
       throw error;
     }
@@ -139,12 +141,16 @@ export class GatewayService {
       );
     }
 
-    const messageSummary = this.gatewayAuditService.summarizeMessages(request.messages);
+    const messageSummary = this.gatewayAuditService.summarizeMessages(
+      request.messages,
+    );
     const auditBase = {
       requestId,
       providerId: provider.providerId,
       model,
-      userFingerprint: this.gatewayAuditService.fingerprint(authContext.emailHash),
+      userFingerprint: this.gatewayAuditService.fingerprint(
+        authContext.emailHash,
+      ),
       stream: true,
       ...messageSummary,
     };
@@ -186,7 +192,8 @@ export class GatewayService {
         ...auditBase,
         durationMs: Date.now() - startedAt,
         outcome: 'failure',
-        error: error instanceof Error ? error.message : 'Unknown gateway error.',
+        error:
+          error instanceof Error ? error.message : 'Unknown gateway error.',
       });
       throw error;
     }

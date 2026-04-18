@@ -9,12 +9,14 @@ function isStandaloneDisplayMode() {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
     window.matchMedia('(display-mode: fullscreen)').matches ||
-    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+    (window.navigator as Navigator & { standalone?: boolean }).standalone ===
+      true
   );
 }
 
 export function usePwaInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(() =>
     typeof window === 'undefined' ? false : isStandaloneDisplayMode(),
   );
@@ -34,12 +36,18 @@ export function usePwaInstall() {
     window.addEventListener('appinstalled', handleInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener(
+        'beforeinstallprompt',
+        handleBeforeInstallPrompt,
+      );
       window.removeEventListener('appinstalled', handleInstalled);
     };
   }, []);
 
-  const canInstall = useMemo(() => Boolean(deferredPrompt) && !isInstalled, [deferredPrompt, isInstalled]);
+  const canInstall = useMemo(
+    () => Boolean(deferredPrompt) && !isInstalled,
+    [deferredPrompt, isInstalled],
+  );
 
   const promptInstall = useCallback(async () => {
     if (!deferredPrompt) {

@@ -12,7 +12,10 @@ export function shouldStickToBottom(
 export function scrollChatToBottom(
   container: Pick<HTMLElement, 'scrollTop' | 'scrollHeight' | 'clientHeight'>,
 ): void {
-  if (container.scrollHeight - (container.scrollTop + container.clientHeight) <= MIN_SCROLL_DELTA_PX) {
+  if (
+    container.scrollHeight - (container.scrollTop + container.clientHeight) <=
+    MIN_SCROLL_DELTA_PX
+  ) {
     return;
   }
 

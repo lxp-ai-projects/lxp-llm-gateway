@@ -79,18 +79,30 @@ export function ChatMessageList({
   return (
     <Stack gap="md">
       {modelsErrorMessage ? (
-        <Alert color="red" icon={<IconAlertCircle size={18} />} title="Model loading failed">
+        <Alert
+          color="red"
+          icon={<IconAlertCircle size={18} />}
+          title="Model loading failed"
+        >
           {modelsErrorMessage}
         </Alert>
       ) : null}
 
       {chatError ? (
-        <Alert color="red" icon={<IconAlertCircle size={18} />} title="Chat request failed">
+        <Alert
+          color="red"
+          icon={<IconAlertCircle size={18} />}
+          title="Chat request failed"
+        >
           {chatError}
         </Alert>
       ) : null}
 
-      <div ref={scrollRef} className="chat-scroll chat-scroll-with-composer" onScroll={onScroll}>
+      <div
+        ref={scrollRef}
+        className="chat-scroll chat-scroll-with-composer"
+        onScroll={onScroll}
+      >
         {hiddenMessageCountAbove > 0 ? (
           <Button
             data-testid="chat-load-earlier-messages"
@@ -120,7 +132,12 @@ export function ChatMessageList({
                 </Text>
                 <Group gap={6}>
                   {message.reasoning ? (
-                    <ThemeIcon color="brass" radius="xl" size="sm" variant="light">
+                    <ThemeIcon
+                      color="brass"
+                      radius="xl"
+                      size="sm"
+                      variant="light"
+                    >
                       <IconBrain size={14} />
                     </ThemeIcon>
                   ) : null}
@@ -154,7 +171,9 @@ export function ChatMessageList({
                     autosize
                     data-testid={`chat-edit-input-${message.id}`}
                     minRows={3}
-                    onChange={(event) => onEditContentChange(event.currentTarget.value)}
+                    onChange={(event) =>
+                      onEditContentChange(event.currentTarget.value)
+                    }
                     value={editingContent}
                   />
                   <Group justify="flex-end">
@@ -202,18 +221,26 @@ export function ChatMessageList({
                                 <IconCopy size={14} />
                               )
                             }
-                            onClick={() => onCopyAssistantMessage(message.id, message.content)}
+                            onClick={() =>
+                              onCopyAssistantMessage(
+                                message.id,
+                                message.content,
+                              )
+                            }
                             size="xs"
                             variant="subtle"
                           >
-                            {copiedAssistantMessageId === message.id ? 'Copied' : 'Copy'}
+                            {copiedAssistantMessageId === message.id
+                              ? 'Copied'
+                              : 'Copy'}
                           </Button>
                         </Group>
                       ) : null}
                     </>
                   ) : message.reasoning ? (
                     <Text className="message-text" c="dimmed" fs="italic">
-                      Assistant response was interrupted before content generation completed.
+                      Assistant response was interrupted before content
+                      generation completed.
                     </Text>
                   ) : (
                     <Text className="message-text" c="dimmed" fs="italic">
@@ -226,8 +253,8 @@ export function ChatMessageList({
           ))
         ) : (
           <Text c="dimmed" size="sm">
-            Start a conversation to verify provider behavior, model output, and optional thinking
-            traces.
+            Start a conversation to verify provider behavior, model output, and
+            optional thinking traces.
           </Text>
         )}
         {hiddenMessageCountBelow > 0 ? (

@@ -8,6 +8,12 @@ test('PasswordService hashes passwords with Argon2id-compatible output', async (
   const passwordHash = await service.hashPassword('Sup3rS3cret!');
 
   assert.match(passwordHash, /^\$argon2id\$/);
-  assert.equal(await service.verifyPassword('Sup3rS3cret!', passwordHash), true);
-  assert.equal(await service.verifyPassword('wrong-password', passwordHash), false);
+  assert.equal(
+    await service.verifyPassword('Sup3rS3cret!', passwordHash),
+    true,
+  );
+  assert.equal(
+    await service.verifyPassword('wrong-password', passwordHash),
+    false,
+  );
 });

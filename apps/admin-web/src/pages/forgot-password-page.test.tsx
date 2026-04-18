@@ -25,8 +25,14 @@ test('ForgotPasswordPage reflects the enabled runtime-config state', () => {
 
   renderWithProviders(<ForgotPasswordPage />);
 
-  expect(screen.getByRole('heading', { name: 'Forgot password' })).toBeInTheDocument();
-  expect(screen.getByText(/password recovery backend flow has not been implemented yet/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: 'Forgot password' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      /password recovery backend flow has not been implemented yet/i,
+    ),
+  ).toBeInTheDocument();
 });
 
 test('ForgotPasswordPage reflects the disabled runtime-config state', () => {
@@ -39,5 +45,7 @@ test('ForgotPasswordPage reflects the disabled runtime-config state', () => {
   renderWithProviders(<ForgotPasswordPage />);
 
   expect(screen.getByText('Disabled by configuration')).toBeInTheDocument();
-  expect(screen.getByText(/Forgot-password is currently disabled/i)).toBeInTheDocument();
+  expect(
+    screen.getByText(/Forgot-password is currently disabled/i),
+  ).toBeInTheDocument();
 });

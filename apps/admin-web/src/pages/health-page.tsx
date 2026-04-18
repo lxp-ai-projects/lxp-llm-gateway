@@ -31,7 +31,7 @@ export function HealthPage() {
                 ? 'Checking...'
                 : adminHealthQuery.isError
                   ? 'Unavailable'
-                  : adminHealthQuery.data?.status ?? 'Unknown'
+                  : (adminHealthQuery.data?.status ?? 'Unknown')
             }
           />
         </Grid.Col>
@@ -44,7 +44,7 @@ export function HealthPage() {
                 ? 'Checking...'
                 : gatewayHealthQuery.isError
                   ? 'Unavailable'
-                  : gatewayHealthQuery.data?.status ?? 'Unknown'
+                  : (gatewayHealthQuery.data?.status ?? 'Unknown')
             }
           />
         </Grid.Col>

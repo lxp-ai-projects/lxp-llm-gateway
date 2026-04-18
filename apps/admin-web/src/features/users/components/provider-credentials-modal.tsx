@@ -22,10 +22,19 @@ export function ProviderCredentialsModal({
       onClose={onClose}
       title={`Provider credentials${userDisplayName ? `: ${userDisplayName}` : ''}`}
     >
-      <div className="provider-credentials-cards" aria-label="Mobile provider credentials">
+      <div
+        className="provider-credentials-cards"
+        aria-label="Mobile provider credentials"
+      >
         <Stack gap="sm">
           {credentials.map((credential) => (
-            <Card key={credential.id} className="provider-credential-card" padding="md" radius="lg" withBorder>
+            <Card
+              key={credential.id}
+              className="provider-credential-card"
+              padding="md"
+              radius="lg"
+              withBorder
+            >
               <Stack gap="sm">
                 <div>
                   <Text size="xs" tt="uppercase" fw={700} c="dimmed">

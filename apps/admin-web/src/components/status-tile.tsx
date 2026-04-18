@@ -14,7 +14,8 @@ export function StatusTile({
   tone = 'neutral',
   icon,
 }: StatusTileProps) {
-  const badgeColor = tone === 'good' ? 'moss' : tone === 'warning' ? 'yellow' : 'ink';
+  const badgeColor =
+    tone === 'good' ? 'moss' : tone === 'warning' ? 'yellow' : 'ink';
 
   return (
     <Card className="status-tile">

@@ -10,7 +10,10 @@ afterEach(() => {
 
 test('InstallAppButton appears after beforeinstallprompt and triggers prompt', async () => {
   const prompt = vi.fn(async () => undefined);
-  const userChoice = Promise.resolve({ outcome: 'accepted' as const, platform: 'web' });
+  const userChoice = Promise.resolve({
+    outcome: 'accepted' as const,
+    platform: 'web',
+  });
   const event = new Event('beforeinstallprompt');
   Object.assign(event, {
     prompt,
@@ -19,11 +22,15 @@ test('InstallAppButton appears after beforeinstallprompt and triggers prompt', a
   });
 
   renderWithProviders(<InstallAppButton />);
-  expect(screen.queryByRole('button', { name: /install app/i })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: /install app/i }),
+  ).not.toBeInTheDocument();
 
   fireEvent(window, event);
 
-  const [button] = await screen.findAllByRole('button', { name: /install app/i });
+  const [button] = await screen.findAllByRole('button', {
+    name: /install app/i,
+  });
   fireEvent.click(button);
 
   await waitFor(() => expect(prompt).toHaveBeenCalledTimes(1));

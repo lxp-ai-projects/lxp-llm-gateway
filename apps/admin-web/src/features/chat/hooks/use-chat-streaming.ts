@@ -9,14 +9,19 @@ import {
   prepareConversationForEditedUserMessage,
 } from '../../../lib/chat-thread';
 import { createClientId } from '../../../lib/id';
-import { saveConversation, type StoredConversation } from '../../../lib/chat-store';
+import {
+  saveConversation,
+  type StoredConversation,
+} from '../../../lib/chat-store';
 
 type UseChatStreamingOptions = {
   activeConversation: StoredConversation | null;
   editingContent: string;
   onClearEditingState: () => void;
   onConversationActivated: (conversationId: string) => void;
-  onConversationUpdated: React.Dispatch<React.SetStateAction<StoredConversation[]>>;
+  onConversationUpdated: React.Dispatch<
+    React.SetStateAction<StoredConversation[]>
+  >;
   onPromptCleared: () => void;
   onSetAutoScrollEnabled: (value: boolean) => void;
   onSetChatError: (value: string | null) => void;
@@ -36,7 +41,9 @@ export function useChatStreaming({
 }: UseChatStreamingOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
 
-  async function streamAssistantResponse(baseConversation: StoredConversation): Promise<void> {
+  async function streamAssistantResponse(
+    baseConversation: StoredConversation,
+  ): Promise<void> {
     const assistantMessageId = createClientId();
     const draftAssistantMessage = {
       id: assistantMessageId,
@@ -62,7 +69,9 @@ export function useChatStreaming({
     onConversationActivated(nextConversation.id);
     onClearEditingState();
     onConversationUpdated((current) => {
-      const withoutCurrent = current.filter((entry) => entry.id !== nextConversation.id);
+      const withoutCurrent = current.filter(
+        (entry) => entry.id !== nextConversation.id,
+      );
       return [nextConversation, ...withoutCurrent];
     });
 
@@ -121,11 +130,16 @@ export function useChatStreaming({
 
       onConversationUpdated((current) => [
         persistedConversation,
-        ...current.filter((conversation) => conversation.id !== nextConversation.id),
+        ...current.filter(
+          (conversation) => conversation.id !== nextConversation.id,
+        ),
       ]);
       await saveConversation(persistedConversation);
 
-      if (shouldFlagMissingAssistantContent(streamedContent) && !streamedReasoning.trim()) {
+      if (
+        shouldFlagMissingAssistantContent(streamedContent) &&
+        !streamedReasoning.trim()
+      ) {
         onSetChatError(
           streamResult.receivedReasoning
             ? 'The model stream ended without any assistant response content.'
@@ -134,7 +148,9 @@ export function useChatStreaming({
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'The gateway stream failed unexpectedly.';
+        error instanceof Error
+          ? error.message
+          : 'The gateway stream failed unexpectedly.';
       onSetChatError(message);
       onConversationUpdated((current) => {
         const updatedConversation = current.find(
@@ -149,7 +165,9 @@ export function useChatStreaming({
         );
         const nextMessages = hasPartialAssistantOutput
           ? updatedConversation.messages
-          : updatedConversation.messages.filter((entry) => entry.id !== assistantMessageId);
+          : updatedConversation.messages.filter(
+              (entry) => entry.id !== assistantMessageId,
+            );
 
         const persistedConversation: StoredConversation = {
           ...updatedConversation,
@@ -161,7 +179,9 @@ export function useChatStreaming({
 
         return [
           persistedConversation,
-          ...current.filter((conversation) => conversation.id !== nextConversation.id),
+          ...current.filter(
+            (conversation) => conversation.id !== nextConversation.id,
+          ),
         ];
       });
     } finally {
@@ -182,11 +202,15 @@ export function useChatStreaming({
     };
 
     onPromptCleared();
-    await streamAssistantResponse(appendUserMessage(conversationFactory(), userMessage));
+    await streamAssistantResponse(
+      appendUserMessage(conversationFactory(), userMessage),
+    );
   }
 
   async function resendEditedMessage(
-    withCurrentSystemPrompt: (conversation: StoredConversation) => StoredConversation,
+    withCurrentSystemPrompt: (
+      conversation: StoredConversation,
+    ) => StoredConversation,
     messageId: string,
   ): Promise<void> {
     if (!activeConversation) {
@@ -203,13 +227,17 @@ export function useChatStreaming({
       );
     } catch (error) {
       onSetChatError(
-        error instanceof Error ? error.message : 'The selected user message could not be resent.',
+        error instanceof Error
+          ? error.message
+          : 'The selected user message could not be resent.',
       );
     }
   }
 
   async function retryAssistantMessage(
-    withCurrentSystemPrompt: (conversation: StoredConversation) => StoredConversation,
+    withCurrentSystemPrompt: (
+      conversation: StoredConversation,
+    ) => StoredConversation,
     messageId: string,
   ): Promise<void> {
     if (!activeConversation) {
@@ -218,7 +246,10 @@ export function useChatStreaming({
 
     try {
       await streamAssistantResponse(
-        prepareConversationForAssistantRetry(withCurrentSystemPrompt(activeConversation), messageId),
+        prepareConversationForAssistantRetry(
+          withCurrentSystemPrompt(activeConversation),
+          messageId,
+        ),
       );
     } catch (error) {
       onSetChatError(

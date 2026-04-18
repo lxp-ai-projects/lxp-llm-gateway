@@ -52,13 +52,21 @@ export function LoginFormCard({
         </div>
 
         {loginErrorMessage ? (
-          <Alert color="red" icon={<IconAlertCircle size={18} />} title="Login failed">
+          <Alert
+            color="red"
+            icon={<IconAlertCircle size={18} />}
+            title="Login failed"
+          >
             {loginErrorMessage}
           </Alert>
         ) : null}
 
         {sessionTimeoutMessage ? (
-          <Alert color="amber" icon={<IconAlertCircle size={18} />} title="Session expired">
+          <Alert
+            color="amber"
+            icon={<IconAlertCircle size={18} />}
+            title="Session expired"
+          >
             {sessionTimeoutMessage}
           </Alert>
         ) : null}
@@ -81,11 +89,20 @@ export function LoginFormCard({
           checked={acceptedPolicies}
           label={
             <Text size="sm">
-              I accept the <Anchor component={Link} to="/terms">terms</Anchor> and{' '}
-              <Anchor component={Link} to="/privacy">privacy policy</Anchor>.
+              I accept the{' '}
+              <Anchor component={Link} to="/terms">
+                terms
+              </Anchor>{' '}
+              and{' '}
+              <Anchor component={Link} to="/privacy">
+                privacy policy
+              </Anchor>
+              .
             </Text>
           }
-          onChange={(event) => onAcceptedPoliciesChange(event.currentTarget.checked)}
+          onChange={(event) =>
+            onAcceptedPoliciesChange(event.currentTarget.checked)
+          }
         />
         <Button
           data-testid="auth-login-submit"

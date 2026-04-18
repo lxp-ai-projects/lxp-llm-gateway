@@ -36,7 +36,9 @@ function getBoolean(key: string, fallback: boolean): boolean {
   return value.toLowerCase() === 'true';
 }
 
-export function validateRuntimeConfig(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+export function validateRuntimeConfig(
+  env: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
   getRequiredString('DATABASE_HOST');
   getRequiredString('DATABASE_NAME');
   getRequiredString('DATABASE_USER');
@@ -56,7 +58,9 @@ export function buildTypeOrmOptions(): TypeOrmModuleOptions {
     database: process.env.DATABASE_NAME,
     username: process.env.DATABASE_USER,
     password: process.env.DATABASE_PASSWORD,
-    ssl: getBoolean('DATABASE_SSL', false) ? { rejectUnauthorized: false } : false,
+    ssl: getBoolean('DATABASE_SSL', false)
+      ? { rejectUnauthorized: false }
+      : false,
     entities: [UserEntity, ProviderEntity, UserProviderCredentialEntity],
     synchronize: false,
     autoLoadEntities: false,

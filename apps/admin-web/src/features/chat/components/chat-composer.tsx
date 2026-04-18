@@ -40,7 +40,11 @@ export function ChatComposer({
           placeholder="Ask the provider something meaningful..."
           value={prompt}
         />
-        <Group className="chat-composer-footer" justify="space-between" gap="sm">
+        <Group
+          className="chat-composer-footer"
+          justify="space-between"
+          gap="sm"
+        >
           <Group gap="sm">
             <Text c="dimmed" size="sm">
               Selected provider: NanoGPT

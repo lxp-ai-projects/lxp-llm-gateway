@@ -57,18 +57,34 @@ export function ProviderCredentialsPanel({
       <Stack gap="sm">
         <Title order={3}>My credentials</Title>
         <div className="provider-credentials-mobile">
-          <Accordion variant="separated" radius="lg" className="provider-credentials-accordion">
+          <Accordion
+            variant="separated"
+            radius="lg"
+            className="provider-credentials-accordion"
+          >
             {credentials.map((credential) => (
-              <Accordion.Item key={credential.id} value={credential.id} className="provider-credential-accordion-item">
+              <Accordion.Item
+                key={credential.id}
+                value={credential.id}
+                className="provider-credential-accordion-item"
+              >
                 <Accordion.Control>
-                  <Group justify="space-between" gap="sm" wrap="nowrap" className="provider-credential-summary">
+                  <Group
+                    justify="space-between"
+                    gap="sm"
+                    wrap="nowrap"
+                    className="provider-credential-summary"
+                  >
                     <div className="provider-credential-summary-copy">
                       <Text fw={700}>{credential.providerDisplayName}</Text>
                       <Text size="sm" c="dimmed">
                         {credential.label}
                       </Text>
                     </div>
-                    <Badge color={credential.isActive ? 'moss' : 'gray'} variant="light">
+                    <Badge
+                      color={credential.isActive ? 'moss' : 'gray'}
+                      variant="light"
+                    >
                       {credential.isActive ? 'Active' : 'Disabled'}
                     </Badge>
                   </Group>
@@ -86,15 +102,24 @@ export function ProviderCredentialsPanel({
                         <Text size="xs" tt="uppercase" fw={700} c="dimmed">
                           Status
                         </Text>
-                        <Text mt={4}>{credential.isActive ? 'Active' : 'Disabled'}</Text>
+                        <Text mt={4}>
+                          {credential.isActive ? 'Active' : 'Disabled'}
+                        </Text>
                       </div>
                     </SimpleGrid>
                     {currentDefaultProviderId === credential.providerId ? (
-                      <Alert color="teal" variant="light" title="Default provider">
-                        This provider is currently used as the default gateway provider.
+                      <Alert
+                        color="teal"
+                        variant="light"
+                        title="Default provider"
+                      >
+                        This provider is currently used as the default gateway
+                        provider.
                       </Alert>
                     ) : null}
-                    <Group justify="flex-start">{renderCredentialEditAction(credential)}</Group>
+                    <Group justify="flex-start">
+                      {renderCredentialEditAction(credential)}
+                    </Group>
                   </Stack>
                 </Accordion.Panel>
               </Accordion.Item>
@@ -126,7 +151,9 @@ export function ProviderCredentialsPanel({
                 </Table.Td>
                 <Table.Td>{credential.label}</Table.Td>
                 <Table.Td>{credential.maskedHint ?? 'Hidden'}</Table.Td>
-                <Table.Td>{credential.isActive ? 'Active' : 'Disabled'}</Table.Td>
+                <Table.Td>
+                  {credential.isActive ? 'Active' : 'Disabled'}
+                </Table.Td>
                 <Table.Td>{renderCredentialEditAction(credential)}</Table.Td>
               </Table.Tr>
             ))}

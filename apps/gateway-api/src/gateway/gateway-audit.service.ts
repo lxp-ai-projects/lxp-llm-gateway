@@ -62,7 +62,10 @@ export class GatewayAuditService {
   } {
     return {
       messageCount: messages.length,
-      messageCharacters: messages.reduce((total, message) => total + message.content.length, 0),
+      messageCharacters: messages.reduce(
+        (total, message) => total + message.content.length,
+        0,
+      ),
     };
   }
 }

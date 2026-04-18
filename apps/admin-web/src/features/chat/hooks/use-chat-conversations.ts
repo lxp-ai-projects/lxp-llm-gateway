@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 
 import type { StoredConversation } from '../../../lib/chat-store';
-import { deleteConversation, loadConversations, saveConversation } from '../../../lib/chat-store';
+import {
+  deleteConversation,
+  loadConversations,
+  saveConversation,
+} from '../../../lib/chat-store';
 import { DEFAULT_SYSTEM_PROMPT } from '../../../lib/chat-thread';
 import { createConversation as createLocalConversation } from '../lib/chat-conversation-utils';
 
@@ -19,7 +23,9 @@ export function useChatConversations({
   onSetActivePanel,
 }: UseChatConversationsOptions) {
   const [conversations, setConversations] = useState<StoredConversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [conversationPendingDeletion, setConversationPendingDeletion] =
     useState<StoredConversation | null>(null);
@@ -36,7 +42,9 @@ export function useChatConversations({
   }, []);
 
   const activeConversation =
-    conversations.find((conversation) => conversation.id === activeConversationId) ?? null;
+    conversations.find(
+      (conversation) => conversation.id === activeConversationId,
+    ) ?? null;
 
   useEffect(() => {
     setSystemPrompt(activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT);
@@ -62,13 +70,17 @@ export function useChatConversations({
 
     setConversations((current) =>
       current.map((conversation) =>
-        conversation.id === updatedConversation.id ? updatedConversation : conversation,
+        conversation.id === updatedConversation.id
+          ? updatedConversation
+          : conversation,
       ),
     );
     await saveConversation(updatedConversation);
   }
 
-  async function persistConversationSystemPrompt(nextSystemPrompt: string): Promise<void> {
+  async function persistConversationSystemPrompt(
+    nextSystemPrompt: string,
+  ): Promise<void> {
     setSystemPrompt(nextSystemPrompt);
 
     if (!activeConversation) {
@@ -83,7 +95,9 @@ export function useChatConversations({
 
     setConversations((current) =>
       current.map((conversation) =>
-        conversation.id === updatedConversation.id ? updatedConversation : conversation,
+        conversation.id === updatedConversation.id
+          ? updatedConversation
+          : conversation,
       ),
     );
     await saveConversation(updatedConversation);

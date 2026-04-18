@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
-import type { LlmProviderAdapter, ProviderExecutionContext } from '@lxp/provider-sdk';
+import type {
+  LlmProviderAdapter,
+  ProviderExecutionContext,
+} from '@lxp/provider-sdk';
 
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
@@ -34,7 +37,11 @@ class FakeProvider implements LlmProviderAdapter {
   async chatStream(): Promise<ReadableStream<Uint8Array>> {
     return new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"reasoning":"hi"}}]}\n\n'));
+        controller.enqueue(
+          new TextEncoder().encode(
+            'data: {"choices":[{"delta":{"reasoning":"hi"}}]}\n\n',
+          ),
+        );
         controller.close();
       },
     });
@@ -67,7 +74,10 @@ class FakeGatewayAuditService {
   summarizeMessages(messages: Array<{ content: string }>) {
     return {
       messageCount: messages.length,
-      messageCharacters: messages.reduce((total, message) => total + message.content.length, 0),
+      messageCharacters: messages.reduce(
+        (total, message) => total + message.content.length,
+        0,
+      ),
     };
   }
 }
@@ -79,17 +89,20 @@ test('GatewayService routes chat requests through the provider registry', async 
     new FakeProviderCredentialService() as never,
   );
 
-  const response = await service.chat({
-    model: 'nano-1',
-    messages: [{ role: 'user', content: 'hello' }],
-  } as GatewayChatRequestDto, {
-    userId: 'user-1',
-    userUuid: 'user-public-1',
-    emailHash: 'hash-1',
-    roles: ['admin'],
-    defaultProviderId: 'nanogpt',
-    defaultModel: 'nano-default',
-  });
+  const response = await service.chat(
+    {
+      model: 'nano-1',
+      messages: [{ role: 'user', content: 'hello' }],
+    } as GatewayChatRequestDto,
+    {
+      userId: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      roles: ['admin'],
+      defaultProviderId: 'nanogpt',
+      defaultModel: 'nano-default',
+    },
+  );
 
   assert.equal(response.providerId, 'nanogpt');
   assert.equal(response.model, 'nano-1');
@@ -113,14 +126,13 @@ test('GatewayService returns a provider stream when streaming is requested', asy
       stream: true,
     } as GatewayChatRequestDto,
     {
-        userId: 'user-1',
-        userUuid: 'user-public-1',
-        emailHash: 'hash-1',
-        roles: ['admin']
-        ,
-        defaultProviderId: 'nanogpt',
-        defaultModel: 'nano-default',
-      },
+      userId: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      roles: ['admin'],
+      defaultProviderId: 'nanogpt',
+      defaultModel: 'nano-default',
+    },
   );
 
   const reader = streamResponse.stream.getReader();

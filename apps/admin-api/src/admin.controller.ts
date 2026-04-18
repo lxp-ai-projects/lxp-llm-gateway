@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 
 import { AdminService } from './admin/admin.service';
 import { BootstrapAdminDto } from './admin/dto/bootstrap-admin.dto';
@@ -60,7 +69,9 @@ export class AdminController {
   @Get('provider-credentials')
   @UseGuards(AccessTokenGuard)
   listOwnProviderCredentials(@Req() request: RequestWithAuthUser) {
-    return this.adminService.listProviderCredentialsForUser(request.authUser!.userUuid);
+    return this.adminService.listProviderCredentialsForUser(
+      request.authUser!.userUuid,
+    );
   }
 
   @Patch('provider-credentials/:credentialId')
@@ -83,16 +94,21 @@ export class AdminController {
     @Req() request: RequestWithAuthUser,
     @Body() dto: CreateProviderCredentialDto,
   ) {
-    return this.adminService.storeProviderCredentialForActor(request.authUser!, {
-      ...dto,
-      userUuid: dto.userUuid ?? request.authUser!.userUuid,
-    });
+    return this.adminService.storeProviderCredentialForActor(
+      request.authUser!,
+      {
+        ...dto,
+        userUuid: dto.userUuid ?? request.authUser!.userUuid,
+      },
+    );
   }
 
   @Get('provider-settings')
   @UseGuards(AccessTokenGuard)
   getOwnProviderSettings(@Req() request: RequestWithAuthUser) {
-    return this.adminService.getProviderSettingsForUser(request.authUser!.userUuid);
+    return this.adminService.getProviderSettingsForUser(
+      request.authUser!.userUuid,
+    );
   }
 
   @Patch('provider-settings')

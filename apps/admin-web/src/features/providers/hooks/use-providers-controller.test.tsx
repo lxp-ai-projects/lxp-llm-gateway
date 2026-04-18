@@ -126,7 +126,9 @@ beforeEach(() => {
   getOwnProviderSettingsMock.mockClear();
   updateOwnProviderCredentialMock.mockClear();
   updateOwnProviderSettingsMock.mockClear();
-  runtimeConfigData.supportedProviders = [{ providerId: 'nanogpt', displayName: 'NanoGPT' }];
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+  ];
   getModelsMock.mockResolvedValue({
     providerId: 'nanogpt',
     models: [
@@ -204,10 +206,13 @@ test('useProvidersController creates and updates credentials with proper form re
   });
 
   await waitFor(() =>
-    expect(updateOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1', {
-      label: 'main',
-      apiToken: 'rotated-secret-token',
-    }),
+    expect(updateOwnProviderCredentialMock).toHaveBeenCalledWith(
+      'credential-1',
+      {
+        label: 'main',
+        apiToken: 'rotated-secret-token',
+      },
+    ),
   );
 
   expect(result.current.editingCredentialId).toBeNull();
@@ -252,15 +257,21 @@ test('useProvidersController surfaces model loading errors and provider fallback
     defaultProviderId: 'custom-provider',
     defaultModel: null,
   });
-  getModelsMock.mockRejectedValue(new Error('Provider model registry is offline.'));
+  getModelsMock.mockRejectedValue(
+    new Error('Provider model registry is offline.'),
+  );
 
   const { result } = renderHook(() => useProvidersController(), { wrapper });
 
   await waitFor(() =>
-    expect(result.current.currentDefaultProviderDisplayName).toBe('custom-provider'),
+    expect(result.current.currentDefaultProviderDisplayName).toBe(
+      'custom-provider',
+    ),
   );
   await waitFor(() =>
-    expect(result.current.modelErrorMessage).toBe('Provider model registry is offline.'),
+    expect(result.current.modelErrorMessage).toBe(
+      'Provider model registry is offline.',
+    ),
   );
 
   expect(result.current.defaultProviderOptions).toEqual([

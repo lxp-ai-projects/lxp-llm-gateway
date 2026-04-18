@@ -29,13 +29,17 @@ function loadServiceWorkerHarness() {
         deletedKeys.push(key);
         return true;
       }),
-      match: vi.fn(async (request: Request) => cacheStore.get(request.url) ?? null),
+      match: vi.fn(
+        async (request: Request) => cacheStore.get(request.url) ?? null,
+      ),
     },
     fetch: vi.fn(),
     self: {
-      addEventListener: vi.fn((type: string, handler: (event: unknown) => void) => {
-        handlers.set(type, handler);
-      }),
+      addEventListener: vi.fn(
+        (type: string, handler: (event: unknown) => void) => {
+          handlers.set(type, handler);
+        },
+      ),
       skipWaiting: vi.fn(async () => undefined),
       clients: {
         claim: vi.fn(async () => undefined),
@@ -59,7 +63,8 @@ function loadServiceWorkerHarness() {
 }
 
 test('service worker installs and activates the expected cache lifecycle', async () => {
-  const { handlers, cacheApi, deletedKeys, context } = loadServiceWorkerHarness();
+  const { handlers, cacheApi, deletedKeys, context } =
+    loadServiceWorkerHarness();
   const installWaitUntil = vi.fn((promise: Promise<unknown>) => promise);
   const activateWaitUntil = vi.fn((promise: Promise<unknown>) => promise);
 
@@ -100,7 +105,9 @@ test('service worker bypasses non-GET fetches and caches successful GET response
     clone: vi.fn(() => networkResponse),
     text: vi.fn(async () => 'network'),
   };
-  vi.mocked(context.fetch).mockResolvedValueOnce(networkResponse as unknown as Response);
+  vi.mocked(context.fetch).mockResolvedValueOnce(
+    networkResponse as unknown as Response,
+  );
 
   handlers.get('fetch')?.({
     request: new Request('https://example.com/data'),
