@@ -52,5 +52,16 @@ jobs:
       - name: Typecheck backend scope
         run: pnpm exec turbo run typecheck --filter=@lxp/admin-api --filter=@lxp/gateway-api
 
+      - name: Test backend scope
+        run: pnpm exec turbo run test --filter=@lxp/admin-api --filter=@lxp/gateway-api
+
+      - name: Coverage admin-api
+        continue-on-error: true
+        run: pnpm --filter @lxp/admin-api coverage
+
+      - name: Coverage gateway-api
+        continue-on-error: true
+        run: pnpm --filter @lxp/gateway-api coverage
+
       - name: Build backend scope
         run: pnpm exec turbo run build --filter=@lxp/admin-api --filter=@lxp/gateway-api

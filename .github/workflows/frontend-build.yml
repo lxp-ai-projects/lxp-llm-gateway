@@ -50,5 +50,19 @@ jobs:
       - name: Typecheck frontend scope
         run: pnpm exec turbo run typecheck --filter=@lxp/admin-web
 
+      - name: Test frontend scope
+        run: pnpm exec turbo run test --filter=@lxp/admin-web
+
+      - name: Coverage frontend scope
+        continue-on-error: true
+        run: pnpm --filter @lxp/admin-web test:coverage
+
+      - name: Upload frontend coverage artifact
+        if: ${{ always() && hashFiles('apps/admin-web/coverage/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-web-coverage
+          path: apps/admin-web/coverage
+
       - name: Build frontend scope
         run: pnpm exec turbo run build --filter=@lxp/admin-web
