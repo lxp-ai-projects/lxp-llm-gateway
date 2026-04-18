@@ -76,7 +76,14 @@ export function ProviderCredentialsPanel({
                     className="provider-credential-summary"
                   >
                     <div className="provider-credential-summary-copy">
-                      <Text fw={700}>{credential.providerDisplayName}</Text>
+                      <Group gap="xs">
+                        <Text fw={700}>{credential.providerDisplayName}</Text>
+                        {credential.providerId === 'ollama' ? (
+                          <Badge color="blue" variant="light">
+                            Endpoint
+                          </Badge>
+                        ) : null}
+                      </Group>
                       <Text size="sm" c="dimmed">
                         {credential.label}
                       </Text>
@@ -141,7 +148,14 @@ export function ProviderCredentialsPanel({
               <Table.Tr key={credential.id}>
                 <Table.Td>
                   <Stack gap={2}>
-                    <Text>{credential.providerDisplayName}</Text>
+                    <Group gap="xs">
+                      <Text>{credential.providerDisplayName}</Text>
+                      {credential.providerId === 'ollama' ? (
+                        <Badge color="blue" variant="light">
+                          Endpoint
+                        </Badge>
+                      ) : null}
+                    </Group>
                     {currentDefaultProviderId === credential.providerId ? (
                       <Text c="dimmed" size="xs">
                         Default provider

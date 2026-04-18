@@ -8,6 +8,7 @@ The platform separates the data plane from the control plane.
 - clients talk to `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
 - `provider-nanogpt` is the first concrete provider implementation
+- `provider-openrouter` and `provider-ollama` are planned behind the same seam
 
 ## Boundary Rules
 
@@ -29,6 +30,7 @@ It must not import provider-specific implementation details directly.
 - `domain` contains framework-agnostic domain concepts
 - `provider-sdk` defines the provider integration seam
 - `provider-nanogpt` implements NanoGPT behind the seam
+- future provider packages implement OpenRouter and Ollama behind the same seam
 
 ## Persistence Posture
 
@@ -89,3 +91,20 @@ The preferred browser automation convention is a minimal `data-testid` policy ap
 The main architectural failure mode is leaking provider-specific logic into `gateway-api`.
 
 If that boundary collapses, the new repository will recreate the coupling problems it was meant to eliminate.
+
+## Provider Access Posture
+
+The seam must support transparent provider execution without forcing `gateway-api` to understand each provider's auth model.
+
+Provider adapters receive a provider access configuration that may contain:
+
+- `apiKey`
+- `baseUrl`
+- provider-scoped headers
+
+This allows:
+
+- `NanoGPT` and `OpenRouter` to use bearer-token style auth
+- `Ollama` to use an explicit endpoint with optional auth headers
+
+`gateway-api` resolves and decrypts provider access data, but it does not interpret provider-specific transport rules.

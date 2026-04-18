@@ -55,8 +55,10 @@ class FakeProviderRegistryService {
 }
 
 class FakeProviderCredentialService {
-  async resolveApiKey(): Promise<string> {
-    return 'nano-secret-token';
+  async resolveProviderAccess(): Promise<{ apiKey: string }> {
+    return {
+      apiKey: 'nano-secret-token',
+    };
   }
 }
 

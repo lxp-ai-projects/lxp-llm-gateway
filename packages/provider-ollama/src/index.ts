@@ -1,25 +1,23 @@
 import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
-  ProviderModel,
   ProviderExecutionContext,
+  ProviderModel,
 } from '@lxp/provider-sdk';
 
-export class NanoGptProviderAdapter implements LlmProviderAdapter {
+export class OllamaProviderAdapter implements LlmProviderAdapter {
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
 
   constructor(
-    baseUrl = process.env.NANOGPT_BASE_URL ?? 'https://nano-gpt.com/api/v1',
-    requestTimeoutMs = Number(
-      process.env.NANOGPT_REQUEST_TIMEOUT_MS ?? '90000',
-    ),
+    baseUrl = process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434/v1',
+    requestTimeoutMs = Number(process.env.OLLAMA_REQUEST_TIMEOUT_MS ?? '90000'),
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
   }
 
-  readonly providerId = 'nanogpt' as const;
+  readonly providerId = 'ollama' as const;
 
   supportsStreaming(): boolean {
     return true;
@@ -28,30 +26,32 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.resolveBaseUrl(context)}/models`, {
-      headers: {
-        ...this.resolveHeaders(context),
-      },
+    const response = await fetch(`${this.resolveNativeBaseUrl(context)}/api/tags`, {
+      headers: this.resolveHeaders(context),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `NanoGPT model listing failed with status ${response.status}: ${errorText}`,
+        `Ollama model listing failed with status ${response.status}: ${errorText}`,
       );
     }
 
     const payload = (await response.json()) as {
-      data?: Array<{
-        id: string;
+      models?: Array<{
         name?: string;
+        model?: string;
       }>;
     };
 
-    return (payload.data ?? []).map((model) => ({
-      id: model.id,
-      displayName: model.name ?? model.id,
-    }));
+    return (payload.models ?? []).map((model) => {
+      const modelId = model.model ?? model.name ?? 'unknown-model';
+
+      return {
+        id: modelId,
+        displayName: model.name ?? modelId,
+      };
+    });
   }
 
   async chat(
@@ -63,7 +63,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `NanoGPT request failed with status ${response.status}: ${errorText}`,
+        `Ollama request failed with status ${response.status}: ${errorText}`,
       );
     }
 
@@ -134,12 +134,12 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `NanoGPT streaming request failed with status ${response.status}: ${errorText}`,
+        `Ollama streaming request failed with status ${response.status}: ${errorText}`,
       );
     }
 
     if (!response.body) {
-      throw new Error('NanoGPT streaming response did not include a body.');
+      throw new Error('Ollama streaming response did not include a body.');
     }
 
     return response.body;
@@ -172,6 +172,10 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
   private resolveBaseUrl(context: ProviderExecutionContext): string {
     const providerAccess = context.providerAccess ?? {};
     return (providerAccess.baseUrl ?? this.baseUrl).replace(/\/$/, '');
+  }
+
+  private resolveNativeBaseUrl(context: ProviderExecutionContext): string {
+    return this.resolveBaseUrl(context).replace(/\/v1$/i, '');
   }
 
   private resolveHeaders(
@@ -208,7 +212,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        throw new Error(`NanoGPT request timed out after ${timeoutMs} ms.`);
+        throw new Error(`Ollama request timed out after ${timeoutMs} ms.`);
       }
 
       throw error;

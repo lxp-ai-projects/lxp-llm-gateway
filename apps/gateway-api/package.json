@@ -5,7 +5,9 @@
   "dependencies": {
     "@lxp/contracts": "workspace:*",
     "@lxp/domain": "workspace:*",
+    "@lxp/provider-ollama": "workspace:*",
     "@lxp/provider-nanogpt": "workspace:*",
+    "@lxp/provider-openrouter": "workspace:*",
     "@lxp/provider-sdk": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
@@ -25,10 +27,10 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "coverage": "tsx --test --experimental-test-coverage src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/persistence/entities/entity-metadata.test.ts",
+    "coverage": "tsx --test --experimental-test-coverage src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/gateway/provider-registry.service.test.ts src/persistence/entities/entity-metadata.test.ts",
     "dev": "tsc-watch --project tsconfig.json --onSuccess \"node dist/main.js\"",
     "lint": "eslint src --ext .ts",
-    "test": "tsx --test src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/persistence/entities/entity-metadata.test.ts",
+    "test": "tsx --test src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/gateway/provider-registry.service.test.ts src/persistence/entities/entity-metadata.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

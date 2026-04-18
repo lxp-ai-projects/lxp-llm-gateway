@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { ProviderId } from '@lxp/domain';
 
 import { UserProviderCredentialEntity } from './user-provider-credential.entity';
 import { UserRoleEntity } from './user-role.entity';
@@ -55,7 +56,7 @@ export class UserEntity {
     length: 50,
     nullable: true,
   })
-  defaultProviderId!: 'nanogpt' | null;
+  defaultProviderId!: ProviderId | null;
 
   @Column({
     name: 'default_model',

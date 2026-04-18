@@ -12,6 +12,7 @@
 - shared contracts and domain packages
 - provider abstraction package
 - first provider integration for NanoGPT
+- initial multi-provider seam support for OpenRouter and Ollama
 - user, role, and provider credential foundations
 - local development infrastructure
 - foundational documentation and API contract placeholders
@@ -19,7 +20,7 @@
 
 ## Out of Scope for Phase 1
 
-- additional providers
+- additional providers beyond NanoGPT, OpenRouter, and Ollama
 - billing and analytics
 - quota enforcement
 - policy engines

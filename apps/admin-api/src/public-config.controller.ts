@@ -13,6 +13,14 @@ export class PublicConfigController {
           providerId: 'nanogpt',
           displayName: 'NanoGPT',
         },
+        {
+          providerId: 'openrouter',
+          displayName: 'OpenRouter',
+        },
+        {
+          providerId: 'ollama',
+          displayName: 'Ollama',
+        },
       ],
     };
   }

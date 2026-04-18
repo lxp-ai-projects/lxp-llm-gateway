@@ -35,6 +35,7 @@ Phase 1 includes:
 - a minimal `admin-web`
 - a minimal provider abstraction layer
 - a single provider implementation: `NanoGPT`
+- initial provider-seam expansion for `OpenRouter` and `Ollama`
 - local development infrastructure with Redis or Valkey
 - an initial OpenAPI placeholder
 - basic CI-ready scripts for lint, build, and test
@@ -42,7 +43,7 @@ Phase 1 includes:
 
 Phase 1 does not include:
 
-- a second provider
+- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, and `Ollama`
 - quota engines
 - policy engines
 - analytics
@@ -199,6 +200,9 @@ Provider abstraction seam:
 - adapter interfaces
 - normalized provider result types
 - shared provider execution contracts
+- provider access configuration that can represent:
+  - bearer-token providers such as `NanoGPT` and `OpenRouter`
+  - endpoint-based providers such as `Ollama`
 
 ### `packages/provider-nanogpt`
 
@@ -207,6 +211,11 @@ NanoGPT-specific implementation:
 - request and response mapping
 - streaming adaptation
 - provider-specific integration logic
+
+Future provider packages follow the same pattern:
+
+- `packages/provider-openrouter`
+- `packages/provider-ollama`
 
 ## Critical Architecture Rule
 
@@ -257,6 +266,14 @@ export interface LlmProviderAdapter {
   ): Promise<ReadableStream>;
 }
 ```
+
+The execution context passed through the seam may contain a provider access configuration rather than only a raw API key.
+
+That access configuration can include:
+
+- `apiKey`
+- `baseUrl`
+- provider-scoped headers when required
 
 The first version does not need to be perfect.
 

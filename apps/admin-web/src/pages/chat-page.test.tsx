@@ -7,6 +7,7 @@ import { ChatPage } from './chat-page';
 
 const {
   getSessionMock,
+  getOwnProviderSettingsMock,
   chatStreamMock,
   deleteConversationMock,
   exportConversationArchiveMock,
@@ -22,6 +23,11 @@ const {
     displayName: 'Patrick',
     status: 'active',
     roles: ['admin'],
+  })),
+  getOwnProviderSettingsMock: vi.fn(async () => ({
+    userUuid: 'user-1',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'z-ai/glm-4.6:thinking',
   })),
   chatStreamMock: vi.fn(async () => ({
     requestId: 'request-1',
@@ -52,13 +58,18 @@ const {
 vi.mock('../lib/api-client', () => ({
   adminApiClient: {
     getSession: getSessionMock,
+    getOwnProviderSettings: getOwnProviderSettingsMock,
     exportConversation: exportConversationMock,
     exportConversationArchive: exportConversationArchiveMock,
     getRuntimeConfig: vi.fn(async () => ({
       registrationEnabled: true,
       forgotPasswordEnabled: true,
       gatewayOnline: true,
-      supportedProviders: [{ providerId: 'nanogpt', displayName: 'NanoGPT' }],
+      supportedProviders: [
+        { providerId: 'nanogpt', displayName: 'NanoGPT' },
+        { providerId: 'openrouter', displayName: 'OpenRouter' },
+        { providerId: 'ollama', displayName: 'Ollama' },
+      ],
     })),
     importConversationFile: importConversationFileMock,
   },
@@ -76,6 +87,7 @@ vi.mock('../lib/chat-store', () => ({
 
 beforeEach(() => {
   getSessionMock.mockClear();
+  getOwnProviderSettingsMock.mockClear();
   chatStreamMock.mockClear();
   deleteConversationMock.mockClear();
   exportConversationArchiveMock.mockClear();
@@ -85,6 +97,35 @@ beforeEach(() => {
   loadConversationsMock.mockReset();
   loadConversationsMock.mockResolvedValue([]);
   saveConversationMock.mockClear();
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'z-ai/glm-4.6:thinking',
+  });
+  getModelsMock.mockImplementation(async (providerId?: string) => {
+    if (providerId === 'openrouter') {
+      return {
+        providerId: 'openrouter',
+        models: [
+          { id: 'openrouter/auto', displayName: 'OpenRouter Auto' },
+        ],
+      };
+    }
+
+    if (providerId === 'ollama') {
+      return {
+        providerId: 'ollama',
+        models: [{ id: 'qwen3:8b', displayName: 'Qwen3 8B' }],
+      };
+    }
+
+    return {
+      providerId: 'nanogpt',
+      models: [
+        { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
+      ],
+    };
+  });
 });
 
 test('ChatPage submits on Enter from the composer', async () => {
@@ -101,6 +142,8 @@ test('ChatPage submits on Enter from the composer', async () => {
 
   expect(chatStreamMock).toHaveBeenCalledWith(
     expect.objectContaining({
+      providerId: 'nanogpt',
+      model: 'z-ai/glm-4.6:thinking',
       stream: true,
       messages: [
         {
@@ -117,6 +160,42 @@ test('ChatPage submits on Enter from the composer', async () => {
     expect.any(Object),
   );
 });
+
+test('ChatPage lets the user switch provider and shows the catalog pricing note', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const openRouterOption = document.querySelector(
+    '[role="option"][value="openrouter"]',
+  ) as HTMLElement | null;
+  expect(openRouterOption).not.toBeNull();
+  await user.click(openRouterOption!);
+
+  expect(
+    await screen.findByText(
+      /OpenRouter catalogs can include both free and paid models/i,
+    ),
+  ).toBeInTheDocument();
+  await waitFor(() => expect(getModelsMock).toHaveBeenCalledWith('openrouter'));
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Route this through OpenRouter{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'openrouter',
+      model: 'openrouter/auto',
+    }),
+    expect.any(Object),
+  );
+}, 10_000);
 
 test('ChatPage keeps Shift+Enter for multiline drafting', async () => {
   renderWithProviders(<ChatPage />);

@@ -103,6 +103,18 @@ function createAdminService() {
       displayName: 'NanoGPT',
       status: 'active',
     },
+    {
+      id: randomUUID(),
+      providerId: 'openrouter',
+      displayName: 'OpenRouter',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'ollama',
+      displayName: 'Ollama',
+      status: 'active',
+    },
   ]);
   const credentialRepository = createRepositoryMock();
 
@@ -248,6 +260,33 @@ test('AdminService stores short provider tokens without masking them further', a
   });
 
   assert.equal(credential.maskedHint, 'abcd');
+});
+
+test('AdminService stores an Ollama endpoint-only credential', async () => {
+  const { service, repositories } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  const credential = await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'ollama',
+    label: 'local-ollama',
+    baseUrl: 'http://127.0.0.1:11434/v1',
+  });
+
+  assert.equal(credential.providerId, 'ollama');
+  assert.equal(credential.maskedHint, 'http://127.0.0.1:11434/v1');
+
+  const stored = repositories.credentialRepository.data[0] as {
+    encryptedSecret: string;
+  };
+  assert.notEqual(
+    stored.encryptedSecret,
+    JSON.stringify({ baseUrl: 'http://127.0.0.1:11434/v1' }),
+  );
 });
 
 test('AdminService rejects storing a provider credential when the user does not exist', async () => {

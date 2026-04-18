@@ -20,3 +20,4 @@ Provider integrations are implemented behind a shared adapter seam in `packages/
 
 - the adapter contract must be kept intentionally small
 - provider packages must absorb integration-specific complexity
+- the provider execution context may carry generalized access configuration such as `baseUrl` and auth headers, not only a raw API key

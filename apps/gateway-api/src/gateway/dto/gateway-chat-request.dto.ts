@@ -10,13 +10,16 @@ import {
   ValidateNested,
 } from 'class-validator';
 import type { GatewayChatRequest } from '@lxp/contracts';
+import type { ProviderId } from '@lxp/domain';
 
 import { ChatMessageDto } from './chat-message.dto';
 
+const SUPPORTED_PROVIDER_IDS = ['nanogpt', 'openrouter', 'ollama'] as const;
+
 export class GatewayChatRequestDto implements GatewayChatRequest {
   @IsOptional()
-  @IsIn(['nanogpt'])
-  providerId?: 'nanogpt';
+  @IsIn(SUPPORTED_PROVIDER_IDS)
+  providerId?: ProviderId;
 
   @IsOptional()
   @IsString()

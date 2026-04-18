@@ -73,6 +73,7 @@ test('useChatConversations loads stored conversations and syncs the active syste
 
   const { result } = renderHook(() =>
     useChatConversations({
+      providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
       onResetComposerState,
       onSetChatError,
@@ -90,6 +91,7 @@ test('useChatConversations creates and persists a new conversation with the curr
 
   const { result } = renderHook(() =>
     useChatConversations({
+      providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
       onResetComposerState: vi.fn(),
       onSetChatError: vi.fn(),
@@ -127,6 +129,7 @@ test('useChatConversations persists model and system prompt changes for the acti
 
   const { result } = renderHook(() =>
     useChatConversations({
+      providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
       onResetComposerState: vi.fn(),
       onSetChatError: vi.fn(),
@@ -179,6 +182,7 @@ test('useChatConversations deletes the active conversation and resets dependent 
 
   const { result } = renderHook(() =>
     useChatConversations({
+      providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
       onResetComposerState,
       onSetChatError,
@@ -214,6 +218,7 @@ test('useChatConversations falls back cleanly when local loading fails', async (
 
   const { result } = renderHook(() =>
     useChatConversations({
+      providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
       onResetComposerState: vi.fn(),
       onSetChatError: vi.fn(),

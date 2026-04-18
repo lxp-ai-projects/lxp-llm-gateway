@@ -33,7 +33,8 @@ export class GatewayService {
       );
     }
 
-    const apiKey = await this.providerCredentialService.resolveApiKey(
+    const providerAccess =
+      await this.providerCredentialService.resolveProviderAccess(
       authContext.emailHash,
       provider.providerId,
     );
@@ -41,9 +42,7 @@ export class GatewayService {
     const models = await provider.listModels({
       requestId,
       userId: authContext.userId,
-      providerCredential: {
-        apiKey,
-      },
+      providerAccess,
     });
 
     return {
@@ -82,7 +81,8 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
-      const apiKey = await this.providerCredentialService.resolveApiKey(
+      const providerAccess =
+        await this.providerCredentialService.resolveProviderAccess(
         authContext.emailHash,
         provider.providerId,
       );
@@ -96,9 +96,7 @@ export class GatewayService {
         {
           requestId,
           userId: authContext.userId,
-          providerCredential: {
-            apiKey,
-          },
+          providerAccess,
         },
       );
 
@@ -157,7 +155,8 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
-      const apiKey = await this.providerCredentialService.resolveApiKey(
+      const providerAccess =
+        await this.providerCredentialService.resolveProviderAccess(
         authContext.emailHash,
         provider.providerId,
       );
@@ -171,9 +170,7 @@ export class GatewayService {
         {
           requestId,
           userId: authContext.userId,
-          providerCredential: {
-            apiKey,
-          },
+          providerAccess,
         },
       );
 

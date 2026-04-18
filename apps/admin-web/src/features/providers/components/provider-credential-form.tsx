@@ -1,9 +1,9 @@
 import {
+  Alert,
   Button,
   Card,
   Group,
   PasswordInput,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -18,10 +18,12 @@ type ProviderOption = {
 
 type ProviderCredentialFormProps = {
   apiToken: string;
+  baseUrl: string;
   editingCredentialId: string | null;
   isPending: boolean;
   label: string;
   onApiTokenChange: (value: string) => void;
+  onBaseUrlChange: (value: string) => void;
   onCancelEdit: () => void;
   onLabelChange: (value: string) => void;
   onProviderChange: (value: string | null) => void;
@@ -32,10 +34,12 @@ type ProviderCredentialFormProps = {
 
 export function ProviderCredentialForm({
   apiToken,
+  baseUrl,
   editingCredentialId,
   isPending,
   label,
   onApiTokenChange,
+  onBaseUrlChange,
   onCancelEdit,
   onLabelChange,
   onProviderChange,
@@ -44,7 +48,9 @@ export function ProviderCredentialForm({
   providerOptions,
 }: ProviderCredentialFormProps) {
   const isEditing = Boolean(editingCredentialId);
-  const isSubmitDisabled = !label.trim() || (!isEditing && !apiToken.trim());
+  const usesEndpointAccess = providerId === 'ollama';
+  const isSubmitDisabled =
+    !label.trim() || (!isEditing && !apiToken.trim() && !baseUrl.trim());
 
   return (
     <Card className="section-card">
@@ -59,17 +65,35 @@ export function ProviderCredentialForm({
             <IconKey size={18} />
           </Group>
           <Text c="dimmed" size="sm">
-            Token values remain write-only. After save, only a masked hint is
-            shown back to you.
+            Credential values remain write-only. After save, only a masked hint
+            is shown back to you.
           </Text>
-          <Select
-            data={providerOptions}
-            data-testid="providers-provider-select"
-            disabled={isEditing}
-            label="Provider"
-            onChange={onProviderChange}
-            value={providerId}
-          />
+          {usesEndpointAccess ? (
+            <Alert color="blue" variant="light" title="Endpoint-based credential">
+              Ollama credentials may rely on a local or remote base URL. API
+              tokens are optional for local instances and expected only when the
+              endpoint is protected.
+            </Alert>
+          ) : null}
+          <label className="form-native-field">
+            <Text component="span" size="sm" fw={500}>
+              Provider
+            </Text>
+            <select
+              aria-label="Provider"
+              className="form-native-select"
+              data-testid="providers-provider-select"
+              disabled={isEditing}
+              onChange={(event) => onProviderChange(event.currentTarget.value)}
+              value={providerId}
+            >
+              {providerOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <TextInput
             data-testid="providers-label-input"
             label="Label"
@@ -88,9 +112,29 @@ export function ProviderCredentialForm({
             placeholder={
               isEditing
                 ? 'Enter a new token only if you want to rotate it'
+                : usesEndpointAccess
+                  ? 'Optional for local Ollama; required for protected or cloud endpoints'
                 : undefined
             }
             value={apiToken}
+          />
+          <TextInput
+            data-testid="providers-base-url-input"
+            description={
+              isEditing
+                ? 'Leave blank to keep the current endpoint and update only the other fields.'
+                : usesEndpointAccess
+                  ? 'Recommended for Ollama. Example: http://127.0.0.1:11434/v1'
+                  : 'Optional override when this credential should use a non-default provider endpoint.'
+            }
+            label={isEditing ? 'Replace base URL' : 'Base URL'}
+            onChange={(event) => onBaseUrlChange(event.currentTarget.value)}
+            placeholder={
+              usesEndpointAccess
+                ? 'http://127.0.0.1:11434/v1'
+                : undefined
+            }
+            value={baseUrl}
           />
           <Group justify="space-between">
             <Group gap="xs">

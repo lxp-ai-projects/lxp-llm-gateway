@@ -26,7 +26,11 @@ export const adminApiClient = {
         registrationEnabled: false,
         forgotPasswordEnabled: false,
         gatewayOnline: true,
-        supportedProviders: [{ providerId: 'nanogpt', displayName: 'NanoGPT' }],
+        supportedProviders: [
+          { providerId: 'nanogpt', displayName: 'NanoGPT' },
+          { providerId: 'openrouter', displayName: 'OpenRouter' },
+          { providerId: 'ollama', displayName: 'Ollama' },
+        ],
       };
     }
   },
@@ -126,6 +130,7 @@ export const adminApiClient = {
     payload: {
       label?: string;
       apiToken?: string;
+      baseUrl?: string;
     },
   ): Promise<ProviderCredentialSummary> {
     return request<ProviderCredentialSummary>(
@@ -138,9 +143,10 @@ export const adminApiClient = {
   },
 
   async createOwnProviderCredential(payload: {
-    providerId: 'nanogpt';
+    providerId: string;
     label: string;
-    apiToken: string;
+    apiToken?: string;
+    baseUrl?: string;
   }): Promise<ProviderCredentialSummary> {
     return request<ProviderCredentialSummary>(
       `${adminApiUrl}/api/v1/provider-credentials`,
@@ -158,7 +164,7 @@ export const adminApiClient = {
   },
 
   async updateOwnProviderSettings(payload: {
-    defaultProviderId?: 'nanogpt' | null;
+    defaultProviderId?: string | null;
     defaultModel?: string | null;
   }): Promise<ProviderSettingsSummary> {
     return request<ProviderSettingsSummary>(

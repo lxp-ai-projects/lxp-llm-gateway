@@ -1,5 +1,5 @@
 {
-  "name": "@lxp/provider-sdk",
+  "name": "@lxp/provider-ollama",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -13,13 +13,16 @@
   },
   "dependencies": {
     "@lxp/contracts": "workspace:*",
-    "@lxp/domain": "workspace:*"
+    "@lxp/provider-sdk": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "lint": "eslint src --ext .ts",
-    "test": "node --test",
+    "test": "tsx --test src/index.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
   }
 }

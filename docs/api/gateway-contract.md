@@ -35,7 +35,7 @@ Example:
 
 Fields:
 
-- `providerId?`: provider identifier, currently `nanogpt`
+- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, or `ollama`
 - `model?`: provider model name
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
@@ -97,7 +97,7 @@ When `stream=true`, the gateway returns:
 
 - `Content-Type: text/event-stream; charset=utf-8`
 
-The gateway currently performs provider SSE passthrough for NanoGPT-compatible streams. This preserves provider-native deltas such as:
+The gateway currently performs provider SSE passthrough for OpenAI-compatible provider streams. This preserves provider-native deltas such as:
 
 - `choices[0].delta.reasoning`
 - `choices[0].delta.content`
@@ -127,9 +127,15 @@ Public-facing admin workflows use `userUuid`, not the internal database row id.
 
 ## Current Provider Notes
 
-For NanoGPT:
+For NanoGPT and other OpenAI-compatible providers:
 
 - non-stream reasoning is read from `choices[0].message.reasoning`
 - non-stream reasoning details are read from `choices[0].message.reasoning_details`
 - streaming reasoning is relayed from `choices[0].delta.reasoning`
 - streaming content is relayed from `choices[0].delta.content`
+
+For Ollama:
+
+- OpenAI compatibility can be used through an explicit provider `baseUrl`
+- local deployments may not require auth
+- cloud deployments may require bearer auth through provider-scoped headers

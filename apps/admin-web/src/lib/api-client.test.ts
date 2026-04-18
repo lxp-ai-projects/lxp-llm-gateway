@@ -39,7 +39,11 @@ test('adminApiClient.getRuntimeConfig falls back to safe defaults when the reque
     registrationEnabled: false,
     forgotPasswordEnabled: false,
     gatewayOnline: true,
-    supportedProviders: [{ providerId: 'nanogpt', displayName: 'NanoGPT' }],
+    supportedProviders: [
+      { providerId: 'nanogpt', displayName: 'NanoGPT' },
+      { providerId: 'openrouter', displayName: 'OpenRouter' },
+      { providerId: 'ollama', displayName: 'Ollama' },
+    ],
   });
 });
 

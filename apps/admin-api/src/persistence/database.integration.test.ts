@@ -64,15 +64,33 @@ test('database entity graph initializes against a Postgres-compatible in-memory 
   assert.ok(user.userUuid);
 
   const provider = providerRepository.create({
+    id: randomUUID(),
     providerId: 'nanogpt',
     displayName: 'NanoGPT',
     status: 'active',
   });
+  const openRouterProvider = providerRepository.create({
+    id: randomUUID(),
+    providerId: 'openrouter',
+    displayName: 'OpenRouter',
+    status: 'active',
+  });
+  const ollamaProvider = providerRepository.create({
+    id: randomUUID(),
+    providerId: 'ollama',
+    displayName: 'Ollama',
+    status: 'active',
+  });
   await providerRepository.save(provider);
+  await providerRepository.save(openRouterProvider);
+  await providerRepository.save(ollamaProvider);
 
   const providers = await providerRepository.find();
-  assert.equal(providers.length, 1);
-  assert.equal(providers[0]?.providerId, 'nanogpt');
+  assert.equal(providers.length, 3);
+  assert.deepEqual(
+    providers.map((entry: ProviderEntity) => entry.providerId).sort(),
+    ['nanogpt', 'ollama', 'openrouter'],
+  );
 
   const roleRepository = dataSource.getRepository(RoleEntity);
   const role = roleRepository.create({

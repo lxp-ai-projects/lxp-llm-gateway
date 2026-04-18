@@ -6,12 +6,15 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
-test('registerServiceWorker registers on secure contexts after load', async () => {
+test('registerServiceWorker does not register during development', async () => {
   const registerMock = vi.fn(async () => ({ scope: '/' }));
+  const unregisterMock = vi.fn(async () => true);
+  const getRegistrationsMock = vi.fn(async () => [{ unregister: unregisterMock }]);
   Object.defineProperty(navigator, 'serviceWorker', {
     configurable: true,
     value: {
       register: registerMock,
+      getRegistrations: getRegistrationsMock,
     },
   });
   Object.defineProperty(window, 'isSecureContext', {
@@ -24,7 +27,9 @@ test('registerServiceWorker registers on secure contexts after load', async () =
 
   await Promise.resolve();
 
-  expect(registerMock).toHaveBeenCalledWith('/service-worker.js');
+  expect(registerMock).not.toHaveBeenCalled();
+  expect(getRegistrationsMock).toHaveBeenCalled();
+  expect(unregisterMock).toHaveBeenCalled();
 });
 
 test('registerServiceWorker skips browsers without service worker support', () => {

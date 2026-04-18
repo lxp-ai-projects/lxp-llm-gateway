@@ -6,6 +6,8 @@ The gateway must be easy to operate while remaining strict about privacy and sec
 
 Provider credentials are resolved dynamically based on the authenticated user context and the requested provider.
 
+The stored secret material may represent a bearer token, an endpoint, or a small provider access configuration object depending on the provider.
+
 ## Core Concepts
 
 ### User
@@ -60,6 +62,8 @@ Suggested minimum fields:
 Suggested initial `providerId` values:
 
 - `nanogpt`
+- `openrouter`
+- `ollama`
 
 ### UserProviderCredential
 
@@ -87,6 +91,15 @@ Optional future fields:
 - `revokedAt`
 - `usagePolicyId`
 
+`encryptedSecret` should be treated as encrypted provider access payload, not as "API key only".
+
+Examples:
+
+- NanoGPT: `{ "apiKey": "..." }`
+- OpenRouter: `{ "apiKey": "...", "baseUrl": "https://openrouter.ai/api/v1" }`
+- Ollama local: `{ "baseUrl": "http://127.0.0.1:11434/v1" }`
+- Ollama cloud: `{ "baseUrl": "https://ollama.com/api", "apiKey": "..." }`
+
 ## Runtime Flow
 
 ### Admin Control Plane
@@ -103,7 +116,7 @@ Optional future fields:
 2. `gateway-api` resolves the effective user context.
 3. `gateway-api` resolves the provider credential for that user and provider.
 4. `gateway-api` decrypts the secret in memory.
-5. `gateway-api` invokes the provider adapter with the decrypted secret.
+5. `gateway-api` invokes the provider adapter with the decrypted provider access configuration.
 6. The secret is discarded after request execution.
 
 ## Resolution Rules

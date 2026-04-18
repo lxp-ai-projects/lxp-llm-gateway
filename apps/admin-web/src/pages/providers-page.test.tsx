@@ -105,6 +105,7 @@ beforeEach(() => {
   updateOwnProviderSettingsMock.mockClear();
   runtimeConfigData.supportedProviders = [
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'ollama', displayName: 'Ollama' },
   ];
   getModelsMock.mockResolvedValue({
     providerId: 'nanogpt',
@@ -299,3 +300,54 @@ test('ProvidersPage marks default providers in both mobile and desktop credentia
   const defaultProviderLabels = await screen.findAllByText('Default provider');
   expect(defaultProviderLabels.length).toBeGreaterThanOrEqual(2);
 });
+
+test('ProvidersPage creates an Ollama endpoint credential with a base URL', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  createOwnProviderCredentialMock.mockResolvedValueOnce({
+    id: 'credential-ollama-1',
+    userUuid: 'user-1',
+    providerId: 'ollama',
+    providerDisplayName: 'Ollama',
+    label: 'local-ollama',
+    maskedHint: 'http://127.0.0.1:11434/v1',
+    isActive: true,
+    createdAt: '2026-04-17T00:00:00.000Z',
+    updatedAt: '2026-04-17T00:00:00.000Z',
+    lastUsedAt: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'ollama');
+
+  expect(
+    screen.getByText('Endpoint-based credential'),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'local-ollama');
+  await user.type(
+    screen.getByLabelText('Base URL'),
+    'http://127.0.0.1:11434/v1',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  await waitFor(() =>
+    expect(createOwnProviderCredentialMock).toHaveBeenCalledWith({
+      providerId: 'ollama',
+      label: 'local-ollama',
+      apiToken: undefined,
+      baseUrl: 'http://127.0.0.1:11434/v1',
+    }),
+  );
+}, 20_000);

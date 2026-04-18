@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { NanoGptProviderAdapter } from '@lxp/provider-nanogpt';
+import { OllamaProviderAdapter } from '@lxp/provider-ollama';
+import { OpenRouterProviderAdapter } from '@lxp/provider-openrouter';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -41,7 +43,11 @@ import { EncryptionService } from '../security/encryption.service';
     EncryptionService,
     {
       provide: LLM_PROVIDERS,
-      useFactory: () => [new NanoGptProviderAdapter()],
+      useFactory: () => [
+        new NanoGptProviderAdapter(),
+        new OpenRouterProviderAdapter(),
+        new OllamaProviderAdapter(),
+      ],
     },
   ],
 })

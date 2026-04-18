@@ -95,7 +95,10 @@ export class InitialAdminSchema1713000000000 implements MigrationInterface {
 
     await queryRunner.query(`
       INSERT INTO "providers" ("provider_id", "display_name", "status")
-      VALUES ('nanogpt', 'NanoGPT', 'active')
+      VALUES
+        ('nanogpt', 'NanoGPT', 'active'),
+        ('openrouter', 'OpenRouter', 'active'),
+        ('ollama', 'Ollama', 'active')
     `);
   }
 

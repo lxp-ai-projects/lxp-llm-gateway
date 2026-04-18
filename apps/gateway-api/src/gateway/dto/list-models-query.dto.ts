@@ -1,7 +1,10 @@
 import { IsIn, IsOptional } from 'class-validator';
+import type { ProviderId } from '@lxp/domain';
+
+const SUPPORTED_PROVIDER_IDS = ['nanogpt', 'openrouter', 'ollama'] as const;
 
 export class ListModelsQueryDto {
   @IsOptional()
-  @IsIn(['nanogpt'])
-  providerId?: 'nanogpt';
+  @IsIn(SUPPORTED_PROVIDER_IDS)
+  providerId?: ProviderId;
 }
