@@ -13,6 +13,94 @@ import type {
   ProviderModel,
 } from '@lxp/provider-sdk';
 
+const XAI_IMAGE_MODEL_METADATA: ReadonlyMap<string, string> = new Map([
+  ['grok-imagine-image', 'Grok Imagine Image'],
+  ['grok-imagine-image-pro', 'Grok Imagine Image Pro'],
+] as const);
+const XAI_IMAGE_RESPONSE_FORMATS = ['url', 'b64_json'] as const;
+const XAI_IMAGE_RESOLUTIONS = [
+  {
+    value: '1k',
+    label: '1k',
+  },
+  {
+    value: '2k',
+    label: '2k',
+  },
+] as const;
+const XAI_IMAGE_ASPECT_RATIOS = [
+  {
+    value: 'auto',
+    label: 'Auto',
+    useCase: 'Model auto-selects the best ratio for the prompt.',
+  },
+  {
+    value: '1:1',
+    label: '1:1',
+    useCase: 'Social media, thumbnails',
+  },
+  {
+    value: '16:9',
+    label: '16:9',
+    useCase: 'Widescreen, mobile, stories',
+  },
+  {
+    value: '9:16',
+    label: '9:16',
+    useCase: 'Widescreen, mobile, stories',
+  },
+  {
+    value: '4:3',
+    label: '4:3',
+    useCase: 'Presentations, portraits',
+  },
+  {
+    value: '3:4',
+    label: '3:4',
+    useCase: 'Presentations, portraits',
+  },
+  {
+    value: '3:2',
+    label: '3:2',
+    useCase: 'Photography',
+  },
+  {
+    value: '2:3',
+    label: '2:3',
+    useCase: 'Photography',
+  },
+  {
+    value: '2:1',
+    label: '2:1',
+    useCase: 'Banners, headers',
+  },
+  {
+    value: '1:2',
+    label: '1:2',
+    useCase: 'Banners, headers',
+  },
+  {
+    value: '19.5:9',
+    label: '19.5:9',
+    useCase: 'Modern smartphone displays',
+  },
+  {
+    value: '9:19.5',
+    label: '9:19.5',
+    useCase: 'Modern smartphone displays',
+  },
+  {
+    value: '20:9',
+    label: '20:9',
+    useCase: 'Ultra-wide displays',
+  },
+  {
+    value: '9:20',
+    label: '9:20',
+    useCase: 'Ultra-wide displays',
+  },
+] as const;
+
 export class XaiProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
     chat: true,
@@ -58,10 +146,23 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
       }>;
     };
 
-    return (payload.data ?? []).map((model) => ({
+    const listedModels = (payload.data ?? []).map((model) => ({
       id: model.id,
-      displayName: model.id,
+      displayName: XAI_IMAGE_MODEL_METADATA.get(model.id) ?? model.id,
+      capabilities: this.resolveModelCapabilities(model.id),
     }));
+    const knownImageModels = Array.from(XAI_IMAGE_MODEL_METADATA.entries())
+      .filter(
+        ([modelId]) =>
+          !listedModels.some((listedModel) => listedModel.id === modelId),
+      )
+      .map(([modelId, displayName]) => ({
+        id: modelId,
+        displayName,
+        capabilities: this.resolveModelCapabilities(modelId),
+      }));
+
+    return [...listedModels, ...knownImageModels];
   }
 
   async chat(
@@ -152,6 +253,7 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
           n: request.n,
           aspect_ratio: request.aspectRatio,
           response_format: request.responseFormat,
+          resolution: request.resolution,
         }),
       },
       this.requestTimeoutMs,
@@ -194,6 +296,7 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
           n: request.n,
           aspect_ratio: request.aspectRatio,
           response_format: request.responseFormat,
+          resolution: request.resolution,
           image: mappedImages.length === 1 ? mappedImages[0] : undefined,
           images: mappedImages.length > 1 ? mappedImages : undefined,
         }),
@@ -316,6 +419,29 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  private resolveModelCapabilities(modelId: string) {
+    if (!this.isImageModel(modelId)) {
+      return {
+        supportsStreaming: true,
+      };
+    }
+
+    return {
+      supportsStreaming: false,
+      supportsImageGeneration: true,
+      supportsImageEditing: true,
+      supportedImageAspectRatios: [...XAI_IMAGE_ASPECT_RATIOS],
+      supportedImageResponseFormats: [...XAI_IMAGE_RESPONSE_FORMATS],
+      supportedImageResolutions: [...XAI_IMAGE_RESOLUTIONS],
+      maxGeneratedImagesPerRequest: 4,
+      maxReferenceImagesPerRequest: 5,
+    };
+  }
+
+  private isImageModel(modelId: string) {
+    return XAI_IMAGE_MODEL_METADATA.has(modelId);
   }
 }
 

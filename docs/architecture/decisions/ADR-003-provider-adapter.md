@@ -28,3 +28,4 @@ Chat, model catalog listing, image generation, and image editing are separate pr
 - the provider execution context may carry generalized access configuration such as `baseUrl` and auth headers, not only a raw API key
 - the same gateway contract now drives NanoGPT, OpenRouter, Ollama, Groq, xAI Grok, OpenAI, and Anthropic Claude without `gateway-api` branching on provider-specific transport details
 - image-specific provider details such as xAI's `/v1/images/generations` and `/v1/images/edits` endpoints must remain inside provider packages, not `gateway-api`
+- model-catalog metadata needed by capability-specific UI flows, such as supported image aspect ratios, response formats, resolutions, and request limits, should also remain provider-owned and flow through normalized adapter results

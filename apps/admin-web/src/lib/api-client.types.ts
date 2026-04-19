@@ -51,9 +51,57 @@ export type GatewayChatStreamResult = {
   finishReason?: string | null;
 };
 
+export type GatewayImageReference =
+  | {
+      type: 'image_url';
+      url: string;
+    }
+  | {
+      type: 'data_url';
+      url: string;
+      mimeType?: string;
+    };
+
+export type GatewayGeneratedImage = {
+  url?: string;
+  b64Json?: string;
+  mimeType?: string;
+  revisedPrompt?: string;
+  providerMetadata?: Record<string, unknown>;
+};
+
+export type GatewayImageGenerationResponse = {
+  requestId: string;
+  providerId: string;
+  model: string;
+  images: GatewayGeneratedImage[];
+  providerMetadata?: Record<string, unknown>;
+};
+
+export type ImageAspectRatioOption = {
+  value: string;
+  label: string;
+  useCase?: string;
+};
+
+export type ImageResolutionOption = {
+  value: string;
+  label: string;
+};
+
 export type ProviderModelSummary = {
   id: string;
   displayName: string;
+  capabilities?: {
+    supportsStreaming?: boolean;
+    supportsImageGeneration?: boolean;
+    supportsImageEditing?: boolean;
+    supportedImageAspectRatios?: ImageAspectRatioOption[];
+    supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
+    supportedImageResolutions?: ImageResolutionOption[];
+    maxGeneratedImagesPerRequest?: number;
+    maxReferenceImagesPerRequest?: number;
+  };
 };
 
 export type ProviderCredentialSummary = {

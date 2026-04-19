@@ -21,6 +21,7 @@ import {
   IconKey,
   IconLogout,
   IconMessageCircleCog,
+  IconPhoto,
   IconShield,
   IconUserCircle,
   IconUsers,
@@ -50,6 +51,7 @@ const navigationItems: NavigationItem[] = [
   { label: 'Provider Tokens', to: '/app/providers', icon: IconKey },
   { label: 'Profile', to: '/app/profile', icon: IconUserCircle },
   { label: 'Chat Lab', to: '/app/chat', icon: IconMessageCircleCog },
+  { label: 'Image Lab', to: '/app/images', icon: IconPhoto },
   { label: 'Users', to: '/app/admin/users', icon: IconUsers, adminOnly: true },
   {
     label: 'Analytics',

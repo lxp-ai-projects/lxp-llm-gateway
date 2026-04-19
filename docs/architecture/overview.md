@@ -68,6 +68,13 @@ The seam should expose explicit surfaces for:
 - image generation
 - image editing with reference images
 
+Model catalog results may also carry capability-specific metadata needed by the UI and gateway orchestration, such as:
+
+- image-capable model flags
+- provider-defined supported image aspect ratios
+- provider-defined supported image response formats and resolutions
+- provider-defined request limits such as max generated images or max reference images
+
 `gateway-api` must orchestrate those surfaces without learning provider-specific endpoint rules.
 
 ## Persistence Posture
@@ -166,7 +173,7 @@ The architectural direction is:
 
 - keep chat and image workflows as separate capability methods
 - keep capability support explicit per adapter rather than inferred from provider id
-- allow model catalogs to remain provider-owned and capability-aware
+- allow model catalogs to remain provider-owned, capability-aware, and able to expose normalized capability metadata such as supported image aspect ratios, response formats, resolutions, and request limits
 - allow image requests to carry prompt text plus zero or more reference images
 - keep provider-specific payload mapping inside provider packages
 

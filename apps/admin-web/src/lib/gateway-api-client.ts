@@ -8,6 +8,8 @@ import type {
   GatewayChatResponse,
   GatewayChatStreamChunk,
   GatewayChatStreamResult,
+  GatewayImageGenerationResponse,
+  GatewayImageReference,
   ProviderModelSummary,
 } from './api-client.types';
 
@@ -52,5 +54,44 @@ export const gatewayApiClient = {
     },
   ): Promise<GatewayChatStreamResult> {
     return chatStreamWithSessionRefresh(payload, handlers, false);
+  },
+
+  async generateImage(payload: {
+    providerId?: string;
+    model?: string;
+    prompt: string;
+    n?: number;
+    aspectRatio?: string;
+    responseFormat?: 'url' | 'b64_json';
+    resolution?: '1k' | '2k';
+  }): Promise<GatewayImageGenerationResponse> {
+    return request<GatewayImageGenerationResponse>(
+      `${gatewayApiUrl}/api/v1/images/generations`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 90000,
+      },
+    );
+  },
+
+  async editImage(payload: {
+    providerId?: string;
+    model?: string;
+    prompt: string;
+    images: GatewayImageReference[];
+    n?: number;
+    aspectRatio?: string;
+    responseFormat?: 'url' | 'b64_json';
+    resolution?: '1k' | '2k';
+  }): Promise<GatewayImageGenerationResponse> {
+    return request<GatewayImageGenerationResponse>(
+      `${gatewayApiUrl}/api/v1/images/edits`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 90000,
+      },
+    );
   },
 };

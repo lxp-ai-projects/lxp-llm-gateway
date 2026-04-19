@@ -47,10 +47,11 @@ The repository now contains:
 - Postgres-backed durable control-plane persistence with encrypted provider credential storage
 - Redis-backed auth revocation and other operational state where ephemeral behavior is appropriate
 - BYOK provider access through user-managed provider credentials
-- provider model discovery through provider adapters
+- provider model discovery through provider adapters, including capability-specific model metadata
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`
 - CI quality gates for typecheck, test, and build
+- an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
 
 ## Phase 2 Starting Assumptions
 
@@ -64,9 +65,9 @@ Phase 2 should assume:
 
 The next planned capability expansion is:
 
-- image generation and image editing behind the provider seam
-- xAI Grok Imagine as the first target implementation
-- future `admin-web` support through an `Image Generation Lab`
+- broader provider coverage for image generation and image editing behind the existing provider seam
+- provider-owned capability metadata such as supported aspect ratios, response formats, resolutions, and request limits flowing from model catalogs to the UI
+- future providers such as Google image generation and OpenAI image generation behind the same seam
 - reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
 
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.

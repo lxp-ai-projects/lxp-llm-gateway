@@ -17,11 +17,27 @@ export interface ProviderCapabilities {
   imageEditing: boolean;
 }
 
+export interface ImageAspectRatioOption {
+  value: string;
+  label: string;
+  useCase?: string;
+}
+
+export interface ImageResolutionOption {
+  value: string;
+  label: string;
+}
+
 export interface ModelCapability {
   id: string;
   supportsStreaming: boolean;
   supportsImageGeneration?: boolean;
   supportsImageEditing?: boolean;
+  supportedImageAspectRatios?: ImageAspectRatioOption[];
+  supportedImageResponseFormats?: string[];
+  supportedImageResolutions?: ImageResolutionOption[];
+  maxGeneratedImagesPerRequest?: number;
+  maxReferenceImagesPerRequest?: number;
 }
 
 export interface GatewayRequestContext {

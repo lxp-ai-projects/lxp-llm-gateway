@@ -15,6 +15,8 @@ export type {
   GatewayChatResponse,
   GatewayChatStreamChunk,
   GatewayChatStreamResult,
+  GatewayImageGenerationResponse,
+  GatewayImageReference,
   ProviderCredentialSummary,
   ProviderModelSummary,
   ProviderSettingsSummary,

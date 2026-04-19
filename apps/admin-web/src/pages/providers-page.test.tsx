@@ -420,11 +420,11 @@ test('ProvidersPage shows the xAI Grok billing warning and blocks missing tokens
   await screen.findByRole('heading', { name: 'Add provider credential' });
 
   await user.selectOptions(screen.getByLabelText('Provider'), 'xai');
-  expect(
-    screen.getByText(
+  await waitFor(() =>
+    expect(document.body.textContent ?? '').toMatch(
       /xAI Grok support is certified.*usage is billed through your xAI account/i,
     ),
-  ).toBeInTheDocument();
+  );
 
   await user.clear(screen.getByLabelText('Label'));
   await user.type(screen.getByLabelText('Label'), 'grok-primary');

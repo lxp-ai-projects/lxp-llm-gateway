@@ -11,7 +11,12 @@ test('XaiProviderAdapter lists models from the xAI models endpoint', async () =>
 
     return new Response(
       JSON.stringify({
-        data: [{ id: 'grok-4-fast' }, { id: 'grok-4' }],
+        data: [
+          { id: 'grok-4-fast' },
+          { id: 'grok-imagine-image' },
+          { id: 'grok-imagine-image-pro' },
+          { id: 'grok-imagine-video' },
+        ],
       }),
       {
         status: 200,
@@ -38,9 +43,302 @@ test('XaiProviderAdapter lists models from the xAI models endpoint', async () =>
       'Bearer xai-token',
     );
     assert.deepEqual(models, [
-      { id: 'grok-4-fast', displayName: 'grok-4-fast' },
-      { id: 'grok-4', displayName: 'grok-4' },
+      {
+        id: 'grok-4-fast',
+        displayName: 'grok-4-fast',
+        capabilities: {
+          supportsStreaming: true,
+        },
+      },
+      {
+        id: 'grok-imagine-image',
+        displayName: 'Grok Imagine Image',
+        capabilities: {
+          supportsStreaming: false,
+          supportsImageGeneration: true,
+          supportsImageEditing: true,
+          supportedImageAspectRatios: [
+            {
+              value: 'auto',
+              label: 'Auto',
+              useCase: 'Model auto-selects the best ratio for the prompt.',
+            },
+            {
+              value: '1:1',
+              label: '1:1',
+              useCase: 'Social media, thumbnails',
+            },
+            {
+              value: '16:9',
+              label: '16:9',
+              useCase: 'Widescreen, mobile, stories',
+            },
+            {
+              value: '9:16',
+              label: '9:16',
+              useCase: 'Widescreen, mobile, stories',
+            },
+            {
+              value: '4:3',
+              label: '4:3',
+              useCase: 'Presentations, portraits',
+            },
+            {
+              value: '3:4',
+              label: '3:4',
+              useCase: 'Presentations, portraits',
+            },
+            {
+              value: '3:2',
+              label: '3:2',
+              useCase: 'Photography',
+            },
+            {
+              value: '2:3',
+              label: '2:3',
+              useCase: 'Photography',
+            },
+            {
+              value: '2:1',
+              label: '2:1',
+              useCase: 'Banners, headers',
+            },
+            {
+              value: '1:2',
+              label: '1:2',
+              useCase: 'Banners, headers',
+            },
+            {
+              value: '19.5:9',
+              label: '19.5:9',
+              useCase: 'Modern smartphone displays',
+            },
+            {
+              value: '9:19.5',
+              label: '9:19.5',
+              useCase: 'Modern smartphone displays',
+            },
+            {
+              value: '20:9',
+              label: '20:9',
+              useCase: 'Ultra-wide displays',
+            },
+            {
+              value: '9:20',
+              label: '9:20',
+              useCase: 'Ultra-wide displays',
+            },
+          ],
+          supportedImageResponseFormats: ['url', 'b64_json'],
+          supportedImageResolutions: [
+            {
+              value: '1k',
+              label: '1k',
+            },
+            {
+              value: '2k',
+              label: '2k',
+            },
+          ],
+          maxGeneratedImagesPerRequest: 4,
+          maxReferenceImagesPerRequest: 5,
+        },
+      },
+      {
+        id: 'grok-imagine-image-pro',
+        displayName: 'Grok Imagine Image Pro',
+        capabilities: {
+          supportsStreaming: false,
+          supportsImageGeneration: true,
+          supportsImageEditing: true,
+          supportedImageAspectRatios: [
+            {
+              value: 'auto',
+              label: 'Auto',
+              useCase: 'Model auto-selects the best ratio for the prompt.',
+            },
+            {
+              value: '1:1',
+              label: '1:1',
+              useCase: 'Social media, thumbnails',
+            },
+            {
+              value: '16:9',
+              label: '16:9',
+              useCase: 'Widescreen, mobile, stories',
+            },
+            {
+              value: '9:16',
+              label: '9:16',
+              useCase: 'Widescreen, mobile, stories',
+            },
+            {
+              value: '4:3',
+              label: '4:3',
+              useCase: 'Presentations, portraits',
+            },
+            {
+              value: '3:4',
+              label: '3:4',
+              useCase: 'Presentations, portraits',
+            },
+            {
+              value: '3:2',
+              label: '3:2',
+              useCase: 'Photography',
+            },
+            {
+              value: '2:3',
+              label: '2:3',
+              useCase: 'Photography',
+            },
+            {
+              value: '2:1',
+              label: '2:1',
+              useCase: 'Banners, headers',
+            },
+            {
+              value: '1:2',
+              label: '1:2',
+              useCase: 'Banners, headers',
+            },
+            {
+              value: '19.5:9',
+              label: '19.5:9',
+              useCase: 'Modern smartphone displays',
+            },
+            {
+              value: '9:19.5',
+              label: '9:19.5',
+              useCase: 'Modern smartphone displays',
+            },
+            {
+              value: '20:9',
+              label: '20:9',
+              useCase: 'Ultra-wide displays',
+            },
+            {
+              value: '9:20',
+              label: '9:20',
+              useCase: 'Ultra-wide displays',
+            },
+          ],
+          supportedImageResponseFormats: ['url', 'b64_json'],
+          supportedImageResolutions: [
+            {
+              value: '1k',
+              label: '1k',
+            },
+            {
+              value: '2k',
+              label: '2k',
+            },
+          ],
+          maxGeneratedImagesPerRequest: 4,
+          maxReferenceImagesPerRequest: 5,
+        },
+      },
+      {
+        id: 'grok-imagine-video',
+        displayName: 'grok-imagine-video',
+        capabilities: {
+          supportsStreaming: true,
+        },
+      },
     ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('XaiProviderAdapter marks the image model with supported aspect ratios', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [{ id: 'grok-imagine-image' }],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new XaiProviderAdapter();
+    const models = await adapter.listModels({
+      requestId: 'request-1',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'xai-token',
+      },
+    });
+
+    const imagineImageModel = models.find(
+      (model) => model.id === 'grok-imagine-image',
+    );
+    const imagineImageProModel = models.find(
+      (model) => model.id === 'grok-imagine-image-pro',
+    );
+    assert.ok(imagineImageModel);
+    assert.equal(imagineImageModel.displayName, 'Grok Imagine Image');
+    assert.equal(
+      imagineImageModel.capabilities?.supportsImageGeneration,
+      true,
+    );
+    assert.equal(imagineImageModel.capabilities?.supportsImageEditing, true);
+    assert.deepEqual(
+      imagineImageModel.capabilities?.supportedImageAspectRatios?.map(
+        (ratio) => ratio.value,
+      ),
+      [
+        'auto',
+        '1:1',
+        '16:9',
+        '9:16',
+        '4:3',
+        '3:4',
+        '3:2',
+        '2:3',
+        '2:1',
+        '1:2',
+        '19.5:9',
+        '9:19.5',
+        '20:9',
+        '9:20',
+      ],
+    );
+    assert.deepEqual(imagineImageModel.capabilities?.supportedImageResolutions, [
+      {
+        value: '1k',
+        label: '1k',
+      },
+      {
+        value: '2k',
+        label: '2k',
+      },
+    ]);
+    assert.deepEqual(
+      imagineImageModel.capabilities?.supportedImageResponseFormats,
+      ['url', 'b64_json'],
+    );
+    assert.equal(
+      imagineImageModel.capabilities?.maxGeneratedImagesPerRequest,
+      4,
+    );
+    assert.equal(
+      imagineImageModel.capabilities?.maxReferenceImagesPerRequest,
+      5,
+    );
+
+    assert.ok(imagineImageProModel);
+    assert.equal(imagineImageProModel.displayName, 'Grok Imagine Image Pro');
+    assert.equal(
+      imagineImageProModel.capabilities?.supportsImageGeneration,
+      true,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -139,6 +437,7 @@ test('XaiProviderAdapter sends image generation requests to the xAI images endpo
         n: 1,
         aspectRatio: '1:1',
         responseFormat: 'url',
+        resolution: '2k',
       },
       {
         requestId: 'request-1',
@@ -156,6 +455,7 @@ test('XaiProviderAdapter sends image generation requests to the xAI images endpo
       n: 1,
       aspect_ratio: '1:1',
       response_format: 'url',
+      resolution: '2k',
     });
     assert.equal(response?.images[0]?.url, 'https://cdn.x.ai/generated-1.jpg');
     assert.equal(response?.images[0]?.revisedPrompt, 'expanded prompt');
@@ -205,6 +505,7 @@ test('XaiProviderAdapter sends image edit requests with reference images to the 
           },
         ],
         responseFormat: 'b64_json',
+        resolution: '1k',
       },
       {
         requestId: 'request-2',
@@ -220,6 +521,7 @@ test('XaiProviderAdapter sends image edit requests with reference images to the 
       model: 'grok-imagine-image',
       prompt: 'Turn this into a watercolor illustration',
       response_format: 'b64_json',
+      resolution: '1k',
       images: [
         {
           type: 'image_url',

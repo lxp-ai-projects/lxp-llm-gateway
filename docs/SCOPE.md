@@ -213,6 +213,7 @@ Provider abstraction seam:
 - normalized provider result types
 - shared provider execution contracts
 - capability-oriented contracts for chat, model catalog, image generation, and image editing
+- provider-owned model metadata for capability-specific constraints such as supported image aspect ratios, response formats, resolutions, and request limits
 - provider access configuration that can represent:
   - bearer-token providers such as `NanoGPT` and `OpenRouter`
   - endpoint-based providers such as `Ollama`
@@ -326,11 +327,12 @@ The next planned capability is image generation.
 
 The first planned implementation is xAI Grok Imagine through the existing `provider-xai` package.
 
-That capability should support:
+That capability now supports:
 
 - prompt-based image generation
 - prompt-based image editing
 - reference images supplied as URLs or data URLs
+- provider-defined image model metadata such as supported aspect ratios, response formats, resolutions, and request limits
 - future extension to other providers such as Google image generation and OpenAI image generation without redefining the seam again
 
 ## Persistence Strategy
@@ -376,4 +378,4 @@ Phase 1 now ends with:
 
 Phase 2 should build on this state rather than re-open foundational architecture decisions.
 
-The next architectural expansion in Phase 2 is a capability-oriented provider seam that can support image generation without weakening the boundary between `gateway-api` and provider packages.
+The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection.

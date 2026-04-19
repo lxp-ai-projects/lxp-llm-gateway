@@ -112,6 +112,7 @@ test('AppShellLayout shows admin navigation and offline gateway state', () => {
   expect(screen.getByRole('link', { name: /users/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /analytics/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /health/i })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /image lab/i })).toBeInTheDocument();
 });
 
 test('AppShellLayout hides admin-only links for regular users and logs out', async () => {

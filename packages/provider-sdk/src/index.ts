@@ -5,7 +5,11 @@ import type {
   GatewayImageGenerationRequest,
   GatewayImageGenerationResponse,
 } from '@lxp/contracts';
-import type { ProviderCapabilities, ProviderId } from '@lxp/domain';
+import type {
+  ModelCapability,
+  ProviderCapabilities,
+  ProviderId,
+} from '@lxp/domain';
 
 export interface ProviderAccessConfig {
   baseUrl?: string;
@@ -22,11 +26,7 @@ export interface ProviderExecutionContext {
 export interface ProviderModel {
   id: string;
   displayName: string;
-  capabilities?: {
-    supportsStreaming?: boolean;
-    supportsImageGeneration?: boolean;
-    supportsImageEditing?: boolean;
-  };
+  capabilities?: Partial<ModelCapability>;
 }
 
 export interface LlmProviderAdapter {
