@@ -127,8 +127,10 @@ beforeEach(() => {
   updateOwnProviderCredentialMock.mockClear();
   updateOwnProviderSettingsMock.mockClear();
   runtimeConfigData.supportedProviders = [
+    { providerId: 'anthropic', displayName: 'Anthropic Claude' },
     { providerId: 'groq', displayName: 'Groq' },
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'openai', displayName: 'OpenAI' },
     { providerId: 'xai', displayName: 'xAI Grok' },
   ];
   getModelsMock.mockResolvedValue({
@@ -221,8 +223,10 @@ test('useProvidersController creates and updates credentials with proper form re
   expect(result.current.apiToken).toBe('');
   expect(result.current.label).toBe('primary');
   expect(result.current.providerOptions).toEqual([
+    { label: 'Anthropic Claude', value: 'anthropic' },
     { label: 'Groq', value: 'groq' },
     { label: 'NanoGPT', value: 'nanogpt' },
+    { label: 'OpenAI', value: 'openai' },
     { label: 'xAI Grok', value: 'xai' },
   ]);
 });
@@ -359,5 +363,77 @@ test('useProvidersController blocks xAI Grok credentials without an API token', 
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
     'xAI Grok credentials require an API token.',
+  );
+});
+
+test('useProvidersController blocks OpenAI credentials without an API token', async () => {
+  const wrapper = createWrapper();
+
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'openai', displayName: 'OpenAI' },
+  ];
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  const { result } = renderHook(() => useProvidersController(), { wrapper });
+
+  await waitFor(() => expect(result.current.providerOptions).toHaveLength(2));
+
+  await act(async () => {
+    result.current.onProviderChange('openai');
+    result.current.onLabelChange('openai-primary');
+    result.current.onBaseUrlChange('https://api.openai.com/v1');
+  });
+
+  await act(async () => {
+    result.current.handleCredentialSubmit({
+      preventDefault() {},
+    } as never);
+  });
+
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+  expect(result.current.credentialValidationError).toBe(
+    'OpenAI credentials require an API token.',
+  );
+});
+
+test('useProvidersController blocks Anthropic credentials without an API token', async () => {
+  const wrapper = createWrapper();
+
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'anthropic', displayName: 'Anthropic Claude' },
+  ];
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  const { result } = renderHook(() => useProvidersController(), { wrapper });
+
+  await waitFor(() => expect(result.current.providerOptions).toHaveLength(2));
+
+  await act(async () => {
+    result.current.onProviderChange('anthropic');
+    result.current.onLabelChange('anthropic-primary');
+    result.current.onBaseUrlChange('https://api.anthropic.com');
+  });
+
+  await act(async () => {
+    result.current.handleCredentialSubmit({
+      preventDefault() {},
+    } as never);
+  });
+
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+  expect(result.current.credentialValidationError).toBe(
+    'Anthropic credentials require an API token.',
   );
 });

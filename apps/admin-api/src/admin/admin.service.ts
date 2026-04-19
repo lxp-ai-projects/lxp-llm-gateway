@@ -528,9 +528,18 @@ export class AdminService {
     providerId: string | undefined,
     providerAccess: ProviderAccessConfig,
   ): void {
-    if (providerId === 'xai' && !providerAccess.apiKey) {
+    if (
+      (providerId === 'xai' ||
+        providerId === 'openai' ||
+        providerId === 'anthropic') &&
+      !providerAccess.apiKey
+    ) {
       throw new BadRequestException(
-        'xAI Grok credentials require an API token.',
+        providerId === 'xai'
+          ? 'xAI Grok credentials require an API token.'
+          : providerId === 'openai'
+            ? 'OpenAI credentials require an API token.'
+            : 'Anthropic credentials require an API token.',
       );
     }
 

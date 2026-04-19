@@ -70,6 +70,8 @@ vi.mock('../lib/api-client', () => ({
           { providerId: 'openrouter', displayName: 'OpenRouter' },
           { providerId: 'ollama', displayName: 'Ollama' },
           { providerId: 'groq', displayName: 'Groq' },
+          { providerId: 'openai', displayName: 'OpenAI' },
+          { providerId: 'anthropic', displayName: 'Anthropic Claude' },
           { providerId: 'xai', displayName: 'xAI Grok' },
         ],
     })),
@@ -127,6 +129,32 @@ beforeEach(() => {
         models: [
           { id: 'grok-4-fast', displayName: 'Grok 4 Fast' },
           { id: 'grok-4', displayName: 'Grok 4' },
+        ],
+      };
+    }
+
+    if (providerId === 'openai') {
+      return {
+        providerId: 'openai',
+        models: [
+          { id: 'gpt-4o', displayName: 'GPT-4o' },
+          { id: 'gpt-4.1-mini', displayName: 'GPT-4.1 Mini' },
+        ],
+      };
+    }
+
+    if (providerId === 'anthropic') {
+      return {
+        providerId: 'anthropic',
+        models: [
+          {
+            id: 'claude-sonnet-4-20250514',
+            displayName: 'Claude Sonnet 4',
+          },
+          {
+            id: 'claude-opus-4-1-20250805',
+            displayName: 'Claude Opus 4.1',
+          },
         ],
       };
     }

@@ -32,6 +32,8 @@ export const adminApiClient = {
           { providerId: 'ollama', displayName: 'Ollama' },
           { providerId: 'groq', displayName: 'Groq' },
           { providerId: 'xai', displayName: 'xAI Grok' },
+          { providerId: 'openai', displayName: 'OpenAI' },
+          { providerId: 'anthropic', displayName: 'Anthropic Claude' },
         ],
       };
     }

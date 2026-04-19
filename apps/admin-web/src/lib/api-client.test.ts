@@ -45,6 +45,8 @@ test('adminApiClient.getRuntimeConfig falls back to safe defaults when the reque
       { providerId: 'ollama', displayName: 'Ollama' },
       { providerId: 'groq', displayName: 'Groq' },
       { providerId: 'xai', displayName: 'xAI Grok' },
+      { providerId: 'openai', displayName: 'OpenAI' },
+      { providerId: 'anthropic', displayName: 'Anthropic Claude' },
     ],
   });
 });

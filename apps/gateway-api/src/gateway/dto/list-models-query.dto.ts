@@ -7,6 +7,8 @@ const SUPPORTED_PROVIDER_IDS = [
   'ollama',
   'groq',
   'xai',
+  'openai',
+  'anthropic',
 ] as const;
 
 export class ListModelsQueryDto {

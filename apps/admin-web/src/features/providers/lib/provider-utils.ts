@@ -11,12 +11,20 @@ export function providerCatalogHasMixedPricing(providerId: string | null) {
 
 export function getProviderCatalogPricingNote(providerId: string | null) {
   if (!providerCatalogHasMixedPricing(providerId)) {
+    if (providerId === 'anthropic') {
+      return 'Anthropic support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your Anthropic account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
+    }
+
+    if (providerId === 'openai') {
+      return 'OpenAI support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your OpenAI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
+    }
+
     if (providerId === 'groq') {
       return "Groq is Groq's inference platform, not Grok from xAI. Verify the provider before selecting models or credentials.";
     }
 
     if (providerId === 'xai') {
-      return 'xAI Grok usage is billed through your xAI account. Protect the API key, do not share it, and verify costs before sending prompts. LXP is not responsible for authorized or unauthorized charges made with that key.';
+      return 'xAI Grok support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your xAI account. Protect the API key, do not share it, and verify costs before sending prompts. LXP is not responsible for authorized or unauthorized charges made with that key.';
     }
 
     return null;
@@ -92,8 +100,17 @@ export function validateProviderCredentialInput(input: {
   apiToken: string;
   baseUrl: string;
 }): string | null {
-  if (input.providerId === 'xai' && !input.apiToken.trim()) {
-    return 'xAI Grok credentials require an API token.';
+  if (
+    (input.providerId === 'xai' ||
+      input.providerId === 'openai' ||
+      input.providerId === 'anthropic') &&
+    !input.apiToken.trim()
+  ) {
+    return input.providerId === 'xai'
+      ? 'xAI Grok credentials require an API token.'
+      : input.providerId === 'openai'
+        ? 'OpenAI credentials require an API token.'
+        : 'Anthropic credentials require an API token.';
   }
 
   if (input.providerId !== 'ollama' || !input.baseUrl.trim()) {

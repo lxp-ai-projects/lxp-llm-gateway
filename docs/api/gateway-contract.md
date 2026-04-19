@@ -35,7 +35,7 @@ Example:
 
 Fields:
 
-- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, `groq`, or `xai`
+- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, `groq`, `xai`, `openai`, or `anthropic`
 - `model?`: provider model name
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
@@ -150,7 +150,26 @@ For xAI Grok:
 - model listing uses `/models`
 - chat uses `/chat/completions`
 - bearer auth is required
+- support is experimental and requires additional certification tests before it should be treated as stable
 - usage is billed through the caller's xAI account, so API keys must be protected carefully
+
+For OpenAI:
+
+- the gateway uses the OpenAI base URL `https://api.openai.com/v1`
+- model listing uses `/models`
+- chat uses `/chat/completions`
+- bearer auth is required
+- support is experimental and requires additional certification tests before it should be treated as stable
+- the Chat Completions API is used for compatibility with the current gateway seam, although OpenAI recommends the newer Responses API for new projects
+
+For Anthropic Claude:
+
+- the gateway uses the Anthropic base URL `https://api.anthropic.com`
+- model listing uses `GET /v1/models`
+- chat uses `POST /v1/messages`
+- auth uses the `x-api-key` header plus `anthropic-version`
+- support is experimental and requires additional certification tests before it should be treated as stable
+- Anthropic streaming events are normalized by the adapter into the gateway SSE shape expected by `admin-web`
 
 For Ollama:
 

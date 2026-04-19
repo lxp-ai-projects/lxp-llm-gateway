@@ -100,7 +100,9 @@ export class InitialAdminSchema1713000000000 implements MigrationInterface {
         ('openrouter', 'OpenRouter', 'active'),
         ('ollama', 'Ollama', 'active'),
         ('groq', 'Groq', 'active'),
-        ('xai', 'xAI Grok', 'active')
+        ('xai', 'xAI Grok', 'active'),
+        ('openai', 'OpenAI', 'active'),
+        ('anthropic', 'Anthropic Claude', 'active')
     `);
   }
 

@@ -3,7 +3,9 @@ export type ProviderId =
   | 'openrouter'
   | 'ollama'
   | 'groq'
-  | 'xai';
+  | 'xai'
+  | 'openai'
+  | 'anthropic';
 
 export type StreamSupport = 'none' | 'server-sent-events' | 'chunked';
 

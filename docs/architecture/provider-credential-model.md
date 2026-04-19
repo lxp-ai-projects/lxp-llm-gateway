@@ -66,6 +66,8 @@ Suggested initial `providerId` values:
 - `ollama`
 - `groq`
 - `xai`
+- `openai`
+- `anthropic`
 
 ### UserProviderCredential
 
@@ -103,6 +105,8 @@ Examples:
 - Ollama cloud: `{ "baseUrl": "https://ollama.com", "apiKey": "..." }`
 - Groq: `{ "apiKey": "...", "baseUrl": "https://api.groq.com/openai/v1" }`
 - xAI Grok: `{ "apiKey": "...", "baseUrl": "https://api.x.ai/v1" }`
+- OpenAI: `{ "apiKey": "...", "baseUrl": "https://api.openai.com/v1" }`
+- Anthropic Claude: `{ "apiKey": "...", "baseUrl": "https://api.anthropic.com" }`
 
 The current runtime supports both Ollama access modes:
 

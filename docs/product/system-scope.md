@@ -11,7 +11,7 @@
 - admin web application
 - shared contracts and domain packages
 - provider abstraction package
-- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, and xAI Grok
+- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, xAI Grok, OpenAI, and Anthropic Claude
 - user, role, and provider credential foundations
 - local development infrastructure
 - foundational documentation and API contract placeholders
@@ -19,7 +19,7 @@
 
 ## Out of Scope for Phase 1
 
-- additional providers beyond NanoGPT, OpenRouter, Ollama, Groq, and xAI Grok
+- additional providers beyond NanoGPT, OpenRouter, Ollama, Groq, xAI Grok, OpenAI, and Anthropic Claude
 - billing and analytics
 - quota enforcement
 - policy engines
@@ -32,6 +32,6 @@
 - all apps and packages build as placeholders
 - the core architecture boundaries are documented
 - the provider seam is explicit
-- NanoGPT, OpenRouter, Ollama, Groq, and xAI Grok can be selected transparently through the same gateway contract
+- NanoGPT, OpenRouter, Ollama, Groq, xAI Grok, OpenAI, and Anthropic Claude can be selected transparently through the same gateway contract
 - the repository is ready for iterative feature implementation
 - the admin SPA remains operable on mobile and desktop without accumulating oversized, multi-responsibility modules as the feature surface grows

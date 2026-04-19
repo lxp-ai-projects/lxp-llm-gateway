@@ -29,6 +29,14 @@ export class PublicConfigController {
           providerId: 'xai',
           displayName: 'xAI Grok',
         },
+        {
+          providerId: 'openai',
+          displayName: 'OpenAI',
+        },
+        {
+          providerId: 'anthropic',
+          displayName: 'Anthropic Claude',
+        },
       ],
     };
   }

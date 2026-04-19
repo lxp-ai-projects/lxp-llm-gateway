@@ -127,6 +127,18 @@ function createAdminService() {
       displayName: 'xAI Grok',
       status: 'active',
     },
+    {
+      id: randomUUID(),
+      providerId: 'openai',
+      displayName: 'OpenAI',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'anthropic',
+      displayName: 'Anthropic Claude',
+      status: 'active',
+    },
   ]);
   const credentialRepository = createRepositoryMock();
 
@@ -338,6 +350,46 @@ test('AdminService rejects xAI Grok credentials without an API token', async () 
         baseUrl: 'https://api.x.ai/v1',
       }),
     /xAI Grok credentials require an API token/,
+  );
+});
+
+test('AdminService rejects OpenAI credentials without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'openai',
+        label: 'openai-without-token',
+        baseUrl: 'https://api.openai.com/v1',
+      }),
+    /OpenAI credentials require an API token/,
+  );
+});
+
+test('AdminService rejects Anthropic credentials without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'anthropic',
+        label: 'anthropic-without-token',
+        baseUrl: 'https://api.anthropic.com',
+      }),
+    /Anthropic credentials require an API token/,
   );
 });
 
