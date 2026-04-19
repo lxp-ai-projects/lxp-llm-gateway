@@ -1,17 +1,35 @@
-import { IsIn, IsString, IsUUID, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import type { ProviderId } from '@lxp/domain';
+
+const SUPPORTED_PROVIDER_IDS = [
+  'nanogpt',
+  'openrouter',
+  'ollama',
+  'groq',
+  'google',
+  'xai',
+  'openai',
+  'anthropic',
+] as const;
 
 export class StoreProviderCredentialDto {
   @IsUUID()
   userUuid!: string;
 
-  @IsIn(['nanogpt'])
-  providerId!: 'nanogpt';
+  @IsIn(SUPPORTED_PROVIDER_IDS)
+  providerId!: ProviderId;
 
   @IsString()
   @MinLength(1)
   label!: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  apiToken!: string;
+  apiToken?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  baseUrl?: string;
 }

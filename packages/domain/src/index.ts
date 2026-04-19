@@ -1,4 +1,12 @@
-export type ProviderId = 'nanogpt';
+export type ProviderId =
+  | 'nanogpt'
+  | 'openrouter'
+  | 'ollama'
+  | 'groq'
+  | 'google'
+  | 'xai'
+  | 'openai'
+  | 'anthropic';
 
 export type StreamSupport = 'none' | 'server-sent-events' | 'chunked';
 

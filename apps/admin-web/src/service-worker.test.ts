@@ -5,6 +5,8 @@ import vm from 'node:vm';
 import { waitFor } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
+import { registerServiceWorker } from './lib/register-service-worker';
+
 const serviceWorkerSource = readFileSync(
   path.join(process.cwd(), 'public', 'service-worker.js'),
   'utf8',
@@ -135,4 +137,24 @@ test('service worker falls back to the cached response when the network fails', 
 
   const response = await respondWith.mock.calls[0][0];
   expect(await response.text()).toBe('cached');
+});
+
+test('registerServiceWorker unregisters existing service workers outside production', async () => {
+  const unregister = vi.fn(async () => true);
+  const getRegistrations = vi.fn(async () => [{ unregister }]);
+  const originalNavigator = globalThis.navigator;
+
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      ...originalNavigator,
+      serviceWorker: {
+        getRegistrations,
+      },
+    },
+  });
+
+  registerServiceWorker();
+  await waitFor(() => expect(getRegistrations).toHaveBeenCalled());
+  expect(unregister).toHaveBeenCalled();
 });

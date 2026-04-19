@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  BadRequestException,
   ForbiddenException,
   ConflictException,
   Injectable,
@@ -21,6 +22,12 @@ import { UpdateProviderCredentialDto } from './dto/update-provider-credential.dt
 import { UpdateProviderSettingsDto } from './dto/update-provider-settings.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { StoreProviderCredentialDto } from './dto/store-provider-credential.dto';
+
+type ProviderAccessConfig = {
+  baseUrl?: string;
+  apiKey?: string;
+  headers?: Record<string, string>;
+};
 
 @Injectable()
 export class AdminService {
@@ -141,9 +148,11 @@ export class AdminService {
       throw new ConflictException('Unable to store the provider credential.');
     }
 
-    const encrypted = this.encryptionService.encrypt(dto.apiToken);
-    const maskedHint =
-      dto.apiToken.length <= 4 ? dto.apiToken : `***${dto.apiToken.slice(-4)}`;
+    const providerAccess = this.createProviderAccess(dto, provider.providerId);
+    const encrypted = this.encryptionService.encrypt(
+      JSON.stringify(providerAccess),
+    );
+    const maskedHint = this.maskProviderAccess(providerAccess);
 
     const credential = this.credentialRepository.create({
       userId: user.id,
@@ -222,16 +231,20 @@ export class AdminService {
       credential.label = nextLabel;
     }
 
-    if (dto.apiToken?.trim()) {
-      const encrypted = this.encryptionService.encrypt(dto.apiToken);
+    if (dto.apiToken?.trim() || dto.baseUrl?.trim()) {
+      const providerAccess = this.createProviderAccess(
+        dto,
+        provider.providerId,
+        credential,
+      );
+      const encrypted = this.encryptionService.encrypt(
+        JSON.stringify(providerAccess),
+      );
       credential.encryptedSecret = encrypted.ciphertext;
       credential.iv = encrypted.iv;
       credential.authTag = encrypted.authTag;
       credential.keyVersion = encrypted.keyVersion;
-      credential.maskedHint =
-        dto.apiToken.length <= 4
-          ? dto.apiToken
-          : `***${dto.apiToken.slice(-4)}`;
+      credential.maskedHint = this.maskProviderAccess(providerAccess);
     }
 
     await this.credentialRepository.save(credential);
@@ -470,5 +483,125 @@ export class AdminService {
       defaultProviderId: user.defaultProviderId,
       defaultModel: user.defaultModel,
     };
+  }
+
+  private createProviderAccess(
+    dto:
+      | StoreProviderCredentialDto
+      | UpdateProviderCredentialDto
+      | (Partial<StoreProviderCredentialDto> & Partial<UpdateProviderCredentialDto>),
+    providerIdOrCredential: string | UserProviderCredentialEntity,
+    existingCredential?: UserProviderCredentialEntity,
+  ): ProviderAccessConfig {
+    const resolvedExistingCredential =
+      typeof providerIdOrCredential === 'string'
+        ? existingCredential
+        : providerIdOrCredential;
+    const providerId =
+      typeof providerIdOrCredential === 'string'
+        ? providerIdOrCredential
+        : providerIdOrCredential.provider?.providerId;
+    const providerAccess = resolvedExistingCredential
+      ? this.readProviderAccess(resolvedExistingCredential)
+      : {};
+
+    if ('apiToken' in dto && dto.apiToken?.trim()) {
+      providerAccess.apiKey = dto.apiToken.trim();
+    }
+
+    if ('baseUrl' in dto && dto.baseUrl?.trim()) {
+      providerAccess.baseUrl = dto.baseUrl.trim();
+    }
+
+    if (!providerAccess.apiKey && !providerAccess.baseUrl) {
+      throw new BadRequestException(
+        'A provider credential must include an API token, a base URL, or both.',
+      );
+    }
+
+    this.assertProviderAccessIsValid(providerId, providerAccess);
+
+    return providerAccess;
+  }
+
+  private assertProviderAccessIsValid(
+    providerId: string | undefined,
+    providerAccess: ProviderAccessConfig,
+  ): void {
+    if (
+      (providerId === 'google' ||
+        providerId === 'xai' ||
+        providerId === 'openai' ||
+        providerId === 'anthropic') &&
+      !providerAccess.apiKey
+    ) {
+      throw new BadRequestException(
+        providerId === 'google'
+          ? 'Google Gemini credentials require an API token.'
+          : providerId === 'xai'
+          ? 'xAI Grok credentials require an API token.'
+          : providerId === 'openai'
+            ? 'OpenAI credentials require an API token.'
+            : 'Anthropic credentials require an API token.',
+      );
+    }
+
+    if (providerId !== 'ollama' || !providerAccess.baseUrl) {
+      return;
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(providerAccess.baseUrl);
+    } catch {
+      throw new BadRequestException(
+        'Ollama base URL must be a valid absolute URL.',
+      );
+    }
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+    if (
+      (hostname === 'ollama.com' || hostname === 'www.ollama.com') &&
+      !providerAccess.apiKey
+    ) {
+      throw new BadRequestException(
+        'Ollama cloud credentials on ollama.com require an API token.',
+      );
+    }
+  }
+
+  private readProviderAccess(
+    credential: UserProviderCredentialEntity,
+  ): ProviderAccessConfig {
+    const decryptedPayload = this.encryptionService.decrypt({
+      ciphertext: credential.encryptedSecret,
+      iv: credential.iv,
+      authTag: credential.authTag,
+      keyVersion: credential.keyVersion,
+    });
+
+    try {
+      return JSON.parse(decryptedPayload) as ProviderAccessConfig;
+    } catch {
+      return {
+        apiKey: decryptedPayload,
+      };
+    }
+  }
+
+  private maskProviderAccess(
+    providerAccess: ProviderAccessConfig,
+  ): string | null {
+    if (providerAccess.apiKey) {
+      return providerAccess.apiKey.length <= 4
+        ? providerAccess.apiKey
+        : `***${providerAccess.apiKey.slice(-4)}`;
+    }
+
+    if (providerAccess.baseUrl) {
+      return providerAccess.baseUrl;
+    }
+
+    return null;
   }
 }

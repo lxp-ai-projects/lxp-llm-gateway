@@ -51,7 +51,9 @@ test('ProviderCredentialService resolves and decrypts an active provider credent
   ]);
   const encryptionService = {
     decrypt(): string {
-      return 'nano-secret-token';
+      return JSON.stringify({
+        apiKey: 'nano-secret-token',
+      });
     },
   };
 
@@ -62,8 +64,53 @@ test('ProviderCredentialService resolves and decrypts an active provider credent
     encryptionService as never,
   );
 
-  const apiKey = await service.resolveApiKey('hash-1', 'nanogpt');
-  assert.equal(apiKey, 'nano-secret-token');
+  const providerAccess = await service.resolveProviderAccess(
+    'hash-1',
+    'nanogpt',
+  );
+  assert.equal(providerAccess.apiKey, 'nano-secret-token');
+});
+
+test('ProviderCredentialService falls back to legacy raw token payloads', async () => {
+  const userRepository = createRepositoryMock([
+    {
+      id: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      status: 'active',
+    },
+  ]);
+  const providerRepository = createRepositoryMock([
+    {
+      id: 'provider-1',
+      providerId: 'nanogpt',
+      status: 'active',
+    },
+  ]);
+  const credentialRepository = createRepositoryMock([
+    {
+      userId: 'user-1',
+      providerId: 'provider-1',
+      isActive: true,
+      encryptedSecret: 'cipher',
+      iv: 'iv',
+      authTag: 'tag',
+      keyVersion: 1,
+    },
+  ]);
+
+  const service = new ProviderCredentialService(
+    userRepository as never,
+    providerRepository as never,
+    credentialRepository as never,
+    { decrypt: () => 'legacy-token' } as never,
+  );
+
+  const providerAccess = await service.resolveProviderAccess(
+    'hash-1',
+    'nanogpt',
+  );
+  assert.equal(providerAccess.apiKey, 'legacy-token');
 });
 
 test('ProviderCredentialService throws an explicit error when credential decryption fails', async () => {
@@ -107,7 +154,7 @@ test('ProviderCredentialService throws an explicit error when credential decrypt
   );
 
   await assert.rejects(
-    () => service.resolveApiKey('hash-1', 'nanogpt'),
+    () => service.resolveProviderAccess('hash-1', 'nanogpt'),
     /Unable to decrypt the stored credential for provider nanogpt/,
   );
 });
@@ -121,7 +168,7 @@ test('ProviderCredentialService rejects missing authenticated user context', asy
   );
 
   await assert.rejects(
-    () => service.resolveApiKey('', 'nanogpt'),
+    () => service.resolveProviderAccess('', 'nanogpt'),
     /Missing authenticated user email hash/,
   );
 });
@@ -135,7 +182,7 @@ test('ProviderCredentialService rejects when the authenticated user cannot be re
   );
 
   await assert.rejects(
-    () => service.resolveApiKey('missing-hash', 'nanogpt'),
+    () => service.resolveProviderAccess('missing-hash', 'nanogpt'),
     /Unable to resolve the provider credential for the authenticated request/,
   );
 });
@@ -158,7 +205,7 @@ test('ProviderCredentialService rejects when the provider cannot be resolved', a
   );
 
   await assert.rejects(
-    () => service.resolveApiKey('hash-1', 'nanogpt'),
+    () => service.resolveProviderAccess('hash-1', 'nanogpt'),
     /Unable to resolve the provider credential for the authenticated request/,
   );
 });
@@ -188,7 +235,7 @@ test('ProviderCredentialService rejects when no active credential exists', async
   );
 
   await assert.rejects(
-    () => service.resolveApiKey('hash-1', 'nanogpt'),
+    () => service.resolveProviderAccess('hash-1', 'nanogpt'),
     /Unable to resolve the provider credential for the authenticated request/,
   );
 });

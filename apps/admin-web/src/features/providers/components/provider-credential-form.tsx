@@ -1,9 +1,9 @@
 import {
+  Alert,
   Button,
   Card,
   Group,
   PasswordInput,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -18,10 +18,13 @@ type ProviderOption = {
 
 type ProviderCredentialFormProps = {
   apiToken: string;
+  baseUrl: string;
+  credentialValidationError: string | null;
   editingCredentialId: string | null;
   isPending: boolean;
   label: string;
   onApiTokenChange: (value: string) => void;
+  onBaseUrlChange: (value: string) => void;
   onCancelEdit: () => void;
   onLabelChange: (value: string) => void;
   onProviderChange: (value: string | null) => void;
@@ -32,10 +35,13 @@ type ProviderCredentialFormProps = {
 
 export function ProviderCredentialForm({
   apiToken,
+  baseUrl,
+  credentialValidationError,
   editingCredentialId,
   isPending,
   label,
   onApiTokenChange,
+  onBaseUrlChange,
   onCancelEdit,
   onLabelChange,
   onProviderChange,
@@ -44,7 +50,14 @@ export function ProviderCredentialForm({
   providerOptions,
 }: ProviderCredentialFormProps) {
   const isEditing = Boolean(editingCredentialId);
-  const isSubmitDisabled = !label.trim() || (!isEditing && !apiToken.trim());
+  const usesEndpointAccess = providerId === 'ollama';
+  const isGroq = providerId === 'groq';
+  const isGoogle = providerId === 'google';
+  const isXai = providerId === 'xai';
+  const isOpenAi = providerId === 'openai';
+  const isAnthropic = providerId === 'anthropic';
+  const isSubmitDisabled =
+    !label.trim() || (!isEditing && !apiToken.trim() && !baseUrl.trim());
 
   return (
     <Card className="section-card">
@@ -59,17 +72,101 @@ export function ProviderCredentialForm({
             <IconKey size={18} />
           </Group>
           <Text c="dimmed" size="sm">
-            Token values remain write-only. After save, only a masked hint is
-            shown back to you.
+            Credential values remain write-only. After save, only a masked hint
+            is shown back to you.
           </Text>
-          <Select
-            data={providerOptions}
-            data-testid="providers-provider-select"
-            disabled={isEditing}
-            label="Provider"
-            onChange={onProviderChange}
-            value={providerId}
-          />
+          {usesEndpointAccess ? (
+            <Alert color="blue" variant="light" title="Endpoint-based credential">
+              Ollama credentials may rely on a local/runtime base URL or the
+              Ollama Cloud API on `https://ollama.com`. API tokens are optional
+              for local instances and required for Ollama Cloud.
+            </Alert>
+          ) : null}
+          {isGroq ? (
+            <Alert color="blue" variant="light" title="Provider identity note">
+              Groq is Groq's inference API, not Grok from xAI.
+            </Alert>
+          ) : null}
+          {isGoogle ? (
+            <Alert
+              color="orange"
+              variant="light"
+              title="Billing and key responsibility"
+            >
+              Google Gemini support is validated. The free tier is subject to
+              Google's rate limits. Usage is billed through your Google AI
+              account. Protect this API key, do not share it, and only use
+              keys your organization is authorized to spend with. LXP is not
+              responsible for authorized or unauthorized charges made with
+              this key.
+            </Alert>
+          ) : null}
+          {isXai ? (
+            <Alert
+              color="orange"
+              variant="light"
+              title="Billing and key responsibility"
+            >
+              xAI Grok support is experimental and requires additional
+              certification tests before it can be considered stable. Usage is
+              billed through your xAI account. Protect this API key, do not
+              share it, and only use keys your organization is authorized to
+              spend with. LXP is not responsible for authorized or
+              unauthorized charges made with this key.
+            </Alert>
+          ) : null}
+          {isOpenAi ? (
+            <Alert
+              color="orange"
+              variant="light"
+              title="Billing and key responsibility"
+            >
+              OpenAI support is experimental and requires additional
+              certification tests before it can be considered stable. Usage is
+              billed through your OpenAI account. Protect this API key, do not
+              share it, and only use keys your organization is authorized to
+              spend with. LXP is not responsible for authorized or
+              unauthorized charges made with this key.
+            </Alert>
+          ) : null}
+          {isAnthropic ? (
+            <Alert
+              color="orange"
+              variant="light"
+              title="Billing and key responsibility"
+            >
+              Anthropic support is experimental and requires additional
+              certification tests before it can be considered stable. Usage is
+              billed through your Anthropic account. Protect this API key, do
+              not share it, and only use keys your organization is authorized
+              to spend with. LXP is not responsible for authorized or
+              unauthorized charges made with this key.
+            </Alert>
+          ) : null}
+          {credentialValidationError ? (
+            <Alert color="red" title="Credential validation failed">
+              {credentialValidationError}
+            </Alert>
+          ) : null}
+          <label className="form-native-field">
+            <Text component="span" size="sm" fw={500}>
+              Provider
+            </Text>
+            <select
+              aria-label="Provider"
+              className="form-native-select"
+              data-testid="providers-provider-select"
+              disabled={isEditing}
+              onChange={(event) => onProviderChange(event.currentTarget.value)}
+              value={providerId}
+            >
+              {providerOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <TextInput
             data-testid="providers-label-input"
             label="Label"
@@ -88,9 +185,37 @@ export function ProviderCredentialForm({
             placeholder={
               isEditing
                 ? 'Enter a new token only if you want to rotate it'
+                : usesEndpointAccess
+                  ? 'Optional for local Ollama; required for protected or cloud endpoints'
+                : isGoogle
+                  ? 'Required for Google Gemini'
+                : isXai
+                  ? 'Required for xAI Grok'
+                : isOpenAi
+                  ? 'Required for OpenAI'
+                : isAnthropic
+                  ? 'Required for Anthropic'
                 : undefined
             }
             value={apiToken}
+          />
+          <TextInput
+            data-testid="providers-base-url-input"
+            description={
+              isEditing
+                ? 'Leave blank to keep the current endpoint and update only the other fields.'
+                : usesEndpointAccess
+                  ? 'Use http://127.0.0.1:11434 for local Ollama, or https://ollama.com for Ollama Cloud.'
+                  : 'Optional override when this credential should use a non-default provider endpoint.'
+            }
+            label={isEditing ? 'Replace base URL' : 'Base URL'}
+            onChange={(event) => onBaseUrlChange(event.currentTarget.value)}
+            placeholder={
+              usesEndpointAccess
+                ? 'http://127.0.0.1:11434/v1'
+                : undefined
+            }
+            value={baseUrl}
           />
           <Group justify="space-between">
             <Group gap="xs">

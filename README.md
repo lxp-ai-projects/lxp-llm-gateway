@@ -23,7 +23,7 @@ This repository currently contains:
 - NestJS API applications
 - a React 19 + Vite admin application
 - provider seam packages
-- a first NanoGPT provider integration
+- working provider packages for Anthropic Claude, Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, and xAI Grok
 
 The repository now includes:
 
@@ -32,6 +32,8 @@ The repository now includes:
 - gateway authentication via access token `emailHash`
 - gateway model discovery through provider adapters
 - non-stream JSON chat responses with structured assistant output
+- streaming support across Anthropic Claude, Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, and xAI Grok
+- one planned role-aware SPA for both admin and user control-plane workflows
 - streaming SSE passthrough for NanoGPT thinking models
 - one role-aware SPA for both admin and user control-plane workflows
 - frontend feature modules under `src/features/*`
@@ -45,7 +47,22 @@ The repository now includes:
 - `packages/contracts`: transport contracts
 - `packages/domain`: framework-agnostic domain types
 - `packages/provider-sdk`: provider adapter seam
-- `packages/provider-nanogpt`: NanoGPT implementation placeholder
+- `packages/provider-anthropic`: Anthropic Claude implementation
+- `packages/provider-google`: Google Gemini implementation
+- `packages/provider-groq`: Groq implementation
+- `packages/provider-nanogpt`: NanoGPT implementation
+- `packages/provider-ollama`: Ollama implementation
+- `packages/provider-openai`: OpenAI implementation
+- `packages/provider-openrouter`: OpenRouter implementation
+- `packages/provider-xai`: xAI Grok implementation
+
+## Provider Support
+
+| Status              | Meaning                                                                           | Current providers                                |
+|---------------------|-----------------------------------------------------------------------------------|--------------------------------------------------|
+| `tested, certified` | Tested by the development team.                                                   | Google Gemini, Groq, NanoGPT, Ollama, OpenRouter |
+| `experimental`      | Implemented, but not fully tested by the development team. Expect defects/errors. | Anthropic Claude, OpenAI, xAI Grok               |
+
 
 ## Selected Stack
 
@@ -187,10 +204,10 @@ Use the HTTP files in [queries/README.md](queries/README.md):
 1. if the database is empty, run `Bootstrap First Admin` from `queries/admin-api.http`
 2. run `queries/auth.http` to obtain tokens
 3. use `queries/admin-api.http` for protected admin operations
-4. use `queries/provider-credentials.http` to resolve `userUuid` and store the NanoGPT credential
+4. use `queries/provider-credentials.http` to resolve `userUuid` and store provider credentials for Anthropic Claude, Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, or xAI Grok
 5. use `queries/gateway-api.http` for:
    - non-stream JSON chat
-   - stream SSE chat with thinking models
+   - stream SSE chat with supported providers and thinking-capable models
 
 See the gateway response contract in [docs/api/gateway-contract.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/api/gateway-contract.md).
 

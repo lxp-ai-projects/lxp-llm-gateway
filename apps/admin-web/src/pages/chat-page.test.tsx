@@ -7,6 +7,7 @@ import { ChatPage } from './chat-page';
 
 const {
   getSessionMock,
+  getOwnProviderSettingsMock,
   chatStreamMock,
   deleteConversationMock,
   exportConversationArchiveMock,
@@ -22,6 +23,11 @@ const {
     displayName: 'Patrick',
     status: 'active',
     roles: ['admin'],
+  })),
+  getOwnProviderSettingsMock: vi.fn(async () => ({
+    userUuid: 'user-1',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'z-ai/glm-4.6:thinking',
   })),
   chatStreamMock: vi.fn(async () => ({
     requestId: 'request-1',
@@ -52,13 +58,23 @@ const {
 vi.mock('../lib/api-client', () => ({
   adminApiClient: {
     getSession: getSessionMock,
+    getOwnProviderSettings: getOwnProviderSettingsMock,
     exportConversation: exportConversationMock,
     exportConversationArchive: exportConversationArchiveMock,
     getRuntimeConfig: vi.fn(async () => ({
       registrationEnabled: true,
       forgotPasswordEnabled: true,
       gatewayOnline: true,
-      supportedProviders: [{ providerId: 'nanogpt', displayName: 'NanoGPT' }],
+        supportedProviders: [
+          { providerId: 'nanogpt', displayName: 'NanoGPT' },
+          { providerId: 'openrouter', displayName: 'OpenRouter' },
+          { providerId: 'ollama', displayName: 'Ollama' },
+          { providerId: 'groq', displayName: 'Groq' },
+          { providerId: 'google', displayName: 'Google Gemini' },
+          { providerId: 'openai', displayName: 'OpenAI' },
+          { providerId: 'anthropic', displayName: 'Anthropic Claude' },
+          { providerId: 'xai', displayName: 'xAI Grok' },
+        ],
     })),
     importConversationFile: importConversationFileMock,
   },
@@ -76,6 +92,7 @@ vi.mock('../lib/chat-store', () => ({
 
 beforeEach(() => {
   getSessionMock.mockClear();
+  getOwnProviderSettingsMock.mockClear();
   chatStreamMock.mockClear();
   deleteConversationMock.mockClear();
   exportConversationArchiveMock.mockClear();
@@ -85,6 +102,81 @@ beforeEach(() => {
   loadConversationsMock.mockReset();
   loadConversationsMock.mockResolvedValue([]);
   saveConversationMock.mockClear();
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'z-ai/glm-4.6:thinking',
+  });
+  getModelsMock.mockImplementation(async (providerId?: string) => {
+    if (providerId === 'openrouter') {
+      return {
+        providerId: 'openrouter',
+        models: [
+          { id: 'openrouter/auto', displayName: 'OpenRouter Auto' },
+        ],
+      };
+    }
+
+    if (providerId === 'ollama') {
+      return {
+        providerId: 'ollama',
+        models: [{ id: 'qwen3:8b', displayName: 'Qwen3 8B' }],
+      };
+    }
+
+    if (providerId === 'xai') {
+      return {
+        providerId: 'xai',
+        models: [
+          { id: 'grok-4-fast', displayName: 'Grok 4 Fast' },
+          { id: 'grok-4', displayName: 'Grok 4' },
+        ],
+      };
+    }
+
+    if (providerId === 'openai') {
+      return {
+        providerId: 'openai',
+        models: [
+          { id: 'gpt-4o', displayName: 'GPT-4o' },
+          { id: 'gpt-4.1-mini', displayName: 'GPT-4.1 Mini' },
+        ],
+      };
+    }
+
+    if (providerId === 'google') {
+      return {
+        providerId: 'google',
+        models: [
+          { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
+          { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
+        ],
+      };
+    }
+
+    if (providerId === 'anthropic') {
+      return {
+        providerId: 'anthropic',
+        models: [
+          {
+            id: 'claude-sonnet-4-20250514',
+            displayName: 'Claude Sonnet 4',
+          },
+          {
+            id: 'claude-opus-4-1-20250805',
+            displayName: 'Claude Opus 4.1',
+          },
+        ],
+      };
+    }
+
+    return {
+      providerId: 'nanogpt',
+      models: [
+        { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
+      ],
+    };
+  });
 });
 
 test('ChatPage submits on Enter from the composer', async () => {
@@ -101,6 +193,8 @@ test('ChatPage submits on Enter from the composer', async () => {
 
   expect(chatStreamMock).toHaveBeenCalledWith(
     expect.objectContaining({
+      providerId: 'nanogpt',
+      model: 'z-ai/glm-4.6:thinking',
       stream: true,
       messages: [
         {
@@ -117,6 +211,76 @@ test('ChatPage submits on Enter from the composer', async () => {
     expect.any(Object),
   );
 });
+
+test('ChatPage lets the user switch provider and shows the catalog pricing note', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const openRouterOption = document.querySelector(
+    '[role="option"][value="openrouter"]',
+  ) as HTMLElement | null;
+  expect(openRouterOption).not.toBeNull();
+  await user.click(openRouterOption!);
+
+  expect(
+    await screen.findByText(
+      /OpenRouter catalogs can include both free and paid models/i,
+    ),
+  ).toBeInTheDocument();
+  await waitFor(() => expect(getModelsMock).toHaveBeenCalledWith('openrouter'));
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Route this through OpenRouter{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'openrouter',
+      model: 'openrouter/auto',
+    }),
+    expect.any(Object),
+  );
+}, 10_000);
+
+test('ChatPage shows an xAI model access note when model loading fails', async () => {
+  const user = userEvent.setup();
+
+  getModelsMock.mockImplementation(async (providerId?: string) => {
+    if (providerId === 'xai') {
+      throw new Error(
+        'xAI model listing failed with status 500: Internal server error',
+      );
+    }
+
+    return {
+      providerId: providerId ?? 'nanogpt',
+      models: [{ id: 'nano-1', displayName: 'Nano 1' }],
+    };
+  });
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const xaiOption = document.querySelector(
+    '[role="option"][value="xai"]',
+  ) as HTMLElement | null;
+  expect(xaiOption).not.toBeNull();
+  await user.click(xaiOption!);
+
+  expect(
+    await screen.findByText(
+      /xAI's models endpoint returns the models available to the authenticating API key/i,
+    ),
+  ).toBeInTheDocument();
+  expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
+}, 10_000);
 
 test('ChatPage keeps Shift+Enter for multiline drafting', async () => {
   renderWithProviders(<ChatPage />);

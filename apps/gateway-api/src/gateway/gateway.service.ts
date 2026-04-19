@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  BadGatewayException,
+  HttpException,
   Injectable,
   NotImplementedException,
 } from '@nestjs/common';
@@ -33,23 +35,32 @@ export class GatewayService {
       );
     }
 
-    const apiKey = await this.providerCredentialService.resolveApiKey(
-      authContext.emailHash,
-      provider.providerId,
-    );
+    try {
+      const providerAccess =
+        await this.providerCredentialService.resolveProviderAccess(
+          authContext.emailHash,
+          provider.providerId,
+        );
 
-    const models = await provider.listModels({
-      requestId,
-      userId: authContext.userId,
-      providerCredential: {
-        apiKey,
-      },
-    });
+      const models = await provider.listModels({
+        requestId,
+        userId: authContext.userId,
+        providerAccess,
+      });
 
-    return {
-      providerId: provider.providerId,
-      models,
-    };
+      return {
+        providerId: provider.providerId,
+        models,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : 'Unknown gateway error.',
+      );
+    }
   }
 
   async chat(
@@ -82,7 +93,8 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
-      const apiKey = await this.providerCredentialService.resolveApiKey(
+      const providerAccess =
+        await this.providerCredentialService.resolveProviderAccess(
         authContext.emailHash,
         provider.providerId,
       );
@@ -96,9 +108,7 @@ export class GatewayService {
         {
           requestId,
           userId: authContext.userId,
-          providerCredential: {
-            apiKey,
-          },
+          providerAccess,
         },
       );
 
@@ -117,7 +127,13 @@ export class GatewayService {
         error:
           error instanceof Error ? error.message : 'Unknown gateway error.',
       });
-      throw error;
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : 'Unknown gateway error.',
+      );
     }
   }
 
@@ -157,7 +173,8 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
-      const apiKey = await this.providerCredentialService.resolveApiKey(
+      const providerAccess =
+        await this.providerCredentialService.resolveProviderAccess(
         authContext.emailHash,
         provider.providerId,
       );
@@ -171,9 +188,7 @@ export class GatewayService {
         {
           requestId,
           userId: authContext.userId,
-          providerCredential: {
-            apiKey,
-          },
+          providerAccess,
         },
       );
 
@@ -195,7 +210,13 @@ export class GatewayService {
         error:
           error instanceof Error ? error.message : 'Unknown gateway error.',
       });
-      throw error;
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : 'Unknown gateway error.',
+      );
     }
   }
 

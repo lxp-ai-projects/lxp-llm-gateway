@@ -16,10 +16,17 @@ export function useChatComposerViewport(
 
     const updateComposerViewportStyle = () => {
       const rect = panel.getBoundingClientRect();
-      setComposerViewportStyle({
+      const nextStyle = {
         left: `${Math.max(rect.left, 16)}px`,
         width: `${Math.max(rect.width, 0)}px`,
-      });
+      };
+
+      setComposerViewportStyle((currentStyle) =>
+        currentStyle.left === nextStyle.left &&
+        currentStyle.width === nextStyle.width
+          ? currentStyle
+          : nextStyle,
+      );
     };
 
     updateComposerViewportStyle();

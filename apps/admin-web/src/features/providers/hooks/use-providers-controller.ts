@@ -8,14 +8,27 @@ import {
   buildDefaultProviderOptions,
   buildProviderOptions,
   resolveProviderDisplayName,
+  validateProviderCredentialInput,
 } from '../lib/provider-utils';
+
+function resolvePreferredProviderId(providerOptions: Array<{ value: string }>) {
+  return (
+    providerOptions.find((option) => option.value === 'nanogpt')?.value ??
+    providerOptions[0]?.value ??
+    'nanogpt'
+  );
+}
 
 export function useProvidersController() {
   const queryClient = useQueryClient();
   const runtimeConfigQuery = useRuntimeConfig();
-  const [providerId, setProviderId] = useState<'nanogpt'>('nanogpt');
+  const [providerId, setProviderId] = useState('nanogpt');
   const [label, setLabel] = useState('primary');
   const [apiToken, setApiToken] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [credentialValidationError, setCredentialValidationError] = useState<
+    string | null
+  >(null);
   const [editingCredentialId, setEditingCredentialId] = useState<string | null>(
     null,
   );
@@ -41,7 +54,7 @@ export function useProvidersController() {
 
   useEffect(() => {
     if (providerOptions.length > 0 && !providerId) {
-      setProviderId(providerOptions[0]!.value as 'nanogpt');
+      setProviderId(providerOptions[0]!.value);
     }
   }, [providerId, providerOptions]);
 
@@ -96,13 +109,15 @@ export function useProvidersController() {
         return adminApiClient.updateOwnProviderCredential(editingCredentialId, {
           label,
           apiToken: apiToken.trim() || undefined,
+          baseUrl: baseUrl.trim() || undefined,
         });
       }
 
       return adminApiClient.createOwnProviderCredential({
         providerId,
         label,
-        apiToken,
+        apiToken: apiToken.trim() || undefined,
+        baseUrl: baseUrl.trim() || undefined,
       });
     },
     onSuccess: async () => {
@@ -116,7 +131,7 @@ export function useProvidersController() {
   const saveDefaultsMutation = useMutation({
     mutationFn: () =>
       adminApiClient.updateOwnProviderSettings({
-        defaultProviderId: (defaultProviderId as 'nanogpt' | null) ?? null,
+        defaultProviderId: defaultProviderId ?? null,
         defaultModel: defaultProviderId ? (defaultModel ?? null) : null,
       }),
     onSuccess: async () => {
@@ -133,9 +148,11 @@ export function useProvidersController() {
 
   function resetCredentialForm() {
     setEditingCredentialId(null);
-    setProviderId((providerOptions[0]?.value as 'nanogpt') ?? 'nanogpt');
+    setProviderId(resolvePreferredProviderId(providerOptions));
     setLabel('primary');
     setApiToken('');
+    setBaseUrl('');
+    setCredentialValidationError(null);
   }
 
   function beginCredentialEdit(credential: {
@@ -144,9 +161,11 @@ export function useProvidersController() {
     label: string;
   }) {
     setEditingCredentialId(credential.id);
-    setProviderId(credential.providerId as 'nanogpt');
+    setProviderId(credential.providerId);
     setLabel(credential.label);
     setApiToken('');
+    setBaseUrl('');
+    setCredentialValidationError(null);
   }
 
   const defaultModelOptions = buildDefaultModelOptions(
@@ -156,7 +175,17 @@ export function useProvidersController() {
   function handleCredentialSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!label.trim() || (!editingCredentialId && !apiToken.trim())) {
+    if (!label.trim() || (!editingCredentialId && !apiToken.trim() && !baseUrl.trim())) {
+      return;
+    }
+
+    const validationError = validateProviderCredentialInput({
+      providerId,
+      apiToken,
+      baseUrl,
+    });
+    setCredentialValidationError(validationError);
+    if (validationError) {
       return;
     }
 
@@ -175,6 +204,8 @@ export function useProvidersController() {
 
   return {
     apiToken,
+    baseUrl,
+    credentialValidationError,
     credentials: credentialsQuery.data ?? [],
     currentDefaultModel: providerSettingsQuery.data?.defaultModel ?? null,
     currentDefaultProviderDisplayName: providerSettingsQuery.data
@@ -202,15 +233,30 @@ export function useProvidersController() {
         ? modelsQuery.error.message
         : 'Unable to load models for the selected provider.'
       : null,
-    onApiTokenChange: setApiToken,
+    onApiTokenChange: (value: string) => {
+      setApiToken(value);
+      if (credentialValidationError) {
+        setCredentialValidationError(null);
+      }
+    },
+    onBaseUrlChange: (value: string) => {
+      setBaseUrl(value);
+      if (credentialValidationError) {
+        setCredentialValidationError(null);
+      }
+    },
     onDefaultModelChange: (value: string | null) => setDefaultModel(value),
     onDefaultProviderChange: (value: string | null) => {
       setDefaultProviderId(value);
       setDefaultModel(null);
     },
     onLabelChange: setLabel,
-    onProviderChange: (value: string | null) =>
-      setProviderId((value as 'nanogpt') ?? 'nanogpt'),
+    onProviderChange: (value: string | null) => {
+      setProviderId(value ?? 'nanogpt');
+      if (credentialValidationError) {
+        setCredentialValidationError(null);
+      }
+    },
     providerId,
     providerOptions,
     providerSettingsDirty,

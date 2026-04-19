@@ -8,7 +8,7 @@ The platform separates the data plane from the control plane.
 - `admin-web` talks to `gateway-api` for chat and model discovery
 - clients or trusted internal callers talk to `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
-- `provider-nanogpt` is the first concrete provider implementation
+- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-google`, `provider-xai`, `provider-openai`, and `provider-anthropic` are concrete provider implementations behind the same seam
 
 ## Boundary Rules
 
@@ -48,6 +48,13 @@ It must not import provider-specific implementation details directly.
 - `domain` contains framework-agnostic domain concepts
 - `provider-sdk` defines the provider integration seam
 - `provider-nanogpt` implements NanoGPT behind the seam
+- `provider-openrouter` implements OpenRouter behind the seam
+- `provider-ollama` implements Ollama behind the seam
+- `provider-groq` implements Groq behind the seam
+- `provider-google` implements Google Gemini behind the seam
+- `provider-xai` implements xAI Grok behind the seam
+- `provider-openai` implements OpenAI behind the seam
+- `provider-anthropic` implements Anthropic Claude behind the seam
 
 ## Persistence Posture
 
@@ -113,13 +120,24 @@ The main architectural failure mode is leaking provider-specific logic into `gat
 
 If that boundary collapses, the new repository will recreate the coupling problems it was meant to eliminate.
 
-## Phase 2 Entry Notes
+## Provider Access Posture
 
-Phase 2 starts from an implemented foundation, not a scaffold.
+The seam must support transparent provider execution without forcing `gateway-api` to understand each provider's auth model.
 
-The main architectural priorities for the next phase are:
+Provider adapters receive a provider access configuration that may contain:
 
-- preserving the provider seam while adding capability
-- extending control-plane workflows without weakening secret-handling rules
-- keeping the SPA feature-oriented and testable as E2E coverage is introduced
-- avoiding regression toward oversized page modules or provider-aware gateway code
+- `apiKey`
+- `baseUrl`
+- provider-scoped headers
+
+This allows:
+
+- `NanoGPT` and `OpenRouter` to use bearer-token style auth
+- `Groq` to use bearer-token auth through an OpenAI-compatible endpoint
+- `Google Gemini` to use bearer-token auth through Google's OpenAI-compatible Gemini API
+- `xAI Grok` to use bearer-token auth through an OpenAI-compatible endpoint
+- `OpenAI` to use bearer-token auth through the OpenAI chat completions and models endpoints
+- `Anthropic Claude` to use `x-api-key` auth plus Anthropic-specific message and model endpoints
+- `Ollama` to use either a local/runtime endpoint or Ollama Cloud with bearer auth
+
+`gateway-api` resolves and decrypts provider access data, but it does not interpret provider-specific transport rules.

@@ -64,7 +64,7 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
       {
         requestId: 'req-1',
         userId: 'user-1',
-        providerCredential: {
+        providerAccess: {
           apiKey: 'nano-secret-token',
         },
       },
@@ -133,7 +133,7 @@ test('NanoGptProviderAdapter returns the provider SSE body for streaming request
       {
         requestId: 'req-2',
         userId: 'user-1',
-        providerCredential: {
+        providerAccess: {
           apiKey: 'nano-secret-token',
         },
       },
@@ -180,13 +180,49 @@ test('NanoGptProviderAdapter fails with an explicit timeout error when the provi
           {
             requestId: 'req-timeout',
             userId: 'user-1',
-            providerCredential: {
+            providerAccess: {
               apiKey: 'nano-secret-token',
             },
           },
         ),
       /NanoGPT request timed out after 5 ms/,
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtime', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    return new Response(JSON.stringify({ data: [] }), {
+      status: 200,
+      headers: {
+        'content-type': 'application/json',
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    await adapter.listModels?.({
+      requestId: 'req-legacy',
+      userId: 'user-1',
+      providerAccess: undefined as never,
+    });
+
+    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/models');
+    const headers = calls[0]?.init?.headers as
+      | Record<string, string>
+      | undefined;
+    assert.equal(headers?.authorization, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }

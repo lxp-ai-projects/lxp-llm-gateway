@@ -22,7 +22,7 @@ It should:
 - preserve the lessons learned from the previous project
 - avoid speculative packages and premature abstractions
 - establish healthy boundaries from day one
-- remain ready for additional providers later
+- keep provider expansion behind the seam without leaking provider-specific logic into `gateway-api`
 
 ## Initial Product Scope
 
@@ -39,11 +39,23 @@ Phase 1 includes:
 - Redis-backed auth/session operational state
 - local development infrastructure
 - CI-ready scripts and workflows for typecheck, build, and test, with coverage as an informative signal
+- working provider implementations for:
+  - `NanoGPT`
+  - `OpenRouter`
+  - `Ollama`
+  - `Groq`
+  - `Google Gemini`
+  - `xAI Grok`
+  - `OpenAI`
+  - `Anthropic Claude`
+- local development infrastructure with Redis or Valkey
+- an initial OpenAPI placeholder
+- basic CI-ready scripts for lint, build, and test
 - incremental UI hardening and refactor work that preserves behavior while improving maintainability, testability, and mobile operability
 
 Phase 1 does not include:
 
-- a second provider
+- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, and `Anthropic Claude`
 - quota engines
 - policy engines
 - advanced billing or cost governance
@@ -200,10 +212,24 @@ Provider abstraction seam:
 - adapter interfaces
 - normalized provider result types
 - shared provider execution contracts
+- provider access configuration that can represent:
+  - bearer-token providers such as `NanoGPT` and `OpenRouter`
+  - endpoint-based providers such as `Ollama`
 
-### `packages/provider-nanogpt`
+### Provider Packages
 
-NanoGPT-specific implementation:
+Concrete provider implementations currently shipped in Phase 1:
+
+- `packages/provider-nanogpt`
+- `packages/provider-openrouter`
+- `packages/provider-ollama`
+- `packages/provider-groq`
+- `packages/provider-google`
+- `packages/provider-xai`
+- `packages/provider-openai`
+- `packages/provider-anthropic`
+
+Each package owns:
 
 - request and response mapping
 - streaming adaptation
@@ -258,6 +284,14 @@ export interface LlmProviderAdapter {
   ): Promise<ReadableStream>;
 }
 ```
+
+The execution context passed through the seam may contain a provider access configuration rather than only a raw API key.
+
+That access configuration can include:
+
+- `apiKey`
+- `baseUrl`
+- provider-scoped headers when required
 
 The first version does not need to be perfect.
 

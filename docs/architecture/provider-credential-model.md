@@ -6,6 +6,8 @@ The gateway must be easy to operate while remaining strict about privacy and sec
 
 Provider credentials are resolved dynamically based on the authenticated user context and the requested provider.
 
+The stored secret material may represent a bearer token, an endpoint, or a small provider access configuration object depending on the provider.
+
 ## Core Concepts
 
 ### User
@@ -60,6 +62,13 @@ Suggested minimum fields:
 Suggested initial `providerId` values:
 
 - `nanogpt`
+- `openrouter`
+- `ollama`
+- `groq`
+- `google`
+- `xai`
+- `openai`
+- `anthropic`
 
 ### UserProviderCredential
 
@@ -87,6 +96,29 @@ Optional future fields:
 - `revokedAt`
 - `usagePolicyId`
 
+`encryptedSecret` should be treated as encrypted provider access payload, not as "API key only".
+
+Examples:
+
+- NanoGPT: `{ "apiKey": "..." }`
+- OpenRouter: `{ "apiKey": "...", "baseUrl": "https://openrouter.ai/api/v1" }`
+- Ollama local: `{ "baseUrl": "http://127.0.0.1:11434/v1" }`
+- Ollama cloud: `{ "baseUrl": "https://ollama.com", "apiKey": "..." }`
+- Groq: `{ "apiKey": "...", "baseUrl": "https://api.groq.com/openai/v1" }`
+- Google Gemini: `{ "apiKey": "...", "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai" }`
+- xAI Grok: `{ "apiKey": "...", "baseUrl": "https://api.x.ai/v1" }`
+- OpenAI: `{ "apiKey": "...", "baseUrl": "https://api.openai.com/v1" }`
+- Anthropic Claude: `{ "apiKey": "...", "baseUrl": "https://api.anthropic.com" }`
+
+The current runtime supports both Ollama access modes:
+
+- local/runtime mode:
+  - model listing via `/api/tags`
+  - chat via `/v1/chat/completions`
+- cloud mode:
+  - model listing via `/api/tags`
+  - chat via `/api/chat`
+
 ## Runtime Flow
 
 ### Admin Control Plane
@@ -103,7 +135,7 @@ Optional future fields:
 2. `gateway-api` resolves the effective user context.
 3. `gateway-api` resolves the provider credential for that user and provider.
 4. `gateway-api` decrypts the secret in memory.
-5. `gateway-api` invokes the provider adapter with the decrypted secret.
+5. `gateway-api` invokes the provider adapter with the decrypted provider access configuration.
 6. The secret is discarded after request execution.
 
 ## Resolution Rules

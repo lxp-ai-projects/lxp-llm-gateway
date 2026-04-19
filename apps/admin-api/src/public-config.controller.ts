@@ -13,6 +13,34 @@ export class PublicConfigController {
           providerId: 'nanogpt',
           displayName: 'NanoGPT',
         },
+        {
+          providerId: 'openrouter',
+          displayName: 'OpenRouter',
+        },
+        {
+          providerId: 'ollama',
+          displayName: 'Ollama',
+        },
+        {
+          providerId: 'groq',
+          displayName: 'Groq',
+        },
+        {
+          providerId: 'google',
+          displayName: 'Google Gemini',
+        },
+        {
+          providerId: 'xai',
+          displayName: 'xAI Grok',
+        },
+        {
+          providerId: 'openai',
+          displayName: 'OpenAI',
+        },
+        {
+          providerId: 'anthropic',
+          displayName: 'Anthropic Claude',
+        },
       ],
     };
   }

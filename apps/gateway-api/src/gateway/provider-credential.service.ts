@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ProviderId } from '@lxp/domain';
+import type { ProviderAccessConfig } from '@lxp/provider-sdk';
 import { Repository } from 'typeorm';
 
 import { ProviderEntity } from '../persistence/entities/provider.entity';
@@ -25,10 +26,10 @@ export class ProviderCredentialService {
     private readonly encryptionService: EncryptionService,
   ) {}
 
-  async resolveApiKey(
+  async resolveProviderAccess(
     emailHash: string,
     providerId: ProviderId,
-  ): Promise<string> {
+  ): Promise<ProviderAccessConfig> {
     if (!emailHash) {
       throw new BadRequestException('Missing authenticated user email hash.');
     }
@@ -71,16 +72,50 @@ export class ProviderCredentialService {
     }
 
     try {
-      return this.encryptionService.decrypt({
+      const decryptedPayload = this.encryptionService.decrypt({
         ciphertext: credential.encryptedSecret,
         iv: credential.iv,
         authTag: credential.authTag,
         keyVersion: credential.keyVersion,
       });
+
+      return this.parseProviderAccess(providerId, decryptedPayload);
     } catch {
       throw new InternalServerErrorException(
         `Unable to decrypt the stored credential for provider ${providerId}. Verify that admin-api and gateway-api use the same LXP_ENCRYPTION_MASTER_KEY and LXP_ENCRYPTION_KEY_VERSION, or re-save the provider credential with the active key.`,
       );
     }
+  }
+
+  private parseProviderAccess(
+    providerId: ProviderId,
+    decryptedPayload: string,
+  ): ProviderAccessConfig {
+    try {
+      const parsed = JSON.parse(decryptedPayload) as ProviderAccessConfig;
+      return this.normalizeProviderAccess(providerId, parsed);
+    } catch {
+      return this.normalizeProviderAccess(providerId, {
+        apiKey: decryptedPayload,
+      });
+    }
+  }
+
+  private normalizeProviderAccess(
+    providerId: ProviderId,
+    providerAccess: ProviderAccessConfig,
+  ): ProviderAccessConfig {
+    if (!providerAccess.baseUrl && !providerAccess.apiKey) {
+      throw new InternalServerErrorException(
+        `Stored provider access for ${providerId} is empty or invalid.`,
+      );
+    }
+
+    return {
+      ...providerAccess,
+      baseUrl: providerAccess.baseUrl?.trim() || undefined,
+      apiKey: providerAccess.apiKey?.trim() || undefined,
+      headers: providerAccess.headers,
+    };
   }
 }

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
 import type { LlmProviderAdapter } from '@lxp/provider-sdk';
 
@@ -23,6 +23,10 @@ export class ProviderRegistryService {
       if (provider) {
         return provider;
       }
+
+      throw new NotFoundException(
+        `Provider ${providerId} is not registered in gateway-api.`,
+      );
     }
 
     const defaultProvider = this.providers.values().next().value;

@@ -10,4 +10,9 @@ export class UpdateProviderCredentialDto {
   @IsString()
   @MinLength(1)
   apiToken?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  baseUrl?: string;
 }

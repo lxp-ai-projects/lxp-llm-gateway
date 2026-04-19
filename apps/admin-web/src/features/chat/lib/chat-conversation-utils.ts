@@ -2,6 +2,7 @@ import { createClientId } from '../../../lib/id';
 import type { StoredConversation } from '../../../lib/chat-store';
 
 export function createConversation(
+  providerId: string,
   model: string,
   systemPrompt: string,
 ): StoredConversation {
@@ -9,7 +10,7 @@ export function createConversation(
     id: createClientId(),
     title: 'New conversation',
     model,
-    providerId: 'nanogpt',
+    providerId,
     systemPrompt,
     messages: [],
     updatedAt: new Date().toISOString(),

@@ -78,7 +78,7 @@ export function useChatStreaming({
     try {
       const streamResult = await gatewayApiClient.chatStream(
         {
-          providerId: 'nanogpt',
+          providerId: baseConversation.providerId,
           model: baseConversation.model,
           stream: true,
           messages: buildGatewayMessages(baseConversation),

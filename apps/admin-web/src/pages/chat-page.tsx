@@ -1,40 +1,35 @@
-import {
-  Button,
-  Card,
-  Grid,
-  Group,
-  Modal,
-  Select,
-  Stack,
-  Tabs,
-  Text,
-  Title,
-} from '@mantine/core';
-import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import {Alert, Button, Card, Grid, Group, Modal, Select, Stack, Tabs, Text, Title,} from '@mantine/core';
+import {useQuery} from '@tanstack/react-query';
+import {useEffect, useRef, useState} from 'react';
 
-import { ChatComposer } from '../features/chat/components/chat-composer';
-import { ChatMessageList } from '../features/chat/components/chat-message-list';
-import { ChatSidebar } from '../features/chat/components/chat-sidebar';
-import { ChatSystemPromptPanel } from '../features/chat/components/chat-system-prompt-panel';
-import { useChatClipboard } from '../features/chat/hooks/use-chat-clipboard';
-import { useChatConversations } from '../features/chat/hooks/use-chat-conversations';
-import { useChatComposerViewport } from '../features/chat/hooks/use-chat-composer-viewport';
-import { useChatMessageWindow } from '../features/chat/hooks/use-chat-message-window';
-import { useChatStreaming } from '../features/chat/hooks/use-chat-streaming';
-import { useChatTransfer } from '../features/chat/hooks/use-chat-transfer';
-import { createConversation } from '../features/chat/lib/chat-conversation-utils';
-import { PageHeader } from '../components/page-header';
-import { gatewayApiClient } from '../lib/api-client';
-import { DEFAULT_SYSTEM_PROMPT } from '../lib/chat-thread';
-import { type StoredConversation } from '../lib/chat-store';
-import { useRuntimeConfig } from '../lib/use-runtime-config';
-import { useSession } from '../lib/use-session';
+import {ChatComposer} from '../features/chat/components/chat-composer';
+import {ChatMessageList} from '../features/chat/components/chat-message-list';
+import {ChatSidebar} from '../features/chat/components/chat-sidebar';
+import {ChatSystemPromptPanel} from '../features/chat/components/chat-system-prompt-panel';
+import {useChatClipboard} from '../features/chat/hooks/use-chat-clipboard';
+import {useChatConversations} from '../features/chat/hooks/use-chat-conversations';
+import {useChatComposerViewport} from '../features/chat/hooks/use-chat-composer-viewport';
+import {useChatMessageWindow} from '../features/chat/hooks/use-chat-message-window';
+import {useChatStreaming} from '../features/chat/hooks/use-chat-streaming';
+import {useChatTransfer} from '../features/chat/hooks/use-chat-transfer';
+import {createConversation} from '../features/chat/lib/chat-conversation-utils';
+import {PageHeader} from '../components/page-header';
+import {adminApiClient, gatewayApiClient} from '../lib/api-client';
+import {DEFAULT_SYSTEM_PROMPT} from '../lib/chat-thread';
+import {type StoredConversation} from '../lib/chat-store';
+import {useRuntimeConfig} from '../lib/use-runtime-config';
+import {useSession} from '../lib/use-session';
+import {
+  buildDefaultModelOptions,
+  buildProviderOptions,
+  getProviderCatalogPricingNote,
+} from '../features/providers/lib/provider-utils';
 
 export function ChatPage() {
   const runtimeConfigQuery = useRuntimeConfig();
   const sessionQuery = useSession();
   const [prompt, setPrompt] = useState('');
+  const [providerId, setProviderId] = useState('');
   const [model, setModel] = useState('');
   const [chatError, setChatError] = useState<string | null>(null);
   const [streamingSignal, setStreamingSignal] = useState(false);
@@ -43,12 +38,19 @@ export function ChatPage() {
   const [activePanel, setActivePanel] = useState<
     'conversation' | 'system-prompt'
   >('conversation');
+  const pendingConversationProviderSyncRef = useRef(false);
   const chatPanelRef = useRef<HTMLDivElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const composerViewportStyle = useChatComposerViewport(
     chatPanelRef,
     activePanel,
   );
+  const providerSettingsQuery = useQuery({
+    queryKey: ['own-provider-settings'],
+    queryFn: () => adminApiClient.getOwnProviderSettings(),
+  });
+  const supportedProviders = runtimeConfigQuery.data?.supportedProviders ?? [];
+  const providerOptions = buildProviderOptions(supportedProviders);
   const { copiedAssistantMessageId, copyAssistantMessage } =
     useChatClipboard(setChatError);
   const {
@@ -58,7 +60,7 @@ export function ChatPage() {
     conversationPendingDeletion,
     conversations,
     createConversation: createStoredConversation,
-    persistConversationModel,
+    persistConversationProvider,
     persistConversationSystemPrompt,
     setActiveConversationId,
     setConversationPendingDeletion,
@@ -66,6 +68,7 @@ export function ChatPage() {
     setSystemPrompt,
     systemPrompt,
   } = useChatConversations({
+    providerId,
     model,
     onResetComposerState: () => {
       setPrompt('');
@@ -120,18 +123,97 @@ export function ChatPage() {
     onStreamingChange: setStreamingSignal,
   });
   const modelsQuery = useQuery({
-    queryKey: ['gateway-models', 'nanogpt'],
-    queryFn: () => gatewayApiClient.getModels('nanogpt'),
+    queryKey: ['gateway-models', providerId],
+    queryFn: () => gatewayApiClient.getModels(providerId || undefined),
+    enabled: Boolean(providerId),
   });
+  const sortedModelOptions = buildDefaultModelOptions(
+    modelsQuery.data?.models ?? [],
+  );
 
   useEffect(() => {
-    if (!model && modelsQuery.data?.models.length) {
-      const preferredThinkingModel = modelsQuery.data.models.find((entry) =>
-        entry.id.includes('thinking'),
-      );
-      setModel(preferredThinkingModel?.id ?? modelsQuery.data.models[0]!.id);
+    if (providerId) {
+      return;
     }
-  }, [model, modelsQuery.data]);
+
+    const preferredProviderId =
+      activeConversation?.providerId ??
+      providerSettingsQuery.data?.defaultProviderId ??
+      providerOptions.find((option) => option.value === 'nanogpt')?.value ??
+      providerOptions[0]?.value ??
+      'nanogpt';
+    setProviderId(preferredProviderId);
+  }, [
+    activeConversation?.providerId,
+    providerId,
+    providerOptions,
+    providerSettingsQuery.data?.defaultProviderId,
+  ]);
+
+  useEffect(() => {
+    if (!activeConversation) {
+      pendingConversationProviderSyncRef.current = false;
+      return;
+    }
+
+    setProviderId((currentProviderId) =>
+      currentProviderId === activeConversation.providerId
+        ? currentProviderId
+        : activeConversation.providerId,
+    );
+    setModel((currentModel) =>
+      currentModel === activeConversation.model
+        ? currentModel
+        : activeConversation.model,
+    );
+    pendingConversationProviderSyncRef.current = false;
+  }, [activeConversation?.id]);
+
+  useEffect(() => {
+    if (!providerId || !modelsQuery.data?.models.length) {
+      return;
+    }
+
+    const availableModels = modelsQuery.data.models;
+    const configuredDefaultModel =
+      providerSettingsQuery.data?.defaultProviderId === providerId
+        ? providerSettingsQuery.data.defaultModel
+        : null;
+    const preferredThinkingModel = availableModels.find((entry) =>
+      entry.id.includes('thinking'),
+    );
+    const nextModelCandidate =
+      configuredDefaultModel ??
+      preferredThinkingModel?.id ??
+      availableModels[0]!.id;
+    const modelExists = model
+      ? availableModels.some((entry) => entry.id === model)
+      : false;
+    const nextModel = modelExists ? model : nextModelCandidate;
+
+    if (nextModel === model) {
+      return;
+    }
+
+    setModel(nextModel);
+
+    if (
+      pendingConversationProviderSyncRef.current &&
+      activeConversation &&
+      nextModel
+    ) {
+      pendingConversationProviderSyncRef.current = false;
+      void persistConversationProvider(providerId, nextModel);
+    }
+  }, [
+    activeConversation,
+    model,
+    modelsQuery.data,
+    persistConversationProvider,
+    providerId,
+    providerSettingsQuery.data?.defaultModel,
+    providerSettingsQuery.data?.defaultProviderId,
+  ]);
 
   const userDisplayName = sessionQuery.data?.displayName?.trim() || 'User';
   const persistedSystemPrompt =
@@ -139,20 +221,21 @@ export function ChatPage() {
   const systemPromptDirty =
     systemPrompt.trim() !== persistedSystemPrompt.trim();
 
-  function withCurrentSystemPrompt(
+  function withCurrentSelection(
     conversation: StoredConversation,
   ): StoredConversation {
     return {
       ...conversation,
+      providerId,
+      model,
       systemPrompt: systemPrompt.trim(),
     };
   }
 
-  useEffect(() => {
-    if (activeConversation?.model && activeConversation.model !== model) {
-      setModel(activeConversation.model);
-    }
-  }, [activeConversation?.id, activeConversation?.model, model]);
+  const providerCatalogPricingNote = getProviderCatalogPricingNote(providerId);
+  const selectedProviderDisplayName =
+    providerOptions.find((option) => option.value === providerId)?.label ??
+    providerId;
 
   return (
     <>
@@ -249,25 +332,44 @@ export function ChatPage() {
                     : 'offline'}
                 </Text>
               </Stack>
-              <Select
-                data={(modelsQuery.data?.models ?? []).map((entry) => ({
-                  value: entry.id,
-                  label: entry.displayName,
-                }))}
-                data-testid="chat-model-select"
-                onChange={(value) => {
-                  const nextModel = value ?? 'z-ai/glm-4.6:thinking';
-                  setModel(nextModel);
-                  if (activeConversation) {
-                    void persistConversationModel(nextModel);
-                  }
-                }}
-                value={model}
-                className="chat-model-select"
-                w={240}
-                disabled={modelsQuery.isPending || modelsQuery.isError}
-              />
+              <Stack gap="xs" w={240}>
+                <Select
+                  data={providerOptions}
+                  data-testid="chat-provider-select"
+                  label="Provider"
+                  onChange={(value) => {
+                    const nextProviderId =
+                      value ?? providerOptions[0]?.value ?? 'nanogpt';
+                    pendingConversationProviderSyncRef.current =
+                      Boolean(activeConversation);
+                    setProviderId(nextProviderId);
+                    setModel('');
+                  }}
+                  value={providerId}
+                />
+                <Select
+                  data={sortedModelOptions}
+                  data-testid="chat-model-select"
+                  label="Model"
+                  onChange={(value) => {
+                    const nextModel = value ?? '';
+                    pendingConversationProviderSyncRef.current = false;
+                    setModel(nextModel);
+                    if (activeConversation && nextModel) {
+                      void persistConversationProvider(providerId, nextModel);
+                    }
+                  }}
+                  value={model}
+                  className="chat-model-select"
+                  disabled={!providerId || modelsQuery.isPending || modelsQuery.isError}
+                />
+              </Stack>
             </Group>
+            {providerCatalogPricingNote ? (
+              <Alert color="blue" mb="md" title="Model catalog note">
+                {providerCatalogPricingNote}
+              </Alert>
+            ) : null}
 
             <Tabs
               value={activePanel}
@@ -308,6 +410,7 @@ export function ChatPage() {
                       isLoadingModels={modelsQuery.isPending}
                       isStreaming={isStreaming}
                       model={model}
+                      providerId={providerId}
                       modelsErrorMessage={
                         modelsQuery.isError
                           ? modelsQuery.error instanceof Error
@@ -331,14 +434,14 @@ export function ChatPage() {
                       onLoadNewerMessages={loadNewerMessages}
                       onRetryAssistantMessage={(messageId) =>
                         void retryAssistantMessage(
-                          withCurrentSystemPrompt,
+                          withCurrentSelection,
                           messageId,
                         )
                       }
                       onScroll={handleScroll}
                       onSubmitEditedMessage={(messageId) =>
                         void resendEditedMessage(
-                          withCurrentSystemPrompt,
+                          withCurrentSelection,
                           messageId,
                         )
                       }
@@ -366,17 +469,17 @@ export function ChatPage() {
                         }
 
                         void sendMessage(() => {
-                          const effectiveModel =
-                            activeConversation?.model ?? model;
                           return activeConversation
-                            ? withCurrentSystemPrompt(activeConversation)
+                            ? withCurrentSelection(activeConversation)
                             : createConversation(
-                                effectiveModel,
+                                providerId,
+                                model,
                                 systemPrompt.trim(),
                               );
                         }, nextPrompt);
                       }}
                       prompt={prompt}
+                      providerDisplayName={selectedProviderDisplayName}
                     />
                   </div>
                 </Stack>

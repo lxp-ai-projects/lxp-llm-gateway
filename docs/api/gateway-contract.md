@@ -35,7 +35,7 @@ Example:
 
 Fields:
 
-- `providerId?`: provider identifier, currently `nanogpt`
+- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, `groq`, `google`, `xai`, `openai`, or `anthropic`
 - `model?`: provider model name
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
@@ -97,7 +97,7 @@ When `stream=true`, the gateway returns:
 
 - `Content-Type: text/event-stream; charset=utf-8`
 
-The gateway currently performs provider SSE passthrough for NanoGPT-compatible streams. This preserves provider-native deltas such as:
+The gateway currently performs provider SSE passthrough for OpenAI-compatible provider streams. This preserves provider-native deltas such as:
 
 - `choices[0].delta.reasoning`
 - `choices[0].delta.content`
@@ -111,6 +111,8 @@ data: {"choices":[{"delta":{"content":"Bonjour Patrick !"}}]}
 ```
 
 This is intentionally not normalized yet. The current design keeps reasoning and content deltas intact for thinking-capable models.
+
+For native Ollama `/api/chat` streams, the adapter converts provider-native NDJSON chunks into gateway SSE chunks that keep the same `choices[0].delta.*` shape expected by the admin web client.
 
 ## Identity Resolution
 
@@ -127,9 +129,64 @@ Public-facing admin workflows use `userUuid`, not the internal database row id.
 
 ## Current Provider Notes
 
-For NanoGPT:
+For NanoGPT and other OpenAI-compatible providers:
 
 - non-stream reasoning is read from `choices[0].message.reasoning`
 - non-stream reasoning details are read from `choices[0].message.reasoning_details`
 - streaming reasoning is relayed from `choices[0].delta.reasoning`
 - streaming content is relayed from `choices[0].delta.content`
+
+For Groq:
+
+- the gateway uses the OpenAI-compatible Groq base URL `https://api.groq.com/openai/v1`
+- model listing uses `/models`
+- chat uses `/chat/completions`
+- bearer auth is required
+- Groq is not Grok from xAI
+
+For Google Gemini:
+
+- the gateway uses the Google Gemini OpenAI-compatible base URL `https://generativelanguage.googleapis.com/v1beta/openai`
+- model listing uses `/models`
+- chat uses `/chat/completions`
+- bearer auth is required
+- support is validated
+- the free tier is subject to Google's rate limits
+- usage is billed through the caller's Google AI account, so API keys must be protected carefully
+
+For xAI Grok:
+
+- the gateway uses the xAI base URL `https://api.x.ai/v1`
+- model listing uses `/models`
+- chat uses `/chat/completions`
+- bearer auth is required
+- support is experimental and requires additional certification tests before it should be treated as stable
+- usage is billed through the caller's xAI account, so API keys must be protected carefully
+
+For OpenAI:
+
+- the gateway uses the OpenAI base URL `https://api.openai.com/v1`
+- model listing uses `/models`
+- chat uses `/chat/completions`
+- bearer auth is required
+- support is experimental and requires additional certification tests before it should be treated as stable
+- the Chat Completions API is used for compatibility with the current gateway seam, although OpenAI recommends the newer Responses API for new projects
+
+For Anthropic Claude:
+
+- the gateway uses the Anthropic base URL `https://api.anthropic.com`
+- model listing uses `GET /v1/models`
+- chat uses `POST /v1/messages`
+- auth uses the `x-api-key` header plus `anthropic-version`
+- support is experimental and requires additional certification tests before it should be treated as stable
+- Anthropic streaming events are normalized by the adapter into the gateway SSE shape expected by `admin-web`
+
+For Ollama:
+
+- local/runtime deployments can use `http://127.0.0.1:11434` or `http://127.0.0.1:11434/v1`
+- local model listing uses `/api/tags`
+- local chat uses `/v1/chat/completions`
+- Ollama Cloud can use `https://ollama.com`
+- Ollama Cloud model listing uses `/api/tags`
+- Ollama Cloud chat uses `/api/chat`
+- Ollama Cloud requires bearer auth

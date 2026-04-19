@@ -39,7 +39,16 @@ test('adminApiClient.getRuntimeConfig falls back to safe defaults when the reque
     registrationEnabled: false,
     forgotPasswordEnabled: false,
     gatewayOnline: true,
-    supportedProviders: [{ providerId: 'nanogpt', displayName: 'NanoGPT' }],
+    supportedProviders: [
+      { providerId: 'nanogpt', displayName: 'NanoGPT' },
+      { providerId: 'openrouter', displayName: 'OpenRouter' },
+      { providerId: 'ollama', displayName: 'Ollama' },
+      { providerId: 'groq', displayName: 'Groq' },
+      { providerId: 'google', displayName: 'Google Gemini' },
+      { providerId: 'xai', displayName: 'xAI Grok' },
+      { providerId: 'openai', displayName: 'OpenAI' },
+      { providerId: 'anthropic', displayName: 'Anthropic Claude' },
+    ],
   });
 });
 
@@ -213,6 +222,37 @@ test('gatewayApiClient.chat surfaces timeout aborts with a user-facing error', a
     }),
   ).rejects.toThrow(
     'The request timed out before the gateway returned a response.',
+  );
+});
+
+test('gatewayApiClient.chatStream formats JSON error bodies from the gateway', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        statusCode: 502,
+        message:
+          'Anthropic request failed with status 400: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits. (request_id: req_123)',
+        error: 'Bad Gateway',
+      }),
+      {
+        status: 502,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    ),
+  );
+
+  await expect(
+    gatewayApiClient.chatStream(
+      {
+        stream: true,
+        messages: [{ role: 'user', content: 'Hello' }],
+      },
+      { onChunk: vi.fn() },
+    ),
+  ).rejects.toThrow(
+    'Anthropic request failed with status 400: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits. (request_id: req_123)',
   );
 });
 

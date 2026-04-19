@@ -431,6 +431,27 @@ a {
   box-shadow: 0 10px 20px rgba(15, 118, 110, 0.18);
 }
 
+.form-native-field {
+  display: grid;
+  gap: 6px;
+}
+
+.form-native-select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #c5d2d9;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 12px;
+  color: #11202a;
+  font: inherit;
+}
+
+.form-native-select:disabled {
+  background: #f1f5f7;
+  color: #748692;
+}
+
 @keyframes chat-caret-blink {
   0%,
   49% {

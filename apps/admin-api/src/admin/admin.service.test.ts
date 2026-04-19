@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
+import type { ProviderId } from '@lxp/domain';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
@@ -101,6 +102,48 @@ function createAdminService() {
       id: randomUUID(),
       providerId: 'nanogpt',
       displayName: 'NanoGPT',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'openrouter',
+      displayName: 'OpenRouter',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'ollama',
+      displayName: 'Ollama',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'groq',
+      displayName: 'Groq',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'google',
+      displayName: 'Google Gemini',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'xai',
+      displayName: 'xAI Grok',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'openai',
+      displayName: 'OpenAI',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'anthropic',
+      displayName: 'Anthropic Claude',
       status: 'active',
     },
   ]);
@@ -248,6 +291,133 @@ test('AdminService stores short provider tokens without masking them further', a
   });
 
   assert.equal(credential.maskedHint, 'abcd');
+});
+
+test('AdminService stores an Ollama endpoint-only credential', async () => {
+  const { service, repositories } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  const credential = await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'ollama',
+    label: 'local-ollama',
+    baseUrl: 'http://127.0.0.1:11434/v1',
+  });
+
+  assert.equal(credential.providerId, 'ollama');
+  assert.equal(credential.maskedHint, 'http://127.0.0.1:11434/v1');
+
+  const stored = repositories.credentialRepository.data[0] as {
+    encryptedSecret: string;
+  };
+  assert.notEqual(
+    stored.encryptedSecret,
+    JSON.stringify({ baseUrl: 'http://127.0.0.1:11434/v1' }),
+  );
+});
+
+test('AdminService rejects Ollama cloud credentials on ollama.com without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'ollama',
+        label: 'cloud-without-token',
+        baseUrl: 'https://ollama.com',
+      }),
+    /require an API token/,
+  );
+});
+
+test('AdminService rejects xAI Grok credentials without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'xai',
+        label: 'grok-without-token',
+        baseUrl: 'https://api.x.ai/v1',
+      }),
+    /xAI Grok credentials require an API token/,
+  );
+});
+
+test('AdminService rejects Google Gemini credentials without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'google' as ProviderId,
+        label: 'gemini-without-token',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      }),
+    /Google Gemini credentials require an API token/,
+  );
+});
+
+test('AdminService rejects OpenAI credentials without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'openai',
+        label: 'openai-without-token',
+        baseUrl: 'https://api.openai.com/v1',
+      }),
+    /OpenAI credentials require an API token/,
+  );
+});
+
+test('AdminService rejects Anthropic credentials without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'anthropic' as ProviderId,
+        label: 'anthropic-without-token',
+        baseUrl: 'https://api.anthropic.com',
+      }),
+    /Anthropic credentials require an API token/,
+  );
 });
 
 test('AdminService rejects storing a provider credential when the user does not exist', async () => {

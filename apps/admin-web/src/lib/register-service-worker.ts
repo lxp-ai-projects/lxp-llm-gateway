@@ -1,5 +1,18 @@
 export function registerServiceWorker() {
-  if (typeof navigator.serviceWorker?.register !== 'function') {
+  if (typeof navigator.serviceWorker === 'undefined') {
+    return;
+  }
+
+  if (!import.meta.env.PROD) {
+    void navigator.serviceWorker.getRegistrations?.().then((registrations) => {
+      registrations.forEach((registration) => {
+        void registration.unregister();
+      });
+    });
+    return;
+  }
+
+  if (typeof navigator.serviceWorker.register !== 'function') {
     return;
   }
 

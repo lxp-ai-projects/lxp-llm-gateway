@@ -105,6 +105,12 @@ beforeEach(() => {
   updateOwnProviderSettingsMock.mockClear();
   runtimeConfigData.supportedProviders = [
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'ollama', displayName: 'Ollama' },
+    { providerId: 'groq', displayName: 'Groq' },
+    { providerId: 'google', displayName: 'Google Gemini' },
+    { providerId: 'xai', displayName: 'xAI Grok' },
+    { providerId: 'openai', displayName: 'OpenAI' },
+    { providerId: 'anthropic', displayName: 'Anthropic Claude' },
   ];
   getModelsMock.mockResolvedValue({
     providerId: 'nanogpt',
@@ -289,6 +295,26 @@ test('ProvidersPage surfaces model loading failures and raw provider fallback na
   ).toBeInTheDocument();
 });
 
+test('ProvidersPage shows an xAI model access note when model loading fails', async () => {
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: 'xai',
+    defaultModel: null,
+  });
+  getModelsMock.mockRejectedValue(
+    new Error('xAI model listing failed with status 500: Internal server error'),
+  );
+
+  renderWithProviders(<ProvidersPage />);
+
+  expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      /xAI's models endpoint returns the models available to the authenticating API key/i,
+    ),
+  ).toBeInTheDocument();
+});
+
 test('ProvidersPage marks default providers in both mobile and desktop credential views', async () => {
   renderWithProviders(<ProvidersPage />);
 
@@ -298,4 +324,220 @@ test('ProvidersPage marks default providers in both mobile and desktop credentia
 
   const defaultProviderLabels = await screen.findAllByText('Default provider');
   expect(defaultProviderLabels.length).toBeGreaterThanOrEqual(2);
+});
+
+test('ProvidersPage creates an Ollama endpoint credential with a base URL', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  createOwnProviderCredentialMock.mockResolvedValueOnce({
+    id: 'credential-ollama-1',
+    userUuid: 'user-1',
+    providerId: 'ollama',
+    providerDisplayName: 'Ollama',
+    label: 'local-ollama',
+    maskedHint: 'http://127.0.0.1:11434/v1',
+    isActive: true,
+    createdAt: '2026-04-17T00:00:00.000Z',
+    updatedAt: '2026-04-17T00:00:00.000Z',
+    lastUsedAt: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'ollama');
+
+  expect(
+    screen.getByText('Endpoint-based credential'),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'local-ollama');
+  await user.type(
+    screen.getByLabelText('Base URL'),
+    'http://127.0.0.1:11434/v1',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  await waitFor(() =>
+    expect(createOwnProviderCredentialMock).toHaveBeenCalledWith({
+      providerId: 'ollama',
+      label: 'local-ollama',
+      apiToken: undefined,
+      baseUrl: 'http://127.0.0.1:11434/v1',
+    }),
+  );
+}, 20_000);
+
+test('ProvidersPage blocks Ollama Cloud credentials without an API token', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'ollama');
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'ollama-cloud');
+  await user.type(screen.getByLabelText('Base URL'), 'https://ollama.com');
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText(
+      'Ollama cloud credentials on ollama.com require an API token.',
+    ),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage shows the xAI Grok billing warning and blocks missing tokens', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'xai');
+  expect(
+    screen.getByText(
+      /xAI Grok support is experimental.*usage is billed through your xAI account/i,
+    ),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'grok-primary');
+  await user.type(screen.getByLabelText('Base URL'), 'https://api.x.ai/v1');
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText('xAI Grok credentials require an API token.'),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage shows the Google Gemini billing warning and blocks missing tokens', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'google');
+  expect(
+    screen.getByText(
+      /Google Gemini support is validated.*free tier is subject to Google's rate limits.*usage is billed through your Google AI account/i,
+    ),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'gemini-primary');
+  await user.type(
+    screen.getByLabelText('Base URL'),
+    'https://generativelanguage.googleapis.com/v1beta/openai',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText('Google Gemini credentials require an API token.'),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage shows the OpenAI billing warning and blocks missing tokens', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'openai');
+  expect(
+    screen.getByText(
+      /OpenAI support is experimental.*usage is billed through your OpenAI account/i,
+    ),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'openai-primary');
+  await user.type(
+    screen.getByLabelText('Base URL'),
+    'https://api.openai.com/v1',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText('OpenAI credentials require an API token.'),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage shows the Anthropic billing warning and blocks missing tokens', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'anthropic');
+  expect(
+    screen.getByText(
+      /Anthropic support is experimental.*usage is billed through your Anthropic account/i,
+    ),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'anthropic-primary');
+  await user.type(
+    screen.getByLabelText('Base URL'),
+    'https://api.anthropic.com',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText('Anthropic credentials require an API token.'),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
 });

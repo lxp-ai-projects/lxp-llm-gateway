@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { BadGatewayException } from '@nestjs/common';
 import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
@@ -54,9 +55,43 @@ class FakeProviderRegistryService {
   }
 }
 
+class FailingListModelsProvider extends FakeProvider {
+  async listModels(): Promise<never> {
+    throw new Error('xAI model listing failed with status 500: Internal server error');
+  }
+}
+
+class FailingListModelsRegistryService {
+  getProvider(): LlmProviderAdapter {
+    return new FailingListModelsProvider();
+  }
+}
+
+class FailingProvider extends FakeProvider {
+  override async chat(): Promise<GatewayChatResponse> {
+    throw new Error(
+      'Anthropic request failed with status 400: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits. (request_id: req_123)',
+    );
+  }
+
+  override async chatStream(): Promise<ReadableStream<Uint8Array>> {
+    throw new Error(
+      'Anthropic streaming request failed with status 400: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits. (request_id: req_123)',
+    );
+  }
+}
+
+class FailingProviderRegistryService {
+  getProvider(): LlmProviderAdapter {
+    return new FailingProvider();
+  }
+}
+
 class FakeProviderCredentialService {
-  async resolveApiKey(): Promise<string> {
-    return 'nano-secret-token';
+  async resolveProviderAccess(): Promise<{ apiKey: string }> {
+    return {
+      apiKey: 'nano-secret-token',
+    };
   }
 }
 
@@ -110,6 +145,74 @@ test('GatewayService routes chat requests through the provider registry', async 
   assert.equal(response.message.content, 'hello');
   assert.equal(response.message.reasoning, '1. Analyze the input.');
   assert.ok(response.requestId);
+});
+
+test('GatewayService wraps provider failures in a BadGatewayException', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FailingProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          providerId: 'anthropic',
+          model: 'claude-haiku-4-5-20251001',
+          messages: [{ role: 'user', content: 'hello' }],
+        } as GatewayChatRequestDto,
+        {
+          userId: 'user-1',
+          userUuid: 'user-public-1',
+          emailHash: 'hash-1',
+          roles: ['user'],
+          defaultProviderId: null,
+          defaultModel: null,
+        },
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof BadGatewayException);
+      assert.match(
+        String(error),
+        /Anthropic request failed with status 400: Your credit balance is too low/,
+      );
+      return true;
+    },
+  );
+});
+
+test('GatewayService wraps listModels provider failures in a BadGatewayException', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FailingListModelsRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.listModels(
+        {
+          providerId: 'xai',
+        } as never,
+        {
+          userId: 'user-1',
+          userUuid: 'user-public-1',
+          emailHash: 'hash-1',
+          roles: ['user'],
+          defaultProviderId: 'xai',
+          defaultModel: 'grok-4',
+        },
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof BadGatewayException);
+      assert.match(
+        String(error),
+        /xAI model listing failed with status 500: Internal server error/,
+      );
+      return true;
+    },
+  );
 });
 
 test('GatewayService returns a provider stream when streaming is requested', async () => {

@@ -9,7 +9,9 @@ import { PageHeader } from '../components/page-header';
 export function ProvidersPage() {
   const {
     apiToken,
+    baseUrl,
     beginCredentialEdit,
+    credentialValidationError,
     credentials,
     currentDefaultModel,
     currentDefaultProviderDisplayName,
@@ -27,6 +29,7 @@ export function ProvidersPage() {
     label,
     modelErrorMessage,
     onApiTokenChange,
+    onBaseUrlChange,
     onDefaultModelChange,
     onDefaultProviderChange,
     onLabelChange,
@@ -40,7 +43,7 @@ export function ProvidersPage() {
   return (
     <>
       <PageHeader
-        title="Provider Tokens"
+        title="Provider Credentials"
         description="Manage your write-only provider credentials and choose the default provider/model used when gateway chat requests omit those values."
       />
       <Grid>
@@ -48,10 +51,13 @@ export function ProvidersPage() {
           <Stack gap="lg">
             <ProviderCredentialForm
               apiToken={apiToken}
+              baseUrl={baseUrl}
+              credentialValidationError={credentialValidationError}
               editingCredentialId={editingCredentialId}
               isPending={isCredentialPending}
               label={label}
               onApiTokenChange={onApiTokenChange}
+              onBaseUrlChange={onBaseUrlChange}
               onCancelEdit={resetCredentialForm}
               onLabelChange={onLabelChange}
               onProviderChange={onProviderChange}

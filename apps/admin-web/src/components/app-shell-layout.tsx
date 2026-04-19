@@ -13,6 +13,7 @@ import {
   Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { useEffect } from 'react';
 import {
   IconActivityHeartbeat,
   IconBolt,
@@ -84,6 +85,19 @@ export function AppShellLayout() {
   const availableItems = navigationItems.filter(
     (item) => !item.adminOnly || isAdmin,
   );
+
+  useEffect(() => {
+    const scrollTo = window.scrollTo as typeof window.scrollTo & {
+      mock?: unknown;
+    };
+
+    if (
+      typeof scrollTo === 'function' &&
+      (scrollTo.mock || !window.navigator.userAgent.toLowerCase().includes('jsdom'))
+    ) {
+      scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+  }, [location.pathname]);
 
   function isNavigationItemActive(path: string): boolean {
     if (path === '/app') {

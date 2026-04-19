@@ -1,3 +1,5 @@
+import type { ProviderId } from '@lxp/domain';
+
 export type GatewayAuthTokenPayload = {
   sub: string;
   emailHash: string;
@@ -14,6 +16,6 @@ export type GatewayAuthContext = {
   userUuid: string;
   emailHash: string;
   roles: string[];
-  defaultProviderId: 'nanogpt' | null;
+  defaultProviderId: ProviderId | null;
   defaultModel: string | null;
 };

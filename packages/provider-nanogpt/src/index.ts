@@ -28,9 +28,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.baseUrl}/models`, {
+    const response = await fetch(`${this.resolveBaseUrl(context)}/models`, {
       headers: {
-        authorization: `Bearer ${context.providerCredential.apiKey}`,
+        ...this.resolveHeaders(context),
       },
     });
 
@@ -151,12 +151,12 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     stream: boolean,
   ): Promise<Response> {
     return this.fetchWithTimeout(
-      `${this.baseUrl}/chat/completions`,
+      `${this.resolveBaseUrl(context)}/chat/completions`,
       {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          authorization: `Bearer ${context.providerCredential.apiKey}`,
+          ...this.resolveHeaders(context),
         },
         body: JSON.stringify({
           model: request.model,
@@ -167,6 +167,26 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       },
       stream ? null : this.requestTimeoutMs,
     );
+  }
+
+  private resolveBaseUrl(context: ProviderExecutionContext): string {
+    const providerAccess = context.providerAccess ?? {};
+    return (providerAccess.baseUrl ?? this.baseUrl).replace(/\/$/, '');
+  }
+
+  private resolveHeaders(
+    context: ProviderExecutionContext,
+  ): Record<string, string> {
+    const providerAccess = context.providerAccess ?? {};
+    const headers = {
+      ...providerAccess.headers,
+    };
+
+    if (providerAccess.apiKey && !headers.authorization) {
+      headers.authorization = `Bearer ${providerAccess.apiKey}`;
+    }
+
+    return headers;
   }
 
   private async fetchWithTimeout(
