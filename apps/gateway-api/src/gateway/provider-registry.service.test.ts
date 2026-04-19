@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type { ProviderId } from '@lxp/domain';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
@@ -9,7 +10,7 @@ import type {
 import { ProviderRegistryService } from './provider-registry.service';
 
 class FakeProvider implements LlmProviderAdapter {
-  constructor(readonly providerId: 'nanogpt' | 'openrouter' | 'ollama') {}
+  constructor(readonly providerId: ProviderId) {}
 
   supportsStreaming(): boolean {
     return true;

@@ -128,6 +128,7 @@ beforeEach(() => {
   updateOwnProviderSettingsMock.mockClear();
   runtimeConfigData.supportedProviders = [
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'groq', displayName: 'Groq' },
   ];
   getModelsMock.mockResolvedValue({
     providerId: 'nanogpt',

@@ -35,7 +35,7 @@ Example:
 
 Fields:
 
-- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, or `ollama`
+- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, or `groq`
 - `model?`: provider model name
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
@@ -135,6 +135,14 @@ For NanoGPT and other OpenAI-compatible providers:
 - non-stream reasoning details are read from `choices[0].message.reasoning_details`
 - streaming reasoning is relayed from `choices[0].delta.reasoning`
 - streaming content is relayed from `choices[0].delta.content`
+
+For Groq:
+
+- the gateway uses the OpenAI-compatible Groq base URL `https://api.groq.com/openai/v1`
+- model listing uses `/models`
+- chat uses `/chat/completions`
+- bearer auth is required
+- Groq is not Grok from xAI
 
 For Ollama:
 

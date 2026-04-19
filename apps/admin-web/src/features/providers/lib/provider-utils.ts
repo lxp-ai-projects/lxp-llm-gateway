@@ -6,6 +6,10 @@ export function providerCatalogHasMixedPricing(providerId: string | null) {
 
 export function getProviderCatalogPricingNote(providerId: string | null) {
   if (!providerCatalogHasMixedPricing(providerId)) {
+    if (providerId === 'groq') {
+      return "Groq is Groq's inference platform, not Grok from xAI. Verify the provider before selecting models or credentials.";
+    }
+
     return null;
   }
 

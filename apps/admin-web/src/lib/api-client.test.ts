@@ -43,6 +43,7 @@ test('adminApiClient.getRuntimeConfig falls back to safe defaults when the reque
       { providerId: 'nanogpt', displayName: 'NanoGPT' },
       { providerId: 'openrouter', displayName: 'OpenRouter' },
       { providerId: 'ollama', displayName: 'Ollama' },
+      { providerId: 'groq', displayName: 'Groq' },
     ],
   });
 });

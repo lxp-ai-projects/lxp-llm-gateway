@@ -23,7 +23,7 @@ This repository currently contains:
 - NestJS API applications
 - a React 19 + Vite admin application
 - provider seam packages
-- working provider packages for NanoGPT, OpenRouter, and Ollama
+- working provider packages for NanoGPT, OpenRouter, Ollama, and Groq
 
 The repository now includes:
 
@@ -31,7 +31,7 @@ The repository now includes:
 - encrypted provider credential storage in Postgres
 - gateway authentication via access token `emailHash`
 - non-stream JSON chat responses with structured assistant output
-- streaming support across NanoGPT, OpenRouter, and Ollama
+- streaming support across NanoGPT, OpenRouter, Ollama, and Groq
 - one planned role-aware SPA for both admin and user control-plane workflows
 
 ## Structure
@@ -45,6 +45,7 @@ The repository now includes:
 - `packages/provider-nanogpt`: NanoGPT implementation
 - `packages/provider-openrouter`: OpenRouter implementation
 - `packages/provider-ollama`: Ollama implementation
+- `packages/provider-groq`: Groq implementation
 
 ## Selected Stack
 
@@ -186,7 +187,7 @@ Use the HTTP files in [queries/README.md](queries/README.md):
 1. if the database is empty, run `Bootstrap First Admin` from `queries/admin-api.http`
 2. run `queries/auth.http` to obtain tokens
 3. use `queries/admin-api.http` for protected admin operations
-4. use `queries/provider-credentials.http` to resolve `userUuid` and store provider credentials for NanoGPT, OpenRouter, or Ollama
+4. use `queries/provider-credentials.http` to resolve `userUuid` and store provider credentials for NanoGPT, OpenRouter, Ollama, or Groq
 5. use `queries/gateway-api.http` for:
    - non-stream JSON chat
    - stream SSE chat with supported providers and thinking-capable models

@@ -1,7 +1,12 @@
 import { ValidateIf, IsIn, IsString, MinLength } from 'class-validator';
 import type { ProviderId } from '@lxp/domain';
 
-const SUPPORTED_PROVIDER_IDS = ['nanogpt', 'openrouter', 'ollama'] as const;
+const SUPPORTED_PROVIDER_IDS = [
+  'nanogpt',
+  'openrouter',
+  'ollama',
+  'groq',
+] as const;
 
 export class UpdateProviderSettingsDto {
   @ValidateIf((_, value) => value !== undefined && value !== null)

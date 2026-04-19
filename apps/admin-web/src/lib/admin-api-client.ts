@@ -30,6 +30,7 @@ export const adminApiClient = {
           { providerId: 'nanogpt', displayName: 'NanoGPT' },
           { providerId: 'openrouter', displayName: 'OpenRouter' },
           { providerId: 'ollama', displayName: 'Ollama' },
+          { providerId: 'groq', displayName: 'Groq' },
         ],
       };
     }

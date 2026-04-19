@@ -14,7 +14,12 @@ import type { ProviderId } from '@lxp/domain';
 
 import { ChatMessageDto } from './chat-message.dto';
 
-const SUPPORTED_PROVIDER_IDS = ['nanogpt', 'openrouter', 'ollama'] as const;
+const SUPPORTED_PROVIDER_IDS = [
+  'nanogpt',
+  'openrouter',
+  'ollama',
+  'groq',
+] as const;
 
 export class GatewayChatRequestDto implements GatewayChatRequest {
   @IsOptional()

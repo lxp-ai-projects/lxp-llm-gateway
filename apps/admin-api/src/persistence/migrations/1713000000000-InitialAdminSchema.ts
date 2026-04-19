@@ -98,7 +98,8 @@ export class InitialAdminSchema1713000000000 implements MigrationInterface {
       VALUES
         ('nanogpt', 'NanoGPT', 'active'),
         ('openrouter', 'OpenRouter', 'active'),
-        ('ollama', 'Ollama', 'active')
+        ('ollama', 'Ollama', 'active'),
+        ('groq', 'Groq', 'active')
     `);
   }
 

@@ -51,6 +51,7 @@ export function ProviderCredentialForm({
 }: ProviderCredentialFormProps) {
   const isEditing = Boolean(editingCredentialId);
   const usesEndpointAccess = providerId === 'ollama';
+  const isGroq = providerId === 'groq';
   const isSubmitDisabled =
     !label.trim() || (!isEditing && !apiToken.trim() && !baseUrl.trim());
 
@@ -75,6 +76,11 @@ export function ProviderCredentialForm({
               Ollama credentials may rely on a local/runtime base URL or the
               Ollama Cloud API on `https://ollama.com`. API tokens are optional
               for local instances and required for Ollama Cloud.
+            </Alert>
+          ) : null}
+          {isGroq ? (
+            <Alert color="blue" variant="light" title="Provider identity note">
+              Groq is Groq's inference API, not Grok from xAI.
             </Alert>
           ) : null}
           {credentialValidationError ? (

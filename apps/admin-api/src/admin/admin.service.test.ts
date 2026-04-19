@@ -115,6 +115,12 @@ function createAdminService() {
       displayName: 'Ollama',
       status: 'active',
     },
+    {
+      id: randomUUID(),
+      providerId: 'groq',
+      displayName: 'Groq',
+      status: 'active',
+    },
   ]);
   const credentialRepository = createRepositoryMock();
 

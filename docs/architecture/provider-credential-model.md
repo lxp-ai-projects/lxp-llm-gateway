@@ -64,6 +64,7 @@ Suggested initial `providerId` values:
 - `nanogpt`
 - `openrouter`
 - `ollama`
+- `groq`
 
 ### UserProviderCredential
 
@@ -99,6 +100,7 @@ Examples:
 - OpenRouter: `{ "apiKey": "...", "baseUrl": "https://openrouter.ai/api/v1" }`
 - Ollama local: `{ "baseUrl": "http://127.0.0.1:11434/v1" }`
 - Ollama cloud: `{ "baseUrl": "https://ollama.com", "apiKey": "..." }`
+- Groq: `{ "apiKey": "...", "baseUrl": "https://api.groq.com/openai/v1" }`
 
 The current runtime supports both Ollama access modes:
 

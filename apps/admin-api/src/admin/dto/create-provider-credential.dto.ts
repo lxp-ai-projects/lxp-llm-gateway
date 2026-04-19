@@ -7,7 +7,12 @@ import {
 } from 'class-validator';
 import type { ProviderId } from '@lxp/domain';
 
-const SUPPORTED_PROVIDER_IDS = ['nanogpt', 'openrouter', 'ollama'] as const;
+const SUPPORTED_PROVIDER_IDS = [
+  'nanogpt',
+  'openrouter',
+  'ollama',
+  'groq',
+] as const;
 
 export class CreateProviderCredentialDto {
   @IsOptional()

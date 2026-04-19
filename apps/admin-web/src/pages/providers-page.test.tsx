@@ -106,6 +106,7 @@ beforeEach(() => {
   runtimeConfigData.supportedProviders = [
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
     { providerId: 'ollama', displayName: 'Ollama' },
+    { providerId: 'groq', displayName: 'Groq' },
   ];
   getModelsMock.mockResolvedValue({
     providerId: 'nanogpt',

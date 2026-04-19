@@ -65,11 +65,12 @@ vi.mock('../lib/api-client', () => ({
       registrationEnabled: true,
       forgotPasswordEnabled: true,
       gatewayOnline: true,
-      supportedProviders: [
-        { providerId: 'nanogpt', displayName: 'NanoGPT' },
-        { providerId: 'openrouter', displayName: 'OpenRouter' },
-        { providerId: 'ollama', displayName: 'Ollama' },
-      ],
+        supportedProviders: [
+          { providerId: 'nanogpt', displayName: 'NanoGPT' },
+          { providerId: 'openrouter', displayName: 'OpenRouter' },
+          { providerId: 'ollama', displayName: 'Ollama' },
+          { providerId: 'groq', displayName: 'Groq' },
+        ],
     })),
     importConversationFile: importConversationFileMock,
   },

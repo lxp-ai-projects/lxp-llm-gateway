@@ -21,6 +21,10 @@ export class PublicConfigController {
           providerId: 'ollama',
           displayName: 'Ollama',
         },
+        {
+          providerId: 'groq',
+          displayName: 'Groq',
+        },
       ],
     };
   }
