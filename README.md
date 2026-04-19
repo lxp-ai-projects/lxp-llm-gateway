@@ -19,7 +19,7 @@ Workflow files:
 This repository currently contains:
 
 - foundational documentation
-- a minimal monorepo workspace
+- a production-shaped monorepo workspace
 - NestJS API applications
 - a React 19 + Vite admin application
 - provider seam packages
@@ -30,9 +30,14 @@ The repository now includes:
 - JWT auth with refresh rotation and Redis-backed revocation
 - encrypted provider credential storage in Postgres
 - gateway authentication via access token `emailHash`
+- gateway model discovery through provider adapters
 - non-stream JSON chat responses with structured assistant output
 - streaming support across Anthropic Claude, Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, and xAI Grok
 - one planned role-aware SPA for both admin and user control-plane workflows
+- streaming SSE passthrough for NanoGPT thinking models
+- one role-aware SPA for both admin and user control-plane workflows
+- frontend feature modules under `src/features/*`
+- CI workflows enforcing typecheck, test, and build
 
 ## Structure
 
@@ -232,6 +237,15 @@ pnpm.cmd test
 
 ## Next Steps
 
-- add route guards to more control-plane surfaces as they appear
-- refine OpenAPI so it reflects the implemented gateway contract
-- decide how much provider-native stream data should be normalized vs passed through
+Phase 2 should start from the current implemented baseline:
+
+- stable provider seam and one working provider integration
+- control-plane auth, user, and credential workflows
+- role-aware SPA with mobile and desktop behavior
+- test and CI foundations already in place
+
+Suggested next priorities:
+
+- refine OpenAPI so it reflects the implemented gateway and admin contracts
+- add E2E coverage on critical flows using the existing `data-testid` anchors
+- extend operational and administrative workflows without weakening current boundaries

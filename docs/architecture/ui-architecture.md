@@ -11,6 +11,8 @@ It serves two experiences through one shell:
 
 The visible navigation and screens vary by role.
 
+The application is now implemented and should be treated as the baseline for Phase 2, not as a speculative UI plan.
+
 ## Stack
 
 - React 19
@@ -38,6 +40,8 @@ The current direction in `admin-web/src` is:
 - `features/chat`
 - `features/providers`
 - `features/users`
+
+This structure is now the canonical frontend organization for the implemented Phase 1 surface.
 
 Page files may orchestrate feature modules, but they should not remain the long-term home for:
 
@@ -152,6 +156,9 @@ Phase 1 chat is a lightweight provider test surface.
 - local browser persistence through IndexedDB
 - simple conversation list per browser context
 - reasoning is shown when the selected model exposes thinking output
+- streaming UI is supported
+- import/export of local conversations is supported
+- system prompt customization is supported per local conversation
 
 ### Analytics
 
@@ -163,6 +170,15 @@ Phase 1 admin analytics focuses on gateway adoption and system posture:
 - distinct gateway users over 24h and 7d
 - request volume over 24h and 7d
 - circuit-breaker status
+
+### Operational Quality
+
+The current frontend posture already includes:
+
+- high unit and component test coverage
+- feature-level hooks for chat, providers, and users
+- explicit transport separation behind frontend API client modules
+- stable `data-testid` anchors on critical interactive surfaces for future Playwright coverage
 
 ## Client Data Strategy
 
@@ -200,9 +216,9 @@ Preferred direction:
 
 Current high-value refactor targets include:
 
-- continued reduction of page-level orchestration as feature hooks mature
+- continued reduction of residual page-level orchestration where still useful
 - stabilization of Playwright anchors on critical flows
-- keeping `chat`, `providers`, and `users` feature folders testable without routing pages
+- keeping feature folders testable without depending on route pages
 
 These should be split incrementally without changing user-visible behavior first.
 
@@ -246,7 +262,7 @@ Principles:
 
 ## Backend Dependencies
 
-Before full UI implementation, the backend contract must support:
+The implemented UI assumes the backend contract supports:
 
 - public runtime config endpoint
 - cookie-based login, refresh, logout, and session resolution
@@ -255,3 +271,5 @@ Before full UI implementation, the backend contract must support:
 - health endpoints
 - circuit-breaker endpoints
 - provider credential management endpoints with the required security rules
+
+These dependencies are now part of the working Phase 1 baseline rather than future prerequisites.

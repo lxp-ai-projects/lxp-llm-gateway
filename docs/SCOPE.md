@@ -30,10 +30,15 @@ Phase 1 includes:
 
 - a functional monorepo workspace
 - foundational documentation
-- a minimal `gateway-api`
-- a minimal `admin-api`
-- a minimal `admin-web`
-- a minimal provider abstraction layer
+- an operational `gateway-api`
+- an operational `admin-api`
+- an operational `admin-web`
+- a provider abstraction layer kept behind `provider-sdk`
+- a single provider implementation: `NanoGPT`
+- Postgres persistence for users, roles, and encrypted provider credentials
+- Redis-backed auth/session operational state
+- local development infrastructure
+- CI-ready scripts and workflows for typecheck, build, and test, with coverage as an informative signal
 - working provider implementations for:
   - `NanoGPT`
   - `OpenRouter`
@@ -53,9 +58,9 @@ Phase 1 does not include:
 - a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, and `Anthropic Claude`
 - quota engines
 - policy engines
-- analytics
-- a complex admin dashboard
-- speculative workers or event subsystems
+- advanced billing or cost governance
+- event-driven workers
+- speculative subsystems beyond the current control-plane and gateway needs
 
 ## Recommended Stack
 
@@ -75,7 +80,9 @@ Phase 1 does not include:
 - `class-validator`
 - `class-transformer`
 
-Database persistence is intentionally deferred. Redis or Valkey is acceptable for the first phase.
+Durable control-plane persistence is now handled by Postgres.
+
+Redis remains part of the phase for revocation, refresh rotation state, and similar short-lived operational concerns.
 
 ### Frontend
 
@@ -169,13 +176,11 @@ Responsibilities:
 - settings management
 - future admin dashboards
 
-Phase 1 frontend code should remain decomposable.
+Phase 1 frontend code must remain decomposable.
 
-Large multi-concern React files may exist temporarily during delivery, but they are not the target architecture.
+The current codebase already refactors the SPA toward:
 
-When the UI surface grows, refactor toward:
-
-- focused feature modules
+- focused feature modules under `src/features/*`
 - small hooks with explicit state ownership
 - thin page-level orchestration
 - stable test anchors for future end-to-end automation
@@ -298,16 +303,12 @@ It does need to:
 
 ## Persistence Strategy
 
-Phase 1 may use Redis or Valkey for:
+Phase 1 uses:
 
-- sessions
-- refresh token support
-- simple configuration state
-- temporary credential storage if required
+- Postgres for users, roles, and encrypted provider credentials
+- Redis or Valkey for token revocation, refresh rotation support, and similar short-lived operational state
 
-This must be documented as a short-term simplification.
-
-Long-term source-of-truth persistence will likely move to Postgres when audit, quota, metadata, or workflow requirements grow.
+This keeps durable identity and secret state out of ephemeral infrastructure while preserving simple operational behavior.
 
 ## Security Constraints
 
@@ -330,6 +331,15 @@ The implementation may begin simply, but the boundaries must be sound from the b
 5. Create local infrastructure files.
 6. Add CI-ready scripts and placeholders.
 
-## Immediate Next Step
+## Phase 2 Entry State
 
-The next implementation step is to scaffold the repository structure and documentation foundation without introducing full business logic.
+Phase 1 now ends with:
+
+- authenticated admin and user control-plane flows
+- encrypted provider credential management
+- gateway request execution and streaming through the provider seam
+- a role-aware SPA with mobile and desktop behavior
+- feature-oriented UI modules with strong unit and component coverage
+- CI enforcement for typecheck, build, and test
+
+Phase 2 should build on this state rather than re-open foundational architecture decisions.
