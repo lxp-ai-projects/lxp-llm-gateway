@@ -1,6 +1,6 @@
 # lxp-llm-gateway
 
-Multi-provider LLM gateway monorepo.
+Multi-provider LLM gateway monorepo and BYOK (bring your own key) platform foundation.
 
 ![Backend Build](https://img.shields.io/badge/backend_build-GitHub%20Actions%20configured-0b7285?logo=githubactions)
 ![Frontend Build](https://img.shields.io/badge/frontend_build-GitHub%20Actions%20configured-0b7285?logo=githubactions)
@@ -29,11 +29,11 @@ The repository now includes:
 
 - JWT auth with refresh rotation and Redis-backed revocation
 - encrypted provider credential storage in Postgres
+- BYOK provider access through user-managed provider credentials
 - gateway authentication via access token `emailHash`
 - gateway model discovery through provider adapters
 - non-stream JSON chat responses with structured assistant output
 - streaming support across Anthropic Claude, Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, and xAI Grok
-- one planned role-aware SPA for both admin and user control-plane workflows
 - streaming SSE passthrough for NanoGPT thinking models
 - one role-aware SPA for both admin and user control-plane workflows
 - frontend feature modules under `src/features/*`
@@ -60,8 +60,8 @@ The repository now includes:
 
 | Status              | Meaning                                                                           | Current providers                                |
 |---------------------|-----------------------------------------------------------------------------------|--------------------------------------------------|
-| `tested, certified` | Tested by the development team.                                                   | Google Gemini, Groq, NanoGPT, Ollama, OpenRouter |
-| `experimental`      | Implemented, but not fully tested by the development team. Expect defects/errors. | Anthropic Claude, OpenAI, xAI Grok               |
+| `tested, certified` | Tested by the development team.                                                   | Google Gemini, Groq, NanoGPT, Ollama, OpenRouter, xAI Grok |
+| `experimental`      | Implemented, but not fully tested by the development team. Expect defects/errors. | Anthropic Claude, OpenAI |
 
 
 ## Selected Stack
@@ -209,13 +209,13 @@ Use the HTTP files in [queries/README.md](queries/README.md):
    - non-stream JSON chat
    - stream SSE chat with supported providers and thinking-capable models
 
-See the gateway response contract in [docs/api/gateway-contract.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/api/gateway-contract.md).
+See the gateway response contract in [docs/api/gateway-contract.md](docs/api/gateway-contract.md).
 
 UI planning and backend-aligned UI architecture are documented in:
 
-- [docs/architecture/ui-architecture.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/architecture/ui-architecture.md)
-- [docs/delivery/ui-implementation-plan.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/delivery/ui-implementation-plan.md)
-- [docs/architecture/decisions/ADR-006-web-session-and-runtime-config.md](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/docs/architecture/decisions/ADR-006-web-session-and-runtime-config.md)
+- [docs/architecture/ui-architecture.md](docs/architecture/ui-architecture.md)
+- [docs/delivery/ui-implementation-plan.md](docs/delivery/ui-implementation-plan.md)
+- [docs/architecture/decisions/ADR-006-web-session-and-runtime-config.md](docs/architecture/decisions/ADR-006-web-session-and-runtime-config.md)
 
 ### 5. Workspace validation
 

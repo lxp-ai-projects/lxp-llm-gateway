@@ -28,7 +28,7 @@ export function getProviderCatalogPricingNote(providerId: string | null) {
     }
 
     if (providerId === 'xai') {
-      return 'xAI Grok support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your xAI account. Protect the API key, do not share it, and verify costs before sending prompts. LXP is not responsible for authorized or unauthorized charges made with that key.';
+      return 'xAI Grok support is certified. Usage is billed through your xAI account. Protect the API key, do not share it, and verify costs before sending prompts. LXP is not responsible for authorized or unauthorized charges made with that key.';
     }
 
     return null;

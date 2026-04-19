@@ -422,7 +422,7 @@ test('ProvidersPage shows the xAI Grok billing warning and blocks missing tokens
   await user.selectOptions(screen.getByLabelText('Provider'), 'xai');
   expect(
     screen.getByText(
-      /xAI Grok support is experimental.*usage is billed through your xAI account/i,
+      /xAI Grok support is certified.*usage is billed through your xAI account/i,
     ),
   ).toBeInTheDocument();
 

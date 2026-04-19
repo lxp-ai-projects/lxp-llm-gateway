@@ -2,7 +2,7 @@
 
 ## Goal
 
-`lxp-llm-gateway` is a platform foundation for routing LLM traffic through a consistent gateway while keeping provider integrations isolated behind a stable adapter seam.
+`lxp-llm-gateway` is a BYOK (bring your own key) platform foundation for routing LLM traffic through a consistent gateway while keeping provider integrations isolated behind a stable adapter seam.
 
 ## In Scope
 
@@ -43,9 +43,13 @@ The repository now contains:
 - `admin-api` as the control-plane backend for auth, users, roles, provider credentials, runtime config, and conversation transfer support
 - `gateway-api` as the data-plane backend for model listing, non-stream chat, and SSE chat streaming through the provider seam
 - `admin-web` as a role-aware SPA with public auth surfaces, user self-service, admin management, and a local chat test surface
-- Postgres-backed durable control-plane persistence
-- Redis-backed auth and operational state where ephemeral behavior is appropriate
-- one concrete provider integration, `NanoGPT`, implemented behind `packages/provider-sdk`
+- Postgres-backed durable control-plane persistence with encrypted provider credential storage
+- Redis-backed auth revocation and other operational state where ephemeral behavior is appropriate
+- BYOK provider access through user-managed provider credentials
+- provider model discovery through provider adapters
+- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
+- frontend feature modules under `src/features/*`
+- CI quality gates for typecheck, test, and build
 
 ## Phase 2 Starting Assumptions
 
