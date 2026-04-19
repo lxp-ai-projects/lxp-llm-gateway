@@ -15,6 +15,10 @@ export function getProviderCatalogPricingNote(providerId: string | null) {
       return 'Anthropic support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your Anthropic account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
     }
 
+    if (providerId === 'google') {
+      return "Google Gemini support is validated. The free tier is subject to Google's rate limits. Usage is billed through your Google AI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.";
+    }
+
     if (providerId === 'openai') {
       return 'OpenAI support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your OpenAI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
     }
@@ -109,12 +113,15 @@ export function validateProviderCredentialInput(input: {
   baseUrl: string;
 }): string | null {
   if (
-    (input.providerId === 'xai' ||
+    (input.providerId === 'google' ||
+      input.providerId === 'xai' ||
       input.providerId === 'openai' ||
       input.providerId === 'anthropic') &&
     !input.apiToken.trim()
   ) {
-    return input.providerId === 'xai'
+    return input.providerId === 'google'
+      ? 'Google Gemini credentials require an API token.'
+      : input.providerId === 'xai'
       ? 'xAI Grok credentials require an API token.'
       : input.providerId === 'openai'
         ? 'OpenAI credentials require an API token.'

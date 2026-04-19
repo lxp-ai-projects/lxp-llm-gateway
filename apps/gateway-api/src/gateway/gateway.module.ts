@@ -3,6 +3,7 @@ import { NanoGptProviderAdapter } from '@lxp/provider-nanogpt';
 import { OllamaProviderAdapter } from '@lxp/provider-ollama';
 import { OpenRouterProviderAdapter } from '@lxp/provider-openrouter';
 import { GroqProviderAdapter } from '@lxp/provider-groq';
+import { GoogleProviderAdapter } from '@lxp/provider-google';
 import { OpenAiProviderAdapter } from '@lxp/provider-openai';
 import { AnthropicProviderAdapter } from '@lxp/provider-anthropic';
 import { XaiProviderAdapter } from '@lxp/provider-xai';
@@ -52,6 +53,7 @@ import { EncryptionService } from '../security/encryption.service';
         new OpenRouterProviderAdapter(),
         new OllamaProviderAdapter(),
         new GroqProviderAdapter(),
+        new GoogleProviderAdapter(),
         new OpenAiProviderAdapter(),
         new AnthropicProviderAdapter(),
         new XaiProviderAdapter(),

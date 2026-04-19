@@ -107,6 +107,7 @@ beforeEach(() => {
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
     { providerId: 'ollama', displayName: 'Ollama' },
     { providerId: 'groq', displayName: 'Groq' },
+    { providerId: 'google', displayName: 'Google Gemini' },
     { providerId: 'xai', displayName: 'xAI Grok' },
     { providerId: 'openai', displayName: 'OpenAI' },
     { providerId: 'anthropic', displayName: 'Anthropic Claude' },
@@ -432,6 +433,41 @@ test('ProvidersPage shows the xAI Grok billing warning and blocks missing tokens
 
   expect(
     await screen.findByText('xAI Grok credentials require an API token.'),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage shows the Google Gemini billing warning and blocks missing tokens', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'google');
+  expect(
+    screen.getByText(
+      /Google Gemini support is validated.*free tier is subject to Google's rate limits.*usage is billed through your Google AI account/i,
+    ),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'gemini-primary');
+  await user.type(
+    screen.getByLabelText('Base URL'),
+    'https://generativelanguage.googleapis.com/v1beta/openai',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText('Google Gemini credentials require an API token.'),
   ).toBeInTheDocument();
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
 });

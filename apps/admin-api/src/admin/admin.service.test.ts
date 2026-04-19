@@ -124,6 +124,12 @@ function createAdminService() {
     },
     {
       id: randomUUID(),
+      providerId: 'google',
+      displayName: 'Google Gemini',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
       providerId: 'xai',
       displayName: 'xAI Grok',
       status: 'active',
@@ -351,6 +357,26 @@ test('AdminService rejects xAI Grok credentials without an API token', async () 
         baseUrl: 'https://api.x.ai/v1',
       }),
     /xAI Grok credentials require an API token/,
+  );
+});
+
+test('AdminService rejects Google Gemini credentials without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'google' as ProviderId,
+        label: 'gemini-without-token',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      }),
+    /Google Gemini credentials require an API token/,
   );
 });
 

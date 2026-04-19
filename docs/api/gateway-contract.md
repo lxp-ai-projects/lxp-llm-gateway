@@ -35,7 +35,7 @@ Example:
 
 Fields:
 
-- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, `groq`, `xai`, `openai`, or `anthropic`
+- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, `groq`, `google`, `xai`, `openai`, or `anthropic`
 - `model?`: provider model name
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
@@ -143,6 +143,16 @@ For Groq:
 - chat uses `/chat/completions`
 - bearer auth is required
 - Groq is not Grok from xAI
+
+For Google Gemini:
+
+- the gateway uses the Google Gemini OpenAI-compatible base URL `https://generativelanguage.googleapis.com/v1beta/openai`
+- model listing uses `/models`
+- chat uses `/chat/completions`
+- bearer auth is required
+- support is validated
+- the free tier is subject to Google's rate limits
+- usage is billed through the caller's Google AI account, so API keys must be protected carefully
 
 For xAI Grok:
 

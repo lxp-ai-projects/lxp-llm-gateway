@@ -7,7 +7,7 @@ The platform separates the data plane from the control plane.
 - `admin-web` talks to `admin-api`
 - clients talk to `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
-- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-xai`, `provider-openai`, and `provider-anthropic` are concrete provider implementations behind the same seam
+- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-google`, `provider-xai`, `provider-openai`, and `provider-anthropic` are concrete provider implementations behind the same seam
 
 ## Boundary Rules
 
@@ -32,6 +32,7 @@ It must not import provider-specific implementation details directly.
 - `provider-openrouter` implements OpenRouter behind the seam
 - `provider-ollama` implements Ollama behind the seam
 - `provider-groq` implements Groq behind the seam
+- `provider-google` implements Google Gemini behind the seam
 - `provider-xai` implements xAI Grok behind the seam
 - `provider-openai` implements OpenAI behind the seam
 - `provider-anthropic` implements Anthropic Claude behind the seam
@@ -110,6 +111,7 @@ This allows:
 
 - `NanoGPT` and `OpenRouter` to use bearer-token style auth
 - `Groq` to use bearer-token auth through an OpenAI-compatible endpoint
+- `Google Gemini` to use bearer-token auth through Google's OpenAI-compatible Gemini API
 - `xAI Grok` to use bearer-token auth through an OpenAI-compatible endpoint
 - `OpenAI` to use bearer-token auth through the OpenAI chat completions and models endpoints
 - `Anthropic Claude` to use `x-api-key` auth plus Anthropic-specific message and model endpoints

@@ -128,6 +128,7 @@ beforeEach(() => {
   updateOwnProviderSettingsMock.mockClear();
   runtimeConfigData.supportedProviders = [
     { providerId: 'anthropic', displayName: 'Anthropic Claude' },
+    { providerId: 'google', displayName: 'Google Gemini' },
     { providerId: 'groq', displayName: 'Groq' },
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
     { providerId: 'openai', displayName: 'OpenAI' },
@@ -224,11 +225,50 @@ test('useProvidersController creates and updates credentials with proper form re
   expect(result.current.label).toBe('primary');
   expect(result.current.providerOptions).toEqual([
     { label: 'Anthropic Claude', value: 'anthropic' },
+    { label: 'Google Gemini', value: 'google' },
     { label: 'Groq', value: 'groq' },
     { label: 'NanoGPT', value: 'nanogpt' },
     { label: 'OpenAI', value: 'openai' },
     { label: 'xAI Grok', value: 'xai' },
   ]);
+});
+
+test('useProvidersController blocks Google Gemini credentials without an API token', async () => {
+  const wrapper = createWrapper();
+
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'google', displayName: 'Google Gemini' },
+  ];
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  const { result } = renderHook(() => useProvidersController(), { wrapper });
+
+  await waitFor(() => expect(result.current.providerOptions).toHaveLength(2));
+
+  await act(async () => {
+    result.current.onProviderChange('google');
+    result.current.onLabelChange('gemini-primary');
+    result.current.onBaseUrlChange(
+      'https://generativelanguage.googleapis.com/v1beta/openai',
+    );
+  });
+
+  await act(async () => {
+    result.current.handleCredentialSubmit({
+      preventDefault() {},
+    } as never);
+  });
+
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+  expect(result.current.credentialValidationError).toBe(
+    'Google Gemini credentials require an API token.',
+  );
 });
 
 test('useProvidersController clears invalid default models and saves dirty defaults', async () => {

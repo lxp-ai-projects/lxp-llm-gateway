@@ -65,6 +65,7 @@ Suggested initial `providerId` values:
 - `openrouter`
 - `ollama`
 - `groq`
+- `google`
 - `xai`
 - `openai`
 - `anthropic`
@@ -104,6 +105,7 @@ Examples:
 - Ollama local: `{ "baseUrl": "http://127.0.0.1:11434/v1" }`
 - Ollama cloud: `{ "baseUrl": "https://ollama.com", "apiKey": "..." }`
 - Groq: `{ "apiKey": "...", "baseUrl": "https://api.groq.com/openai/v1" }`
+- Google Gemini: `{ "apiKey": "...", "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai" }`
 - xAI Grok: `{ "apiKey": "...", "baseUrl": "https://api.x.ai/v1" }`
 - OpenAI: `{ "apiKey": "...", "baseUrl": "https://api.openai.com/v1" }`
 - Anthropic Claude: `{ "apiKey": "...", "baseUrl": "https://api.anthropic.com" }`

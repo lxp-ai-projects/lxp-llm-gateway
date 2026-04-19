@@ -3,6 +3,7 @@ export type ProviderId =
   | 'openrouter'
   | 'ollama'
   | 'groq'
+  | 'google'
   | 'xai'
   | 'openai'
   | 'anthropic';

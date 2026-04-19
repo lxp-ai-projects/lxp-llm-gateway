@@ -529,13 +529,16 @@ export class AdminService {
     providerAccess: ProviderAccessConfig,
   ): void {
     if (
-      (providerId === 'xai' ||
+      (providerId === 'google' ||
+        providerId === 'xai' ||
         providerId === 'openai' ||
         providerId === 'anthropic') &&
       !providerAccess.apiKey
     ) {
       throw new BadRequestException(
-        providerId === 'xai'
+        providerId === 'google'
+          ? 'Google Gemini credentials require an API token.'
+          : providerId === 'xai'
           ? 'xAI Grok credentials require an API token.'
           : providerId === 'openai'
             ? 'OpenAI credentials require an API token.'

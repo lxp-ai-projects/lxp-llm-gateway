@@ -52,6 +52,7 @@ export function ProviderCredentialForm({
   const isEditing = Boolean(editingCredentialId);
   const usesEndpointAccess = providerId === 'ollama';
   const isGroq = providerId === 'groq';
+  const isGoogle = providerId === 'google';
   const isXai = providerId === 'xai';
   const isOpenAi = providerId === 'openai';
   const isAnthropic = providerId === 'anthropic';
@@ -84,6 +85,20 @@ export function ProviderCredentialForm({
           {isGroq ? (
             <Alert color="blue" variant="light" title="Provider identity note">
               Groq is Groq's inference API, not Grok from xAI.
+            </Alert>
+          ) : null}
+          {isGoogle ? (
+            <Alert
+              color="orange"
+              variant="light"
+              title="Billing and key responsibility"
+            >
+              Google Gemini support is validated. The free tier is subject to
+              Google's rate limits. Usage is billed through your Google AI
+              account. Protect this API key, do not share it, and only use
+              keys your organization is authorized to spend with. LXP is not
+              responsible for authorized or unauthorized charges made with
+              this key.
             </Alert>
           ) : null}
           {isXai ? (
@@ -172,6 +187,8 @@ export function ProviderCredentialForm({
                 ? 'Enter a new token only if you want to rotate it'
                 : usesEndpointAccess
                   ? 'Optional for local Ollama; required for protected or cloud endpoints'
+                : isGoogle
+                  ? 'Required for Google Gemini'
                 : isXai
                   ? 'Required for xAI Grok'
                 : isOpenAi

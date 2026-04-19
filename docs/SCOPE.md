@@ -39,6 +39,7 @@ Phase 1 includes:
   - `OpenRouter`
   - `Ollama`
   - `Groq`
+  - `Google Gemini`
   - `xAI Grok`
   - `OpenAI`
   - `Anthropic Claude`
@@ -49,7 +50,7 @@ Phase 1 includes:
 
 Phase 1 does not include:
 
-- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `xAI Grok`, `OpenAI`, and `Anthropic Claude`
+- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, and `Anthropic Claude`
 - quota engines
 - policy engines
 - analytics
@@ -218,6 +219,7 @@ Concrete provider implementations currently shipped in Phase 1:
 - `packages/provider-openrouter`
 - `packages/provider-ollama`
 - `packages/provider-groq`
+- `packages/provider-google`
 - `packages/provider-xai`
 - `packages/provider-openai`
 - `packages/provider-anthropic`

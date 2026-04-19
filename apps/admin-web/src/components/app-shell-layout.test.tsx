@@ -147,3 +147,39 @@ test('AppShellLayout hides admin-only links for regular users and logs out', asy
   );
   await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/login'));
 });
+
+test('AppShellLayout scrolls to the top when the route changes', async () => {
+  const user = userEvent.setup();
+  useSessionMock.mockReturnValue({
+    data: {
+      displayName: 'Patrick',
+      email: 'patrick@example.com',
+      roles: ['admin'],
+    },
+  });
+
+  const scrollToMock = vi.fn();
+  const originalScrollTo = window.scrollTo;
+  window.scrollTo = scrollToMock as never;
+
+  try {
+    renderShell('/app/profile');
+    expect(scrollToMock).toHaveBeenCalledWith({
+      top: 0,
+      left: 0,
+      behavior: 'auto',
+    });
+
+    scrollToMock.mockClear();
+    await user.click(screen.getByRole('link', { name: /chat lab/i }));
+    await waitFor(() =>
+      expect(scrollToMock).toHaveBeenCalledWith({
+        top: 0,
+        left: 0,
+        behavior: 'auto',
+      }),
+    );
+  } finally {
+    window.scrollTo = originalScrollTo;
+  }
+});

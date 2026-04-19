@@ -70,6 +70,7 @@ vi.mock('../lib/api-client', () => ({
           { providerId: 'openrouter', displayName: 'OpenRouter' },
           { providerId: 'ollama', displayName: 'Ollama' },
           { providerId: 'groq', displayName: 'Groq' },
+          { providerId: 'google', displayName: 'Google Gemini' },
           { providerId: 'openai', displayName: 'OpenAI' },
           { providerId: 'anthropic', displayName: 'Anthropic Claude' },
           { providerId: 'xai', displayName: 'xAI Grok' },
@@ -139,6 +140,16 @@ beforeEach(() => {
         models: [
           { id: 'gpt-4o', displayName: 'GPT-4o' },
           { id: 'gpt-4.1-mini', displayName: 'GPT-4.1 Mini' },
+        ],
+      };
+    }
+
+    if (providerId === 'google') {
+      return {
+        providerId: 'google',
+        models: [
+          { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
+          { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
         ],
       };
     }

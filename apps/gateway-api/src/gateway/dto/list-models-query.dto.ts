@@ -6,6 +6,7 @@ const SUPPORTED_PROVIDER_IDS = [
   'openrouter',
   'ollama',
   'groq',
+  'google',
   'xai',
   'openai',
   'anthropic',

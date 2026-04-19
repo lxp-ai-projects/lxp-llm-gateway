@@ -26,6 +26,10 @@ export class PublicConfigController {
           displayName: 'Groq',
         },
         {
+          providerId: 'google',
+          displayName: 'Google Gemini',
+        },
+        {
           providerId: 'xai',
           displayName: 'xAI Grok',
         },

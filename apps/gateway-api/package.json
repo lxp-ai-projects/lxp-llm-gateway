@@ -9,6 +9,7 @@
     "@lxp/provider-nanogpt": "workspace:*",
     "@lxp/provider-openrouter": "workspace:*",
     "@lxp/provider-groq": "workspace:*",
+    "@lxp/provider-google": "workspace:*",
     "@lxp/provider-xai": "workspace:*",
     "@lxp/provider-openai": "workspace:*",
     "@lxp/provider-anthropic": "workspace:*",
