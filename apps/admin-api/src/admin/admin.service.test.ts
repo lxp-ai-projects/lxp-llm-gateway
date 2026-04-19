@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
+import type { ProviderId } from '@lxp/domain';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
@@ -385,7 +386,7 @@ test('AdminService rejects Anthropic credentials without an API token', async ()
     () =>
       service.storeProviderCredential({
         userUuid: createdUser.userUuid,
-        providerId: 'anthropic',
+        providerId: 'anthropic' as ProviderId,
         label: 'anthropic-without-token',
         baseUrl: 'https://api.anthropic.com',
       }),

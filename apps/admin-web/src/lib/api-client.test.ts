@@ -224,6 +224,37 @@ test('gatewayApiClient.chat surfaces timeout aborts with a user-facing error', a
   );
 });
 
+test('gatewayApiClient.chatStream formats JSON error bodies from the gateway', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        statusCode: 502,
+        message:
+          'Anthropic request failed with status 400: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits. (request_id: req_123)',
+        error: 'Bad Gateway',
+      }),
+      {
+        status: 502,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    ),
+  );
+
+  await expect(
+    gatewayApiClient.chatStream(
+      {
+        stream: true,
+        messages: [{ role: 'user', content: 'Hello' }],
+      },
+      { onChunk: vi.fn() },
+    ),
+  ).rejects.toThrow(
+    'Anthropic request failed with status 400: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits. (request_id: req_123)',
+  );
+});
+
 test('gatewayApiClient.getModels encodes providerId in the query string', async () => {
   vi.mocked(fetch).mockResolvedValueOnce(
     jsonResponse({

@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  BadGatewayException,
+  HttpException,
   Injectable,
   NotImplementedException,
 } from '@nestjs/common';
@@ -115,7 +117,13 @@ export class GatewayService {
         error:
           error instanceof Error ? error.message : 'Unknown gateway error.',
       });
-      throw error;
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : 'Unknown gateway error.',
+      );
     }
   }
 
@@ -192,7 +200,13 @@ export class GatewayService {
         error:
           error instanceof Error ? error.message : 'Unknown gateway error.',
       });
-      throw error;
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : 'Unknown gateway error.',
+      );
     }
   }
 

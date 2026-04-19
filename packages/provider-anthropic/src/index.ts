@@ -41,9 +41,11 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
       throw new Error(
-        `Anthropic model listing failed with status ${response.status}: ${errorText}`,
+        await this.formatErrorMessage(
+          response,
+          'Anthropic model listing failed',
+        ),
       );
     }
 
@@ -67,9 +69,8 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     const response = await this.dispatchMessagesRequest(request, context, false);
 
     if (!response.ok) {
-      const errorText = await response.text();
       throw new Error(
-        `Anthropic request failed with status ${response.status}: ${errorText}`,
+        await this.formatErrorMessage(response, 'Anthropic request failed'),
       );
     }
 
@@ -135,9 +136,11 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     const response = await this.dispatchMessagesRequest(request, context, true);
 
     if (!response.ok) {
-      const errorText = await response.text();
       throw new Error(
-        `Anthropic streaming request failed with status ${response.status}: ${errorText}`,
+        await this.formatErrorMessage(
+          response,
+          'Anthropic streaming request failed',
+        ),
       );
     }
 
@@ -403,5 +406,77 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  private async formatErrorMessage(
+    response: Response,
+    prefix: string,
+  ): Promise<string> {
+    const errorText = await response.text();
+    const parsed = this.tryParseJson(errorText);
+    const message =
+      this.extractAnthropicErrorMessage(parsed) ?? errorText.trim();
+    const requestId = this.extractAnthropicRequestId(parsed);
+
+    return [
+      `${prefix} with status ${response.status}: ${message || 'Unknown Anthropic error.'}`,
+      requestId ? `(request_id: ${requestId})` : null,
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  private tryParseJson(value: string): unknown {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  private extractAnthropicErrorMessage(payload: unknown): string | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const record = payload as {
+      message?: unknown;
+      error?: { message?: unknown } | unknown;
+    };
+
+    if (typeof record.message === 'string' && record.message.trim()) {
+      return record.message.trim();
+    }
+
+    if (
+      record.message &&
+      Array.isArray(record.message) &&
+      record.message.every((entry) => typeof entry === 'string')
+    ) {
+      return record.message.join(', ').trim();
+    }
+
+    if (
+      record.error &&
+      typeof record.error === 'object' &&
+      typeof (record.error as { message?: unknown }).message === 'string'
+    ) {
+      return (
+        (record.error as { message?: string }).message?.trim() ?? null
+      );
+    }
+
+    return null;
+  }
+
+  private extractAnthropicRequestId(payload: unknown): string | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const requestId = (payload as { request_id?: unknown }).request_id;
+    return typeof requestId === 'string' && requestId.trim()
+      ? requestId.trim()
+      : null;
   }
 }

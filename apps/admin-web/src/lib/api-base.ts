@@ -85,7 +85,7 @@ async function requestWithSessionRefresh<T>(
       }
 
       const body = await response.text();
-      throw new Error(body || `Request failed with ${response.status}`);
+      throw new Error(formatApiErrorMessage(body, response.status));
     }
 
     return response.json() as Promise<T>;
@@ -167,7 +167,7 @@ export async function requestBlobWithSessionRefresh(
     }
 
     const body = await response.text();
-    throw new Error(body || `Request failed with ${response.status}`);
+    throw new Error(formatApiErrorMessage(body, response.status));
   }
 
   return {
@@ -199,7 +199,7 @@ export async function uploadFileWithSessionRefresh<T>(
     }
 
     const body = await response.text();
-    throw new Error(body || `Request failed with ${response.status}`);
+    throw new Error(formatApiErrorMessage(body, response.status));
   }
 
   return response.json() as Promise<T>;
@@ -232,6 +232,40 @@ function parseServerSentEventBlock(block: string): string | null {
   }
 
   return dataLines.join('\n');
+}
+
+function formatApiErrorMessage(body: string, status: number): string {
+  const trimmedBody = body.trim();
+  if (!trimmedBody) {
+    return `Request failed with ${status}`;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmedBody) as {
+      message?: string | string[];
+      error?: string;
+      statusCode?: number;
+    };
+
+    if (typeof parsed.message === 'string' && parsed.message.trim()) {
+      return parsed.message.trim();
+    }
+
+    if (
+      Array.isArray(parsed.message) &&
+      parsed.message.every((entry) => typeof entry === 'string')
+    ) {
+      return parsed.message.join(', ').trim();
+    }
+
+    if (parsed.error && parsed.statusCode) {
+      return `${parsed.error}: ${trimmedBody}`;
+    }
+  } catch {
+    // The body is not JSON, fall back to raw text below.
+  }
+
+  return trimmedBody || `Request failed with ${status}`;
 }
 
 export async function chatStreamWithSessionRefresh(
@@ -279,7 +313,7 @@ export async function chatStreamWithSessionRefresh(
     }
 
     const body = await response.text();
-    throw new Error(body || `Request failed with ${response.status}`);
+    throw new Error(formatApiErrorMessage(body, response.status));
   }
 
   if (!response.body) {

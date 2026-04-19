@@ -180,3 +180,48 @@ test('AnthropicProviderAdapter transforms Anthropic SSE streams into gateway SSE
     globalThis.fetch = originalFetch;
   }
 });
+
+test('AnthropicProviderAdapter formats JSON error payloads with the upstream message', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        type: 'error',
+        error: {
+          type: 'invalid_request_error',
+          message:
+            'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
+        },
+        request_id: 'req_011CaCHTz95wsUnfuqWxLQaq',
+      }),
+      {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new AnthropicProviderAdapter();
+
+    await assert.rejects(
+      () =>
+        adapter.chatStream(
+          {
+            model: 'claude-haiku-4-5-20251001',
+            stream: true,
+            messages: [{ role: 'user', content: 'Hello' }],
+          },
+          {
+            requestId: 'request-1',
+            userId: 'user-1',
+            providerAccess: {
+              apiKey: 'anthropic-token',
+            },
+          },
+        ),
+      /Anthropic streaming request failed with status 400: Your credit balance is too low to access the Anthropic API\. Please go to Plans & Billing to upgrade or purchase credits\./,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
