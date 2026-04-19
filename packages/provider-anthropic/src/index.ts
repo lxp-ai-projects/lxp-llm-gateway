@@ -11,6 +11,13 @@ type AnthropicMessage = {
 };
 
 export class AnthropicProviderAdapter implements LlmProviderAdapter {
+  readonly capabilities = {
+    chat: true,
+    modelCatalog: true,
+    imageGeneration: false,
+    imageEditing: false,
+  } as const;
+
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
   private readonly apiVersion: string;

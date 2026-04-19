@@ -15,6 +15,7 @@ import { GatewayAuthService } from '../auth/gateway-auth.service';
 import { GatewayController } from './gateway.controller';
 import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayService } from './gateway.service';
+import { ImagesController } from '../images.controller';
 import { ModelsController } from '../models.controller';
 import { ProviderCredentialService } from './provider-credential.service';
 import { ProviderRegistryService } from './provider-registry.service';
@@ -38,7 +39,7 @@ import { EncryptionService } from '../security/encryption.service';
       }),
     }),
   ],
-  controllers: [GatewayController, ModelsController],
+  controllers: [GatewayController, ModelsController, ImagesController],
   providers: [
     GatewayAuthService,
     GatewayAuditService,

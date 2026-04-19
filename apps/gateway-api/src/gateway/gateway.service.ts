@@ -6,11 +6,16 @@ import {
   NotImplementedException,
 } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
-import type { GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatResponse,
+  GatewayImageGenerationResponse,
+} from '@lxp/contracts';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
+import type { GatewayImageEditRequestDto } from './dto/gateway-image-edit-request.dto';
+import type { GatewayImageGenerationRequestDto } from './dto/gateway-image-generation-request.dto';
 import type { ListModelsQueryDto } from './dto/list-models-query.dto';
 import { ProviderCredentialService } from './provider-credential.service';
 import { ProviderRegistryService } from './provider-registry.service';
@@ -210,6 +215,94 @@ export class GatewayService {
         error:
           error instanceof Error ? error.message : 'Unknown gateway error.',
       });
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : 'Unknown gateway error.',
+      );
+    }
+  }
+
+  async generateImage(
+    request: GatewayImageGenerationRequestDto,
+    authContext: GatewayAuthContext,
+  ): Promise<GatewayImageGenerationResponse> {
+    const providerId = this.resolveProviderId(request.providerId, authContext);
+    const model = this.resolveModel(request.model, providerId, authContext);
+    const provider = this.providerRegistry.getProvider(providerId);
+
+    if (!provider.capabilities.imageGeneration || !provider.generateImage) {
+      throw new NotImplementedException(
+        `Provider ${provider.providerId} does not support image generation.`,
+      );
+    }
+
+    try {
+      const providerAccess =
+        await this.providerCredentialService.resolveProviderAccess(
+          authContext.emailHash,
+          provider.providerId,
+        );
+
+      return await provider.generateImage(
+        {
+          ...request,
+          providerId,
+          model,
+        },
+        {
+          requestId: crypto.randomUUID(),
+          userId: authContext.userId,
+          providerAccess,
+        },
+      );
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : 'Unknown gateway error.',
+      );
+    }
+  }
+
+  async editImage(
+    request: GatewayImageEditRequestDto,
+    authContext: GatewayAuthContext,
+  ): Promise<GatewayImageGenerationResponse> {
+    const providerId = this.resolveProviderId(request.providerId, authContext);
+    const model = this.resolveModel(request.model, providerId, authContext);
+    const provider = this.providerRegistry.getProvider(providerId);
+
+    if (!provider.capabilities.imageEditing || !provider.editImage) {
+      throw new NotImplementedException(
+        `Provider ${provider.providerId} does not support image editing.`,
+      );
+    }
+
+    try {
+      const providerAccess =
+        await this.providerCredentialService.resolveProviderAccess(
+          authContext.emailHash,
+          provider.providerId,
+        );
+
+      return await provider.editImage(
+        {
+          ...request,
+          providerId,
+          model,
+        },
+        {
+          requestId: crypto.randomUUID(),
+          userId: authContext.userId,
+          providerAccess,
+        },
+      );
+    } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }

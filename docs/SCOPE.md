@@ -212,9 +212,12 @@ Provider abstraction seam:
 - adapter interfaces
 - normalized provider result types
 - shared provider execution contracts
+- capability-oriented contracts for chat, model catalog, image generation, and image editing
 - provider access configuration that can represent:
   - bearer-token providers such as `NanoGPT` and `OpenRouter`
   - endpoint-based providers such as `Ollama`
+
+The seam should evolve by adding new capability contracts, not by teaching `gateway-api` provider-specific image endpoints or payload formats.
 
 ### Provider Packages
 
@@ -263,11 +266,19 @@ This is the most important boundary to preserve from the start.
 - `ProviderCredentialPayload`
 - admin authentication payloads
 
-## Initial Provider Adapter Shape
+## Provider Adapter Shape
 
 ```ts
+export interface ProviderCapabilities {
+  chat: boolean;
+  modelCatalog: boolean;
+  imageGeneration: boolean;
+  imageEditing: boolean;
+}
+
 export interface LlmProviderAdapter {
   readonly providerId: string;
+  readonly capabilities: ProviderCapabilities;
 
   supportsStreaming(): boolean;
 
@@ -282,6 +293,16 @@ export interface LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<ReadableStream>;
+
+  generateImage?(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse>;
+
+  editImage?(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse>;
 }
 ```
 
@@ -298,8 +319,19 @@ The first version does not need to be perfect.
 It does need to:
 
 - isolate provider-specific logic
-- make a second provider possible later
+- make additional capabilities possible without reshaping `gateway-api` around a single provider
 - keep the gateway application clean
+
+The next planned capability is image generation.
+
+The first planned implementation is xAI Grok Imagine through the existing `provider-xai` package.
+
+That capability should support:
+
+- prompt-based image generation
+- prompt-based image editing
+- reference images supplied as URLs or data URLs
+- future extension to other providers such as Google image generation and OpenAI image generation without redefining the seam again
 
 ## Persistence Strategy
 
@@ -343,3 +375,5 @@ Phase 1 now ends with:
 - CI enforcement for typecheck, build, and test
 
 Phase 2 should build on this state rather than re-open foundational architecture decisions.
+
+The next architectural expansion in Phase 2 is a capability-oriented provider seam that can support image generation without weakening the boundary between `gateway-api` and provider packages.

@@ -10,6 +10,8 @@ The platform separates the data plane from the control plane.
 - `gateway-api` talks to provider adapters through `provider-sdk`
 - `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-google`, `provider-xai`, `provider-openai`, and `provider-anthropic` are concrete provider implementations behind the same seam
 
+The seam is evolving from a chat-only adapter into a capability-oriented provider surface.
+
 ## Boundary Rules
 
 ### Data Plane
@@ -24,6 +26,7 @@ The platform separates the data plane from the control plane.
 - model listing
 - streaming passthrough
 - normalized non-stream response delivery
+- future capability-specific execution such as image generation and image editing through the same provider seam
 
 It must not import provider-specific implementation details directly.
 
@@ -55,6 +58,17 @@ It must not import provider-specific implementation details directly.
 - `provider-xai` implements xAI Grok behind the seam
 - `provider-openai` implements OpenAI behind the seam
 - `provider-anthropic` implements Anthropic Claude behind the seam
+
+`provider-sdk` should remain capability-oriented rather than provider-shaped.
+
+The seam should expose explicit surfaces for:
+
+- chat completion
+- model catalog listing
+- image generation
+- image editing with reference images
+
+`gateway-api` must orchestrate those surfaces without learning provider-specific endpoint rules.
 
 ## Persistence Posture
 
@@ -141,3 +155,43 @@ This allows:
 - `Ollama` to use either a local/runtime endpoint or Ollama Cloud with bearer auth
 
 `gateway-api` resolves and decrypts provider access data, but it does not interpret provider-specific transport rules.
+
+## Provider Capability Expansion
+
+The next seam expansion is image generation support.
+
+That expansion should preserve the current boundary by extending `provider-sdk` with explicit capability contracts instead of adding provider-specific branching in `gateway-api`.
+
+The architectural direction is:
+
+- keep chat and image workflows as separate capability methods
+- keep capability support explicit per adapter rather than inferred from provider id
+- allow model catalogs to remain provider-owned and capability-aware
+- allow image requests to carry prompt text plus zero or more reference images
+- keep provider-specific payload mapping inside provider packages
+
+Reference images should be passed through the seam in normalized forms such as:
+
+- public image URLs
+- data URLs for uploaded or local image content
+
+The first planned provider implementation is xAI Grok Imagine behind `packages/provider-xai`.
+
+Per the xAI docs, image operations use dedicated image endpoints rather than chat endpoints:
+
+- `/v1/images/generations` for prompt-based generation
+- `/v1/images/edits` for prompt-based editing with source images
+
+Those endpoint details belong only in the xAI provider package.
+
+The seam itself should only know about normalized image-generation requests and responses.
+
+## UI Direction
+
+The planned operator-facing surface for this capability is an `Image Generation Lab` in `admin-web`.
+
+That UI should remain behind the same backend boundaries already used for chat:
+
+- `admin-web` should talk to application APIs, not directly to providers
+- provider credential reuse should follow the existing BYOK model
+- reference image upload, prompting, and result display should be capability-specific UI concerns, not provider-specific page logic

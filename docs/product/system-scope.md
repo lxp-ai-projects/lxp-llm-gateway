@@ -16,6 +16,7 @@
 - local development infrastructure
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
+- Phase 2 provider-seam expansion for image generation capabilities
 
 ## Out of Scope for Phase 1
 
@@ -59,5 +60,13 @@ Phase 2 should assume:
 - cookie-only browser auth is the expected SPA posture
 - the SPA codebase is already organized by feature and can continue to evolve incrementally
 - CI quality gates already cover typecheck, test, and build
+- new provider capabilities should extend `packages/provider-sdk`, not bypass it
+
+The next planned capability expansion is:
+
+- image generation and image editing behind the provider seam
+- xAI Grok Imagine as the first target implementation
+- future `admin-web` support through an `Image Generation Lab`
+- reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
 
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.

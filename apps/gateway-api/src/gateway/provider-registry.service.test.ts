@@ -12,6 +12,13 @@ import { ProviderRegistryService } from './provider-registry.service';
 class FakeProvider implements LlmProviderAdapter {
   constructor(readonly providerId: ProviderId) {}
 
+  readonly capabilities = {
+    chat: true,
+    modelCatalog: true,
+    imageGeneration: false,
+    imageEditing: false,
+  } as const;
+
   supportsStreaming(): boolean {
     return true;
   }

@@ -1,4 +1,12 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayGeneratedImage,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+  GatewayImageGenerationResponse,
+  GatewayImageReference,
+} from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
@@ -6,6 +14,13 @@ import type {
 } from '@lxp/provider-sdk';
 
 export class XaiProviderAdapter implements LlmProviderAdapter {
+  readonly capabilities = {
+    chat: true,
+    modelCatalog: true,
+    imageGeneration: true,
+    imageEditing: true,
+  } as const;
+
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
 
@@ -119,6 +134,84 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     return response.body;
   }
 
+  async generateImage(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse> {
+    const response = await this.fetchWithTimeout(
+      `${this.resolveBaseUrl(context)}/images/generations`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...this.resolveHeaders(context),
+        },
+        body: JSON.stringify({
+          model: request.model,
+          prompt: request.prompt,
+          n: request.n,
+          aspect_ratio: request.aspectRatio,
+          response_format: request.responseFormat,
+        }),
+      },
+      this.requestTimeoutMs,
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `xAI image generation failed with status ${response.status}: ${errorText}`,
+      );
+    }
+
+    const payload = (await response.json()) as XaiImageResponsePayload;
+    return this.mapImageResponse(request.model, context, payload);
+  }
+
+  async editImage(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse> {
+    if (request.images.length === 0) {
+      throw new Error('xAI image editing requires at least one reference image.');
+    }
+
+    const mappedImages = request.images.map((image) =>
+      this.mapImageReference(image),
+    );
+
+    const response = await this.fetchWithTimeout(
+      `${this.resolveBaseUrl(context)}/images/edits`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...this.resolveHeaders(context),
+        },
+        body: JSON.stringify({
+          model: request.model,
+          prompt: request.prompt,
+          n: request.n,
+          aspect_ratio: request.aspectRatio,
+          response_format: request.responseFormat,
+          image: mappedImages.length === 1 ? mappedImages[0] : undefined,
+          images: mappedImages.length > 1 ? mappedImages : undefined,
+        }),
+      },
+      this.requestTimeoutMs,
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `xAI image edit failed with status ${response.status}: ${errorText}`,
+      );
+    }
+
+    const payload = (await response.json()) as XaiImageResponsePayload;
+    return this.mapImageResponse(request.model, context, payload);
+  }
+
   private dispatchChatRequest(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -163,6 +256,40 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     return headers;
   }
 
+  private mapImageResponse(
+    requestedModel: string | undefined,
+    context: ProviderExecutionContext,
+    payload: XaiImageResponsePayload,
+  ): GatewayImageGenerationResponse {
+    return {
+      requestId: context.requestId,
+      providerId: this.providerId,
+      model: payload.model ?? requestedModel ?? 'unknown-model',
+      images: (payload.data ?? []).map((image) => this.mapGeneratedImage(image)),
+      providerMetadata: {
+        created: payload.created,
+      },
+    };
+  }
+
+  private mapGeneratedImage(image: XaiGeneratedImage): GatewayGeneratedImage {
+    return {
+      url: image.url,
+      b64Json: image.b64_json,
+      revisedPrompt: image.revised_prompt,
+    };
+  }
+
+  private mapImageReference(image: GatewayImageReference): {
+    type: 'image_url';
+    url: string;
+  } {
+    return {
+      type: 'image_url',
+      url: image.url,
+    };
+  }
+
   private async fetchWithTimeout(
     url: string,
     init: RequestInit,
@@ -190,4 +317,16 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
       clearTimeout(timeoutId);
     }
   }
+}
+
+interface XaiGeneratedImage {
+  url?: string;
+  b64_json?: string;
+  revised_prompt?: string;
+}
+
+interface XaiImageResponsePayload {
+  created?: number;
+  model?: string;
+  data?: XaiGeneratedImage[];
 }

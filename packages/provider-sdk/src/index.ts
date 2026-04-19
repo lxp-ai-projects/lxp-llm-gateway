@@ -1,5 +1,11 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
-import type { ProviderId } from '@lxp/domain';
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+  GatewayImageGenerationResponse,
+} from '@lxp/contracts';
+import type { ProviderCapabilities, ProviderId } from '@lxp/domain';
 
 export interface ProviderAccessConfig {
   baseUrl?: string;
@@ -16,10 +22,16 @@ export interface ProviderExecutionContext {
 export interface ProviderModel {
   id: string;
   displayName: string;
+  capabilities?: {
+    supportsStreaming?: boolean;
+    supportsImageGeneration?: boolean;
+    supportsImageEditing?: boolean;
+  };
 }
 
 export interface LlmProviderAdapter {
   readonly providerId: ProviderId;
+  readonly capabilities: ProviderCapabilities;
 
   supportsStreaming(): boolean;
 
@@ -34,4 +46,14 @@ export interface LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<ReadableStream<Uint8Array>>;
+
+  generateImage?(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse>;
+
+  editImage?(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse>;
 }

@@ -6,6 +6,13 @@ import type {
 } from '@lxp/provider-sdk';
 
 export class NanoGptProviderAdapter implements LlmProviderAdapter {
+  readonly capabilities = {
+    chat: true,
+    modelCatalog: true,
+    imageGeneration: false,
+    imageEditing: false,
+  } as const;
+
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
 
