@@ -7,7 +7,7 @@ The platform separates the data plane from the control plane.
 - `admin-web` talks to `admin-api`
 - clients talk to `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
-- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, and `provider-groq` are concrete provider implementations behind the same seam
+- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, and `provider-xai` are concrete provider implementations behind the same seam
 
 ## Boundary Rules
 
@@ -32,6 +32,7 @@ It must not import provider-specific implementation details directly.
 - `provider-openrouter` implements OpenRouter behind the seam
 - `provider-ollama` implements Ollama behind the seam
 - `provider-groq` implements Groq behind the seam
+- `provider-xai` implements xAI Grok behind the seam
 
 ## Persistence Posture
 
@@ -107,6 +108,7 @@ This allows:
 
 - `NanoGPT` and `OpenRouter` to use bearer-token style auth
 - `Groq` to use bearer-token auth through an OpenAI-compatible endpoint
+- `xAI Grok` to use bearer-token auth through an OpenAI-compatible endpoint
 - `Ollama` to use either a local/runtime endpoint or Ollama Cloud with bearer auth
 
 `gateway-api` resolves and decrypts provider access data, but it does not interpret provider-specific transport rules.

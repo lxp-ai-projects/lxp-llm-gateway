@@ -12,6 +12,7 @@ const SUPPORTED_PROVIDER_IDS = [
   'openrouter',
   'ollama',
   'groq',
+  'xai',
 ] as const;
 
 export class CreateProviderCredentialDto {

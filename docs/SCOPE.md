@@ -39,6 +39,7 @@ Phase 1 includes:
   - `OpenRouter`
   - `Ollama`
   - `Groq`
+  - `xAI Grok`
 - local development infrastructure with Redis or Valkey
 - an initial OpenAPI placeholder
 - basic CI-ready scripts for lint, build, and test
@@ -46,7 +47,7 @@ Phase 1 includes:
 
 Phase 1 does not include:
 
-- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, and `Groq`
+- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, and `xAI Grok`
 - quota engines
 - policy engines
 - analytics
@@ -215,6 +216,7 @@ Concrete provider implementations currently shipped in Phase 1:
 - `packages/provider-openrouter`
 - `packages/provider-ollama`
 - `packages/provider-groq`
+- `packages/provider-xai`
 
 Each package owns:
 

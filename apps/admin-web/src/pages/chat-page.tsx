@@ -1,37 +1,26 @@
-import {
-  Alert,
-  Button,
-  Card,
-  Grid,
-  Group,
-  Modal,
-  Select,
-  Stack,
-  Tabs,
-  Text,
-  Title,
-} from '@mantine/core';
-import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import {Alert, Button, Card, Grid, Group, Modal, Select, Stack, Tabs, Text, Title,} from '@mantine/core';
+import {useQuery} from '@tanstack/react-query';
+import {useEffect, useRef, useState} from 'react';
 
-import { ChatComposer } from '../features/chat/components/chat-composer';
-import { ChatMessageList } from '../features/chat/components/chat-message-list';
-import { ChatSidebar } from '../features/chat/components/chat-sidebar';
-import { ChatSystemPromptPanel } from '../features/chat/components/chat-system-prompt-panel';
-import { useChatClipboard } from '../features/chat/hooks/use-chat-clipboard';
-import { useChatConversations } from '../features/chat/hooks/use-chat-conversations';
-import { useChatComposerViewport } from '../features/chat/hooks/use-chat-composer-viewport';
-import { useChatMessageWindow } from '../features/chat/hooks/use-chat-message-window';
-import { useChatStreaming } from '../features/chat/hooks/use-chat-streaming';
-import { useChatTransfer } from '../features/chat/hooks/use-chat-transfer';
-import { createConversation } from '../features/chat/lib/chat-conversation-utils';
-import { PageHeader } from '../components/page-header';
-import { adminApiClient, gatewayApiClient } from '../lib/api-client';
-import { DEFAULT_SYSTEM_PROMPT } from '../lib/chat-thread';
-import { type StoredConversation } from '../lib/chat-store';
-import { useRuntimeConfig } from '../lib/use-runtime-config';
-import { useSession } from '../lib/use-session';
+import {ChatComposer} from '../features/chat/components/chat-composer';
+import {ChatMessageList} from '../features/chat/components/chat-message-list';
+import {ChatSidebar} from '../features/chat/components/chat-sidebar';
+import {ChatSystemPromptPanel} from '../features/chat/components/chat-system-prompt-panel';
+import {useChatClipboard} from '../features/chat/hooks/use-chat-clipboard';
+import {useChatConversations} from '../features/chat/hooks/use-chat-conversations';
+import {useChatComposerViewport} from '../features/chat/hooks/use-chat-composer-viewport';
+import {useChatMessageWindow} from '../features/chat/hooks/use-chat-message-window';
+import {useChatStreaming} from '../features/chat/hooks/use-chat-streaming';
+import {useChatTransfer} from '../features/chat/hooks/use-chat-transfer';
+import {createConversation} from '../features/chat/lib/chat-conversation-utils';
+import {PageHeader} from '../components/page-header';
+import {adminApiClient, gatewayApiClient} from '../lib/api-client';
+import {DEFAULT_SYSTEM_PROMPT} from '../lib/chat-thread';
+import {type StoredConversation} from '../lib/chat-store';
+import {useRuntimeConfig} from '../lib/use-runtime-config';
+import {useSession} from '../lib/use-session';
 import {
+  buildDefaultModelOptions,
   buildProviderOptions,
   getProviderCatalogPricingNote,
 } from '../features/providers/lib/provider-utils';
@@ -138,6 +127,9 @@ export function ChatPage() {
     queryFn: () => gatewayApiClient.getModels(providerId || undefined),
     enabled: Boolean(providerId),
   });
+  const sortedModelOptions = buildDefaultModelOptions(
+    modelsQuery.data?.models ?? [],
+  );
 
   useEffect(() => {
     if (providerId) {
@@ -147,6 +139,7 @@ export function ChatPage() {
     const preferredProviderId =
       activeConversation?.providerId ??
       providerSettingsQuery.data?.defaultProviderId ??
+      providerOptions.find((option) => option.value === 'nanogpt')?.value ??
       providerOptions[0]?.value ??
       'nanogpt';
     setProviderId(preferredProviderId);
@@ -355,10 +348,7 @@ export function ChatPage() {
                   value={providerId}
                 />
                 <Select
-                  data={(modelsQuery.data?.models ?? []).map((entry) => ({
-                    value: entry.id,
-                    label: entry.displayName,
-                  }))}
+                  data={sortedModelOptions}
                   data-testid="chat-model-select"
                   label="Model"
                   onChange={(value) => {
@@ -478,12 +468,11 @@ export function ChatPage() {
                         }
 
                         void sendMessage(() => {
-                          const effectiveModel = model;
                           return activeConversation
                             ? withCurrentSelection(activeConversation)
                             : createConversation(
                                 providerId,
-                                effectiveModel,
+                                model,
                                 systemPrompt.trim(),
                               );
                         }, nextPrompt);

@@ -3,6 +3,7 @@ import { NanoGptProviderAdapter } from '@lxp/provider-nanogpt';
 import { OllamaProviderAdapter } from '@lxp/provider-ollama';
 import { OpenRouterProviderAdapter } from '@lxp/provider-openrouter';
 import { GroqProviderAdapter } from '@lxp/provider-groq';
+import { XaiProviderAdapter } from '@lxp/provider-xai';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -49,6 +50,7 @@ import { EncryptionService } from '../security/encryption.service';
         new OpenRouterProviderAdapter(),
         new OllamaProviderAdapter(),
         new GroqProviderAdapter(),
+        new XaiProviderAdapter(),
       ],
     },
   ],

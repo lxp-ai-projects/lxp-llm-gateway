@@ -121,6 +121,12 @@ function createAdminService() {
       displayName: 'Groq',
       status: 'active',
     },
+    {
+      id: randomUUID(),
+      providerId: 'xai',
+      displayName: 'xAI Grok',
+      status: 'active',
+    },
   ]);
   const credentialRepository = createRepositoryMock();
 
@@ -312,6 +318,26 @@ test('AdminService rejects Ollama cloud credentials on ollama.com without an API
         baseUrl: 'https://ollama.com',
       }),
     /require an API token/,
+  );
+});
+
+test('AdminService rejects xAI Grok credentials without an API token', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredential({
+        userUuid: createdUser.userUuid,
+        providerId: 'xai',
+        label: 'grok-without-token',
+        baseUrl: 'https://api.x.ai/v1',
+      }),
+    /xAI Grok credentials require an API token/,
   );
 });
 

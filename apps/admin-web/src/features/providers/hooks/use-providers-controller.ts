@@ -11,6 +11,14 @@ import {
   validateProviderCredentialInput,
 } from '../lib/provider-utils';
 
+function resolvePreferredProviderId(providerOptions: Array<{ value: string }>) {
+  return (
+    providerOptions.find((option) => option.value === 'nanogpt')?.value ??
+    providerOptions[0]?.value ??
+    'nanogpt'
+  );
+}
+
 export function useProvidersController() {
   const queryClient = useQueryClient();
   const runtimeConfigQuery = useRuntimeConfig();
@@ -140,7 +148,7 @@ export function useProvidersController() {
 
   function resetCredentialForm() {
     setEditingCredentialId(null);
-    setProviderId(providerOptions[0]?.value ?? 'nanogpt');
+    setProviderId(resolvePreferredProviderId(providerOptions));
     setLabel('primary');
     setApiToken('');
     setBaseUrl('');

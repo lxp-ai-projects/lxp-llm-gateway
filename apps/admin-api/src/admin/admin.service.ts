@@ -528,6 +528,12 @@ export class AdminService {
     providerId: string | undefined,
     providerAccess: ProviderAccessConfig,
   ): void {
+    if (providerId === 'xai' && !providerAccess.apiKey) {
+      throw new BadRequestException(
+        'xAI Grok credentials require an API token.',
+      );
+    }
+
     if (providerId !== 'ollama' || !providerAccess.baseUrl) {
       return;
     }

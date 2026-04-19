@@ -107,6 +107,7 @@ beforeEach(() => {
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
     { providerId: 'ollama', displayName: 'Ollama' },
     { providerId: 'groq', displayName: 'Groq' },
+    { providerId: 'xai', displayName: 'xAI Grok' },
   ];
   getModelsMock.mockResolvedValue({
     providerId: 'nanogpt',
@@ -377,6 +378,36 @@ test('ProvidersPage blocks Ollama Cloud credentials without an API token', async
     await screen.findByText(
       'Ollama cloud credentials on ollama.com require an API token.',
     ),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage shows the xAI Grok billing warning and blocks missing tokens', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'xai');
+  expect(
+    screen.getByText(/xAI Grok usage is billed through your xAI account/i),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText('Label'));
+  await user.type(screen.getByLabelText('Label'), 'grok-primary');
+  await user.type(screen.getByLabelText('Base URL'), 'https://api.x.ai/v1');
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText('xAI Grok credentials require an API token.'),
   ).toBeInTheDocument();
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
 });

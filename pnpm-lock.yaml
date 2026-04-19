@@ -187,6 +187,9 @@ importers:
       '@lxp/provider-sdk':
         specifier: workspace:*
         version: link:../../packages/provider-sdk
+      '@lxp/provider-xai':
+        specifier: workspace:*
+        version: link:../../packages/provider-xai
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.19(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -317,6 +320,22 @@ importers:
       '@lxp/domain':
         specifier: workspace:*
         version: link:../domain
+
+  packages/provider-xai:
+    dependencies:
+      '@lxp/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@lxp/provider-sdk':
+        specifier: workspace:*
+        version: link:../provider-sdk
+    devDependencies:
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
 
 packages:
 

@@ -65,6 +65,7 @@ Suggested initial `providerId` values:
 - `openrouter`
 - `ollama`
 - `groq`
+- `xai`
 
 ### UserProviderCredential
 
@@ -101,6 +102,7 @@ Examples:
 - Ollama local: `{ "baseUrl": "http://127.0.0.1:11434/v1" }`
 - Ollama cloud: `{ "baseUrl": "https://ollama.com", "apiKey": "..." }`
 - Groq: `{ "apiKey": "...", "baseUrl": "https://api.groq.com/openai/v1" }`
+- xAI Grok: `{ "apiKey": "...", "baseUrl": "https://api.x.ai/v1" }`
 
 The current runtime supports both Ollama access modes:
 

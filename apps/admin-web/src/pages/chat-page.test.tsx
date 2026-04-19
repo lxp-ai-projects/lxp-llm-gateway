@@ -70,6 +70,7 @@ vi.mock('../lib/api-client', () => ({
           { providerId: 'openrouter', displayName: 'OpenRouter' },
           { providerId: 'ollama', displayName: 'Ollama' },
           { providerId: 'groq', displayName: 'Groq' },
+          { providerId: 'xai', displayName: 'xAI Grok' },
         ],
     })),
     importConversationFile: importConversationFileMock,
@@ -117,6 +118,16 @@ beforeEach(() => {
       return {
         providerId: 'ollama',
         models: [{ id: 'qwen3:8b', displayName: 'Qwen3 8B' }],
+      };
+    }
+
+    if (providerId === 'xai') {
+      return {
+        providerId: 'xai',
+        models: [
+          { id: 'grok-4-fast', displayName: 'Grok 4 Fast' },
+          { id: 'grok-4', displayName: 'Grok 4' },
+        ],
       };
     }
 

@@ -35,7 +35,7 @@ Example:
 
 Fields:
 
-- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, or `groq`
+- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, `groq`, or `xai`
 - `model?`: provider model name
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
@@ -143,6 +143,14 @@ For Groq:
 - chat uses `/chat/completions`
 - bearer auth is required
 - Groq is not Grok from xAI
+
+For xAI Grok:
+
+- the gateway uses the xAI base URL `https://api.x.ai/v1`
+- model listing uses `/models`
+- chat uses `/chat/completions`
+- bearer auth is required
+- usage is billed through the caller's xAI account, so API keys must be protected carefully
 
 For Ollama:
 

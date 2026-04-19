@@ -52,6 +52,7 @@ export function ProviderCredentialForm({
   const isEditing = Boolean(editingCredentialId);
   const usesEndpointAccess = providerId === 'ollama';
   const isGroq = providerId === 'groq';
+  const isXai = providerId === 'xai';
   const isSubmitDisabled =
     !label.trim() || (!isEditing && !apiToken.trim() && !baseUrl.trim());
 
@@ -81,6 +82,18 @@ export function ProviderCredentialForm({
           {isGroq ? (
             <Alert color="blue" variant="light" title="Provider identity note">
               Groq is Groq's inference API, not Grok from xAI.
+            </Alert>
+          ) : null}
+          {isXai ? (
+            <Alert
+              color="orange"
+              variant="light"
+              title="Billing and key responsibility"
+            >
+              xAI Grok usage is billed through your xAI account. Protect this
+              API key, do not share it, and only use keys your organization is
+              authorized to spend with. LXP is not responsible for authorized
+              or unauthorized charges made with this key.
             </Alert>
           ) : null}
           {credentialValidationError ? (
@@ -127,6 +140,8 @@ export function ProviderCredentialForm({
                 ? 'Enter a new token only if you want to rotate it'
                 : usesEndpointAccess
                   ? 'Optional for local Ollama; required for protected or cloud endpoints'
+                : isXai
+                  ? 'Required for xAI Grok'
                 : undefined
             }
             value={apiToken}

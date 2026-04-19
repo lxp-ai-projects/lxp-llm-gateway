@@ -9,6 +9,7 @@
     "@lxp/provider-nanogpt": "workspace:*",
     "@lxp/provider-openrouter": "workspace:*",
     "@lxp/provider-groq": "workspace:*",
+    "@lxp/provider-xai": "workspace:*",
     "@lxp/provider-sdk": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",

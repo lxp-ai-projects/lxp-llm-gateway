@@ -1,5 +1,10 @@
 import type { ProviderCredentialSummary } from '../../../lib/api-client';
 
+const alphabeticalCollator = new Intl.Collator(undefined, {
+  sensitivity: 'base',
+  numeric: true,
+});
+
 export function providerCatalogHasMixedPricing(providerId: string | null) {
   return providerId === 'openrouter' || providerId === 'ollama';
 }
@@ -8,6 +13,10 @@ export function getProviderCatalogPricingNote(providerId: string | null) {
   if (!providerCatalogHasMixedPricing(providerId)) {
     if (providerId === 'groq') {
       return "Groq is Groq's inference platform, not Grok from xAI. Verify the provider before selecting models or credentials.";
+    }
+
+    if (providerId === 'xai') {
+      return 'xAI Grok usage is billed through your xAI account. Protect the API key, do not share it, and verify costs before sending prompts. LXP is not responsible for authorized or unauthorized charges made with that key.';
     }
 
     return null;
@@ -34,10 +43,14 @@ export function resolveProviderDisplayName(
 export function buildProviderOptions(
   supportedProviders: Array<{ providerId: string; displayName: string }>,
 ) {
-  return supportedProviders.map((provider) => ({
-    value: provider.providerId,
-    label: provider.displayName,
-  }));
+  return [...supportedProviders]
+    .sort((left, right) =>
+      alphabeticalCollator.compare(left.displayName, right.displayName),
+    )
+    .map((provider) => ({
+      value: provider.providerId,
+      label: provider.displayName,
+    }));
 }
 
 export function buildDefaultProviderOptions(
@@ -52,6 +65,9 @@ export function buildDefaultProviderOptions(
 
   return supportedProviders
     .filter((provider) => activeProviderIds.has(provider.providerId))
+    .sort((left, right) =>
+      alphabeticalCollator.compare(left.displayName, right.displayName),
+    )
     .map((provider) => ({
       value: provider.providerId,
       label: provider.displayName,
@@ -61,10 +77,14 @@ export function buildDefaultProviderOptions(
 export function buildDefaultModelOptions(
   models: Array<{ id: string; displayName: string }>,
 ) {
-  return models.map((modelEntry) => ({
-    value: modelEntry.id,
-    label: modelEntry.displayName,
-  }));
+  return [...models]
+    .sort((left, right) =>
+      alphabeticalCollator.compare(left.displayName, right.displayName),
+    )
+    .map((modelEntry) => ({
+      value: modelEntry.id,
+      label: modelEntry.displayName,
+    }));
 }
 
 export function validateProviderCredentialInput(input: {
@@ -72,6 +92,10 @@ export function validateProviderCredentialInput(input: {
   apiToken: string;
   baseUrl: string;
 }): string | null {
+  if (input.providerId === 'xai' && !input.apiToken.trim()) {
+    return 'xAI Grok credentials require an API token.';
+  }
+
   if (input.providerId !== 'ollama' || !input.baseUrl.trim()) {
     return null;
   }

@@ -1,4 +1,9 @@
-export type ProviderId = 'nanogpt' | 'openrouter' | 'ollama' | 'groq';
+export type ProviderId =
+  | 'nanogpt'
+  | 'openrouter'
+  | 'ollama'
+  | 'groq'
+  | 'xai';
 
 export type StreamSupport = 'none' | 'server-sent-events' | 'chunked';
 

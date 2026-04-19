@@ -127,14 +127,15 @@ beforeEach(() => {
   updateOwnProviderCredentialMock.mockClear();
   updateOwnProviderSettingsMock.mockClear();
   runtimeConfigData.supportedProviders = [
-    { providerId: 'nanogpt', displayName: 'NanoGPT' },
     { providerId: 'groq', displayName: 'Groq' },
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'xai', displayName: 'xAI Grok' },
   ];
   getModelsMock.mockResolvedValue({
     providerId: 'nanogpt',
     models: [
-      { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
       { id: 'mistral-medium', displayName: 'Mistral Medium' },
+      { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
     ],
   });
   getOwnProviderCredentialsMock.mockResolvedValue([
@@ -219,6 +220,11 @@ test('useProvidersController creates and updates credentials with proper form re
   expect(result.current.editingCredentialId).toBeNull();
   expect(result.current.apiToken).toBe('');
   expect(result.current.label).toBe('primary');
+  expect(result.current.providerOptions).toEqual([
+    { label: 'Groq', value: 'groq' },
+    { label: 'NanoGPT', value: 'nanogpt' },
+    { label: 'xAI Grok', value: 'xai' },
+  ]);
 });
 
 test('useProvidersController clears invalid default models and saves dirty defaults', async () => {
@@ -235,6 +241,10 @@ test('useProvidersController clears invalid default models and saves dirty defau
   await waitFor(() => expect(getModelsMock).toHaveBeenCalledWith('nanogpt'));
   await waitFor(() => expect(result.current.defaultModel).toBeNull());
   expect(result.current.providerSettingsDirty).toBe(true);
+  expect(result.current.defaultModelOptions).toEqual([
+    { label: 'GLM 4.6 Thinking', value: 'z-ai/glm-4.6:thinking' },
+    { label: 'Mistral Medium', value: 'mistral-medium' },
+  ]);
 
   await act(async () => {
     result.current.handleDefaultsSubmit({
@@ -313,5 +323,41 @@ test('useProvidersController blocks Ollama cloud credentials without an API toke
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
     'Ollama cloud credentials on ollama.com require an API token.',
+  );
+});
+
+test('useProvidersController blocks xAI Grok credentials without an API token', async () => {
+  const wrapper = createWrapper();
+
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'xai', displayName: 'xAI Grok' },
+  ];
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  const { result } = renderHook(() => useProvidersController(), { wrapper });
+
+  await waitFor(() => expect(result.current.providerOptions).toHaveLength(2));
+
+  await act(async () => {
+    result.current.onProviderChange('xai');
+    result.current.onLabelChange('grok-primary');
+    result.current.onBaseUrlChange('https://api.x.ai/v1');
+  });
+
+  await act(async () => {
+    result.current.handleCredentialSubmit({
+      preventDefault() {},
+    } as never);
+  });
+
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+  expect(result.current.credentialValidationError).toBe(
+    'xAI Grok credentials require an API token.',
   );
 });

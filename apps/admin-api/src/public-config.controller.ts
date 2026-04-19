@@ -25,6 +25,10 @@ export class PublicConfigController {
           providerId: 'groq',
           displayName: 'Groq',
         },
+        {
+          providerId: 'xai',
+          displayName: 'xAI Grok',
+        },
       ],
     };
   }
