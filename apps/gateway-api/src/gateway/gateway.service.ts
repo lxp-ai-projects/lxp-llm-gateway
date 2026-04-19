@@ -35,22 +35,32 @@ export class GatewayService {
       );
     }
 
-    const providerAccess =
-      await this.providerCredentialService.resolveProviderAccess(
-      authContext.emailHash,
-      provider.providerId,
-    );
+    try {
+      const providerAccess =
+        await this.providerCredentialService.resolveProviderAccess(
+          authContext.emailHash,
+          provider.providerId,
+        );
 
-    const models = await provider.listModels({
-      requestId,
-      userId: authContext.userId,
-      providerAccess,
-    });
+      const models = await provider.listModels({
+        requestId,
+        userId: authContext.userId,
+        providerAccess,
+      });
 
-    return {
-      providerId: provider.providerId,
-      models,
-    };
+      return {
+        providerId: provider.providerId,
+        models,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : 'Unknown gateway error.',
+      );
+    }
   }
 
   async chat(

@@ -410,6 +410,7 @@ export function ChatPage() {
                       isLoadingModels={modelsQuery.isPending}
                       isStreaming={isStreaming}
                       model={model}
+                      providerId={providerId}
                       modelsErrorMessage={
                         modelsQuery.isError
                           ? modelsQuery.error instanceof Error

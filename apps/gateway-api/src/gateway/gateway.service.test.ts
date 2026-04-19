@@ -55,6 +55,18 @@ class FakeProviderRegistryService {
   }
 }
 
+class FailingListModelsProvider extends FakeProvider {
+  async listModels(): Promise<never> {
+    throw new Error('xAI model listing failed with status 500: Internal server error');
+  }
+}
+
+class FailingListModelsRegistryService {
+  getProvider(): LlmProviderAdapter {
+    return new FailingListModelsProvider();
+  }
+}
+
 class FailingProvider extends FakeProvider {
   override async chat(): Promise<GatewayChatResponse> {
     throw new Error(
@@ -164,6 +176,39 @@ test('GatewayService wraps provider failures in a BadGatewayException', async ()
       assert.match(
         String(error),
         /Anthropic request failed with status 400: Your credit balance is too low/,
+      );
+      return true;
+    },
+  );
+});
+
+test('GatewayService wraps listModels provider failures in a BadGatewayException', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FailingListModelsRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.listModels(
+        {
+          providerId: 'xai',
+        } as never,
+        {
+          userId: 'user-1',
+          userUuid: 'user-public-1',
+          emailHash: 'hash-1',
+          roles: ['user'],
+          defaultProviderId: 'xai',
+          defaultModel: 'grok-4',
+        },
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof BadGatewayException);
+      assert.match(
+        String(error),
+        /xAI model listing failed with status 500: Internal server error/,
       );
       return true;
     },

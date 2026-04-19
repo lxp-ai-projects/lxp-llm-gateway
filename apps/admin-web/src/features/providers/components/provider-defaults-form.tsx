@@ -9,7 +9,10 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconSettings } from '@tabler/icons-react';
 
-import { getProviderCatalogPricingNote } from '../lib/provider-utils';
+import {
+  getProviderCatalogPricingNote,
+  getProviderModelLoadingNote,
+} from '../lib/provider-utils';
 
 type Option = {
   value: string;
@@ -44,6 +47,7 @@ export function ProviderDefaultsForm({
   onSubmit,
 }: ProviderDefaultsFormProps) {
   const pricingNote = getProviderCatalogPricingNote(defaultProviderId);
+  const modelLoadingNote = getProviderModelLoadingNote(defaultProviderId);
 
   return (
     <Card className="section-card">
@@ -119,6 +123,11 @@ export function ProviderDefaultsForm({
               title="Model loading failed"
             >
               {modelErrorMessage}
+            </Alert>
+          ) : null}
+          {modelLoadingNote ? (
+            <Alert color="blue" title="Provider model access note">
+              {modelLoadingNote}
             </Alert>
           ) : null}
           {pricingNote ? (

@@ -24,6 +24,7 @@ import type { UIEventHandler } from 'react';
 
 import { MarkdownText } from '../../../components/markdown-text';
 import type { StoredConversation } from '../../../lib/chat-store';
+import { getProviderModelLoadingNote } from '../../providers/lib/provider-utils';
 
 type ChatMessageListProps = {
   activeConversation: StoredConversation | null;
@@ -36,6 +37,7 @@ type ChatMessageListProps = {
   isLoadingModels: boolean;
   isStreaming: boolean;
   model: string;
+  providerId: string;
   modelsErrorMessage: string | null;
   onCancelEdit: () => void;
   onCopyAssistantMessage: (messageId: string, content: string) => void;
@@ -62,6 +64,7 @@ export function ChatMessageList({
   isLoadingModels,
   isStreaming,
   model,
+  providerId,
   modelsErrorMessage,
   onCancelEdit,
   onCopyAssistantMessage,
@@ -85,6 +88,11 @@ export function ChatMessageList({
           title="Model loading failed"
         >
           {modelsErrorMessage}
+        </Alert>
+      ) : null}
+      {modelsErrorMessage && getProviderModelLoadingNote(providerId) ? (
+        <Alert color="blue" title="Provider model access note">
+          {getProviderModelLoadingNote(providerId)}
         </Alert>
       ) : null}
 

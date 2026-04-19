@@ -237,6 +237,40 @@ test('ChatPage lets the user switch provider and shows the catalog pricing note'
   );
 }, 10_000);
 
+test('ChatPage shows an xAI model access note when model loading fails', async () => {
+  const user = userEvent.setup();
+
+  getModelsMock.mockImplementation(async (providerId?: string) => {
+    if (providerId === 'xai') {
+      throw new Error(
+        'xAI model listing failed with status 500: Internal server error',
+      );
+    }
+
+    return {
+      providerId: providerId ?? 'nanogpt',
+      models: [{ id: 'nano-1', displayName: 'Nano 1' }],
+    };
+  });
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const xaiOption = document.querySelector(
+    '[role="option"][value="xai"]',
+  ) as HTMLElement | null;
+  expect(xaiOption).not.toBeNull();
+  await user.click(xaiOption!);
+
+  expect(
+    await screen.findByText(
+      /xAI's models endpoint returns the models available to the authenticating API key/i,
+    ),
+  ).toBeInTheDocument();
+  expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
+}, 10_000);
+
 test('ChatPage keeps Shift+Enter for multiline drafting', async () => {
   renderWithProviders(<ChatPage />);
 

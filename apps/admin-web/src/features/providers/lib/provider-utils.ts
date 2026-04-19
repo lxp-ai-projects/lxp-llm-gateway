@@ -37,6 +37,14 @@ export function getProviderCatalogPricingNote(providerId: string | null) {
   return 'OpenRouter catalogs can include both free and paid models. Verify pricing and rate limits before choosing a default model or sending prompts.';
 }
 
+export function getProviderModelLoadingNote(providerId: string | null) {
+  if (providerId === 'xai') {
+    return "xAI's models endpoint returns the models available to the authenticating API key. The docs do not describe a credit requirement for model listing. If loading fails, check the API key, team access, or xAI service status.";
+  }
+
+  return null;
+}
+
 export function resolveProviderDisplayName(
   supportedProviders: Array<{ providerId: string; displayName: string }>,
   providerIdToResolve: string,

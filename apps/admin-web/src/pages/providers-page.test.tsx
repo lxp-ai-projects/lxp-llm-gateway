@@ -294,6 +294,26 @@ test('ProvidersPage surfaces model loading failures and raw provider fallback na
   ).toBeInTheDocument();
 });
 
+test('ProvidersPage shows an xAI model access note when model loading fails', async () => {
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: 'xai',
+    defaultModel: null,
+  });
+  getModelsMock.mockRejectedValue(
+    new Error('xAI model listing failed with status 500: Internal server error'),
+  );
+
+  renderWithProviders(<ProvidersPage />);
+
+  expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      /xAI's models endpoint returns the models available to the authenticating API key/i,
+    ),
+  ).toBeInTheDocument();
+});
+
 test('ProvidersPage marks default providers in both mobile and desktop credential views', async () => {
   renderWithProviders(<ProvidersPage />);
 
