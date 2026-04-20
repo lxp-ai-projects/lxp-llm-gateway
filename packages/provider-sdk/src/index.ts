@@ -63,8 +63,8 @@ export {
   parseDataUrlReference,
   resolveGatewayImageReference,
   validatePublicHttpsImageUrl,
-} from './image-reference-utils';
+} from './image-reference-utils.js';
 export type {
   PublicImageReferencePolicy,
   ResolvedGatewayImageReference,
-} from './image-reference-utils';
+} from './image-reference-utils.js';
