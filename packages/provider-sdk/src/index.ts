@@ -64,6 +64,10 @@ export {
   resolveGatewayImageReference,
   validatePublicHttpsImageUrl,
 } from './image-reference-utils.js';
+export {
+  buildProviderHttpError,
+  formatGoogleGeminiRateLimitError,
+} from './provider-error-utils.js';
 export type {
   PublicImageReferencePolicy,
   ResolvedGatewayImageReference,

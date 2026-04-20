@@ -10,6 +10,8 @@ import type {
   GatewayImageReference,
 } from '@lxp/contracts';
 import {
+  buildProviderHttpError,
+  formatGoogleGeminiRateLimitError,
   parseDataUrlReference,
   resolveGatewayImageReference,
 } from '@lxp/provider-sdk';
@@ -395,7 +397,9 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
     );
 
     if (!response.ok) {
-      throw await this.buildProviderError('Google Gemini image request', response);
+      throw await buildProviderHttpError('Google Gemini image request', response, {
+        rateLimitFormatter: formatGoogleGeminiRateLimitError,
+      });
     }
 
     const payload = (await response.json()) as GoogleGenerateContentResponse;
@@ -537,54 +541,6 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
 
   protected lookupHostname(hostname: string) {
     return dns.lookup(hostname, { all: true });
-  }
-
-  private async buildProviderError(
-    prefix: string,
-    response: Response,
-  ): Promise<Error> {
-    const errorText = await response.text();
-    return new Error(
-      response.status === 429
-        ? this.formatQuotaExceededError(errorText)
-        : `${prefix} failed with status ${response.status}: ${errorText}`,
-    );
-  }
-
-  private formatQuotaExceededError(errorText: string) {
-    try {
-      const payload = JSON.parse(errorText) as {
-        error?: {
-          message?: string;
-          status?: string;
-          details?: Array<{
-            ['@type']?: string;
-            retryDelay?: string;
-            links?: Array<{ url?: string }>;
-          }>;
-        };
-      };
-      const error = payload.error;
-      if (!error) {
-        return `Google Gemini quota exceeded. ${errorText}`;
-      }
-
-      const retryDelay = error.details?.find(
-        (detail) => detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo',
-      )?.retryDelay;
-      const helpUrl =
-        error.details
-          ?.find((detail) => detail['@type'] === 'type.googleapis.com/google.rpc.Help')
-          ?.links?.[0]?.url ?? 'https://ai.google.dev/gemini-api/docs/rate-limits';
-      const firstLine = error.message
-        ?.split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)[0];
-
-      return `Google Gemini quota exceeded (${error.status ?? 'RESOURCE_EXHAUSTED'}). ${firstLine ?? 'Check your plan, billing, and current usage.'}${retryDelay ? ` Retry in ${retryDelay}.` : ''} Rate limits: ${helpUrl}`;
-    } catch {
-      return `Google Gemini quota exceeded. ${errorText}`;
-    }
   }
 
   private resolveModelDisplayName(modelId: string) {
