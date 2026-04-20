@@ -67,7 +67,7 @@ The next planned capability expansion is:
 
 - broader provider coverage for image generation and image editing behind the existing provider seam
 - provider-owned capability metadata such as supported aspect ratios, response formats, resolutions, and request limits flowing from model catalogs to the UI
-- future providers such as Google image generation and OpenAI image generation behind the same seam
+- future providers such as OpenAI image generation behind the same seam
 - reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
 
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.

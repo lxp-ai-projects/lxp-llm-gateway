@@ -14,7 +14,13 @@ import {
   Textarea,
   Title,
 } from '@mantine/core';
-import { IconPhoto, IconSparkles, IconTrash, IconUpload } from '@tabler/icons-react';
+import {
+  IconInfoCircle,
+  IconPhoto,
+  IconSparkles,
+  IconTrash,
+  IconUpload,
+} from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -37,13 +43,19 @@ type ReferenceImageItem = GatewayImageReference & {
   label: string;
 };
 
-type ImageResolutionValue = '1k' | '2k';
-
-const IMAGE_PROVIDER_IDS = ['xai'] as const;
-const DEFAULT_XAI_IMAGE_MODEL = 'grok-imagine-image';
+const IMAGE_PROVIDER_IDS = ['google', 'xai'] as const;
+const DEFAULT_IMAGE_MODELS: Record<(typeof IMAGE_PROVIDER_IDS)[number], string> = {
+  google: 'gemini-2.5-flash-image',
+  xai: 'grok-imagine-image',
+};
 const ALLOWED_XAI_IMAGE_MODEL_IDS = new Set([
   'grok-imagine-image',
   'grok-imagine-image-pro',
+]);
+const ALLOWED_GOOGLE_IMAGE_MODEL_IDS = new Set([
+  'gemini-2.5-flash-image',
+  'gemini-3-pro-image-preview',
+  'gemini-3.1-flash-image-preview',
 ]);
 const RESPONSE_FORMAT_OPTIONS = [
   { value: 'url', label: 'Hosted URL' },
@@ -51,6 +63,8 @@ const RESPONSE_FORMAT_OPTIONS = [
 ];
 const DEFAULT_IMAGE_COUNT_LIMIT = 4;
 const DEFAULT_REFERENCE_IMAGE_LIMIT = 5;
+const GOOGLE_REFERENCE_IMAGE_NOTE =
+  'Google image editing accepts uploaded files, pasted data URLs, and public HTTPS image URLs. Local, private, or unsupported remote targets are blocked by the gateway.';
 
 export function ImageGenerationPage() {
   const runtimeConfigQuery = useRuntimeConfig();
@@ -62,7 +76,7 @@ export function ImageGenerationPage() {
   const [responseFormat, setResponseFormat] = useState<'url' | 'b64_json'>(
     'url',
   );
-  const [resolution, setResolution] = useState<ImageResolutionValue | ''>('');
+  const [resolution, setResolution] = useState('');
   const [imageCount, setImageCount] = useState('1');
   const [referenceUrl, setReferenceUrl] = useState('');
   const [references, setReferences] = useState<ReferenceImageItem[]>([]);
@@ -77,7 +91,9 @@ export function ImageGenerationPage() {
     () =>
       buildProviderOptions(
         supportedProviders.filter((provider) =>
-          IMAGE_PROVIDER_IDS.includes(provider.providerId as 'xai'),
+          IMAGE_PROVIDER_IDS.includes(
+            provider.providerId as (typeof IMAGE_PROVIDER_IDS)[number],
+          ),
         ),
       ),
     [supportedProviders],
@@ -94,7 +110,9 @@ export function ImageGenerationPage() {
           (providerModel.capabilities?.supportsImageGeneration ||
             providerModel.capabilities?.supportsImageEditing) &&
           (providerId !== 'xai' ||
-            ALLOWED_XAI_IMAGE_MODEL_IDS.has(providerModel.id)),
+            ALLOWED_XAI_IMAGE_MODEL_IDS.has(providerModel.id)) &&
+          (providerId !== 'google' ||
+            ALLOWED_GOOGLE_IMAGE_MODEL_IDS.has(providerModel.id)),
       ),
     [modelsQuery.data?.models, providerId],
   );
@@ -151,7 +169,8 @@ export function ImageGenerationPage() {
     const defaultProviderId =
       providerSettingsQuery.data?.defaultProviderId &&
       IMAGE_PROVIDER_IDS.includes(
-        providerSettingsQuery.data.defaultProviderId as 'xai',
+        providerSettingsQuery.data
+          .defaultProviderId as (typeof IMAGE_PROVIDER_IDS)[number],
       )
         ? providerSettingsQuery.data.defaultProviderId
         : imageProviderOptions[0]?.value ?? 'xai';
@@ -165,7 +184,9 @@ export function ImageGenerationPage() {
 
     const nextModel =
       modelOptions[0]?.value ??
-      (providerId === 'xai' ? DEFAULT_XAI_IMAGE_MODEL : '');
+      (providerId && providerId in DEFAULT_IMAGE_MODELS
+        ? DEFAULT_IMAGE_MODELS[providerId as keyof typeof DEFAULT_IMAGE_MODELS]
+        : '');
     if (nextModel) {
       setModel(nextModel);
     }
@@ -202,9 +223,7 @@ export function ImageGenerationPage() {
       return;
     }
 
-    setResolution(
-      (resolutionOptions[0]?.value as ImageResolutionValue | undefined) ?? '',
-    );
+    setResolution(resolutionOptions[0]?.value ?? '');
   }, [resolution, resolutionOptions]);
 
   useEffect(() => {
@@ -398,21 +417,30 @@ export function ImageGenerationPage() {
                       supportedAspectRatios.length > 1 ? (
                         <HoverCard shadow="md" width={320} withArrow>
                           <HoverCard.Target>
-                            <Text
-                              component="span"
-                              fw={500}
+                            <Group
+                              gap={6}
                               style={{
                                 borderBottom: '1px dotted var(--mantine-color-gray-5)',
                                 cursor: 'help',
+                                display: 'inline-flex',
                               }}
+                              wrap="nowrap"
                             >
-                              Aspect ratio
-                            </Text>
+                              <Text component="span" fw={500}>
+                                Aspect ratio
+                              </Text>
+                              <IconInfoCircle
+                                aria-hidden="true"
+                                size={14}
+                                stroke={1.8}
+                                style={{ color: 'var(--mantine-color-gray-6)' }}
+                              />
+                            </Group>
                           </HoverCard.Target>
                           <HoverCard.Dropdown>
                             <Stack gap="xs">
                               <Text fw={600} size="sm">
-                                xAI supported ratios
+                                Supported ratios
                               </Text>
                               {supportedAspectRatios.map((aspectRatioOption) => (
                                 <Group
@@ -462,9 +490,7 @@ export function ImageGenerationPage() {
                     data={resolutionOptions}
                     data-testid="image-resolution-select"
                     label="Resolution"
-                    onChange={(value) =>
-                      setResolution((value as ImageResolutionValue | null) ?? '')
-                    }
+                    onChange={(value) => setResolution(value ?? '')}
                     value={resolution}
                   />
                 ) : null}
@@ -474,13 +500,23 @@ export function ImageGenerationPage() {
                   images to switch the request into edit mode.
                 </Alert>
 
+                {providerId === 'google' ? (
+                  <Alert color="yellow" title="Google reference mode">
+                    {GOOGLE_REFERENCE_IMAGE_NOTE}
+                  </Alert>
+                ) : null}
+
                 <Group align="end">
                   <TextInput
                     className="image-reference-url"
                     data-testid="image-reference-url-input"
                     label="Reference image URL"
                     onChange={(event) => setReferenceUrl(event.currentTarget.value)}
-                    placeholder="https://example.com/source.png or data:image/..."
+                    placeholder={
+                      providerId === 'google'
+                        ? 'https://example.com/source.png or data:image/...'
+                        : 'https://example.com/source.png or data:image/...'
+                    }
                     value={referenceUrl}
                   />
                   <Button

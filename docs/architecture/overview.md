@@ -77,6 +77,8 @@ Model catalog results may also carry capability-specific metadata needed by the 
 
 `gateway-api` must orchestrate those surfaces without learning provider-specific endpoint rules.
 
+Shared image-reference safety rules that apply across providers should live in the provider seam rather than being reimplemented independently in each adapter.
+
 ## Persistence Posture
 
 The current architecture uses relational persistence for:
@@ -155,7 +157,7 @@ This allows:
 
 - `NanoGPT` and `OpenRouter` to use bearer-token style auth
 - `Groq` to use bearer-token auth through an OpenAI-compatible endpoint
-- `Google Gemini` to use bearer-token auth through Google's OpenAI-compatible Gemini API
+- `Google Gemini` to use bearer-token auth for chat through Google's OpenAI-compatible Gemini API and `x-goog-api-key` auth for native image generation through Gemini `generateContent`
 - `xAI Grok` to use bearer-token auth through an OpenAI-compatible endpoint
 - `OpenAI` to use bearer-token auth through the OpenAI chat completions and models endpoints
 - `Anthropic Claude` to use `x-api-key` auth plus Anthropic-specific message and model endpoints
@@ -182,7 +184,11 @@ Reference images should be passed through the seam in normalized forms such as:
 - public image URLs
 - data URLs for uploaded or local image content
 
-The first planned provider implementation is xAI Grok Imagine behind `packages/provider-xai`.
+When a provider cannot consume remote URLs directly, the provider package may still normalize public HTTPS image URLs into provider-native inputs by using shared seam utilities, but it must still opt into and preserve the security controls for that fetch path.
+
+At minimum, that means blocking localhost, private-network targets, and unsupported content types before any bytes are forwarded to the upstream provider.
+
+The first concrete provider implementations are xAI Grok Imagine behind `packages/provider-xai` and Google Nano Banana behind `packages/provider-google`.
 
 Per the xAI docs, image operations use dedicated image endpoints rather than chat endpoints:
 
@@ -190,6 +196,10 @@ Per the xAI docs, image operations use dedicated image endpoints rather than cha
 - `/v1/images/edits` for prompt-based editing with source images
 
 Those endpoint details belong only in the xAI provider package.
+
+Per the Google Gemini docs, image operations use the native Gemini `generateContent` API rather than the OpenAI-compatible chat surface already used for text workflows.
+
+Those provider-specific details also belong only in the Google provider package.
 
 The seam itself should only know about normalized image-generation requests and responses.
 

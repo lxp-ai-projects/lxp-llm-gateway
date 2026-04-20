@@ -1,3 +1,5 @@
+import * as dns from 'node:dns/promises';
+
 import type {
   GatewayChatRequest,
   GatewayChatResponse,
@@ -7,6 +9,7 @@ import type {
   GatewayImageGenerationResponse,
   GatewayImageReference,
 } from '@lxp/contracts';
+import { resolveGatewayImageReference } from '@lxp/provider-sdk';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
@@ -278,8 +281,8 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
       throw new Error('xAI image editing requires at least one reference image.');
     }
 
-    const mappedImages = request.images.map((image) =>
-      this.mapImageReference(image),
+    const mappedImages = await Promise.all(
+      request.images.map((image) => this.mapImageReference(image)),
     );
 
     const response = await this.fetchWithTimeout(
@@ -383,13 +386,18 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     };
   }
 
-  private mapImageReference(image: GatewayImageReference): {
+  private async mapImageReference(image: GatewayImageReference): Promise<{
     type: 'image_url';
     url: string;
-  } {
+  }> {
+    const resolvedReference = await resolveGatewayImageReference(image, {
+      mode: 'passthrough-url',
+      lookupHostname: (hostname) => this.lookupHostname(hostname),
+    });
+
     return {
       type: 'image_url',
-      url: image.url,
+      url: resolvedReference.url,
     };
   }
 
@@ -442,6 +450,10 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
 
   private isImageModel(modelId: string) {
     return XAI_IMAGE_MODEL_METADATA.has(modelId);
+  }
+
+  protected lookupHostname(hostname: string) {
+    return dns.lookup(hostname, { all: true });
   }
 }
 

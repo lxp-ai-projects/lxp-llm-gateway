@@ -63,7 +63,7 @@ export const gatewayApiClient = {
     n?: number;
     aspectRatio?: string;
     responseFormat?: 'url' | 'b64_json';
-    resolution?: '1k' | '2k';
+    resolution?: string;
   }): Promise<GatewayImageGenerationResponse> {
     return request<GatewayImageGenerationResponse>(
       `${gatewayApiUrl}/api/v1/images/generations`,
@@ -83,7 +83,7 @@ export const gatewayApiClient = {
     n?: number;
     aspectRatio?: string;
     responseFormat?: 'url' | 'b64_json';
-    resolution?: '1k' | '2k';
+    resolution?: string;
   }): Promise<GatewayImageGenerationResponse> {
     return request<GatewayImageGenerationResponse>(
       `${gatewayApiUrl}/api/v1/images/edits`,

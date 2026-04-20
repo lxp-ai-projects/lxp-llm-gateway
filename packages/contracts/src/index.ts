@@ -43,7 +43,7 @@ export type GatewayImageReference =
 
 export type GatewayImageResponseFormat = 'url' | 'b64_json';
 
-export type GatewayImageResolution = '1k' | '2k';
+export type GatewayImageResolution = string;
 
 export interface GatewayImageGenerationRequest {
   providerId?: ProviderId;

@@ -63,6 +63,7 @@ export class GatewayImageEditRequestDto implements GatewayImageEditRequest {
   responseFormat?: 'url' | 'b64_json';
 
   @IsOptional()
-  @IsIn(['1k', '2k'])
-  resolution?: '1k' | '2k';
+  @IsString()
+  @MinLength(1)
+  resolution?: string;
 }

@@ -3,6 +3,20 @@ import test from 'node:test';
 
 import { XaiProviderAdapter } from './index';
 
+class XaiProviderAdapterTestDouble extends XaiProviderAdapter {
+  constructor(
+    private readonly resolvedAddresses: Array<{ address: string; family: number }> = [
+      { address: '93.184.216.34', family: 4 },
+    ],
+  ) {
+    super();
+  }
+
+  protected override lookupHostname() {
+    return Promise.resolve(this.resolvedAddresses);
+  }
+}
+
 test('XaiProviderAdapter lists models from the xAI models endpoint', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;
@@ -28,7 +42,7 @@ test('XaiProviderAdapter lists models from the xAI models endpoint', async () =>
   }) as typeof fetch;
 
   try {
-    const adapter = new XaiProviderAdapter();
+    const adapter = new XaiProviderAdapterTestDouble();
     const models = await adapter.listModels({
       requestId: 'request-1',
       userId: 'user-1',
@@ -267,7 +281,7 @@ test('XaiProviderAdapter marks the image model with supported aspect ratios', as
     )) as typeof fetch;
 
   try {
-    const adapter = new XaiProviderAdapter();
+    const adapter = new XaiProviderAdapterTestDouble();
     const models = await adapter.listModels({
       requestId: 'request-1',
       userId: 'user-1',
@@ -377,7 +391,7 @@ test('XaiProviderAdapter sends chat requests to the xAI chat completions endpoin
   }) as typeof fetch;
 
   try {
-    const adapter = new XaiProviderAdapter();
+    const adapter = new XaiProviderAdapterTestDouble();
     const response = await adapter.chat(
       {
         model: 'grok-4-fast',
@@ -429,7 +443,7 @@ test('XaiProviderAdapter sends image generation requests to the xAI images endpo
   }) as typeof fetch;
 
   try {
-    const adapter = new XaiProviderAdapter();
+    const adapter = new XaiProviderAdapterTestDouble();
     const response = await adapter.generateImage?.(
       {
         model: 'grok-imagine-image',
@@ -489,7 +503,7 @@ test('XaiProviderAdapter sends image edit requests with reference images to the 
   }) as typeof fetch;
 
   try {
-    const adapter = new XaiProviderAdapter();
+    const adapter = new XaiProviderAdapterTestDouble();
     const response = await adapter.editImage?.(
       {
         model: 'grok-imagine-image',
@@ -537,4 +551,35 @@ test('XaiProviderAdapter sends image edit requests with reference images to the 
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('XaiProviderAdapter rejects private or local remote image targets before calling xAI', async () => {
+  const adapter = new XaiProviderAdapterTestDouble([
+    { address: '127.0.0.1', family: 4 },
+  ]);
+
+  await assert.rejects(
+    () =>
+      adapter.editImage(
+        {
+          model: 'grok-imagine-image',
+          prompt: 'Edit this image',
+          images: [
+            {
+              type: 'image_url',
+              url: 'https://example.com/reference.png',
+            },
+          ],
+          responseFormat: 'b64_json',
+        },
+        {
+          requestId: 'request-3',
+          userId: 'user-1',
+          providerAccess: {
+            apiKey: 'xai-token',
+          },
+        },
+      ),
+    /cannot resolve to private or local IP ranges/,
+  );
 });

@@ -325,7 +325,10 @@ It does need to:
 
 The next planned capability is image generation.
 
-The first planned implementation is xAI Grok Imagine through the existing `provider-xai` package.
+The first concrete implementations are:
+
+- xAI Grok Imagine through `provider-xai`
+- Google Nano Banana through `provider-google`
 
 That capability now supports:
 
@@ -333,7 +336,7 @@ That capability now supports:
 - prompt-based image editing
 - reference images supplied as URLs or data URLs
 - provider-defined image model metadata such as supported aspect ratios, response formats, resolutions, and request limits
-- future extension to other providers such as Google image generation and OpenAI image generation without redefining the seam again
+- future extension to additional providers such as OpenAI image generation without redefining the seam again
 
 ## Persistence Strategy
 

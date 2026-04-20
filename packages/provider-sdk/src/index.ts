@@ -57,3 +57,14 @@ export interface LlmProviderAdapter {
     context: ProviderExecutionContext,
   ): Promise<GatewayImageGenerationResponse>;
 }
+
+export {
+  fetchPublicImageReferenceAsDataUrl,
+  parseDataUrlReference,
+  resolveGatewayImageReference,
+  validatePublicHttpsImageUrl,
+} from './image-reference-utils';
+export type {
+  PublicImageReferencePolicy,
+  ResolvedGatewayImageReference,
+} from './image-reference-utils';
