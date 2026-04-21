@@ -62,6 +62,7 @@ Phase 2 should assume:
 - the SPA codebase is already organized by feature and can continue to evolve incrementally
 - CI quality gates already cover typecheck, test, and build
 - new provider capabilities should extend `packages/provider-sdk`, not bypass it
+- image history, save state, and gateway-managed reference assets belong in the application layer, not in provider packages
 
 The next planned capability expansion is:
 
@@ -69,6 +70,7 @@ The next planned capability expansion is:
 - provider-owned capability metadata such as supported aspect ratios, response formats, resolutions, output formats, background modes, quality presets, input fidelity, compression ranges, and request limits flowing from model catalogs to the UI
 - future providers beyond the current xAI, Google, and OpenAI image implementations behind the same seam
 - reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
+- paginated image job history and reusable saved/generated assets for operators
 
 Current image-provider posture is not perfectly uniform:
 

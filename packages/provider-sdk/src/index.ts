@@ -6,6 +6,7 @@ import type {
   GatewayImageGenerationResponse,
 } from '@lxp/contracts';
 import type {
+  ImageProviderCatalog,
   ModelCapability,
   ProviderCapabilities,
   ProviderId,
@@ -36,6 +37,10 @@ export interface LlmProviderAdapter {
   supportsStreaming(): boolean;
 
   listModels?(context: ProviderExecutionContext): Promise<ProviderModel[]>;
+
+  listImageCatalog?(
+    context: ProviderExecutionContext,
+  ): Promise<ImageProviderCatalog>;
 
   chat(
     request: GatewayChatRequest,

@@ -49,6 +49,9 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
     assert.equal(imageModel.displayName, 'GPT Image 1.5');
     assert.equal(imageModel.capabilities?.supportsImageGeneration, true);
     assert.equal(imageModel.capabilities?.supportsImageEditing, false);
+    assert.deepEqual(imageModel.capabilities?.supportedImageResponseFormats, [
+      'b64_json',
+    ]);
     assert.deepEqual(imageModel.capabilities?.supportedImageOutputFormats, [
       { value: 'png', label: 'PNG' },
       { value: 'jpeg', label: 'JPEG' },
@@ -76,6 +79,15 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
       max: 100,
       defaultValue: 100,
       step: 1,
+    });
+    assert.deepEqual(imageModel.capabilities?.imageDefaults, {
+      responseFormat: 'b64_json',
+      resolution: '1024x1024',
+      background: 'auto',
+      quality: 'auto',
+      outputFormat: 'png',
+      outputCompression: 100,
+      imageCount: 1,
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -189,7 +201,6 @@ test('OpenAiProviderAdapter sends image generation requests to the OpenAI images
       prompt: 'A transparent product packshot',
       n: 2,
       size: '1024x1536',
-      response_format: 'b64_json',
       background: 'transparent',
       quality: 'high',
       output_format: 'webp',

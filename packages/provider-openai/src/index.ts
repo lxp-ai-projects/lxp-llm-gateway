@@ -27,7 +27,7 @@ const OPENAI_IMAGE_MODELS = {
     displayName: 'GPT Image 1 Mini',
   },
 } as const;
-const OPENAI_IMAGE_RESPONSE_FORMATS = ['url', 'b64_json'] as const;
+const OPENAI_IMAGE_RESPONSE_FORMATS = ['b64_json'] as const;
 const OPENAI_IMAGE_RESOLUTIONS = [
   { value: 'auto', label: 'Auto' },
   { value: '1024x1024', label: '1024x1024' },
@@ -126,6 +126,26 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
       }));
 
     return [...listedModels, ...knownImageModels];
+  }
+
+  async listImageCatalog(context: ProviderExecutionContext) {
+    const models = await this.listModels(context);
+    return {
+      providerId: this.providerId,
+      defaultModelId: 'gpt-image-1.5',
+      models: models
+        .filter(
+          (model) =>
+            Boolean(model.capabilities) &&
+            (model.capabilities?.supportsImageGeneration ||
+              model.capabilities?.supportsImageEditing),
+        )
+        .map((model) => ({
+          id: model.id,
+          displayName: model.displayName,
+          capabilities: model.capabilities as NonNullable<ProviderModel['capabilities']>,
+        })),
+    };
   }
 
   async chat(
@@ -349,6 +369,15 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
         step: 1,
       },
       maxGeneratedImagesPerRequest: 10,
+      imageDefaults: {
+        responseFormat: 'b64_json',
+        resolution: '1024x1024',
+        background: 'auto',
+        quality: 'auto',
+        outputFormat: 'png',
+        outputCompression: 100,
+        imageCount: 1,
+      } as const,
     };
   }
 

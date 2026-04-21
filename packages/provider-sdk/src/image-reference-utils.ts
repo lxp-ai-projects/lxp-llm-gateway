@@ -39,6 +39,12 @@ export async function resolveGatewayImageReference(
         policy: PublicImageReferencePolicy;
       },
 ): Promise<ResolvedGatewayImageReference> {
+  if (image.type === 'asset') {
+    throw new Error(
+      'Gateway-managed image assets must be resolved in the application layer before provider dispatch.',
+    );
+  }
+
   if (image.type === 'data_url') {
     const parsedDataUrl = parseDataUrlReference(image.url, image.mimeType);
     return {

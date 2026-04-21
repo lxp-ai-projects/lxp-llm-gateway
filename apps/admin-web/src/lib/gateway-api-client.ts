@@ -8,7 +8,10 @@ import type {
   GatewayChatResponse,
   GatewayChatStreamChunk,
   GatewayChatStreamResult,
+  GatewayImageAssetSummary,
+  GatewayImageCatalogResponse,
   GatewayImageGenerationResponse,
+  GatewayImageHistoryResponse,
   GatewayImageReference,
   ProviderModelSummary,
 } from './api-client.types';
@@ -16,6 +19,12 @@ import type {
 export const gatewayApiClient = {
   async getHealth(): Promise<{ status: string }> {
     return request<{ status: string }>(`${gatewayApiUrl}/api/v1/health`);
+  },
+
+  async getImageCatalog(): Promise<GatewayImageCatalogResponse> {
+    return request<GatewayImageCatalogResponse>(
+      `${gatewayApiUrl}/api/v1/images/catalog`,
+    );
   },
 
   async getModels(providerId = 'nanogpt'): Promise<{
@@ -101,6 +110,39 @@ export const gatewayApiClient = {
         body: JSON.stringify(payload),
         timeoutMs: 90000,
       },
+    );
+  },
+
+  async uploadImageAsset(payload: {
+    dataUrl: string;
+    label?: string;
+  }): Promise<{ asset: GatewayImageAssetSummary }> {
+    return request<{ asset: GatewayImageAssetSummary }>(
+      `${gatewayApiUrl}/api/v1/images/assets`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 90000,
+      },
+    );
+  },
+
+  async setImageAssetSaved(
+    assetId: string,
+    saved: boolean,
+  ): Promise<{ asset: GatewayImageAssetSummary }> {
+    return request<{ asset: GatewayImageAssetSummary }>(
+      `${gatewayApiUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}/save`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ saved }),
+      },
+    );
+  },
+
+  async getImageHistory(page = 1): Promise<GatewayImageHistoryResponse> {
+    return request<GatewayImageHistoryResponse>(
+      `${gatewayApiUrl}/api/v1/images/history?page=${encodeURIComponent(String(page))}`,
     );
   },
 };

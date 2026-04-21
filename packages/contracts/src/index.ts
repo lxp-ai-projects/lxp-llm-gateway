@@ -39,6 +39,10 @@ export type GatewayImageReference =
       type: 'data_url';
       url: string;
       mimeType?: string;
+    }
+  | {
+      type: 'asset';
+      assetId: string;
     };
 
 export type GatewayImageResponseFormat = 'url' | 'b64_json';
@@ -78,19 +82,136 @@ export interface GatewayImageEditRequest {
 }
 
 export interface GatewayGeneratedImage {
+  assetId?: string;
+  contentUrl?: string;
   url?: string;
   b64Json?: string;
   mimeType?: string;
   revisedPrompt?: string;
+  saved?: boolean;
   providerMetadata?: Record<string, unknown>;
 }
 
 export interface GatewayImageGenerationResponse {
+  jobId?: string;
   requestId: string;
   providerId: string;
   model: string;
   images: GatewayGeneratedImage[];
   providerMetadata?: Record<string, unknown>;
+}
+
+export interface GatewayImageCatalogModel {
+  id: string;
+  displayName: string;
+  capabilities?: {
+    supportsStreaming?: boolean;
+    supportsImageGeneration?: boolean;
+    supportsImageEditing?: boolean;
+    supportedImageAspectRatios?: Array<{
+      value: string;
+      label: string;
+      useCase?: string;
+    }>;
+    supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
+    supportedImageResolutions?: Array<{
+      value: string;
+      label: string;
+    }>;
+    supportedImageOutputFormats?: Array<{
+      value: string;
+      label: string;
+    }>;
+    supportedImageBackgrounds?: Array<{
+      value: string;
+      label: string;
+    }>;
+    supportedImageQualities?: Array<{
+      value: string;
+      label: string;
+    }>;
+    supportedImageInputFidelities?: Array<{
+      value: string;
+      label: string;
+      description?: string;
+    }>;
+    imageOutputCompressionRange?: {
+      min: number;
+      max: number;
+      defaultValue?: number;
+      step?: number;
+    };
+    maxGeneratedImagesPerRequest?: number;
+    maxReferenceImagesPerRequest?: number;
+    imageDefaults?: {
+      aspectRatio?: string;
+      responseFormat?: 'url' | 'b64_json';
+      resolution?: string;
+      background?: string;
+      quality?: string;
+      outputFormat?: string;
+      outputCompression?: number;
+      inputFidelity?: string;
+      imageCount?: number;
+    };
+  };
+}
+
+export interface GatewayImageCatalogProvider {
+  providerId: ProviderId;
+  displayName: string;
+  defaultModelId: string | null;
+  models: GatewayImageCatalogModel[];
+}
+
+export interface GatewayImageCatalogResponse {
+  providers: GatewayImageCatalogProvider[];
+}
+
+export interface GatewayImageAssetSummary {
+  id: string;
+  label: string | null;
+  mimeType: string | null;
+  contentUrl: string;
+  sourceType: 'upload' | 'generated';
+  saved: boolean;
+  createdAt: string;
+}
+
+export interface GatewayImageHistoryItem {
+  id: string;
+  requestId: string;
+  providerId: ProviderId;
+  model: string;
+  prompt: string;
+  mode: 'generation' | 'edit';
+  createdAt: string;
+  images: Array<
+    GatewayImageAssetSummary & {
+      revisedPrompt?: string;
+    }
+  >;
+}
+
+export interface GatewayImageHistoryResponse {
+  items: GatewayImageHistoryItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface GatewayImageAssetUploadRequest {
+  dataUrl: string;
+  label?: string;
+}
+
+export interface GatewayImageAssetUploadResponse {
+  asset: GatewayImageAssetSummary;
+}
+
+export interface GatewayImageAssetSaveRequest {
+  saved: boolean;
 }
 
 export interface GatewayErrorResponse {

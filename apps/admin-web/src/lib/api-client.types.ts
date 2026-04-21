@@ -60,17 +60,25 @@ export type GatewayImageReference =
       type: 'data_url';
       url: string;
       mimeType?: string;
+    }
+  | {
+      type: 'asset';
+      assetId: string;
     };
 
 export type GatewayGeneratedImage = {
+  assetId?: string;
+  contentUrl?: string;
   url?: string;
   b64Json?: string;
   mimeType?: string;
   revisedPrompt?: string;
+  saved?: boolean;
   providerMetadata?: Record<string, unknown>;
 };
 
 export type GatewayImageGenerationResponse = {
+  jobId?: string;
   requestId: string;
   providerId: string;
   model: string;
@@ -134,7 +142,62 @@ export type ProviderModelSummary = {
     imageOutputCompressionRange?: ImageOutputCompressionRange;
     maxGeneratedImagesPerRequest?: number;
     maxReferenceImagesPerRequest?: number;
+    imageDefaults?: {
+      aspectRatio?: string;
+      responseFormat?: 'url' | 'b64_json';
+      resolution?: string;
+      background?: string;
+      quality?: string;
+      outputFormat?: string;
+      outputCompression?: number;
+      inputFidelity?: string;
+      imageCount?: number;
+    };
   };
+};
+
+export type GatewayImageCatalogProvider = {
+  providerId: string;
+  displayName: string;
+  defaultModelId: string | null;
+  models: ProviderModelSummary[];
+};
+
+export type GatewayImageCatalogResponse = {
+  providers: GatewayImageCatalogProvider[];
+};
+
+export type GatewayImageAssetSummary = {
+  id: string;
+  label: string | null;
+  mimeType: string | null;
+  contentUrl: string;
+  sourceType: 'upload' | 'generated';
+  saved: boolean;
+  createdAt: string;
+};
+
+export type GatewayImageHistoryItem = {
+  id: string;
+  requestId: string;
+  providerId: string;
+  model: string;
+  prompt: string;
+  mode: 'generation' | 'edit';
+  createdAt: string;
+  images: Array<
+    GatewayImageAssetSummary & {
+      revisedPrompt?: string;
+    }
+  >;
+};
+
+export type GatewayImageHistoryResponse = {
+  items: GatewayImageHistoryItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
 };
 
 export type ProviderCredentialSummary = {

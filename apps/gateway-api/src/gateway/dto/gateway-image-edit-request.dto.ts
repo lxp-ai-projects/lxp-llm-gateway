@@ -12,7 +12,6 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import type { GatewayImageEditRequest } from '@lxp/contracts';
 import type { ProviderId } from '@lxp/domain';
 
 import { GatewayImageReferenceDto } from './gateway-image-reference.dto';
@@ -28,7 +27,7 @@ const SUPPORTED_PROVIDER_IDS = [
   'anthropic',
 ] as const;
 
-export class GatewayImageEditRequestDto implements GatewayImageEditRequest {
+export class GatewayImageEditRequestDto {
   @IsOptional()
   @IsIn(SUPPORTED_PROVIDER_IDS)
   providerId?: ProviderId;

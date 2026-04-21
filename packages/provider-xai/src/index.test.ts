@@ -156,6 +156,12 @@ test('XaiProviderAdapter lists models from the xAI models endpoint', async () =>
           ],
           maxGeneratedImagesPerRequest: 4,
           maxReferenceImagesPerRequest: 5,
+          imageDefaults: {
+            aspectRatio: 'auto',
+            responseFormat: 'url',
+            resolution: '1k',
+            imageCount: 1,
+          },
         },
       },
       {
@@ -250,6 +256,12 @@ test('XaiProviderAdapter lists models from the xAI models endpoint', async () =>
           ],
           maxGeneratedImagesPerRequest: 4,
           maxReferenceImagesPerRequest: 5,
+          imageDefaults: {
+            aspectRatio: 'auto',
+            responseFormat: 'url',
+            resolution: '1k',
+            imageCount: 1,
+          },
         },
       },
       {
@@ -346,6 +358,12 @@ test('XaiProviderAdapter marks the image model with supported aspect ratios', as
       imagineImageModel.capabilities?.maxReferenceImagesPerRequest,
       5,
     );
+    assert.deepEqual(imagineImageModel.capabilities?.imageDefaults, {
+      aspectRatio: 'auto',
+      responseFormat: 'url',
+      resolution: '1k',
+      imageCount: 1,
+    });
 
     assert.ok(imagineImageProModel);
     assert.equal(imagineImageProModel.displayName, 'Grok Imagine Image Pro');

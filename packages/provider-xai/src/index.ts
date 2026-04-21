@@ -168,6 +168,26 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     return [...listedModels, ...knownImageModels];
   }
 
+  async listImageCatalog(context: ProviderExecutionContext) {
+    const models = await this.listModels(context);
+    return {
+      providerId: this.providerId,
+      defaultModelId: 'grok-imagine-image',
+      models: models
+        .filter(
+          (model) =>
+            Boolean(model.capabilities) &&
+            (model.capabilities?.supportsImageGeneration ||
+              model.capabilities?.supportsImageEditing),
+        )
+        .map((model) => ({
+          id: model.id,
+          displayName: model.displayName,
+          capabilities: model.capabilities as NonNullable<ProviderModel['capabilities']>,
+        })),
+    };
+  }
+
   async chat(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -445,6 +465,12 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
       supportedImageResolutions: [...XAI_IMAGE_RESOLUTIONS],
       maxGeneratedImagesPerRequest: 4,
       maxReferenceImagesPerRequest: 5,
+      imageDefaults: {
+        aspectRatio: 'auto',
+        responseFormat: 'url',
+        resolution: '1k',
+        imageCount: 1,
+      } as const,
     };
   }
 

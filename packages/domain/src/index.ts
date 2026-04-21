@@ -56,13 +56,25 @@ export interface ImageOutputCompressionRange {
   step?: number;
 }
 
+export interface ImageModelDefaults {
+  aspectRatio?: string;
+  responseFormat?: 'url' | 'b64_json';
+  resolution?: string;
+  background?: string;
+  quality?: string;
+  outputFormat?: string;
+  outputCompression?: number;
+  inputFidelity?: string;
+  imageCount?: number;
+}
+
 export interface ModelCapability {
   id: string;
   supportsStreaming: boolean;
   supportsImageGeneration?: boolean;
   supportsImageEditing?: boolean;
   supportedImageAspectRatios?: ImageAspectRatioOption[];
-  supportedImageResponseFormats?: string[];
+  supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
   supportedImageResolutions?: ImageResolutionOption[];
   supportedImageOutputFormats?: ImageOutputFormatOption[];
   supportedImageBackgrounds?: ImageBackgroundOption[];
@@ -71,6 +83,19 @@ export interface ModelCapability {
   imageOutputCompressionRange?: ImageOutputCompressionRange;
   maxGeneratedImagesPerRequest?: number;
   maxReferenceImagesPerRequest?: number;
+  imageDefaults?: ImageModelDefaults;
+}
+
+export interface ImageProviderModelCatalogEntry {
+  id: string;
+  displayName: string;
+  capabilities: Partial<ModelCapability>;
+}
+
+export interface ImageProviderCatalog {
+  providerId: ProviderId;
+  defaultModelId: string | null;
+  models: ImageProviderModelCatalogEntry[];
 }
 
 export interface GatewayRequestContext {

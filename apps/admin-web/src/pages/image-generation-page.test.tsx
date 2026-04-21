@@ -5,529 +5,236 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { renderWithProviders } from '../test/test-utils';
 import { ImageGenerationPage } from './image-generation-page';
 
-function buildXaiModels() {
-  return [
-    {
-      id: 'grok-imagine-image',
-      displayName: 'Grok Imagine Image',
-      capabilities: {
-        supportsImageGeneration: true,
-        supportsImageEditing: true,
-        supportedImageResponseFormats: ['url', 'b64_json'],
-        maxGeneratedImagesPerRequest: 4,
-        maxReferenceImagesPerRequest: 5,
-        supportedImageAspectRatios: [
-          {
-            value: 'auto',
-            label: 'Auto',
-            useCase: 'Model auto-selects the best ratio for the prompt.',
-          },
-          {
-            value: '1:1',
-            label: '1:1',
-            useCase: 'Social media, thumbnails',
-          },
-          {
-            value: '19.5:9',
-            label: '19.5:9',
-            useCase: 'Modern smartphone displays',
-          },
-        ],
-      },
-    },
-    {
-      id: 'grok-imagine-image-pro',
-      displayName: 'Grok Imagine Image Pro',
-      capabilities: {
-        supportsImageGeneration: true,
-        supportsImageEditing: true,
-        supportedImageResponseFormats: ['url', 'b64_json'],
-        maxGeneratedImagesPerRequest: 4,
-        maxReferenceImagesPerRequest: 5,
-        supportedImageAspectRatios: [
-          {
-            value: 'auto',
-            label: 'Auto',
-            useCase: 'Model auto-selects the best ratio for the prompt.',
-          },
-          {
-            value: '1:1',
-            label: '1:1',
-            useCase: 'Social media, thumbnails',
-          },
-          {
-            value: '19.5:9',
-            label: '19.5:9',
-            useCase: 'Modern smartphone displays',
-          },
-        ],
-      },
-    },
-    {
-      id: 'grok-imagine-video',
-      displayName: 'grok-imagine-video',
-      capabilities: {
-        supportsStreaming: true,
-      },
-    },
-    {
-      id: 'grok-image',
-      displayName: 'Grok Image',
-      capabilities: {
-        supportsImageGeneration: true,
-      },
-    },
-  ];
-}
-
-function buildGoogleModels() {
-  return [
-    {
-      id: 'gemini-2.5-flash-image',
-      displayName: 'Nano Banana',
-      capabilities: {
-        supportsImageGeneration: true,
-        supportsImageEditing: true,
-        supportedImageResponseFormats: ['b64_json'],
-        supportedImageResolutions: [{ value: '1K', label: '1K' }],
-        supportedImageAspectRatios: [
-          {
-            value: '1:1',
-            label: '1:1',
-            useCase: 'Square assets and social posts',
-          },
-          {
-            value: '16:9',
-            label: '16:9',
-            useCase: 'Widescreen and banners',
-          },
-        ],
-      },
-    },
-    {
-      id: 'gemini-3-pro-image-preview',
-      displayName: 'Nano Banana Pro',
-      capabilities: {
-        supportsImageGeneration: true,
-        supportsImageEditing: true,
-        supportedImageResponseFormats: ['b64_json'],
-        supportedImageResolutions: [
-          { value: '1K', label: '1K' },
-          { value: '2K', label: '2K' },
-          { value: '4K', label: '4K' },
-        ],
-        maxReferenceImagesPerRequest: 14,
-        supportedImageAspectRatios: [
-          {
-            value: '1:1',
-            label: '1:1',
-            useCase: 'Square assets and social posts',
-          },
-          {
-            value: '4:5',
-            label: '4:5',
-            useCase: 'Tall social formats',
-          },
-        ],
-      },
-    },
-    {
-      id: 'gemini-3.1-flash-image-preview',
-      displayName: 'Nano Banana 2',
-      capabilities: {
-        supportsImageGeneration: true,
-        supportsImageEditing: true,
-        supportedImageResponseFormats: ['b64_json'],
-        supportedImageResolutions: [
-          { value: '512', label: '512' },
-          { value: '1K', label: '1K' },
-          { value: '2K', label: '2K' },
-          { value: '4K', label: '4K' },
-        ],
-      },
-    },
-    {
-      id: 'gemini-2.5-pro',
-      displayName: 'gemini-2.5-pro',
-      capabilities: {
-        supportsStreaming: true,
-      },
-    },
-  ];
-}
-
-function buildOpenAiModels() {
-  return [
-    {
-      id: 'gpt-image-1.5',
-      displayName: 'GPT Image 1.5',
-      capabilities: {
-        supportsImageGeneration: true,
-        supportsImageEditing: false,
-        supportedImageResponseFormats: ['url', 'b64_json'],
-        supportedImageResolutions: [
-          { value: 'auto', label: 'Auto' },
-          { value: '1024x1024', label: '1024x1024' },
-          { value: '1536x1024', label: '1536x1024' },
-          { value: '1024x1536', label: '1024x1536' },
-        ],
-        supportedImageOutputFormats: [
-          { value: 'png', label: 'PNG' },
-          { value: 'jpeg', label: 'JPEG' },
-          { value: 'webp', label: 'WebP' },
-        ],
-        supportedImageBackgrounds: [
-          { value: 'auto', label: 'Auto' },
-          { value: 'opaque', label: 'Opaque' },
-          { value: 'transparent', label: 'Transparent' },
-        ],
-        supportedImageQualities: [
-          { value: 'auto', label: 'Auto' },
-          { value: 'low', label: 'Low' },
-          { value: 'medium', label: 'Medium' },
-          { value: 'high', label: 'High' },
-        ],
-        supportedImageInputFidelities: [
-          { value: 'low', label: 'Low' },
-          { value: 'high', label: 'High' },
-        ],
-        imageOutputCompressionRange: {
-          min: 0,
-          max: 100,
-          defaultValue: 100,
-          step: 1,
-        },
-      },
-    },
-    {
-      id: 'gpt-image-1',
-      displayName: 'GPT Image 1',
-      capabilities: {
-        supportsImageGeneration: true,
-        supportsImageEditing: false,
-      },
-    },
-    {
-      id: 'gpt-image-1-mini',
-      displayName: 'GPT Image 1 Mini',
-      capabilities: {
-        supportsImageGeneration: true,
-        supportsImageEditing: false,
-      },
-    },
-    {
-      id: 'gpt-4.1',
-      displayName: 'gpt-4.1',
-      capabilities: {
-        supportsStreaming: true,
-      },
-    },
-  ];
-}
-
 const {
   editImageMock,
   generateImageMock,
-  getModelsMock,
-  getOwnProviderSettingsMock,
-  getRuntimeConfigMock,
+  getImageCatalogMock,
+  getImageHistoryMock,
+  setImageAssetSavedMock,
+  uploadImageAssetMock,
 } = vi.hoisted(() => ({
   editImageMock: vi.fn(async () => ({
     requestId: 'request-edit-1',
-    providerId: 'xai',
-    model: 'grok-imagine-image',
-    images: [{ b64Json: 'edited-image', revisedPrompt: 'edited prompt' }],
-  })),
-  generateImageMock: vi.fn(async () => ({
-    requestId: 'request-generate-1',
+    jobId: 'job-edit-1',
     providerId: 'xai',
     model: 'grok-imagine-image',
     images: [
       {
-        url: 'https://cdn.x.ai/generated.jpg',
-        revisedPrompt: 'generated prompt',
+        assetId: 'asset-edit-1',
+        contentUrl: '/api/v1/images/assets/asset-edit-1/content',
+        b64Json: 'edited-image',
+        saved: false,
       },
     ],
   })),
-  getModelsMock: vi.fn(async (providerId?: string) => ({
-    providerId: providerId ?? 'xai',
-    models:
-      providerId === 'google'
-        ? buildGoogleModels()
-        : providerId === 'openai'
-          ? buildOpenAiModels()
-          : buildXaiModels(),
-  })),
-  getOwnProviderSettingsMock: vi.fn(async () => ({
-    userUuid: 'user-1',
-    defaultProviderId: 'xai',
-    defaultModel: 'grok-imagine-image',
-  })),
-  getRuntimeConfigMock: vi.fn(async () => ({
-    registrationEnabled: true,
-    forgotPasswordEnabled: true,
-    gatewayOnline: true,
-    supportedProviders: [
-      { providerId: 'google', displayName: 'Google Gemini' },
-      { providerId: 'nanogpt', displayName: 'NanoGPT' },
-      { providerId: 'openai', displayName: 'OpenAI' },
-      { providerId: 'xai', displayName: 'xAI Grok' },
+  generateImageMock: vi.fn(async () => ({
+    requestId: 'request-generate-1',
+    jobId: 'job-generate-1',
+    providerId: 'xai',
+    model: 'grok-imagine-image',
+    images: [
+      {
+        assetId: 'asset-result-1',
+        contentUrl: '/api/v1/images/assets/asset-result-1/content',
+        url: 'https://cdn.example.com/generated.jpg',
+        saved: false,
+      },
     ],
+  })),
+  getImageCatalogMock: vi.fn(async () => ({
+    providers: [
+      {
+        providerId: 'openai',
+        displayName: 'OpenAI',
+        defaultModelId: 'gpt-image-1.5',
+        models: [
+          {
+            id: 'gpt-image-1.5',
+            displayName: 'GPT Image 1.5',
+            capabilities: {
+              supportsImageGeneration: true,
+              supportsImageEditing: false,
+              supportedImageResponseFormats: ['b64_json'],
+              supportedImageResolutions: [{ value: '1024x1024', label: '1024x1024' }],
+              supportedImageBackgrounds: [{ value: 'auto', label: 'Auto' }],
+              imageDefaults: {
+                responseFormat: 'b64_json',
+                resolution: '1024x1024',
+                background: 'auto',
+                imageCount: 1,
+              },
+            },
+          },
+        ],
+      },
+      {
+        providerId: 'xai',
+        displayName: 'xAI Grok',
+        defaultModelId: 'grok-imagine-image',
+        models: [
+          {
+            id: 'grok-imagine-image',
+            displayName: 'Grok Imagine Image',
+            capabilities: {
+              supportsImageGeneration: true,
+              supportsImageEditing: true,
+              supportedImageResponseFormats: ['url', 'b64_json'],
+              supportedImageAspectRatios: [
+                { value: 'auto', label: 'Auto' },
+                { value: '1:1', label: '1:1' },
+              ],
+              maxGeneratedImagesPerRequest: 4,
+              maxReferenceImagesPerRequest: 5,
+              imageDefaults: {
+                aspectRatio: 'auto',
+                responseFormat: 'url',
+                imageCount: 1,
+              },
+            },
+          },
+        ],
+      },
+    ],
+  })),
+  getImageHistoryMock: vi.fn(async (page = 1) => ({
+    items: [
+      {
+        id: `job-history-${page}`,
+        requestId: `request-history-${page}`,
+        providerId: 'xai',
+        model: 'grok-imagine-image',
+        prompt: `History prompt ${page}`,
+        mode: 'generation',
+        createdAt: '2026-04-21T12:00:00.000Z',
+        images: [
+          {
+            id: `asset-history-${page}`,
+            label: `History asset ${page}`,
+            mimeType: 'image/png',
+            contentUrl: `/api/v1/images/assets/asset-history-${page}/content`,
+            sourceType: 'generated',
+            saved: false,
+            createdAt: '2026-04-21T12:00:00.000Z',
+          },
+        ],
+      },
+    ],
+    page,
+    pageSize: 10,
+    totalItems: 12,
+    totalPages: 2,
+  })),
+  setImageAssetSavedMock: vi.fn(async (assetId: string, saved: boolean) => ({
+    asset: {
+      id: assetId,
+      label: 'Saved asset',
+      mimeType: 'image/png',
+      contentUrl: `/api/v1/images/assets/${assetId}/content`,
+      sourceType: 'generated',
+      saved,
+      createdAt: '2026-04-21T12:00:00.000Z',
+    },
+  })),
+  uploadImageAssetMock: vi.fn(async () => ({
+    asset: {
+      id: 'asset-upload-1',
+      label: 'upload.png',
+      mimeType: 'image/png',
+      contentUrl: '/api/v1/images/assets/asset-upload-1/content',
+      sourceType: 'upload',
+      saved: false,
+      createdAt: '2026-04-21T12:00:00.000Z',
+    },
   })),
 }));
 
-vi.mock('../lib/api-client', () => ({
-  adminApiClient: {
-    getOwnProviderSettings: getOwnProviderSettingsMock,
-    getRuntimeConfig: getRuntimeConfigMock,
-  },
-  gatewayApiClient: {
-    getModels: getModelsMock,
-    generateImage: generateImageMock,
-    editImage: editImageMock,
-  },
-}));
+vi.mock('../lib/api-client', async () => {
+  const actual = await vi.importActual('../lib/api-client');
+  return {
+    ...actual,
+    gatewayApiClient: {
+      getImageCatalog: getImageCatalogMock,
+      getImageHistory: getImageHistoryMock,
+      generateImage: generateImageMock,
+      editImage: editImageMock,
+      uploadImageAsset: uploadImageAssetMock,
+      setImageAssetSaved: setImageAssetSavedMock,
+    },
+  };
+});
 
 beforeEach(() => {
   editImageMock.mockClear();
   generateImageMock.mockClear();
-  getModelsMock.mockClear();
-  getOwnProviderSettingsMock.mockClear();
-  getRuntimeConfigMock.mockClear();
+  getImageCatalogMock.mockClear();
+  getImageHistoryMock.mockClear();
+  setImageAssetSavedMock.mockClear();
+  uploadImageAssetMock.mockClear();
 });
 
-test(
-  'ImageGenerationPage submits a generation request without references',
-  async () => {
-    const user = userEvent.setup();
+test('ImageGenerationPage renders providers and fields from the backend image catalog', async () => {
+  renderWithProviders(<ImageGenerationPage />);
 
-    renderWithProviders(<ImageGenerationPage />);
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  await waitFor(() => expect(getImageCatalogMock).toHaveBeenCalledTimes(1));
 
-    await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  expect(screen.getByTestId('image-provider-select')).toBeInTheDocument();
+  expect(screen.getByTestId('image-model-select')).toBeInTheDocument();
+  expect(screen.getByTestId('image-response-format-select')).toBeInTheDocument();
+  expect(screen.getByText('History')).toBeInTheDocument();
+  expect(screen.getByText('10 items per page')).toBeInTheDocument();
+});
 
-    fireEvent.change(screen.getByLabelText('Prompt'), {
-      target: { value: 'A chrome hummingbird hovering over a flower' },
-    });
-    await user.click(screen.getByTestId('image-submit'));
+test('ImageGenerationPage generates, saves, and reuses image assets from history', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
 
-    await waitFor(() => expect(generateImageMock).toHaveBeenCalledTimes(1));
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'A chrome hummingbird hovering over a flower' },
+  });
 
-    expect(generateImageMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerId: 'xai',
-        model: 'grok-imagine-image',
-        prompt: 'A chrome hummingbird hovering over a flower',
-        responseFormat: 'url',
-      }),
-    );
-    expect(editImageMock).not.toHaveBeenCalled();
-    expect(await screen.findByTestId('image-result-0')).toBeInTheDocument();
-    expect(getModelsMock).toHaveBeenCalledWith('xai');
-    expect(screen.queryByText('Grok Image')).not.toBeInTheDocument();
-  },
-  10000,
-);
+  await user.click(screen.getByTestId('image-submit'));
 
-test(
-  'ImageGenerationPage exposes Google Nano Banana models and allows remote HTTPS reference URLs',
-  async () => {
-    const user = userEvent.setup();
+  await waitFor(() => expect(generateImageMock).toHaveBeenCalledTimes(1));
+  expect(await screen.findByTestId('image-result-0')).toBeInTheDocument();
 
-    renderWithProviders(<ImageGenerationPage />);
+  await user.click(screen.getAllByRole('button', { name: 'Save' })[0]);
+  await waitFor(() =>
+    expect(setImageAssetSavedMock).toHaveBeenCalledWith('asset-result-1', true),
+  );
 
-    await screen.findByRole('heading', { name: 'Image Generation Lab' });
-    fireEvent.click(screen.getByTestId('image-provider-select'));
-    await waitFor(() =>
-      expect(
-        document.querySelector('[role="option"][value="google"]'),
-      ).not.toBeNull(),
-    );
-    fireEvent.click(
-      document.querySelector('[role="option"][value="google"]') as Element,
-    );
+  await user.click(screen.getAllByRole('button', { name: 'Use' })[0]);
+  expect(screen.getByText('History asset 1')).toBeInTheDocument();
+});
 
-    await waitFor(() => expect(getModelsMock).toHaveBeenCalledWith('google'));
+test('ImageGenerationPage paginates history and routes edit mode through asset references', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
 
-    expect(screen.getByText('Google reference mode')).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Google image editing accepts uploaded files, pasted data URLs, and public HTTPS image URLs. Local network, private, or unsupported remote targets are blocked by the gateway.',
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Grok Imagine Image')).not.toBeInTheDocument();
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  await user.click(screen.getByRole('button', { name: 'Next' }));
 
-    fireEvent.change(screen.getByLabelText('Prompt'), {
-      target: { value: 'A clean product shot of a smartwatch' },
-    });
-    fireEvent.change(screen.getByLabelText('Reference image URL'), {
-      target: { value: 'https://example.com/source.png' },
-    });
-    await user.click(screen.getByTestId('image-add-reference-url'));
+  await waitFor(() => expect(getImageHistoryMock).toHaveBeenCalledWith(2));
 
-    await user.click(screen.getByTestId('image-submit'));
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="xai"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="xai"]') as Element);
 
-    await waitFor(() => expect(editImageMock).toHaveBeenCalledTimes(1));
-    expect(editImageMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerId: 'google',
-        model: 'gemini-2.5-flash-image',
-        prompt: 'A clean product shot of a smartwatch',
-        responseFormat: 'b64_json',
-        resolution: '1K',
-        images: [
-          {
-            type: 'image_url',
-            url: 'https://example.com/source.png',
-            mimeType: undefined,
-          },
-        ],
-      }),
-    );
-    expect(generateImageMock).not.toHaveBeenCalled();
-  },
-  10000,
-);
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'Turn this into a cinematic still' },
+  });
+  await user.click(screen.getByRole('button', { name: 'Use' }));
+  await user.click(screen.getByTestId('image-submit'));
 
-test(
-  'ImageGenerationPage exposes OpenAI image models and provider-owned image controls',
-  async () => {
-    const user = userEvent.setup();
-
-    renderWithProviders(<ImageGenerationPage />);
-
-    await screen.findByRole('heading', { name: 'Image Generation Lab' });
-    fireEvent.click(screen.getByTestId('image-provider-select'));
-    await waitFor(() =>
-      expect(
-        document.querySelector('[role="option"][value="openai"]'),
-      ).not.toBeNull(),
-    );
-    fireEvent.click(
-      document.querySelector('[role="option"][value="openai"]') as Element,
-    );
-
-    await waitFor(() => expect(getModelsMock).toHaveBeenCalledWith('openai'));
-
-    expect(screen.queryByText('Aspect ratio')).not.toBeInTheDocument();
-    expect(await screen.findByTestId('image-background-select')).toBeInTheDocument();
-    expect(screen.getByTestId('image-quality-select')).toBeInTheDocument();
-    expect(screen.getByTestId('image-output-format-select')).toBeInTheDocument();
-    expect(screen.getByTestId('image-output-compression-input')).toBeInTheDocument();
-    expect(screen.getByText(/Editing unavailable/i)).toBeInTheDocument();
-    expect(screen.getByTestId('image-add-reference-url')).toBeDisabled();
-    expect(screen.getByTestId('image-upload-reference')).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText('Prompt'), {
-      target: { value: 'A transparent product shot of a perfume bottle' },
-    });
-    fireEvent.click(screen.getByTestId('image-background-select'));
-    fireEvent.click(
-      document.querySelector('[role="option"][value="transparent"]') as Element,
-    );
-    fireEvent.click(screen.getByTestId('image-quality-select'));
-    fireEvent.click(
-      document.querySelector('[role="option"][value="high"]') as Element,
-    );
-    fireEvent.click(screen.getByTestId('image-output-format-select'));
-    fireEvent.click(
-      document.querySelector('[role="option"][value="webp"]') as Element,
-    );
-    fireEvent.change(screen.getByTestId('image-output-compression-input'), {
-      target: { value: '80' },
-    });
-
-    await user.click(screen.getByTestId('image-submit'));
-
-    await waitFor(() => expect(generateImageMock).toHaveBeenCalledTimes(1));
-    expect(generateImageMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerId: 'openai',
-        model: 'gpt-image-1.5',
-        prompt: 'A transparent product shot of a perfume bottle',
-        background: 'transparent',
-        quality: 'high',
-        outputFormat: 'webp',
-        outputCompression: 80,
-      }),
-    );
-  },
-  10000,
-);
-
-test(
-  'ImageGenerationPage disables OpenAI reference-image editing when the model is generation-only',
-  async () => {
-    const user = userEvent.setup();
-
-    renderWithProviders(<ImageGenerationPage />);
-
-    await screen.findByRole('heading', { name: 'Image Generation Lab' });
-    fireEvent.click(screen.getByTestId('image-provider-select'));
-    await waitFor(() =>
-      expect(
-        document.querySelector('[role="option"][value="openai"]'),
-      ).not.toBeNull(),
-    );
-    fireEvent.click(
-      document.querySelector('[role="option"][value="openai"]') as Element,
-    );
-
-    await waitFor(() => expect(getModelsMock).toHaveBeenCalledWith('openai'));
-    expect(await screen.findByText(/Editing unavailable/i)).toBeInTheDocument();
-    expect(screen.getByTestId('image-add-reference-url')).toBeDisabled();
-    expect(screen.getByTestId('image-upload-reference')).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText('Prompt'), {
-      target: { value: 'Keep the subject and replace the background' },
-    });
-    await user.click(screen.getByTestId('image-submit'));
-
-    await waitFor(() => expect(generateImageMock).toHaveBeenCalledTimes(1));
-    expect(editImageMock).not.toHaveBeenCalled();
-    expect(screen.getByText(/generation only in the gateway/i)).toBeInTheDocument();
-  },
-  10000,
-);
-
-test(
-  'ImageGenerationPage switches to edit mode when a reference URL is added',
-  async () => {
-    const user = userEvent.setup();
-
-    renderWithProviders(<ImageGenerationPage />);
-
-    await screen.findByRole('heading', { name: 'Image Generation Lab' });
-
-    fireEvent.change(screen.getByLabelText('Prompt'), {
-      target: { value: 'Turn this into a cinematic still' },
-    });
-    fireEvent.change(screen.getByLabelText('Reference image URL'), {
-      target: { value: 'https://example.com/source.png' },
-    });
-    await user.click(screen.getByTestId('image-add-reference-url'));
-    await user.click(screen.getByTestId('image-submit'));
-
-    await waitFor(() => expect(editImageMock).toHaveBeenCalledTimes(1));
-
-    expect(editImageMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerId: 'xai',
-        model: 'grok-imagine-image',
-        prompt: 'Turn this into a cinematic still',
-        responseFormat: 'url',
-        images: [
-          {
-            type: 'image_url',
-            url: 'https://example.com/source.png',
-            mimeType: undefined,
-          },
-        ],
-      }),
-    );
-    expect(generateImageMock).not.toHaveBeenCalled();
-    expect(screen.getByText('Aspect ratio')).toBeInTheDocument();
-    expect(screen.queryByText('Supported aspect ratios')).not.toBeInTheDocument();
-    expect(screen.queryByText('Social media, thumbnails')).not.toBeInTheDocument();
-  },
-  10000,
-);
+  await waitFor(() => expect(editImageMock).toHaveBeenCalledTimes(1));
+  expect(editImageMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'xai',
+      model: 'grok-imagine-image',
+      images: [{ type: 'asset', assetId: 'asset-history-2' }],
+    }),
+  );
+});

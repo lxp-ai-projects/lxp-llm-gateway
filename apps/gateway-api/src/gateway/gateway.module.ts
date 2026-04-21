@@ -24,6 +24,10 @@ import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 import { EncryptionService } from '../security/encryption.service';
+import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
+import { ImageJobEntity } from '../persistence/entities/image-job.entity';
+import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
+import { ImageApplicationService } from '../images/image-application.service';
 
 @Module({
   imports: [
@@ -31,6 +35,9 @@ import { EncryptionService } from '../security/encryption.service';
       UserEntity,
       ProviderEntity,
       UserProviderCredentialEntity,
+      ImageAssetEntity,
+      ImageJobEntity,
+      ImageJobResultEntity,
     ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -46,6 +53,7 @@ import { EncryptionService } from '../security/encryption.service';
     GatewayService,
     ProviderCredentialService,
     ProviderRegistryService,
+    ImageApplicationService,
     EncryptionService,
     {
       provide: LLM_PROVIDERS,

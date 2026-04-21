@@ -4,9 +4,6 @@ import { BadGatewayException } from '@nestjs/common';
 import type {
   GatewayChatRequest,
   GatewayChatResponse,
-  GatewayImageEditRequest,
-  GatewayImageGenerationRequest,
-  GatewayImageGenerationResponse,
 } from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
@@ -60,39 +57,6 @@ class FakeProvider implements LlmProviderAdapter {
     });
   }
 
-  async generateImage(
-    request: GatewayImageGenerationRequest,
-    context: ProviderExecutionContext,
-  ): Promise<GatewayImageGenerationResponse> {
-    return {
-      requestId: context.requestId,
-      providerId: this.providerId,
-      model: request.model ?? 'unknown-model',
-      images: [
-        {
-          url: 'https://example.com/generated.jpg',
-          revisedPrompt: request.prompt,
-        },
-      ],
-    };
-  }
-
-  async editImage(
-    request: GatewayImageEditRequest,
-    context: ProviderExecutionContext,
-  ): Promise<GatewayImageGenerationResponse> {
-    return {
-      requestId: context.requestId,
-      providerId: this.providerId,
-      model: request.model ?? 'unknown-model',
-      images: [
-        {
-          b64Json: 'edited-image',
-          revisedPrompt: `${request.prompt} (${request.images.length})`,
-        },
-      ],
-    };
-  }
 }
 
 class FakeProviderRegistryService {
@@ -461,66 +425,4 @@ test('GatewayService rejects missing model when no default model exists for the 
       ),
     /no default model is configured/i,
   );
-});
-
-test('GatewayService routes image generation requests through the provider registry', async () => {
-  const service = new GatewayService(
-    new FakeGatewayAuditService() as unknown as GatewayAuditService,
-    new FakeProviderRegistryService() as never,
-    new FakeProviderCredentialService() as never,
-  );
-
-  const response = await service.generateImage(
-    {
-      prompt: 'A moonlit forest in watercolor',
-      model: 'grok-imagine-image',
-      responseFormat: 'url',
-    } as never,
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      roles: ['user'],
-      defaultProviderId: 'nanogpt',
-      defaultModel: 'fallback-model',
-    },
-  );
-
-  assert.equal(response.providerId, 'nanogpt');
-  assert.equal(response.model, 'grok-imagine-image');
-  assert.equal(response.images[0]?.url, 'https://example.com/generated.jpg');
-});
-
-test('GatewayService routes image edit requests with references through the provider registry', async () => {
-  const service = new GatewayService(
-    new FakeGatewayAuditService() as unknown as GatewayAuditService,
-    new FakeProviderRegistryService() as never,
-    new FakeProviderCredentialService() as never,
-  );
-
-  const response = await service.editImage(
-    {
-      prompt: 'Make this cinematic',
-      model: 'grok-imagine-image',
-      images: [
-        {
-          type: 'image_url',
-          url: 'https://example.com/ref.png',
-        },
-      ],
-      responseFormat: 'b64_json',
-    } as never,
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      roles: ['user'],
-      defaultProviderId: 'nanogpt',
-      defaultModel: 'fallback-model',
-    },
-  );
-
-  assert.equal(response.providerId, 'nanogpt');
-  assert.equal(response.images[0]?.b64Json, 'edited-image');
-  assert.match(response.images[0]?.revisedPrompt ?? '', /\(1\)/);
 });

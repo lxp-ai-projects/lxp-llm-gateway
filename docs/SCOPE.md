@@ -389,3 +389,10 @@ Phase 1 now ends with:
 Phase 2 should build on this state rather than re-open foundational architecture decisions.
 
 The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection, output format, transparency/background handling, input fidelity, and compression controls.
+
+The current implementation now also includes:
+
+- a canonical image provider catalog contract returned by `gateway-api`
+- gateway-managed image asset upload for mobile-safe reference workflows
+- persisted image job history with pagination at 10 jobs per page
+- save and reuse flows for generated images through gateway-managed assets

@@ -192,6 +192,26 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
     return [...listedModels, ...knownImageModels];
   }
 
+  async listImageCatalog(context: ProviderExecutionContext) {
+    const models = await this.listModels(context);
+    return {
+      providerId: this.providerId,
+      defaultModelId: 'gemini-2.5-flash-image',
+      models: models
+        .filter(
+          (model) =>
+            Boolean(model.capabilities) &&
+            (model.capabilities?.supportsImageGeneration ||
+              model.capabilities?.supportsImageEditing),
+        )
+        .map((model) => ({
+          id: model.id,
+          displayName: model.displayName,
+          capabilities: model.capabilities as NonNullable<ProviderModel['capabilities']>,
+        })),
+    };
+  }
+
   async chat(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -556,17 +576,23 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
       };
     }
 
-    return {
-      supportsStreaming: false,
-      supportsImageGeneration: true,
-      supportsImageEditing: true,
-      supportedImageAspectRatios: [...GOOGLE_IMAGE_ASPECT_RATIOS],
-      supportedImageResponseFormats: [...GOOGLE_IMAGE_RESPONSE_FORMATS],
-      supportedImageResolutions: [
-        ...imageModelMetadata.supportedImageResolutions,
-      ],
-      ...(('maxReferenceImagesPerRequest' in imageModelMetadata &&
-        typeof imageModelMetadata.maxReferenceImagesPerRequest === 'number')
+      return {
+        supportsStreaming: false,
+        supportsImageGeneration: true,
+        supportsImageEditing: true,
+        supportedImageAspectRatios: [...GOOGLE_IMAGE_ASPECT_RATIOS],
+        supportedImageResponseFormats: [...GOOGLE_IMAGE_RESPONSE_FORMATS],
+        supportedImageResolutions: [
+          ...imageModelMetadata.supportedImageResolutions,
+        ],
+        imageDefaults: {
+          responseFormat: 'b64_json',
+          resolution: imageModelMetadata.supportedImageResolutions[0]?.value,
+          aspectRatio: GOOGLE_IMAGE_ASPECT_RATIOS[0]?.value,
+          imageCount: 1,
+        } as const,
+        ...(('maxReferenceImagesPerRequest' in imageModelMetadata &&
+          typeof imageModelMetadata.maxReferenceImagesPerRequest === 'number')
         ? {
             maxReferenceImagesPerRequest:
               imageModelMetadata.maxReferenceImagesPerRequest,

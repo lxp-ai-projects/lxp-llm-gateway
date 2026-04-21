@@ -210,6 +210,21 @@ At the moment, the gateway exposes OpenAI GPT Image as generation-only because t
 
 The seam itself should only know about normalized image-generation requests and responses.
 
+The application layer now owns:
+
+- image provider catalog aggregation for UI consumption
+- gateway-managed image asset upload and retrieval
+- image job persistence and paginated history
+- save state for generated assets
+- resolution of gateway-managed asset references into provider-consumable image inputs before provider dispatch
+
+Provider adapters remain responsible only for:
+
+- provider communication
+- provider-owned model catalogs and defaults
+- provider-specific validation and payload mapping
+- provider-specific response normalization
+
 ## UI Direction
 
 The planned operator-facing surface for this capability is an `Image Generation Lab` in `admin-web`.
@@ -218,4 +233,4 @@ That UI should remain behind the same backend boundaries already used for chat:
 
 - `admin-web` should talk to application APIs, not directly to providers
 - provider credential reuse should follow the existing BYOK model
-- reference image upload, prompting, and result display should be capability-specific UI concerns, not provider-specific page logic
+- reference image upload, prompting, result display, save actions, and history pagination should be capability-specific UI concerns, not provider-specific page logic
