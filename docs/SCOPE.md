@@ -213,7 +213,7 @@ Provider abstraction seam:
 - normalized provider result types
 - shared provider execution contracts
 - capability-oriented contracts for chat, model catalog, image generation, and image editing
-- provider-owned model metadata for capability-specific constraints such as supported image aspect ratios, response formats, resolutions, and request limits
+- provider-owned model metadata for capability-specific constraints such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, input fidelity, compression ranges, and request limits
 - provider access configuration that can represent:
   - bearer-token providers such as `NanoGPT` and `OpenRouter`
   - endpoint-based providers such as `Ollama`
@@ -329,14 +329,21 @@ The first concrete implementations are:
 
 - xAI Grok Imagine through `provider-xai`
 - Google Nano Banana through `provider-google`
+- OpenAI GPT Image through `provider-openai`
 
 That capability now supports:
 
 - prompt-based image generation
 - prompt-based image editing
 - reference images supplied as URLs or data URLs
-- provider-defined image model metadata such as supported aspect ratios, response formats, resolutions, and request limits
-- future extension to additional providers such as OpenAI image generation without redefining the seam again
+- provider-defined image model metadata such as supported aspect ratios, response formats, resolutions, output formats, backgrounds, quality presets, input fidelity, compression ranges, and request limits
+- future extension to additional providers without redefining the seam again
+
+Current provider reality is capability-specific:
+
+- `xAI Grok` image models support generation and editing
+- `Google Gemini` image models support generation and editing
+- `OpenAI GPT Image` is currently generation-only in the gateway because the live OpenAI `images/edits` endpoint still rejects GPT Image models and reports `dall-e-2` as the accepted edit model
 
 ## Persistence Strategy
 
@@ -381,4 +388,4 @@ Phase 1 now ends with:
 
 Phase 2 should build on this state rather than re-open foundational architecture decisions.
 
-The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection.
+The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection, output format, transparency/background handling, input fidelity, and compression controls.

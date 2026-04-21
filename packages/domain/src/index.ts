@@ -28,6 +28,34 @@ export interface ImageResolutionOption {
   label: string;
 }
 
+export interface ImageOutputFormatOption {
+  value: string;
+  label: string;
+}
+
+export interface ImageBackgroundOption {
+  value: string;
+  label: string;
+}
+
+export interface ImageQualityOption {
+  value: string;
+  label: string;
+}
+
+export interface ImageInputFidelityOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+
+export interface ImageOutputCompressionRange {
+  min: number;
+  max: number;
+  defaultValue?: number;
+  step?: number;
+}
+
 export interface ModelCapability {
   id: string;
   supportsStreaming: boolean;
@@ -36,6 +64,11 @@ export interface ModelCapability {
   supportedImageAspectRatios?: ImageAspectRatioOption[];
   supportedImageResponseFormats?: string[];
   supportedImageResolutions?: ImageResolutionOption[];
+  supportedImageOutputFormats?: ImageOutputFormatOption[];
+  supportedImageBackgrounds?: ImageBackgroundOption[];
+  supportedImageQualities?: ImageQualityOption[];
+  supportedImageInputFidelities?: ImageInputFidelityOption[];
+  imageOutputCompressionRange?: ImageOutputCompressionRange;
   maxGeneratedImagesPerRequest?: number;
   maxReferenceImagesPerRequest?: number;
 }

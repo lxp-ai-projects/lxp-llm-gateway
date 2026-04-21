@@ -67,6 +67,7 @@ export {
 export {
   buildProviderHttpError,
   formatGoogleGeminiRateLimitError,
+  formatOpenAiRateLimitError,
 } from './provider-error-utils.js';
 export type {
   PublicImageReferencePolicy,

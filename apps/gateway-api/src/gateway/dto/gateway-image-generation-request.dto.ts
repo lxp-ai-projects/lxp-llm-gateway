@@ -1,6 +1,7 @@
 import {
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Max,
@@ -56,4 +57,25 @@ export class GatewayImageGenerationRequestDto
   @IsString()
   @MinLength(1)
   resolution?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  background?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  quality?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  outputFormat?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  outputCompression?: number;
 }

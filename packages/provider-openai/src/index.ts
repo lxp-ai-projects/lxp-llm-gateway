@@ -1,15 +1,74 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayGeneratedImage,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+  GatewayImageGenerationResponse,
+} from '@lxp/contracts';
+import {
+  buildProviderHttpError,
+  formatOpenAiRateLimitError,
+} from '@lxp/provider-sdk';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
 
+const OPENAI_IMAGE_MODELS = {
+  'gpt-image-1.5': {
+    displayName: 'GPT Image 1.5',
+  },
+  'gpt-image-1': {
+    displayName: 'GPT Image 1',
+  },
+  'gpt-image-1-mini': {
+    displayName: 'GPT Image 1 Mini',
+  },
+} as const;
+const OPENAI_IMAGE_RESPONSE_FORMATS = ['url', 'b64_json'] as const;
+const OPENAI_IMAGE_RESOLUTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: '1024x1024', label: '1024x1024' },
+  { value: '1536x1024', label: '1536x1024' },
+  { value: '1024x1536', label: '1024x1536' },
+] as const;
+const OPENAI_IMAGE_OUTPUT_FORMATS = [
+  { value: 'png', label: 'PNG' },
+  { value: 'jpeg', label: 'JPEG' },
+  { value: 'webp', label: 'WebP' },
+] as const;
+const OPENAI_IMAGE_BACKGROUNDS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'opaque', label: 'Opaque' },
+  { value: 'transparent', label: 'Transparent' },
+] as const;
+const OPENAI_IMAGE_QUALITIES = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+] as const;
+const OPENAI_IMAGE_INPUT_FIDELITIES = [
+  {
+    value: 'low',
+    label: 'Low',
+    description: 'Looser adherence to the reference image.',
+  },
+  {
+    value: 'high',
+    label: 'High',
+    description: 'Preserve source details more strictly.',
+  },
+] as const;
+type OpenAiImageModelId = keyof typeof OPENAI_IMAGE_MODELS;
+
 export class OpenAiProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
     chat: true,
     modelCatalog: true,
-    imageGeneration: false,
+    imageGeneration: true,
     imageEditing: false,
   } as const;
 
@@ -50,10 +109,23 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
       }>;
     };
 
-    return (payload.data ?? []).map((model) => ({
+    const listedModels = (payload.data ?? []).map((model) => ({
       id: model.id,
-      displayName: model.id,
+      displayName: this.resolveModelDisplayName(model.id),
+      capabilities: this.resolveModelCapabilities(model.id),
     }));
+    const knownImageModels = Object.entries(OPENAI_IMAGE_MODELS)
+      .filter(
+        ([modelId]) =>
+          !listedModels.some((listedModel) => listedModel.id === modelId),
+      )
+      .map(([modelId, metadata]) => ({
+        id: modelId,
+        displayName: metadata.displayName,
+        capabilities: this.resolveModelCapabilities(modelId),
+      }));
+
+    return [...listedModels, ...knownImageModels];
   }
 
   async chat(
@@ -132,6 +204,60 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     return response.body;
   }
 
+  async generateImage(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse> {
+    const model = request.model ?? 'gpt-image-1.5';
+    this.assertSupportedImageModel(model);
+
+    const response = await this.fetchWithTimeout(
+      `${this.resolveBaseUrl(context)}/images/generations`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...this.resolveHeaders(context),
+        },
+        body: JSON.stringify({
+          model,
+          prompt: request.prompt,
+          n: request.n,
+          size: request.resolution,
+          response_format: request.responseFormat,
+          background: request.background,
+          quality: request.quality,
+          output_format: request.outputFormat,
+          output_compression: request.outputCompression,
+          user: context.userId,
+        }),
+      },
+      this.requestTimeoutMs,
+    );
+
+    if (!response.ok) {
+      throw await buildProviderHttpError('OpenAI image request', response, {
+        rateLimitFormatter: formatOpenAiRateLimitError,
+      });
+    }
+
+    const payload = (await response.json()) as OpenAiImageResponsePayload;
+    return this.mapImageResponse(model, context, payload);
+  }
+
+  async editImage(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse> {
+    const model = request.model ?? 'gpt-image-1.5';
+    this.assertSupportedImageModel(model);
+    void context;
+
+    throw new Error(
+      'OpenAI GPT Image editing is temporarily unavailable in the gateway because the upstream OpenAI Images API currently rejects GPT Image models on the image edits endpoint.',
+    );
+  }
+
   private dispatchChatRequest(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -176,6 +302,67 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     return headers;
   }
 
+  private resolveModelDisplayName(modelId: string) {
+    return OPENAI_IMAGE_MODELS[modelId as OpenAiImageModelId]?.displayName ?? modelId;
+  }
+
+  private resolveModelCapabilities(modelId: string) {
+    if (!(modelId in OPENAI_IMAGE_MODELS)) {
+      return {
+        supportsStreaming: true,
+      };
+    }
+
+    return {
+      supportsStreaming: false,
+      supportsImageGeneration: true,
+      supportsImageEditing: false,
+      supportedImageResponseFormats: [...OPENAI_IMAGE_RESPONSE_FORMATS],
+      supportedImageResolutions: [...OPENAI_IMAGE_RESOLUTIONS],
+      supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
+      supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
+      supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
+      supportedImageInputFidelities: [...OPENAI_IMAGE_INPUT_FIDELITIES],
+      imageOutputCompressionRange: {
+        min: 0,
+        max: 100,
+        defaultValue: 100,
+        step: 1,
+      },
+      maxGeneratedImagesPerRequest: 10,
+    };
+  }
+
+  private assertSupportedImageModel(modelId: string) {
+    if (!(modelId in OPENAI_IMAGE_MODELS)) {
+      throw new Error(`OpenAI image model ${modelId} is not supported.`);
+    }
+  }
+
+  private mapImageResponse(
+    requestedModel: string,
+    context: ProviderExecutionContext,
+    payload: OpenAiImageResponsePayload,
+  ): GatewayImageGenerationResponse {
+    return {
+      requestId: context.requestId,
+      providerId: this.providerId,
+      model: requestedModel,
+      images: (payload.data ?? []).map((image) => this.mapGeneratedImage(image)),
+      providerMetadata: {
+        created: payload.created,
+      },
+    };
+  }
+
+  private mapGeneratedImage(image: OpenAiGeneratedImage): GatewayGeneratedImage {
+    return {
+      url: image.url,
+      b64Json: image.b64_json,
+      revisedPrompt: image.revised_prompt,
+    };
+  }
+
   private async fetchWithTimeout(
     url: string,
     init: RequestInit,
@@ -203,4 +390,15 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
       clearTimeout(timeoutId);
     }
   }
+}
+
+interface OpenAiGeneratedImage {
+  url?: string;
+  b64_json?: string;
+  revised_prompt?: string;
+}
+
+interface OpenAiImageResponsePayload {
+  created?: number;
+  data?: OpenAiGeneratedImage[];
 }

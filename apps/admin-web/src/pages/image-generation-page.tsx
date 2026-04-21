@@ -7,6 +7,7 @@ import {
   Group,
   HoverCard,
   Image,
+  NumberInput,
   Select,
   Stack,
   Text,
@@ -28,8 +29,12 @@ import { PageHeader } from '../components/page-header';
 import { gatewayApiClient, adminApiClient } from '../lib/api-client';
 import type { GatewayImageReference } from '../lib/api-client';
 import type {
+  ImageBackgroundOption,
   GatewayGeneratedImage,
   ImageAspectRatioOption,
+  ImageInputFidelityOption,
+  ImageOutputFormatOption,
+  ImageQualityOption,
   ImageResolutionOption,
 } from '../lib/api-client.types';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
@@ -43,9 +48,10 @@ type ReferenceImageItem = GatewayImageReference & {
   label: string;
 };
 
-const IMAGE_PROVIDER_IDS = ['google', 'xai'] as const;
+const IMAGE_PROVIDER_IDS = ['google', 'openai', 'xai'] as const;
 const DEFAULT_IMAGE_MODELS: Record<(typeof IMAGE_PROVIDER_IDS)[number], string> = {
   google: 'gemini-2.5-flash-image',
+  openai: 'gpt-image-1.5',
   xai: 'grok-imagine-image',
 };
 const ALLOWED_XAI_IMAGE_MODEL_IDS = new Set([
@@ -57,6 +63,11 @@ const ALLOWED_GOOGLE_IMAGE_MODEL_IDS = new Set([
   'gemini-3-pro-image-preview',
   'gemini-3.1-flash-image-preview',
 ]);
+const ALLOWED_OPENAI_IMAGE_MODEL_IDS = new Set([
+  'gpt-image-1.5',
+  'gpt-image-1',
+  'gpt-image-1-mini',
+]);
 const RESPONSE_FORMAT_OPTIONS = [
   { value: 'url', label: 'Hosted URL' },
   { value: 'b64_json', label: 'Base64' },
@@ -64,7 +75,7 @@ const RESPONSE_FORMAT_OPTIONS = [
 const DEFAULT_IMAGE_COUNT_LIMIT = 4;
 const DEFAULT_REFERENCE_IMAGE_LIMIT = 5;
 const GOOGLE_REFERENCE_IMAGE_NOTE =
-  'Google image editing accepts uploaded files, pasted data URLs, and public HTTPS image URLs. Local, private, or unsupported remote targets are blocked by the gateway.';
+  'Google image editing accepts uploaded files, pasted data URLs, and public HTTPS image URLs. Local network, private, or unsupported remote targets are blocked by the gateway.';
 
 export function ImageGenerationPage() {
   const runtimeConfigQuery = useRuntimeConfig();
@@ -77,6 +88,11 @@ export function ImageGenerationPage() {
     'url',
   );
   const [resolution, setResolution] = useState('');
+  const [background, setBackground] = useState('');
+  const [quality, setQuality] = useState('');
+  const [outputFormat, setOutputFormat] = useState('');
+  const [outputCompression, setOutputCompression] = useState<number | ''>('');
+  const [inputFidelity, setInputFidelity] = useState('');
   const [imageCount, setImageCount] = useState('1');
   const [referenceUrl, setReferenceUrl] = useState('');
   const [references, setReferences] = useState<ReferenceImageItem[]>([]);
@@ -112,7 +128,9 @@ export function ImageGenerationPage() {
           (providerId !== 'xai' ||
             ALLOWED_XAI_IMAGE_MODEL_IDS.has(providerModel.id)) &&
           (providerId !== 'google' ||
-            ALLOWED_GOOGLE_IMAGE_MODEL_IDS.has(providerModel.id)),
+            ALLOWED_GOOGLE_IMAGE_MODEL_IDS.has(providerModel.id)) &&
+          (providerId !== 'openai' ||
+            ALLOWED_OPENAI_IMAGE_MODEL_IDS.has(providerModel.id)),
       ),
     [modelsQuery.data?.models, providerId],
   );
@@ -150,6 +168,36 @@ export function ImageGenerationPage() {
       ),
     [selectedModel?.capabilities?.supportedImageResolutions],
   );
+  const backgroundOptions = useMemo(
+    () =>
+      buildProviderSelectOptions(
+        selectedModel?.capabilities?.supportedImageBackgrounds,
+      ),
+    [selectedModel?.capabilities?.supportedImageBackgrounds],
+  );
+  const qualityOptions = useMemo(
+    () =>
+      buildProviderSelectOptions(
+        selectedModel?.capabilities?.supportedImageQualities,
+      ),
+    [selectedModel?.capabilities?.supportedImageQualities],
+  );
+  const outputFormatOptions = useMemo(
+    () =>
+      buildProviderSelectOptions(
+        selectedModel?.capabilities?.supportedImageOutputFormats,
+      ),
+    [selectedModel?.capabilities?.supportedImageOutputFormats],
+  );
+  const inputFidelityOptions = useMemo(
+    () =>
+      buildInputFidelityOptions(
+        selectedModel?.capabilities?.supportedImageInputFidelities,
+      ),
+    [selectedModel?.capabilities?.supportedImageInputFidelities],
+  );
+  const outputCompressionRange =
+    selectedModel?.capabilities?.imageOutputCompressionRange;
   const imageCountOptions = useMemo(
     () =>
       buildImageCountOptions(
@@ -160,6 +208,26 @@ export function ImageGenerationPage() {
   const maxReferenceImages =
     selectedModel?.capabilities?.maxReferenceImagesPerRequest ??
     DEFAULT_REFERENCE_IMAGE_LIMIT;
+  const supportsAspectRatios = Boolean(
+    selectedModel?.capabilities?.supportedImageAspectRatios?.length,
+  );
+  const supportsImageEditing =
+    selectedModel?.capabilities?.supportsImageEditing !== false;
+  const supportsBackgroundSelection =
+    backgroundOptions.length > 0 &&
+    !(providerId === 'openai' && references.length > 0);
+  const supportsQualitySelection =
+    qualityOptions.length > 0 &&
+    !(providerId === 'openai' && references.length > 0);
+  const supportsOutputFormatSelection =
+    outputFormatOptions.length > 0 &&
+    !(providerId === 'openai' && references.length > 0);
+  const supportsOutputCompressionSelection =
+    Boolean(outputCompressionRange) &&
+    !(providerId === 'openai' && references.length > 0);
+  const supportsInputFidelitySelection =
+    inputFidelityOptions.length > 0 &&
+    !(providerId === 'openai' && references.length > 0);
 
   useEffect(() => {
     if (providerId) {
@@ -227,6 +295,85 @@ export function ImageGenerationPage() {
   }, [resolution, resolutionOptions]);
 
   useEffect(() => {
+    if (!backgroundOptions.length) {
+      if (background) {
+        setBackground('');
+      }
+      return;
+    }
+
+    if (backgroundOptions.some((option) => option.value === background)) {
+      return;
+    }
+
+    setBackground(backgroundOptions[0]?.value ?? '');
+  }, [background, backgroundOptions]);
+
+  useEffect(() => {
+    if (!qualityOptions.length) {
+      if (quality) {
+        setQuality('');
+      }
+      return;
+    }
+
+    if (qualityOptions.some((option) => option.value === quality)) {
+      return;
+    }
+
+    setQuality(qualityOptions[0]?.value ?? '');
+  }, [quality, qualityOptions]);
+
+  useEffect(() => {
+    if (!outputFormatOptions.length) {
+      if (outputFormat) {
+        setOutputFormat('');
+      }
+      return;
+    }
+
+    if (outputFormatOptions.some((option) => option.value === outputFormat)) {
+      return;
+    }
+
+    setOutputFormat(outputFormatOptions[0]?.value ?? '');
+  }, [outputFormat, outputFormatOptions]);
+
+  useEffect(() => {
+    if (!inputFidelityOptions.length) {
+      if (inputFidelity) {
+        setInputFidelity('');
+      }
+      return;
+    }
+
+    if (inputFidelityOptions.some((option) => option.value === inputFidelity)) {
+      return;
+    }
+
+    setInputFidelity(inputFidelityOptions[0]?.value ?? '');
+  }, [inputFidelity, inputFidelityOptions]);
+
+  useEffect(() => {
+    if (!outputCompressionRange) {
+      if (outputCompression !== '') {
+        setOutputCompression('');
+      }
+      return;
+    }
+
+    if (
+      typeof outputCompression === 'number' &&
+      outputCompression >= outputCompressionRange.min &&
+      outputCompression <= outputCompressionRange.max
+    ) {
+      return;
+    }
+
+    setOutputCompression(outputCompressionRange.defaultValue ?? outputCompressionRange.max);
+  }, [outputCompression, outputCompressionRange]);
+
+  useEffect(() => {
     if (imageCountOptions.some((option) => option.value === imageCount)) {
       return;
     }
@@ -242,6 +389,12 @@ export function ImageGenerationPage() {
       }
 
       if (references.length > 0) {
+        if (!supportsImageEditing) {
+          throw new Error(
+            'OpenAI GPT Image editing is temporarily unavailable in the gateway because the upstream OpenAI Images API currently rejects GPT Image models on the image edits endpoint.',
+          );
+        }
+
         return gatewayApiClient.editImage({
           providerId,
           model,
@@ -253,9 +406,23 @@ export function ImageGenerationPage() {
               reference.type === 'data_url' ? reference.mimeType : undefined,
           })),
           n: Number(imageCount),
-          aspectRatio,
+          aspectRatio: supportsAspectRatios ? aspectRatio : undefined,
           responseFormat,
           resolution: resolution || undefined,
+          background: supportsBackgroundSelection ? background || undefined : undefined,
+          quality: supportsQualitySelection ? quality || undefined : undefined,
+          outputFormat: supportsOutputFormatSelection
+            ? outputFormat || undefined
+            : undefined,
+          outputCompression:
+            supportsOutputCompressionSelection &&
+            typeof outputCompression === 'number'
+              ? outputCompression
+              : undefined,
+          inputFidelity:
+            references.length > 0 && supportsInputFidelitySelection
+              ? inputFidelity || undefined
+              : undefined,
         });
       }
 
@@ -264,9 +431,19 @@ export function ImageGenerationPage() {
         model,
         prompt: trimmedPrompt,
         n: Number(imageCount),
-        aspectRatio,
+        aspectRatio: supportsAspectRatios ? aspectRatio : undefined,
         responseFormat,
         resolution: resolution || undefined,
+        background: supportsBackgroundSelection ? background || undefined : undefined,
+        quality: supportsQualitySelection ? quality || undefined : undefined,
+        outputFormat: supportsOutputFormatSelection
+          ? outputFormat || undefined
+          : undefined,
+        outputCompression:
+          supportsOutputCompressionSelection &&
+          typeof outputCompression === 'number'
+            ? outputCompression
+            : undefined,
       });
     },
     onSuccess: (response) => {
@@ -410,63 +587,65 @@ export function ImageGenerationPage() {
                 />
 
                 <Group grow align="start">
-                  <Select
-                    data={aspectRatioOptions}
-                    data-testid="image-aspect-ratio-select"
-                    label={
-                      supportedAspectRatios.length > 1 ? (
-                        <HoverCard shadow="md" width={320} withArrow>
-                          <HoverCard.Target>
-                            <Group
-                              gap={6}
-                              style={{
-                                borderBottom: '1px dotted var(--mantine-color-gray-5)',
-                                cursor: 'help',
-                                display: 'inline-flex',
-                              }}
-                              wrap="nowrap"
-                            >
-                              <Text component="span" fw={500}>
-                                Aspect ratio
-                              </Text>
-                              <IconInfoCircle
-                                aria-hidden="true"
-                                size={14}
-                                stroke={1.8}
-                                style={{ color: 'var(--mantine-color-gray-6)' }}
-                              />
-                            </Group>
-                          </HoverCard.Target>
-                          <HoverCard.Dropdown>
-                            <Stack gap="xs">
-                              <Text fw={600} size="sm">
-                                Supported ratios
-                              </Text>
-                              {supportedAspectRatios.map((aspectRatioOption) => (
-                                <Group
-                                  key={aspectRatioOption.value}
-                                  gap="xs"
-                                  justify="space-between"
-                                  wrap="nowrap"
-                                >
-                                  <Text fw={600} size="sm">
-                                    {aspectRatioOption.label}
-                                  </Text>
-                                  <Text c="dimmed" size="sm" ta="right">
-                                    {aspectRatioOption.useCase ?? 'Provider-defined'}
-                                  </Text>
-                                </Group>
-                              ))}
-                            </Stack>
-                          </HoverCard.Dropdown>
-                        </HoverCard>
-                      ) : (
-                        'Aspect ratio'
-                      )
-                    }
-                    onChange={(value) => setAspectRatio(value ?? 'auto')}
-                    value={aspectRatio}
-                  />
+                  {supportsAspectRatios ? (
+                    <Select
+                      data={aspectRatioOptions}
+                      data-testid="image-aspect-ratio-select"
+                      label={
+                        supportedAspectRatios.length > 1 ? (
+                          <HoverCard shadow="md" width={320} withArrow>
+                            <HoverCard.Target>
+                              <Group
+                                gap={6}
+                                style={{
+                                  borderBottom: '1px dotted var(--mantine-color-gray-5)',
+                                  cursor: 'help',
+                                  display: 'inline-flex',
+                                }}
+                                wrap="nowrap"
+                              >
+                                <Text component="span" fw={500}>
+                                  Aspect ratio
+                                </Text>
+                                <IconInfoCircle
+                                  aria-hidden="true"
+                                  size={14}
+                                  stroke={1.8}
+                                  style={{ color: 'var(--mantine-color-gray-6)' }}
+                                />
+                              </Group>
+                            </HoverCard.Target>
+                            <HoverCard.Dropdown>
+                              <Stack gap="xs">
+                                <Text fw={600} size="sm">
+                                  Supported ratios
+                                </Text>
+                                {supportedAspectRatios.map((aspectRatioOption) => (
+                                  <Group
+                                    key={aspectRatioOption.value}
+                                    gap="xs"
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                  >
+                                    <Text fw={600} size="sm">
+                                      {aspectRatioOption.label}
+                                    </Text>
+                                    <Text c="dimmed" size="sm" ta="right">
+                                      {aspectRatioOption.useCase ?? 'Provider-defined'}
+                                    </Text>
+                                  </Group>
+                                ))}
+                              </Stack>
+                            </HoverCard.Dropdown>
+                          </HoverCard>
+                        ) : (
+                          'Aspect ratio'
+                        )
+                      }
+                      onChange={(value) => setAspectRatio(value ?? 'auto')}
+                      value={aspectRatio}
+                    />
+                  ) : null}
                   <Select
                     data={responseFormatOptions}
                     data-testid="image-response-format-select"
@@ -485,20 +664,83 @@ export function ImageGenerationPage() {
                   />
                 </Group>
 
-                {resolutionOptions.length ? (
-                  <Select
-                    data={resolutionOptions}
-                    data-testid="image-resolution-select"
-                    label="Resolution"
-                    onChange={(value) => setResolution(value ?? '')}
-                    value={resolution}
-                  />
-                ) : null}
+                <Group grow align="start">
+                  {resolutionOptions.length ? (
+                    <Select
+                      data={resolutionOptions}
+                      data-testid="image-resolution-select"
+                      label="Resolution"
+                      onChange={(value) => setResolution(value ?? '')}
+                      value={resolution}
+                    />
+                  ) : null}
+                  {supportsBackgroundSelection ? (
+                    <Select
+                      data={backgroundOptions}
+                      data-testid="image-background-select"
+                      label="Background"
+                      onChange={(value) => setBackground(value ?? '')}
+                      value={background}
+                    />
+                  ) : null}
+                  {supportsQualitySelection ? (
+                    <Select
+                      data={qualityOptions}
+                      data-testid="image-quality-select"
+                      label="Quality"
+                      onChange={(value) => setQuality(value ?? '')}
+                      value={quality}
+                    />
+                  ) : null}
+                </Group>
+
+                <Group grow align="start">
+                  {supportsOutputFormatSelection ? (
+                    <Select
+                      data={outputFormatOptions}
+                      data-testid="image-output-format-select"
+                      label="Output format"
+                      onChange={(value) => setOutputFormat(value ?? '')}
+                      value={outputFormat}
+                    />
+                  ) : null}
+                  {supportsOutputCompressionSelection && outputCompressionRange ? (
+                    <NumberInput
+                      data-testid="image-output-compression-input"
+                      label="Compression"
+                      min={outputCompressionRange.min}
+                      max={outputCompressionRange.max}
+                      step={outputCompressionRange.step ?? 1}
+                      onChange={(value) =>
+                        setOutputCompression(typeof value === 'number' ? value : '')
+                      }
+                      value={outputCompression}
+                    />
+                  ) : null}
+                  {references.length > 0 && supportsInputFidelitySelection ? (
+                    <Select
+                      data={inputFidelityOptions}
+                      data-testid="image-input-fidelity-select"
+                      label="Input fidelity"
+                      onChange={(value) => setInputFidelity(value ?? '')}
+                      value={inputFidelity}
+                    />
+                  ) : null}
+                </Group>
 
                 <Alert color="blue" title="Reference images">
                   Add zero images for generation, or one to {maxReferenceImages}{' '}
                   images to switch the request into edit mode.
                 </Alert>
+
+                {!supportsImageEditing ? (
+                  <Alert color="yellow" title="Editing unavailable">
+                    This model currently supports generation only in the gateway.
+                    OpenAI&apos;s published docs and live image edit endpoint are
+                    not aligned for GPT Image edits, so reference-image editing is
+                    disabled until the upstream API behavior is stable.
+                  </Alert>
+                ) : null}
 
                 {providerId === 'google' ? (
                   <Alert color="yellow" title="Google reference mode">
@@ -521,7 +763,10 @@ export function ImageGenerationPage() {
                   />
                   <Button
                     data-testid="image-add-reference-url"
-                    disabled={references.length >= maxReferenceImages}
+                    disabled={
+                      !supportsImageEditing ||
+                      references.length >= maxReferenceImages
+                    }
                     onClick={addReferenceUrl}
                     variant="light"
                   >
@@ -532,7 +777,10 @@ export function ImageGenerationPage() {
                 <Group>
                   <Button
                     data-testid="image-upload-reference"
-                    disabled={references.length >= maxReferenceImages}
+                    disabled={
+                      !supportsImageEditing ||
+                      references.length >= maxReferenceImages
+                    }
                     leftSection={<IconUpload size={16} />}
                     onClick={() => fileInputRef.current?.click()}
                     variant="light"
@@ -733,6 +981,29 @@ function buildResolutionOptions(
   resolutions: ImageResolutionOption[] | undefined,
 ) {
   return resolutions ?? [];
+}
+
+function buildProviderSelectOptions(
+  options:
+    | ImageBackgroundOption[]
+    | ImageOutputFormatOption[]
+    | ImageQualityOption[]
+    | undefined,
+) {
+  return options ?? [];
+}
+
+function buildInputFidelityOptions(
+  inputFidelities: ImageInputFidelityOption[] | undefined,
+) {
+  if (!inputFidelities?.length) {
+    return [];
+  }
+
+  return inputFidelities.map((inputFidelityOption) => ({
+    value: inputFidelityOption.value,
+    label: inputFidelityOption.label,
+  }));
 }
 
 function buildImageCountOptions(maxGeneratedImagesPerRequest: number | undefined) {

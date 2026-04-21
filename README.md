@@ -60,8 +60,8 @@ The repository now includes:
 
 | Status              | Meaning                                                                           | Current providers                                |
 |---------------------|-----------------------------------------------------------------------------------|--------------------------------------------------|
-| `tested, certified` | Tested by the development team.                                                   | Google Gemini, Groq, NanoGPT, Ollama, OpenRouter, xAI Grok |
-| `experimental`      | Implemented, but not fully tested by the development team. Expect defects/errors. | Anthropic Claude, OpenAI |
+| `tested, certified` | Tested by the development team.                                                   | Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok |
+| `experimental`      | Implemented, but not fully tested by the development team. Expect defects/errors. | Anthropic Claude |
 
 
 ## Selected Stack

@@ -20,7 +20,7 @@ export function getProviderCatalogPricingNote(providerId: string | null) {
     }
 
     if (providerId === 'openai') {
-      return 'OpenAI support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your OpenAI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
+      return 'OpenAI support is certified. Usage is billed through your OpenAI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
     }
 
     if (providerId === 'groq') {

@@ -89,6 +89,34 @@ export type ImageResolutionOption = {
   label: string;
 };
 
+export type ImageOutputFormatOption = {
+  value: string;
+  label: string;
+};
+
+export type ImageBackgroundOption = {
+  value: string;
+  label: string;
+};
+
+export type ImageQualityOption = {
+  value: string;
+  label: string;
+};
+
+export type ImageInputFidelityOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+export type ImageOutputCompressionRange = {
+  min: number;
+  max: number;
+  defaultValue?: number;
+  step?: number;
+};
+
 export type ProviderModelSummary = {
   id: string;
   displayName: string;
@@ -99,6 +127,11 @@ export type ProviderModelSummary = {
     supportedImageAspectRatios?: ImageAspectRatioOption[];
     supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
     supportedImageResolutions?: ImageResolutionOption[];
+    supportedImageOutputFormats?: ImageOutputFormatOption[];
+    supportedImageBackgrounds?: ImageBackgroundOption[];
+    supportedImageQualities?: ImageQualityOption[];
+    supportedImageInputFidelities?: ImageInputFidelityOption[];
+    imageOutputCompressionRange?: ImageOutputCompressionRange;
     maxGeneratedImagesPerRequest?: number;
     maxReferenceImagesPerRequest?: number;
   };

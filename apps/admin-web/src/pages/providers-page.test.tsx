@@ -489,7 +489,7 @@ test('ProvidersPage shows the OpenAI billing warning and blocks missing tokens',
   await user.selectOptions(screen.getByLabelText('Provider'), 'openai');
   expect(
     screen.getByText(
-      /OpenAI support is experimental.*usage is billed through your OpenAI account/i,
+      /OpenAI support is certified.*usage is billed through your OpenAI account/i,
     ),
   ).toBeInTheDocument();
 

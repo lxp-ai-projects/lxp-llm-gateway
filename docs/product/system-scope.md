@@ -66,8 +66,14 @@ Phase 2 should assume:
 The next planned capability expansion is:
 
 - broader provider coverage for image generation and image editing behind the existing provider seam
-- provider-owned capability metadata such as supported aspect ratios, response formats, resolutions, and request limits flowing from model catalogs to the UI
-- future providers such as OpenAI image generation behind the same seam
+- provider-owned capability metadata such as supported aspect ratios, response formats, resolutions, output formats, background modes, quality presets, input fidelity, compression ranges, and request limits flowing from model catalogs to the UI
+- future providers beyond the current xAI, Google, and OpenAI image implementations behind the same seam
 - reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
+
+Current image-provider posture is not perfectly uniform:
+
+- `xAI Grok` image models are exposed for generation and editing
+- `Google Gemini` image models are exposed for generation and editing
+- `OpenAI GPT Image` is exposed for generation, but editing is intentionally disabled in the gateway until the upstream OpenAI `images/edits` runtime accepts GPT Image models consistently
 
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.

@@ -73,6 +73,7 @@ Model catalog results may also carry capability-specific metadata needed by the 
 - image-capable model flags
 - provider-defined supported image aspect ratios
 - provider-defined supported image response formats and resolutions
+- provider-defined output formats, background modes, fidelity levels, quality presets, and compression ranges
 - provider-defined request limits such as max generated images or max reference images
 
 `gateway-api` must orchestrate those surfaces without learning provider-specific endpoint rules.
@@ -159,7 +160,7 @@ This allows:
 - `Groq` to use bearer-token auth through an OpenAI-compatible endpoint
 - `Google Gemini` to use bearer-token auth for chat through Google's OpenAI-compatible Gemini API and `x-goog-api-key` auth for native image generation through Gemini `generateContent`
 - `xAI Grok` to use bearer-token auth through an OpenAI-compatible endpoint
-- `OpenAI` to use bearer-token auth through the OpenAI chat completions and models endpoints
+- `OpenAI` to use bearer-token auth through the OpenAI chat completions, models, and images endpoints
 - `Anthropic Claude` to use `x-api-key` auth plus Anthropic-specific message and model endpoints
 - `Ollama` to use either a local/runtime endpoint or Ollama Cloud with bearer auth
 
@@ -175,7 +176,7 @@ The architectural direction is:
 
 - keep chat and image workflows as separate capability methods
 - keep capability support explicit per adapter rather than inferred from provider id
-- allow model catalogs to remain provider-owned, capability-aware, and able to expose normalized capability metadata such as supported image aspect ratios, response formats, resolutions, and request limits
+- allow model catalogs to remain provider-owned, capability-aware, and able to expose normalized capability metadata such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, fidelity controls, compression ranges, and request limits
 - allow image requests to carry prompt text plus zero or more reference images
 - keep provider-specific payload mapping inside provider packages
 
@@ -188,7 +189,7 @@ When a provider cannot consume remote URLs directly, the provider package may st
 
 At minimum, that means blocking localhost, private-network targets, and unsupported content types before any bytes are forwarded to the upstream provider.
 
-The first concrete provider implementations are xAI Grok Imagine behind `packages/provider-xai` and Google Nano Banana behind `packages/provider-google`.
+The first concrete provider implementations are xAI Grok Imagine behind `packages/provider-xai`, Google Nano Banana behind `packages/provider-google`, and OpenAI GPT Image behind `packages/provider-openai`.
 
 Per the xAI docs, image operations use dedicated image endpoints rather than chat endpoints:
 
@@ -200,6 +201,12 @@ Those endpoint details belong only in the xAI provider package.
 Per the Google Gemini docs, image operations use the native Gemini `generateContent` API rather than the OpenAI-compatible chat surface already used for text workflows.
 
 Those provider-specific details also belong only in the Google provider package.
+
+Per the OpenAI docs, image generation uses `/v1/images/generations`, while image edits are documented as multipart requests against `/v1/images/edits`.
+
+Those provider-specific details also belong only in the OpenAI provider package.
+
+At the moment, the gateway exposes OpenAI GPT Image as generation-only because the live OpenAI `images/edits` runtime still rejects GPT Image models and reports `dall-e-2` as the accepted edit model. That upstream mismatch is treated as a provider-runtime constraint, not something to paper over in `gateway-api`.
 
 The seam itself should only know about normalized image-generation requests and responses.
 

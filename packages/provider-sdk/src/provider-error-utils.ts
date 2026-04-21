@@ -52,3 +52,23 @@ export function formatGoogleGeminiRateLimitError(errorText: string) {
     return `Google Gemini quota exceeded. ${errorText}`;
   }
 }
+
+export function formatOpenAiRateLimitError(errorText: string) {
+  try {
+    const payload = JSON.parse(errorText) as {
+      error?: {
+        message?: string;
+        type?: string;
+      };
+    };
+    const error = payload.error;
+
+    if (!error?.message) {
+      return `OpenAI rate limit exceeded. ${errorText}`;
+    }
+
+    return `OpenAI rate limit exceeded${error.type ? ` (${error.type})` : ''}. ${error.message}`;
+  } catch {
+    return `OpenAI rate limit exceeded. ${errorText}`;
+  }
+}
