@@ -144,6 +144,7 @@ export function ImageGenerationPage() {
     () => imageCapableModels.find((providerModel) => providerModel.id === model),
     [imageCapableModels, model],
   );
+  const isOpenAiImageModel = providerId === 'openai';
 
   const aspectRatioOptions = useMemo(
     () =>
@@ -158,8 +159,9 @@ export function ImageGenerationPage() {
     () =>
       buildResponseFormatOptions(
         selectedModel?.capabilities?.supportedImageResponseFormats,
+        isOpenAiImageModel,
       ),
-    [selectedModel?.capabilities?.supportedImageResponseFormats],
+    [isOpenAiImageModel, selectedModel?.capabilities?.supportedImageResponseFormats],
   );
   const resolutionOptions = useMemo(
     () =>
@@ -426,25 +428,27 @@ export function ImageGenerationPage() {
         });
       }
 
-      return gatewayApiClient.generateImage({
-        providerId,
-        model,
-        prompt: trimmedPrompt,
-        n: Number(imageCount),
-        aspectRatio: supportsAspectRatios ? aspectRatio : undefined,
-        responseFormat,
-        resolution: resolution || undefined,
-        background: supportsBackgroundSelection ? background || undefined : undefined,
-        quality: supportsQualitySelection ? quality || undefined : undefined,
-        outputFormat: supportsOutputFormatSelection
-          ? outputFormat || undefined
-          : undefined,
-        outputCompression:
-          supportsOutputCompressionSelection &&
-          typeof outputCompression === 'number'
-            ? outputCompression
-            : undefined,
-      });
+      return gatewayApiClient.generateImage(
+        buildImageGenerationFormRequest({
+          providerId,
+          model,
+          prompt: trimmedPrompt,
+          imageCount,
+          supportsAspectRatios,
+          aspectRatio,
+          responseFormat,
+          resolution,
+          supportsBackgroundSelection,
+          background,
+          supportsQualitySelection,
+          quality,
+          supportsOutputFormatSelection,
+          outputFormat,
+          supportsOutputCompressionSelection,
+          outputCompression,
+          forceBase64Response: isOpenAiImageModel,
+        }),
+      );
     },
     onSuccess: (response) => {
       setRequestError(null);
@@ -966,7 +970,12 @@ function buildAspectRatioOptions(
 
 function buildResponseFormatOptions(
   responseFormats: Array<'url' | 'b64_json'> | undefined,
+  forceBase64Only = false,
 ) {
+  if (forceBase64Only) {
+    return [{ value: 'b64_json', label: 'Base64' }];
+  }
+
   if (!responseFormats?.length) {
     return RESPONSE_FORMAT_OPTIONS;
   }
@@ -1004,6 +1013,50 @@ function buildInputFidelityOptions(
     value: inputFidelityOption.value,
     label: inputFidelityOption.label,
   }));
+}
+
+function buildImageGenerationFormRequest(input: {
+  providerId: string;
+  model: string;
+  prompt: string;
+  imageCount: string;
+  supportsAspectRatios: boolean;
+  aspectRatio: string;
+  responseFormat: 'url' | 'b64_json';
+  resolution: string;
+  supportsBackgroundSelection: boolean;
+  background: string;
+  supportsQualitySelection: boolean;
+  quality: string;
+  supportsOutputFormatSelection: boolean;
+  outputFormat: string;
+  supportsOutputCompressionSelection: boolean;
+  outputCompression: number | '';
+  forceBase64Response: boolean;
+}) {
+  return {
+    providerId: input.providerId,
+    model: input.model,
+    prompt: input.prompt,
+    n: Number(input.imageCount),
+    aspectRatio: input.supportsAspectRatios ? input.aspectRatio : undefined,
+    responseFormat: input.forceBase64Response
+      ? 'b64_json'
+      : input.responseFormat,
+    resolution: input.resolution || undefined,
+    background: input.supportsBackgroundSelection
+      ? input.background || undefined
+      : undefined,
+    quality: input.supportsQualitySelection ? input.quality || undefined : undefined,
+    outputFormat: input.supportsOutputFormatSelection
+      ? input.outputFormat || undefined
+      : undefined,
+    outputCompression:
+      input.supportsOutputCompressionSelection &&
+      typeof input.outputCompression === 'number'
+        ? input.outputCompression
+        : undefined,
+  };
 }
 
 function buildImageCountOptions(maxGeneratedImagesPerRequest: number | undefined) {

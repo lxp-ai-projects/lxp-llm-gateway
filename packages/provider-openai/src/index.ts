@@ -211,28 +211,10 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     const model = request.model ?? 'gpt-image-1.5';
     this.assertSupportedImageModel(model);
 
-    const response = await this.fetchWithTimeout(
-      `${this.resolveBaseUrl(context)}/images/generations`,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          ...this.resolveHeaders(context),
-        },
-        body: JSON.stringify({
-          model,
-          prompt: request.prompt,
-          n: request.n,
-          size: request.resolution,
-          response_format: request.responseFormat,
-          background: request.background,
-          quality: request.quality,
-          output_format: request.outputFormat,
-          output_compression: request.outputCompression,
-          user: context.userId,
-        }),
-      },
-      this.requestTimeoutMs,
+    const response = await this.postJson(
+      context,
+      '/images/generations',
+      this.buildImageGenerationBody(request, context, model),
     );
 
     if (!response.ok) {
@@ -279,6 +261,43 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
         }),
       },
       stream ? null : this.requestTimeoutMs,
+    );
+  }
+
+  private buildImageGenerationBody(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+    model: string,
+  ) {
+    return {
+      model,
+      prompt: request.prompt,
+      n: request.n,
+      size: request.resolution,
+      background: request.background,
+      quality: request.quality,
+      output_format: request.outputFormat,
+      output_compression: request.outputCompression,
+      user: context.userId,
+    };
+  }
+
+  private postJson(
+    context: ProviderExecutionContext,
+    path: string,
+    body: unknown,
+  ): Promise<Response> {
+    return this.fetchWithTimeout(
+      `${this.resolveBaseUrl(context)}${path}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...this.resolveHeaders(context),
+        },
+        body: JSON.stringify(body),
+      },
+      this.requestTimeoutMs,
     );
   }
 
