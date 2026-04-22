@@ -2,6 +2,10 @@ import type {
   GatewayImageGenerationRequest,
   GatewayImageGenerationResponse,
 } from '@lxp/contracts';
+import {
+  buildProviderImageHttpError,
+  formatXAiImageClientError,
+} from '@lxp/provider-sdk';
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
 import { isXAiImageModel } from './catalog.js';
@@ -26,10 +30,9 @@ export class XAiImageGenerationHandler {
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `xAI image generation failed with status ${response.status}: ${errorText}`,
-      );
+      throw await buildProviderImageHttpError('xAI', 'image generation', response, {
+        clientErrorFormatter: formatXAiImageClientError,
+      });
     }
 
     const payload = (await response.json()) as XAiImageResponsePayload;

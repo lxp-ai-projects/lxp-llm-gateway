@@ -608,6 +608,65 @@ test('XaiProviderAdapter sends image edit requests with reference images to the 
   }
 });
 
+test('XaiProviderAdapter formats image client errors generically', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+
+    return new Response(
+      JSON.stringify({
+        code: 'Client specified an invalid argument',
+        error:
+          'This model supports at most 1 input image(s), but 2 were provided.',
+      }),
+      {
+        status: 400,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new XaiProviderAdapterTestDouble();
+
+    await assert.rejects(
+      () =>
+        adapter.editImage(
+          {
+            model: 'grok-imagine-image',
+            prompt: 'Turn this into a watercolor illustration',
+            images: [
+              {
+                type: 'image_url',
+                url: 'https://example.com/reference.png',
+              },
+              {
+                type: 'image_url',
+                url: 'https://example.com/reference-2.png',
+              },
+            ],
+            responseFormat: 'b64_json',
+          },
+          {
+            requestId: 'request-4',
+            userId: 'user-1',
+            providerAccess: {
+              apiKey: 'xai-token',
+            },
+          },
+        ),
+      /xAI image edit failed with status 400: Client specified an invalid argument\. This model supports at most 1 input image\(s\), but 2 were provided\./,
+    );
+
+    assert.equal(calls[0]?.url, 'https://api.x.ai/v1/images/edits');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('XaiProviderAdapter rejects private or local remote image targets before calling xAI', async () => {
   const adapter = new XaiProviderAdapterTestDouble([
     { address: '127.0.0.1', family: 4 },

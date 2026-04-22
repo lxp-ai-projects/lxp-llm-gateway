@@ -79,8 +79,10 @@ export {
 } from './image-reference-utils.js';
 export {
   buildProviderHttpError,
+  buildProviderImageHttpError,
   formatGoogleGeminiRateLimitError,
   formatOpenAiRateLimitError,
+  formatXAiImageClientError,
 } from './provider-error-utils.js';
 export type {
   PublicImageReferencePolicy,

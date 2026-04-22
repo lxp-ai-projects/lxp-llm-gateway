@@ -2,6 +2,10 @@ import type {
   GatewayImageEditRequest,
   GatewayImageGenerationResponse,
 } from '@lxp/contracts';
+import {
+  buildProviderImageHttpError,
+  formatXAiImageClientError,
+} from '@lxp/provider-sdk';
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
 import { XAiImageClient } from './image-client.js';
@@ -38,10 +42,9 @@ export class XAiImageEditHandler {
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `xAI image edit failed with status ${response.status}: ${errorText}`,
-      );
+      throw await buildProviderImageHttpError('xAI', 'image edit', response, {
+        clientErrorFormatter: formatXAiImageClientError,
+      });
     }
 
     const payload = (await response.json()) as XAiImageResponsePayload;

@@ -364,3 +364,50 @@ test('OpenAiProviderAdapter formats rate limit errors for image requests', async
     globalThis.fetch = originalFetch;
   }
 });
+
+test('OpenAiProviderAdapter formats image client errors generically', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          message:
+            'Your request was rejected by the safety system. safety_violations=[type].',
+          type: 'image_generation_user_error',
+          code: 'moderation_blocked',
+        },
+      }),
+      {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new OpenAiProviderAdapter();
+
+    await assert.rejects(
+      () =>
+        adapter.editImage(
+          {
+            model: 'gpt-image-1.5',
+            prompt: 'Edit this image',
+            images: [
+              {
+                type: 'image_url',
+                url: 'https://example.com/source.png',
+              },
+            ],
+          },
+          {
+            requestId: 'request-image-6',
+            userId: 'user-1',
+            providerAccess: { apiKey: 'openai-token' },
+          },
+        ),
+      /OpenAI image edit request failed with status 400: the provider rejected the request\. Check the model and image inputs\./,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

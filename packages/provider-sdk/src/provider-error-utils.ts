@@ -17,6 +17,39 @@ export async function buildProviderHttpError(
   );
 }
 
+export async function buildProviderImageHttpError(
+  providerLabel: string,
+  operation: string,
+  response: Response,
+  options?: {
+    rateLimitFormatter?: (errorText: string, response: Response) => string | null;
+    clientErrorFormatter?: (errorText: string, response: Response) => string | null;
+  },
+): Promise<Error> {
+  const errorText = await response.text();
+  const formattedRateLimitMessage =
+    response.status === 429
+      ? options?.rateLimitFormatter?.(errorText, response) ?? null
+      : null;
+  const formattedClientErrorMessage =
+    response.status >= 400 && response.status < 500 && response.status !== 429
+      ? options?.clientErrorFormatter?.(errorText, response) ?? null
+      : null;
+
+  const genericClientErrorMessage =
+    response.status >= 400 && response.status < 500
+      ? 'the provider rejected the request. Check the model and image inputs.'
+      : 'the provider returned an unexpected error.';
+
+  return new Error(
+    `${providerLabel} ${operation} failed with status ${response.status}: ${
+      formattedRateLimitMessage ??
+      formattedClientErrorMessage ??
+      genericClientErrorMessage
+    }`,
+  );
+}
+
 export function formatGoogleGeminiRateLimitError(errorText: string) {
   try {
     const payload = JSON.parse(errorText) as {
@@ -70,5 +103,28 @@ export function formatOpenAiRateLimitError(errorText: string) {
     return `OpenAI rate limit exceeded${error.type ? ` (${error.type})` : ''}. ${error.message}`;
   } catch {
     return `OpenAI rate limit exceeded. ${errorText}`;
+  }
+}
+
+export function formatXAiImageClientError(errorText: string) {
+  try {
+    const payload = JSON.parse(errorText) as {
+      code?: string;
+      error?: string;
+      message?: string;
+    };
+    const reason = payload.error ?? payload.message;
+
+    if (!reason) {
+      return `xAI rejected the request. ${errorText}`;
+    }
+
+    if (payload.code) {
+      return `${payload.code}. ${reason}`;
+    }
+
+    return reason;
+  } catch {
+    return `xAI rejected the request. ${errorText}`;
   }
 }

@@ -3,7 +3,7 @@ import type {
   GatewayImageGenerationResponse,
 } from '@lxp/contracts';
 import {
-  buildProviderHttpError,
+  buildProviderImageHttpError,
   formatOpenAiRateLimitError,
 } from '@lxp/provider-sdk';
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
@@ -32,7 +32,7 @@ export class OpenAiImageGenerationHandler {
     );
 
     if (!response.ok) {
-      throw await buildProviderHttpError('OpenAI image request', response, {
+      throw await buildProviderImageHttpError('OpenAI', 'image request', response, {
         rateLimitFormatter: formatOpenAiRateLimitError,
       });
     }
