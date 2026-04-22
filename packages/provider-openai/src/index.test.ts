@@ -22,6 +22,7 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
 
   try {
     const adapter = new OpenAiProviderAdapter();
+    assert.equal(adapter.capabilities.imageEditing, true);
     const models = await adapter.listModels({
       requestId: 'request-1',
       userId: 'user-1',

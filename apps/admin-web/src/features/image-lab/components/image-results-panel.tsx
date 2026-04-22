@@ -63,10 +63,7 @@ export function ImageResultsPanel({
         ) : (
           <div className="image-results-grid">
             {imageLab.results.map((image, index) => {
-              const src =
-                image.contentUrl
-                  ? imageLab.mediaUrl(image.contentUrl)
-                  : image.url ?? (image.b64Json ? `data:image/png;base64,${image.b64Json}` : '');
+              const src = resolveImageResultSource(imageLab, image);
 
               return (
                 <Card
@@ -139,4 +136,23 @@ export function ImageResultsPanel({
       </Stack>
     </Card>
   );
+}
+
+function resolveImageResultSource(
+  imageLab: ReturnTypeUseImageLab,
+  image: ReturnTypeUseImageLab['results'][number],
+) {
+  if (image.contentUrl) {
+    return imageLab.mediaUrl(image.contentUrl);
+  }
+
+  if (image.url) {
+    return image.url;
+  }
+
+  if (image.b64Json) {
+    return `data:${image.mimeType ?? 'image/png'};base64,${image.b64Json}`;
+  }
+
+  return '';
 }

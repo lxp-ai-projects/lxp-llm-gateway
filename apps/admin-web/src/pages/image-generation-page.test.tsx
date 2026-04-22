@@ -291,3 +291,32 @@ test('ImageGenerationPage uploads a local file and adds it as a reference asset'
   await waitFor(() => expect(uploadImageAssetMock).toHaveBeenCalledTimes(1));
   expect(await screen.findByText('upload.png')).toBeInTheDocument();
 });
+
+test('ImageGenerationPage renders immediate base64 results with the returned MIME type', async () => {
+  const user = userEvent.setup();
+  generateImageMock.mockImplementationOnce(async () => ({
+    requestId: 'request-generate-webp-1',
+    jobId: 'job-generate-webp-1',
+    providerId: 'xai',
+    model: 'grok-imagine-image',
+    images: [
+      {
+        b64Json: 'webp-image',
+        mimeType: 'image/webp',
+        saved: false,
+      },
+    ],
+  }));
+
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'A neon portrait' },
+  });
+
+  await user.click(screen.getByTestId('image-submit'));
+
+  const resultImage = await screen.findByAltText('Generated result 1');
+  expect(resultImage).toHaveAttribute('src', 'data:image/webp;base64,webp-image');
+});

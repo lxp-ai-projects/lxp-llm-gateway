@@ -23,7 +23,7 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     chat: true,
     modelCatalog: true,
     imageGeneration: true,
-    imageEditing: false,
+    imageEditing: true,
   } as const;
 
   private readonly baseUrl: string;
