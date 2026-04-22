@@ -321,3 +321,55 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
   assert.equal(page1.totalPages, 2);
   assert.equal(page2.items.length, 2);
 });
+
+test('ImageApplicationService returns image catalog entries even when provider credentials are not yet configured', async () => {
+  const provider = new FakeImageProvider();
+  const service = new ImageApplicationService(
+    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
+    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
+    new InMemoryRepository() as never,
+    new InMemoryRepository() as never,
+    new InMemoryRepository() as never,
+    {
+      getProvider: () => provider,
+      listProviders: () => [provider],
+    } as never,
+    {
+      resolveProviderAccess: async () => {
+        throw new Error('missing credential');
+      },
+    } as never,
+  );
+
+  const catalog = await service.getCatalog({
+    userId: 'user-1',
+    userUuid: 'user-public-1',
+    emailHash: 'hash-1',
+    roles: ['user'],
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  assert.deepEqual(catalog.providers, [
+    {
+      providerId: 'xai',
+      displayName: 'xAI Grok',
+      defaultModelId: 'grok-imagine-image',
+      models: [
+        {
+          id: 'grok-imagine-image',
+          displayName: 'Grok Imagine Image',
+          capabilities: {
+            supportsImageGeneration: true,
+            supportsImageEditing: true,
+            supportedImageResponseFormats: ['url', 'b64_json'],
+            imageDefaults: {
+              responseFormat: 'url',
+              imageCount: 1,
+            },
+          },
+        },
+      ],
+    },
+  ]);
+});

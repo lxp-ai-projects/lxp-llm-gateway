@@ -30,6 +30,14 @@ export interface ProviderModel {
   capabilities?: Partial<ModelCapability>;
 }
 
+export interface ProviderModelDescriptor extends ProviderModel {
+  capabilities: Partial<ModelCapability>;
+}
+
+export interface ProviderCatalog extends ImageProviderCatalog {
+  models: ProviderModelDescriptor[];
+}
+
 export interface LlmProviderAdapter {
   readonly providerId: ProviderId;
   readonly capabilities: ProviderCapabilities;

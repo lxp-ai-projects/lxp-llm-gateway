@@ -1,68 +1,22 @@
 import type {
   GatewayChatRequest,
   GatewayChatResponse,
-  GatewayGeneratedImage,
   GatewayImageEditRequest,
   GatewayImageGenerationRequest,
-  GatewayImageGenerationResponse,
 } from '@lxp/contracts';
-import {
-  buildProviderHttpError,
-  formatOpenAiRateLimitError,
-} from '@lxp/provider-sdk';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
 
-const OPENAI_IMAGE_MODELS = {
-  'gpt-image-1.5': {
-    displayName: 'GPT Image 1.5',
-  },
-  'gpt-image-1': {
-    displayName: 'GPT Image 1',
-  },
-  'gpt-image-1-mini': {
-    displayName: 'GPT Image 1 Mini',
-  },
-} as const;
-const OPENAI_IMAGE_RESPONSE_FORMATS = ['b64_json'] as const;
-const OPENAI_IMAGE_RESOLUTIONS = [
-  { value: 'auto', label: 'Auto' },
-  { value: '1024x1024', label: '1024x1024' },
-  { value: '1536x1024', label: '1536x1024' },
-  { value: '1024x1536', label: '1024x1536' },
-] as const;
-const OPENAI_IMAGE_OUTPUT_FORMATS = [
-  { value: 'png', label: 'PNG' },
-  { value: 'jpeg', label: 'JPEG' },
-  { value: 'webp', label: 'WebP' },
-] as const;
-const OPENAI_IMAGE_BACKGROUNDS = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'opaque', label: 'Opaque' },
-  { value: 'transparent', label: 'Transparent' },
-] as const;
-const OPENAI_IMAGE_QUALITIES = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-] as const;
-const OPENAI_IMAGE_INPUT_FIDELITIES = [
-  {
-    value: 'low',
-    label: 'Low',
-    description: 'Looser adherence to the reference image.',
-  },
-  {
-    value: 'high',
-    label: 'High',
-    description: 'Preserve source details more strictly.',
-  },
-] as const;
-type OpenAiImageModelId = keyof typeof OPENAI_IMAGE_MODELS;
+import {
+  buildOpenAiImageCatalog,
+  buildOpenAiModelCatalog,
+} from './image/catalog.js';
+import { OpenAiImageClient } from './image/image-client.js';
+import { OpenAiImageEditHandler } from './image/image-edit-handler.js';
+import { OpenAiImageGenerationHandler } from './image/image-generation-handler.js';
 
 export class OpenAiProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -74,6 +28,9 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
 
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
+  private readonly imageClient: OpenAiImageClient;
+  private readonly imageGenerationHandler: OpenAiImageGenerationHandler;
+  private readonly imageEditHandler: OpenAiImageEditHandler;
 
   constructor(
     baseUrl = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
@@ -81,6 +38,11 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
+    this.imageClient = new OpenAiImageClient(this.baseUrl, this.requestTimeoutMs);
+    this.imageGenerationHandler = new OpenAiImageGenerationHandler(
+      this.imageClient,
+    );
+    this.imageEditHandler = new OpenAiImageEditHandler(this.imageClient);
   }
 
   readonly providerId = 'openai' as LlmProviderAdapter['providerId'];
@@ -92,60 +54,15 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.resolveBaseUrl(context)}/models`, {
-      headers: this.resolveHeaders(context),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `OpenAI model listing failed with status ${response.status}: ${errorText}`,
-      );
-    }
-
-    const payload = (await response.json()) as {
-      data?: Array<{
-        id: string;
-      }>;
-    };
-
-    const listedModels = (payload.data ?? []).map((model) => ({
-      id: model.id,
-      displayName: this.resolveModelDisplayName(model.id),
-      capabilities: this.resolveModelCapabilities(model.id),
-    }));
-    const knownImageModels = Object.entries(OPENAI_IMAGE_MODELS)
-      .filter(
-        ([modelId]) =>
-          !listedModels.some((listedModel) => listedModel.id === modelId),
-      )
-      .map(([modelId, metadata]) => ({
-        id: modelId,
-        displayName: metadata.displayName,
-        capabilities: this.resolveModelCapabilities(modelId),
-      }));
-
-    return [...listedModels, ...knownImageModels];
+    const listedModelIds = await this.imageClient.listModelIds(context);
+    return buildOpenAiModelCatalog(listedModelIds);
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
-    const models = await this.listModels(context);
-    return {
-      providerId: this.providerId,
-      defaultModelId: 'gpt-image-1.5',
-      models: models
-        .filter(
-          (model) =>
-            Boolean(model.capabilities) &&
-            (model.capabilities?.supportsImageGeneration ||
-              model.capabilities?.supportsImageEditing),
-        )
-        .map((model) => ({
-          id: model.id,
-          displayName: model.displayName,
-          capabilities: model.capabilities as NonNullable<ProviderModel['capabilities']>,
-        })),
-    };
+    void context;
+    return buildOpenAiImageCatalog(
+      buildOpenAiModelCatalog([]),
+    );
   }
 
   async chat(
@@ -227,37 +144,15 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
   async generateImage(
     request: GatewayImageGenerationRequest,
     context: ProviderExecutionContext,
-  ): Promise<GatewayImageGenerationResponse> {
-    const model = request.model ?? 'gpt-image-1.5';
-    this.assertSupportedImageModel(model);
-
-    const response = await this.postJson(
-      context,
-      '/images/generations',
-      this.buildImageGenerationBody(request, context, model),
-    );
-
-    if (!response.ok) {
-      throw await buildProviderHttpError('OpenAI image request', response, {
-        rateLimitFormatter: formatOpenAiRateLimitError,
-      });
-    }
-
-    const payload = (await response.json()) as OpenAiImageResponsePayload;
-    return this.mapImageResponse(model, context, payload);
+  ) {
+    return this.imageGenerationHandler.execute(request, context);
   }
 
   async editImage(
     request: GatewayImageEditRequest,
     context: ProviderExecutionContext,
-  ): Promise<GatewayImageGenerationResponse> {
-    const model = request.model ?? 'gpt-image-1.5';
-    this.assertSupportedImageModel(model);
-    void context;
-
-    throw new Error(
-      'OpenAI GPT Image editing is temporarily unavailable in the gateway because the upstream OpenAI Images API currently rejects GPT Image models on the image edits endpoint.',
-    );
+  ) {
+    return this.imageEditHandler.execute(request, context);
   }
 
   private dispatchChatRequest(
@@ -284,43 +179,6 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     );
   }
 
-  private buildImageGenerationBody(
-    request: GatewayImageGenerationRequest,
-    context: ProviderExecutionContext,
-    model: string,
-  ) {
-    return {
-      model,
-      prompt: request.prompt,
-      n: request.n,
-      size: request.resolution,
-      background: request.background,
-      quality: request.quality,
-      output_format: request.outputFormat,
-      output_compression: request.outputCompression,
-      user: context.userId,
-    };
-  }
-
-  private postJson(
-    context: ProviderExecutionContext,
-    path: string,
-    body: unknown,
-  ): Promise<Response> {
-    return this.fetchWithTimeout(
-      `${this.resolveBaseUrl(context)}${path}`,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          ...this.resolveHeaders(context),
-        },
-        body: JSON.stringify(body),
-      },
-      this.requestTimeoutMs,
-    );
-  }
-
   private resolveBaseUrl(context: ProviderExecutionContext): string {
     const providerAccess = context.providerAccess ?? {};
     return (providerAccess.baseUrl ?? this.baseUrl).replace(/\/$/, '');
@@ -339,76 +197,6 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     }
 
     return headers;
-  }
-
-  private resolveModelDisplayName(modelId: string) {
-    return OPENAI_IMAGE_MODELS[modelId as OpenAiImageModelId]?.displayName ?? modelId;
-  }
-
-  private resolveModelCapabilities(modelId: string) {
-    if (!(modelId in OPENAI_IMAGE_MODELS)) {
-      return {
-        supportsStreaming: true,
-      };
-    }
-
-    return {
-      supportsStreaming: false,
-      supportsImageGeneration: true,
-      supportsImageEditing: false,
-      supportedImageResponseFormats: [...OPENAI_IMAGE_RESPONSE_FORMATS],
-      supportedImageResolutions: [...OPENAI_IMAGE_RESOLUTIONS],
-      supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
-      supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
-      supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
-      supportedImageInputFidelities: [...OPENAI_IMAGE_INPUT_FIDELITIES],
-      imageOutputCompressionRange: {
-        min: 0,
-        max: 100,
-        defaultValue: 100,
-        step: 1,
-      },
-      maxGeneratedImagesPerRequest: 10,
-      imageDefaults: {
-        responseFormat: 'b64_json',
-        resolution: '1024x1024',
-        background: 'auto',
-        quality: 'auto',
-        outputFormat: 'png',
-        outputCompression: 100,
-        imageCount: 1,
-      } as const,
-    };
-  }
-
-  private assertSupportedImageModel(modelId: string) {
-    if (!(modelId in OPENAI_IMAGE_MODELS)) {
-      throw new Error(`OpenAI image model ${modelId} is not supported.`);
-    }
-  }
-
-  private mapImageResponse(
-    requestedModel: string,
-    context: ProviderExecutionContext,
-    payload: OpenAiImageResponsePayload,
-  ): GatewayImageGenerationResponse {
-    return {
-      requestId: context.requestId,
-      providerId: this.providerId,
-      model: requestedModel,
-      images: (payload.data ?? []).map((image) => this.mapGeneratedImage(image)),
-      providerMetadata: {
-        created: payload.created,
-      },
-    };
-  }
-
-  private mapGeneratedImage(image: OpenAiGeneratedImage): GatewayGeneratedImage {
-    return {
-      url: image.url,
-      b64Json: image.b64_json,
-      revisedPrompt: image.revised_prompt,
-    };
   }
 
   private async fetchWithTimeout(
@@ -438,15 +226,4 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
       clearTimeout(timeoutId);
     }
   }
-}
-
-interface OpenAiGeneratedImage {
-  url?: string;
-  b64_json?: string;
-  revised_prompt?: string;
-}
-
-interface OpenAiImageResponsePayload {
-  created?: number;
-  data?: OpenAiGeneratedImage[];
 }

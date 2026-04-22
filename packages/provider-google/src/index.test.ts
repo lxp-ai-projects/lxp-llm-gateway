@@ -100,6 +100,43 @@ test('GoogleProviderAdapter lists chat and image models with provider-owned imag
   }
 });
 
+test('GoogleProviderAdapter exposes a normalized image catalog with the expected default model', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [{ id: 'gemini-2.5-pro' }],
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new GoogleProviderAdapter();
+    const catalog = await adapter.listImageCatalog?.({
+      requestId: 'request-1',
+      userId: 'user-1',
+      providerAccess: { apiKey: 'google-token' },
+    });
+
+    assert.ok(catalog);
+    assert.equal(catalog.providerId, 'google');
+    assert.equal(catalog.defaultModelId, 'gemini-2.5-flash-image');
+    assert.deepEqual(
+      catalog.models.map((model) => model.id),
+      [
+        'gemini-2.5-flash-image',
+        'gemini-3-pro-image-preview',
+        'gemini-3.1-flash-image-preview',
+      ],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('GoogleProviderAdapter sends chat requests to the Gemini OpenAI-compatible chat completions endpoint', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;

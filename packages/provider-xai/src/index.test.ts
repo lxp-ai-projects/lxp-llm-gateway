@@ -277,6 +277,43 @@ test('XaiProviderAdapter lists models from the xAI models endpoint', async () =>
   }
 });
 
+test('XaiProviderAdapter exposes a normalized image catalog with the expected default model', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [{ id: 'grok-4-fast' }],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new XaiProviderAdapterTestDouble();
+    const catalog = await adapter.listImageCatalog?.({
+      requestId: 'request-1',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'xai-token',
+      },
+    });
+
+    assert.ok(catalog);
+    assert.equal(catalog.providerId, 'xai');
+    assert.equal(catalog.defaultModelId, 'grok-imagine-image');
+    assert.deepEqual(
+      catalog.models.map((model) => model.id),
+      ['grok-imagine-image', 'grok-imagine-image-pro'],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('XaiProviderAdapter marks the image model with supported aspect ratios', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () =>

@@ -1,4 +1,5 @@
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import type { DataSourceOptions } from 'typeorm';
 
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
@@ -53,7 +54,7 @@ export function validateRuntimeConfig(
   return env;
 }
 
-export function buildTypeOrmOptions(): TypeOrmModuleOptions {
+function getBaseDataSourceOptions(): DataSourceOptions {
   return {
     type: 'postgres',
     host: process.env.DATABASE_HOST,
@@ -73,6 +74,19 @@ export function buildTypeOrmOptions(): TypeOrmModuleOptions {
       ImageJobResultEntity,
     ],
     synchronize: false,
+  };
+}
+
+export function buildTypeOrmOptions(): TypeOrmModuleOptions {
+  return {
+    ...getBaseDataSourceOptions(),
     autoLoadEntities: false,
+  };
+}
+
+export function buildDataSourceOptions(): DataSourceOptions {
+  return {
+    ...getBaseDataSourceOptions(),
+    migrations: ['src/persistence/migrations/*.ts'],
   };
 }

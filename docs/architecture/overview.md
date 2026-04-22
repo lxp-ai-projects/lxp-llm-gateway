@@ -225,6 +225,15 @@ Provider adapters remain responsible only for:
 - provider-specific validation and payload mapping
 - provider-specific response normalization
 
+The current image-provider implementation pattern is now explicit across `provider-openai`, `provider-xai`, and `provider-google`:
+
+- a provider-owned image catalog/registry for model descriptors and defaults
+- a provider transport client for upstream HTTP concerns
+- provider-specific request mappers
+- provider-specific response mappers
+- thin generation and edit handlers
+- a thin adapter that orchestrates those pieces and exposes only the shared seam
+
 ## UI Direction
 
 The planned operator-facing surface for this capability is an `Image Generation Lab` in `admin-web`.

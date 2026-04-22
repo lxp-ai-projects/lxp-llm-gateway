@@ -63,6 +63,7 @@ Phase 2 should assume:
 - CI quality gates already cover typecheck, test, and build
 - new provider capabilities should extend `packages/provider-sdk`, not bypass it
 - image history, save state, and gateway-managed reference assets belong in the application layer, not in provider packages
+- image-provider packages should stay thin at the adapter boundary and split image concerns into provider catalog, transport client, request mapper, response mapper, and generation/edit handlers
 
 The next planned capability expansion is:
 

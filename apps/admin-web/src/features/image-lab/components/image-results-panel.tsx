@@ -7,6 +7,11 @@ export function ImageResultsPanel({
 }: {
   imageLab: ReturnTypeUseImageLab;
 }) {
+  const loadingCards = Array.from(
+    { length: imageLab.pendingResultCount },
+    (_, index) => index,
+  );
+
   return (
     <Card className="section-card">
       <Stack gap="md">
@@ -17,7 +22,41 @@ export function ImageResultsPanel({
           </Badge>
         </Group>
 
-        {!imageLab.results.length ? (
+        {imageLab.generateMutation.isPending ? (
+          <div className="image-results-grid">
+            {loadingCards.map((index) => (
+              <Card
+                key={`image-loading-${index}`}
+                className="image-result-card"
+                data-testid={`image-loading-${index}`}
+                padding="sm"
+                radius="lg"
+                withBorder
+              >
+                <Stack gap="sm">
+                  <div
+                    aria-hidden="true"
+                    className="image-result-loading"
+                  >
+                    <div className="image-result-loading-plasma" />
+                    <div className="image-result-loading-glow" />
+                  </div>
+                  <Group justify="space-between" wrap="nowrap">
+                    <Text fw={600} size="sm">
+                      Rendering {index + 1}
+                    </Text>
+                    <Badge color="cyan" variant="light">
+                      In progress
+                    </Badge>
+                  </Group>
+                  <Text c="dimmed" size="sm">
+                    The gateway is generating this image.
+                  </Text>
+                </Stack>
+              </Card>
+            ))}
+          </div>
+        ) : !imageLab.results.length ? (
           <Alert color="gray" title="No images yet">
             Submit a prompt to render image results here.
           </Alert>

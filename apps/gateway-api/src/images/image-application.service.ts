@@ -89,10 +89,11 @@ export class ImageApplicationService {
 
       try {
         const providerAccess =
-          await this.providerCredentialService.resolveProviderAccess(
-            authContext.emailHash,
-            provider.providerId,
-          );
+          await this.providerCredentialService
+            .resolveProviderAccess(authContext.emailHash, provider.providerId)
+            .catch(() => ({
+              headers: {},
+            }));
         const catalog = await provider.listImageCatalog({
           requestId: crypto.randomUUID(),
           userId: authContext.userId,

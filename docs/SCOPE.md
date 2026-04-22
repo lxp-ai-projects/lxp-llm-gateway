@@ -238,6 +238,8 @@ Each package owns:
 - request and response mapping
 - streaming adaptation
 - provider-specific integration logic
+- provider-owned image model catalogs and defaults
+- provider-scoped transport clients and capability handlers for image workflows
 
 ## Critical Architecture Rule
 
@@ -396,3 +398,4 @@ The current implementation now also includes:
 - gateway-managed image asset upload for mobile-safe reference workflows
 - persisted image job history with pagination at 10 jobs per page
 - save and reuse flows for generated images through gateway-managed assets
+- a consistent provider-internal image pattern across OpenAI, xAI, and Google: catalog, transport client, request mapper, response mapper, and generation/edit handlers

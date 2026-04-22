@@ -7,6 +7,8 @@ import type {
   GatewayImageAssetSummary,
 } from '../../lib/api-client.types';
 import type { ImageReferenceDraft } from './types';
+import { resolveImageFormDefaults } from './image-form-defaults';
+import { buildImageRequestPayload } from './image-request';
 
 const DEFAULT_HISTORY_PAGE = 1;
 
@@ -47,7 +49,6 @@ export function useImageLab() {
   const models = selectedProvider?.models ?? [];
   const selectedModel = models.find((model) => model.id === modelId);
   const capabilities = selectedModel?.capabilities;
-  const imageDefaults = capabilities?.imageDefaults;
 
   useEffect(() => {
     if (providerId || !providers.length) {
@@ -74,40 +75,22 @@ export function useImageLab() {
   }, [modelId, selectedProvider]);
 
   useEffect(() => {
-    setAspectRatio(imageDefaults?.aspectRatio ?? capabilities?.supportedImageAspectRatios?.[0]?.value ?? '');
-    setResponseFormat(
-      imageDefaults?.responseFormat ??
-        (capabilities?.supportedImageResponseFormats?.[0] as 'url' | 'b64_json' | undefined) ??
-        'b64_json',
-    );
-    setResolution(
-      imageDefaults?.resolution ??
-        capabilities?.supportedImageResolutions?.[0]?.value ??
-        '',
-    );
-    setBackground(imageDefaults?.background ?? capabilities?.supportedImageBackgrounds?.[0]?.value ?? '');
-    setQuality(imageDefaults?.quality ?? capabilities?.supportedImageQualities?.[0]?.value ?? '');
-    setOutputFormat(
-      imageDefaults?.outputFormat ??
-        capabilities?.supportedImageOutputFormats?.[0]?.value ??
-        '',
-    );
-    setOutputCompression(
-      imageDefaults?.outputCompression ??
-        capabilities?.imageOutputCompressionRange?.defaultValue ??
-        '',
-    );
-    setInputFidelity(
-      imageDefaults?.inputFidelity ??
-        capabilities?.supportedImageInputFidelities?.[0]?.value ??
-        '',
-    );
-    setImageCount(String(imageDefaults?.imageCount ?? 1));
-  }, [capabilities, imageDefaults, modelId]);
+    const defaults = resolveImageFormDefaults(selectedModel);
+    setAspectRatio(defaults.aspectRatio);
+    setResponseFormat(defaults.responseFormat);
+    setResolution(defaults.resolution);
+    setBackground(defaults.background);
+    setQuality(defaults.quality);
+    setOutputFormat(defaults.outputFormat);
+    setOutputCompression(defaults.outputCompression);
+    setInputFidelity(defaults.inputFidelity);
+    setImageCount(defaults.imageCount);
+  }, [selectedModel]);
 
   const supportsImageEditing = capabilities?.supportsImageEditing === true;
   const maxReferenceImages = capabilities?.maxReferenceImagesPerRequest ?? 5;
   const canEdit = supportsImageEditing && references.length > 0;
+  const pendingResultCount = Math.max(1, Number.parseInt(imageCount, 10) || 1);
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -120,40 +103,27 @@ export function useImageLab() {
         throw new Error('This model does not support image editing.');
       }
 
-      const basePayload = {
+      const payload = buildImageRequestPayload({
         providerId,
-        model: modelId,
+        modelId,
         prompt: trimmedPrompt,
-        n: Number(imageCount),
-        aspectRatio: aspectRatio || undefined,
+        imageCount,
+        aspectRatio,
         responseFormat,
-        resolution: resolution || undefined,
-        background: background || undefined,
-        quality: quality || undefined,
-        outputFormat: outputFormat || undefined,
-        outputCompression:
-          typeof outputCompression === 'number' ? outputCompression : undefined,
-      };
+        resolution,
+        background,
+        quality,
+        outputFormat,
+        outputCompression,
+        inputFidelity,
+        references,
+      });
 
-      if (references.length > 0) {
-        return gatewayApiClient.editImage({
-          ...basePayload,
-          images: references.map((reference) =>
-            reference.kind === 'asset'
-              ? {
-                  type: 'asset' as const,
-                  assetId: reference.assetId,
-                }
-              : {
-                  type: 'image_url' as const,
-                  url: reference.url,
-                },
-          ),
-          inputFidelity: inputFidelity || undefined,
-        });
+      if ('images' in payload) {
+        return gatewayApiClient.editImage(payload);
       }
 
-      return gatewayApiClient.generateImage(basePayload);
+      return gatewayApiClient.generateImage(payload);
     },
     onSuccess: (response) => {
       setRequestError(null);
@@ -286,6 +256,7 @@ export function useImageLab() {
     supportsImageEditing,
     maxReferenceImages,
     canEdit,
+    pendingResultCount,
     handleFileSelection,
     addReferenceUrl,
     addReferenceAsset,

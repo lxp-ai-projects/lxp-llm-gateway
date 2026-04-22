@@ -35,6 +35,7 @@
     "coverage": "tsx --test --experimental-test-coverage src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/gateway/provider-registry.service.test.ts src/images/image-application.service.test.ts src/persistence/entities/entity-metadata.test.ts",
     "dev": "tsc-watch --project tsconfig.json --onSuccess \"node dist/main.js\"",
     "lint": "eslint src --ext .ts",
+    "migration:run": "tsx ./node_modules/typeorm/cli.js migration:run -d src/persistence/data-source.ts",
     "test": "tsx --test src/gateway/gateway.service.test.ts src/gateway/provider-credential.service.test.ts src/gateway/provider-registry.service.test.ts src/images/image-application.service.test.ts src/persistence/entities/entity-metadata.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

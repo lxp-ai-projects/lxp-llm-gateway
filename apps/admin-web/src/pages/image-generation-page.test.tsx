@@ -208,6 +208,45 @@ test('ImageGenerationPage generates, saves, and reuses image assets from history
   expect(screen.getByText('History asset 1')).toBeInTheDocument();
 });
 
+test('ImageGenerationPage shows animated loading placeholders while generation is in progress', async () => {
+  const user = userEvent.setup();
+  let resolveGeneration: ((value: Awaited<ReturnType<typeof generateImageMock>>) => void) | null =
+    null;
+  generateImageMock.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveGeneration = resolve;
+      }),
+  );
+
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'A luminous coral reef floating in space' },
+  });
+  await user.click(screen.getByTestId('image-submit'));
+
+  expect(await screen.findByTestId('image-loading-0')).toBeInTheDocument();
+
+  resolveGeneration?.({
+    requestId: 'request-generate-async-1',
+    jobId: 'job-generate-async-1',
+    providerId: 'xai',
+    model: 'grok-imagine-image',
+    images: [
+      {
+        assetId: 'asset-result-async-1',
+        contentUrl: '/api/v1/images/assets/asset-result-async-1/content',
+        url: 'https://cdn.example.com/generated-async.jpg',
+        saved: false,
+      },
+    ],
+  });
+
+  expect(await screen.findByTestId('image-result-0')).toBeInTheDocument();
+});
+
 test('ImageGenerationPage paginates history and routes edit mode through asset references', async () => {
   const user = userEvent.setup();
   renderWithProviders(<ImageGenerationPage />);

@@ -48,7 +48,7 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
     assert.ok(imageModel);
     assert.equal(imageModel.displayName, 'GPT Image 1.5');
     assert.equal(imageModel.capabilities?.supportsImageGeneration, true);
-    assert.equal(imageModel.capabilities?.supportsImageEditing, false);
+    assert.equal(imageModel.capabilities?.supportsImageEditing, true);
     assert.deepEqual(imageModel.capabilities?.supportedImageResponseFormats, [
       'b64_json',
     ]);
@@ -89,6 +89,39 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
       outputCompression: 100,
       imageCount: 1,
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenAiProviderAdapter exposes a normalized image catalog with the documented default model', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [{ id: 'gpt-4o' }],
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new OpenAiProviderAdapter();
+    const catalog = await adapter.listImageCatalog?.({
+      requestId: 'request-1',
+      userId: 'user-1',
+      providerAccess: { apiKey: 'openai-token' },
+    });
+
+    assert.ok(catalog);
+    assert.equal(catalog.providerId, 'openai');
+    assert.equal(catalog.defaultModelId, 'gpt-image-1.5');
+    assert.deepEqual(
+      catalog.models.map((model) => model.id),
+      ['gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini'],
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -214,30 +247,81 @@ test('OpenAiProviderAdapter sends image generation requests to the OpenAI images
   }
 });
 
-test('OpenAiProviderAdapter rejects GPT Image edits because the upstream edits endpoint is not compatible', async () => {
-  const adapter = new OpenAiProviderAdapter();
+test('OpenAiProviderAdapter sends image edit requests to the OpenAI images edits endpoint', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
 
-  await assert.rejects(
-    () =>
-      adapter.editImage(
-        {
-          model: 'gpt-image-1.5',
-          prompt: 'Edit this image',
-          images: [
-            {
-              type: 'image_url',
-              url: 'https://example.com/source.png',
-            },
-          ],
-        },
-        {
-          requestId: 'request-image-4',
-          userId: 'user-1',
-          providerAccess: { apiKey: 'openai-token' },
-        },
-      ),
-    /temporarily unavailable in the gateway/,
-  );
+    return new Response(
+      JSON.stringify({
+        created: 1235,
+        data: [
+          {
+            b64_json: 'edited-base64',
+            revised_prompt: 'Refined edit prompt',
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OpenAiProviderAdapter();
+    const response = await adapter.editImage(
+      {
+        model: 'gpt-image-1.5',
+        prompt: 'Edit this image',
+        images: [
+          {
+            type: 'image_url',
+            url: 'https://example.com/source.png',
+          },
+          {
+            type: 'data_url',
+            url: 'data:image/png;base64,abc123',
+            mimeType: 'image/png',
+          },
+        ],
+        background: 'transparent',
+        inputFidelity: 'high',
+        outputFormat: 'webp',
+        outputCompression: 80,
+        quality: 'high',
+        resolution: '1024x1536',
+      },
+      {
+        requestId: 'request-image-4',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'openai-token' },
+      },
+    );
+
+    assert.equal(calls[0]?.url, 'https://api.openai.com/v1/images/edits');
+    assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
+      model: 'gpt-image-1.5',
+      prompt: 'Edit this image',
+      images: [
+        { image_url: 'https://example.com/source.png' },
+        { image_url: 'data:image/png;base64,abc123' },
+      ],
+      background: 'transparent',
+      input_fidelity: 'high',
+      output_format: 'webp',
+      output_compression: 80,
+      quality: 'high',
+      size: '1024x1536',
+      user: 'user-1',
+    });
+    assert.equal(response.images[0]?.b64Json, 'edited-base64');
+    assert.equal(response.images[0]?.revisedPrompt, 'Refined edit prompt');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('OpenAiProviderAdapter formats rate limit errors for image requests', async () => {
