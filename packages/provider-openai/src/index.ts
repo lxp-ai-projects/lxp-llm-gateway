@@ -14,9 +14,9 @@ import {
   buildOpenAiImageCatalog,
   buildOpenAiModelCatalog,
 } from './image/catalog.js';
-import { OpenAiImageClient } from './image/image-client.js';
-import { OpenAiImageEditHandler } from './image/image-edit-handler.js';
-import { OpenAiImageGenerationHandler } from './image/image-generation-handler.js';
+import { OpenAiImageApiClient } from './image/api-client.js';
+import { OpenAiImageEditService } from './image/edit-service.js';
+import { OpenAiImageGenerationService } from './image/generation-service.js';
 
 export class OpenAiProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -28,9 +28,9 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
 
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
-  private readonly imageClient: OpenAiImageClient;
-  private readonly imageGenerationHandler: OpenAiImageGenerationHandler;
-  private readonly imageEditHandler: OpenAiImageEditHandler;
+  private readonly imageApiClient: OpenAiImageApiClient;
+  private readonly imageGenerationService: OpenAiImageGenerationService;
+  private readonly imageEditService: OpenAiImageEditService;
 
   constructor(
     baseUrl = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
@@ -38,11 +38,14 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
-    this.imageClient = new OpenAiImageClient(this.baseUrl, this.requestTimeoutMs);
-    this.imageGenerationHandler = new OpenAiImageGenerationHandler(
-      this.imageClient,
+    this.imageApiClient = new OpenAiImageApiClient(
+      this.baseUrl,
+      this.requestTimeoutMs,
     );
-    this.imageEditHandler = new OpenAiImageEditHandler(this.imageClient);
+    this.imageGenerationService = new OpenAiImageGenerationService(
+      this.imageApiClient,
+    );
+    this.imageEditService = new OpenAiImageEditService(this.imageApiClient);
   }
 
   readonly providerId = 'openai' as LlmProviderAdapter['providerId'];
@@ -54,15 +57,13 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const listedModelIds = await this.imageClient.listModelIds(context);
+    const listedModelIds = await this.imageApiClient.listModelIds(context);
     return buildOpenAiModelCatalog(listedModelIds);
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
     void context;
-    return buildOpenAiImageCatalog(
-      buildOpenAiModelCatalog([]),
-    );
+    return buildOpenAiImageCatalog(buildOpenAiModelCatalog([]));
   }
 
   async chat(
@@ -145,14 +146,14 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     request: GatewayImageGenerationRequest,
     context: ProviderExecutionContext,
   ) {
-    return this.imageGenerationHandler.execute(request, context);
+    return this.imageGenerationService.execute(request, context);
   }
 
   async editImage(
     request: GatewayImageEditRequest,
     context: ProviderExecutionContext,
   ) {
-    return this.imageEditHandler.execute(request, context);
+    return this.imageEditService.execute(request, context);
   }
 
   private dispatchChatRequest(

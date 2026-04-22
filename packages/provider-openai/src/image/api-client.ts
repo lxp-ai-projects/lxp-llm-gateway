@@ -1,6 +1,8 @@
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
-export class OpenAiImageClient {
+import type { OpenAiImageTransportRequest } from './request-mapper.js';
+
+export class OpenAiImageApiClient {
   constructor(
     private readonly baseUrl: string,
     private readonly requestTimeoutMs: number,
@@ -29,23 +31,37 @@ export class OpenAiImageClient {
 
   postGenerations(
     context: ProviderExecutionContext,
-    body: unknown,
+    request: OpenAiImageTransportRequest,
   ): Promise<Response> {
-    return this.postJson(context, '/images/generations', body);
+    return this.postImageRequest(context, '/images/generations', request);
   }
 
   postEdits(
     context: ProviderExecutionContext,
-    body: unknown,
+    request: OpenAiImageTransportRequest,
   ): Promise<Response> {
-    return this.postJson(context, '/images/edits', body);
+    return this.postImageRequest(context, '/images/edits', request);
   }
 
-  private postJson(
+  private postImageRequest(
     context: ProviderExecutionContext,
     path: string,
-    body: unknown,
+    request: OpenAiImageTransportRequest,
   ): Promise<Response> {
+    if (request.kind === 'multipart') {
+      return this.fetchWithTimeout(
+        `${this.resolveBaseUrl(context)}${path}`,
+        {
+          method: 'POST',
+          headers: {
+            ...this.resolveHeaders(context),
+          },
+          body: request.body,
+        },
+        this.requestTimeoutMs,
+      );
+    }
+
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}${path}`,
       {
@@ -54,7 +70,7 @@ export class OpenAiImageClient {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(request.body),
       },
       this.requestTimeoutMs,
     );

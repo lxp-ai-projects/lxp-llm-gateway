@@ -1,4 +1,7 @@
-import type { ProviderCatalog, ProviderModelDescriptor } from '@lxp/provider-sdk';
+import type {
+  CanonicalImageProviderCatalog,
+  ImageModelDescriptor,
+} from '@lxp/provider-sdk';
 import type { ProviderModel } from '@lxp/provider-sdk';
 
 const OPENAI_IMAGE_RESPONSE_FORMATS = ['b64_json'] as const;
@@ -41,6 +44,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
   {
     id: 'gpt-image-1.5',
     displayName: 'GPT Image 1.5',
+    lifecycleStatus: 'active',
     capabilities: {
       supportsStreaming: false,
       supportsImageGeneration: true,
@@ -58,6 +62,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         step: 1,
       },
       maxGeneratedImagesPerRequest: 10,
+      maxReferenceImagesPerRequest: 5,
       imageDefaults: {
         responseFormat: 'b64_json',
         resolution: '1024x1024',
@@ -72,6 +77,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
   {
     id: 'gpt-image-1',
     displayName: 'GPT Image 1',
+    lifecycleStatus: 'active',
     capabilities: {
       supportsStreaming: false,
       supportsImageGeneration: true,
@@ -89,6 +95,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         step: 1,
       },
       maxGeneratedImagesPerRequest: 10,
+      maxReferenceImagesPerRequest: 5,
       imageDefaults: {
         responseFormat: 'b64_json',
         resolution: '1024x1024',
@@ -103,6 +110,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
   {
     id: 'gpt-image-1-mini',
     displayName: 'GPT Image 1 Mini',
+    lifecycleStatus: 'preview',
     capabilities: {
       supportsStreaming: false,
       supportsImageGeneration: true,
@@ -120,6 +128,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         step: 1,
       },
       maxGeneratedImagesPerRequest: 10,
+      maxReferenceImagesPerRequest: 5,
       imageDefaults: {
         responseFormat: 'b64_json',
         resolution: '1024x1024',
@@ -131,11 +140,15 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
       } as const,
     },
   },
-] as const satisfies readonly ProviderModelDescriptor[];
+] as const satisfies readonly ImageModelDescriptor[];
 
-const OPENAI_IMAGE_MODEL_MAP = new Map<string, ProviderModelDescriptor>(
+const OPENAI_IMAGE_MODEL_MAP = new Map<string, ImageModelDescriptor>(
   OPENAI_IMAGE_MODEL_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
 );
+
+export function getOpenAiImageModelDescriptor(modelId: string) {
+  return OPENAI_IMAGE_MODEL_MAP.get(modelId);
+}
 
 export function isOpenAiImageModel(modelId: string): boolean {
   return OPENAI_IMAGE_MODEL_MAP.has(modelId);
@@ -153,6 +166,10 @@ export function resolveOpenAiModelCapabilities(modelId: string) {
   );
 }
 
+export function getOpenAiImageDefaultModelId() {
+  return OPENAI_IMAGE_MODEL_DESCRIPTORS[0]?.id ?? null;
+}
+
 export function buildOpenAiModelCatalog(listedModelIds: string[]): ProviderModel[] {
   const listedModels = listedModelIds.map((modelId) => ({
     id: modelId,
@@ -166,11 +183,13 @@ export function buildOpenAiModelCatalog(listedModelIds: string[]): ProviderModel
   return [...listedModels, ...knownImageModels];
 }
 
-export function buildOpenAiImageCatalog(models: ProviderModel[]): ProviderCatalog {
+export function buildOpenAiImageCatalog(
+  models: ProviderModel[],
+): CanonicalImageProviderCatalog {
   return {
     providerId: 'openai',
-    defaultModelId: 'gpt-image-1.5',
-    models: models.filter(isImageCapableModel).map(toProviderModelDescriptor),
+    defaultModelId: getOpenAiImageDefaultModelId(),
+    models: models.filter(isImageCapableModel).map(toImageModelDescriptor),
   };
 }
 
@@ -180,12 +199,15 @@ function isImageCapableModel(model: ProviderModel) {
       model.capabilities?.supportsImageEditing);
 }
 
-function toProviderModelDescriptor(
-  model: ProviderModel,
-): ProviderModelDescriptor {
+function toImageModelDescriptor(model: ProviderModel): ImageModelDescriptor {
   return {
     id: model.id,
     displayName: model.displayName,
-    capabilities: model.capabilities ?? { supportsStreaming: true },
+    lifecycleStatus:
+      OPENAI_IMAGE_MODEL_MAP.get(model.id)?.lifecycleStatus ?? 'active',
+    capabilities: {
+      supportsStreaming: model.capabilities?.supportsStreaming ?? true,
+      ...(model.capabilities ?? {}),
+    },
   };
 }

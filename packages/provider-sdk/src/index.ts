@@ -77,6 +77,16 @@ export {
   resolveGatewayImageReference,
   validatePublicHttpsImageUrl,
 } from './image-reference-utils.js';
+export type {
+  CanonicalImageAssetReference,
+  CanonicalImageEditRequest,
+  CanonicalImageGenerateRequest,
+  CanonicalImageProviderCatalog,
+  CanonicalImageResult,
+  ImageModelCapabilities,
+  ImageModelDescriptor,
+  ImageModelLifecycleStatus,
+} from './image-contracts.js';
 export {
   buildProviderHttpError,
   buildProviderImageHttpError,
