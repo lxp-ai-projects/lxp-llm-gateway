@@ -209,10 +209,11 @@ export function ImageRequestForm({
 
         <Group>
           <Button
+            component="label"
             data-testid="image-upload-reference"
             disabled={imageLab.references.length >= imageLab.maxReferenceImages}
+            htmlFor="image-reference-upload-input"
             leftSection={<IconUpload size={16} />}
-            onClick={() => imageLab.fileInputRef.current?.click()}
             variant="light"
           >
             Upload image

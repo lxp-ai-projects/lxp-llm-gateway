@@ -277,3 +277,17 @@ test('ImageGenerationPage paginates history and routes edit mode through asset r
     }),
   );
 });
+
+test('ImageGenerationPage uploads a local file and adds it as a reference asset', async () => {
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+
+  const file = new File(['image-bytes'], 'sample.png', { type: 'image/png' });
+  fireEvent.change(screen.getByTestId('image-reference-upload-input'), {
+    target: { files: [file] },
+  });
+
+  await waitFor(() => expect(uploadImageAssetMock).toHaveBeenCalledTimes(1));
+  expect(await screen.findByText('upload.png')).toBeInTheDocument();
+});

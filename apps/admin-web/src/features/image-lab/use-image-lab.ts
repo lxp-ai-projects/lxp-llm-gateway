@@ -161,17 +161,26 @@ export function useImageLab() {
       return;
     }
 
-    const nextReferences: ImageReferenceDraft[] = [];
-    for (const file of Array.from(fileList)) {
-      const dataUrl = await readFileAsDataUrl(file);
-      const uploaded = await uploadMutation.mutateAsync({
-        dataUrl,
-        label: file.name,
-      });
-      nextReferences.push(mapAssetReference(uploaded.asset));
-    }
+    try {
+      const nextReferences: ImageReferenceDraft[] = [];
+      for (const file of Array.from(fileList)) {
+        const dataUrl = await readFileAsDataUrl(file);
+        const uploaded = await uploadMutation.mutateAsync({
+          dataUrl,
+          label: file.name,
+        });
+        nextReferences.push(mapAssetReference(uploaded.asset));
+      }
 
-    setReferences((current) => [...current, ...nextReferences].slice(0, maxReferenceImages));
+      setRequestError(null);
+      setReferences((current) =>
+        [...current, ...nextReferences].slice(0, maxReferenceImages),
+      );
+    } catch (error) {
+      setRequestError(
+        error instanceof Error ? error.message : 'Image upload failed.',
+      );
+    }
   }
 
   function addReferenceUrl() {

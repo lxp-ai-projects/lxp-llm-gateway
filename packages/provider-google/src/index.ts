@@ -26,6 +26,9 @@ const GOOGLE_OPENAI_BASE_URL =
 const GOOGLE_NATIVE_BASE_URL =
   process.env.GOOGLE_NATIVE_BASE_URL ??
   'https://generativelanguage.googleapis.com/v1beta';
+const GOOGLE_REQUEST_TIMEOUT_MS = Number(
+  process.env.GOOGLE_REQUEST_TIMEOUT_MS ?? '180000',
+);
 const GOOGLE_MAX_INLINE_REFERENCE_BYTES = Number(
   process.env.GOOGLE_MAX_INLINE_REFERENCE_BYTES ?? String(15 * 1024 * 1024),
 );
@@ -46,7 +49,7 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
 
   constructor(
     baseUrl = GOOGLE_OPENAI_BASE_URL,
-    requestTimeoutMs = Number(process.env.GOOGLE_REQUEST_TIMEOUT_MS ?? '90000'),
+    requestTimeoutMs = GOOGLE_REQUEST_TIMEOUT_MS,
     nativeBaseUrl = GOOGLE_NATIVE_BASE_URL,
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');

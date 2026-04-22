@@ -14,7 +14,8 @@ The Image Lab refactor adds gateway-managed image persistence in `gateway-api`.
 
 ## Required Runtime Changes
 
-- run `pnpm.cmd --filter @lxp/gateway-api migration:run` before enabling the new Image Lab in any environment backed by PostgreSQL
+- run `pnpm.cmd db:migration` to execute all application migrations from the repo root
+- if only the Image Lab persistence is needed, `pnpm.cmd --filter @lxp/gateway-api migration:run` remains valid
 - the migration creates the three required tables: `image_assets`, `image_jobs`, and `image_job_results`
 - ensure `gateway-api` has the same database access already used for `users`, `providers`, and `user_provider_credentials`
 - review `GATEWAY_MAX_IMAGE_ASSET_BYTES` if larger generated assets are expected

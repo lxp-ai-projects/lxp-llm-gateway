@@ -373,3 +373,40 @@ test('ImageApplicationService returns image catalog entries even when provider c
     },
   ]);
 });
+
+test('ImageApplicationService uploads a supported image asset', async () => {
+  const provider = new FakeImageProvider();
+  const service = new ImageApplicationService(
+    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
+    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
+    new InMemoryRepository() as never,
+    new InMemoryRepository() as never,
+    new InMemoryRepository() as never,
+    {
+      getProvider: () => provider,
+      listProviders: () => [provider],
+    } as never,
+    {
+      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
+    } as never,
+  );
+
+  const response = await service.uploadAsset(
+    {
+      dataUrl: 'data:image/png;base64,abc123',
+      label: 'upload.png',
+    },
+    {
+      userId: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      roles: ['user'],
+      defaultProviderId: null,
+      defaultModel: null,
+    },
+  );
+
+  assert.equal(response.asset.label, 'upload.png');
+  assert.equal(response.asset.mimeType, 'image/png');
+  assert.equal(response.asset.sourceType, 'upload');
+});

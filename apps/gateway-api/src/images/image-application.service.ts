@@ -204,6 +204,20 @@ export class ImageApplicationService {
   ): Promise<GatewayImageAssetUploadResponse> {
     const user = await this.resolveUser(authContext.emailHash);
     const parsedDataUrl = parseDataUrlReference(request.dataUrl);
+    const dataBytes = Buffer.byteLength(parsedDataUrl.dataBase64, 'base64');
+
+    if (!GATEWAY_IMAGE_ASSET_MIME_TYPES.has(parsedDataUrl.mimeType)) {
+      throw new BadRequestException(
+        'Uploaded image assets must use a supported image MIME type.',
+      );
+    }
+
+    if (dataBytes > GATEWAY_MAX_IMAGE_ASSET_BYTES) {
+      throw new BadRequestException(
+        `Uploaded image assets must be ${GATEWAY_MAX_IMAGE_ASSET_BYTES} bytes or smaller.`,
+      );
+    }
+
     const asset = await this.imageAssetRepository.save({
       userId: user.id,
       sourceType: 'upload',

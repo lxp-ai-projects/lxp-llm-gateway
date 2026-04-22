@@ -12,8 +12,10 @@ export function ImageGenerationPage() {
   return (
     <>
       <input
+        id="image-reference-upload-input"
         ref={imageLab.fileInputRef}
         accept="image/*"
+        data-testid="image-reference-upload-input"
         hidden
         multiple
         onChange={(event) => {
