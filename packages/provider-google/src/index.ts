@@ -16,9 +16,9 @@ import {
   buildGoogleImageCatalog,
   buildGoogleModelCatalog,
 } from './image/catalog.js';
-import { GoogleImageClient } from './image/image-client.js';
-import { GoogleImageEditHandler } from './image/image-edit-handler.js';
-import { GoogleImageGenerationHandler } from './image/image-generation-handler.js';
+import { GoogleImageApiClient } from './image/api-client.js';
+import { GoogleImageEditService } from './image/edit-service.js';
+import { GoogleImageGenerationService } from './image/generation-service.js';
 
 const GOOGLE_OPENAI_BASE_URL =
   process.env.GOOGLE_BASE_URL ??
@@ -44,8 +44,9 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
   private readonly baseUrl: string;
   private readonly nativeBaseUrl: string;
   private readonly requestTimeoutMs: number;
-  private readonly imageClient: GoogleImageClient;
-  private readonly imageGenerationHandler: GoogleImageGenerationHandler;
+  private readonly imageApiClient: GoogleImageApiClient;
+  private readonly imageGenerationService: GoogleImageGenerationService;
+  private readonly imageEditService: GoogleImageEditService;
 
   constructor(
     baseUrl = GOOGLE_OPENAI_BASE_URL,
@@ -55,13 +56,17 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.nativeBaseUrl = nativeBaseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
-    this.imageClient = new GoogleImageClient(
+    this.imageApiClient = new GoogleImageApiClient(
       this.baseUrl,
       this.nativeBaseUrl,
       this.requestTimeoutMs,
     );
-    this.imageGenerationHandler = new GoogleImageGenerationHandler(
-      this.imageClient,
+    this.imageGenerationService = new GoogleImageGenerationService(
+      this.imageApiClient,
+    );
+    this.imageEditService = new GoogleImageEditService(
+      this.imageApiClient,
+      (hostname) => this.lookupHostname(hostname),
       this.requestTimeoutMs,
       GOOGLE_MAX_INLINE_REFERENCE_BYTES,
     );
@@ -76,7 +81,7 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    return buildGoogleModelCatalog(await this.imageClient.listModelIds(context));
+    return buildGoogleModelCatalog(await this.imageApiClient.listModelIds(context));
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
@@ -166,19 +171,14 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
     request: GatewayImageGenerationRequest,
     context: ProviderExecutionContext,
   ) {
-    return this.imageGenerationHandler.execute(request, context);
+    return this.imageGenerationService.execute(request, context);
   }
 
   async editImage(
     request: GatewayImageEditRequest,
     context: ProviderExecutionContext,
   ) {
-    return new GoogleImageEditHandler(
-      this.imageClient,
-      (hostname) => this.lookupHostname(hostname),
-      this.requestTimeoutMs,
-      GOOGLE_MAX_INLINE_REFERENCE_BYTES,
-    ).execute(request, context);
+    return this.imageEditService.execute(request, context);
   }
 
   private dispatchChatRequest(

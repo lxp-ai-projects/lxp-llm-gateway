@@ -1,6 +1,6 @@
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
-export class XAiImageClient {
+export class XAiImageApiClient {
   constructor(
     private readonly baseUrl: string,
     private readonly requestTimeoutMs: number,
@@ -25,17 +25,14 @@ export class XAiImageClient {
     return (payload.data ?? []).map((model) => model.id);
   }
 
-  createGeneration(
+  postGenerations(
     context: ProviderExecutionContext,
     body: unknown,
   ): Promise<Response> {
     return this.postJson(context, '/images/generations', body);
   }
 
-  createEdit(
-    context: ProviderExecutionContext,
-    body: unknown,
-  ): Promise<Response> {
+  postEdits(context: ProviderExecutionContext, body: unknown): Promise<Response> {
     return this.postJson(context, '/images/edits', body);
   }
 

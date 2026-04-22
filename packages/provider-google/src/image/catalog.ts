@@ -1,15 +1,20 @@
-import type { ProviderCatalog, ProviderModelDescriptor } from '@lxp/provider-sdk';
 import type { ProviderModel } from '@lxp/provider-sdk';
+import type {
+  CanonicalImageProviderCatalog,
+  ImageModelDescriptor,
+} from '@lxp/provider-sdk';
 
 export const GOOGLE_IMAGE_MODEL_DESCRIPTORS = [
   {
     id: 'gemini-2.5-flash-image',
     displayName: 'Nano Banana',
+    lifecycleStatus: 'active',
     capabilities: buildGoogleImageCapabilities([{ value: '1K', label: '1K' }]),
   },
   {
     id: 'gemini-3-pro-image-preview',
     displayName: 'Nano Banana Pro',
+    lifecycleStatus: 'preview',
     capabilities: buildGoogleImageCapabilities(
       [
         { value: '1K', label: '1K' },
@@ -22,6 +27,7 @@ export const GOOGLE_IMAGE_MODEL_DESCRIPTORS = [
   {
     id: 'gemini-3.1-flash-image-preview',
     displayName: 'Nano Banana 2',
+    lifecycleStatus: 'preview',
     capabilities: buildGoogleImageCapabilities([
       { value: '512', label: '512' },
       { value: '1K', label: '1K' },
@@ -29,14 +35,18 @@ export const GOOGLE_IMAGE_MODEL_DESCRIPTORS = [
       { value: '4K', label: '4K' },
     ]),
   },
-] as const satisfies readonly ProviderModelDescriptor[];
+] as const satisfies readonly ImageModelDescriptor[];
 
-const GOOGLE_IMAGE_MODEL_MAP = new Map<string, ProviderModelDescriptor>(
+const GOOGLE_IMAGE_MODEL_MAP = new Map<string, ImageModelDescriptor>(
   GOOGLE_IMAGE_MODEL_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
 );
 
 export function isGoogleImageModel(modelId: string): boolean {
   return GOOGLE_IMAGE_MODEL_MAP.has(modelId);
+}
+
+export function getGoogleImageModelDescriptor(modelId: string) {
+  return GOOGLE_IMAGE_MODEL_MAP.get(modelId);
 }
 
 export function resolveGoogleModelDisplayName(modelId: string): string {
@@ -49,6 +59,10 @@ export function resolveGoogleModelCapabilities(modelId: string) {
       supportsStreaming: true,
     }
   );
+}
+
+export function getGoogleImageDefaultModelId() {
+  return GOOGLE_IMAGE_MODEL_DESCRIPTORS[0]?.id ?? null;
 }
 
 export function buildGoogleModelCatalog(listedModelIds: string[]): ProviderModel[] {
@@ -64,10 +78,12 @@ export function buildGoogleModelCatalog(listedModelIds: string[]): ProviderModel
   return [...listedModels, ...knownImageModels];
 }
 
-export function buildGoogleImageCatalog(models: ProviderModel[]): ProviderCatalog {
+export function buildGoogleImageCatalog(
+  models: ProviderModel[],
+): CanonicalImageProviderCatalog {
   return {
     providerId: 'google',
-    defaultModelId: 'gemini-2.5-flash-image',
+    defaultModelId: getGoogleImageDefaultModelId(),
     models: models.filter(isImageCapableModel).map(toProviderModelDescriptor),
   };
 }
@@ -114,10 +130,15 @@ function isImageCapableModel(model: ProviderModel) {
 
 function toProviderModelDescriptor(
   model: ProviderModel,
-): ProviderModelDescriptor {
+): ImageModelDescriptor {
   return {
     id: model.id,
     displayName: model.displayName,
-    capabilities: model.capabilities ?? { supportsStreaming: true },
+    lifecycleStatus:
+      GOOGLE_IMAGE_MODEL_MAP.get(model.id)?.lifecycleStatus ?? 'active',
+    capabilities: {
+      supportsStreaming: model.capabilities?.supportsStreaming ?? true,
+      ...(model.capabilities ?? {}),
+    },
   };
 }

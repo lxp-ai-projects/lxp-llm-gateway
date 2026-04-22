@@ -1,25 +1,34 @@
-import type { ProviderCatalog, ProviderModelDescriptor } from '@lxp/provider-sdk';
 import type { ProviderModel } from '@lxp/provider-sdk';
+import type {
+  CanonicalImageProviderCatalog,
+  ImageModelDescriptor,
+} from '@lxp/provider-sdk';
 
 export const XAI_IMAGE_MODEL_DESCRIPTORS = [
   {
     id: 'grok-imagine-image',
     displayName: 'Grok Imagine Image',
+    lifecycleStatus: 'active',
     capabilities: buildXAiImageCapabilities(),
   },
   {
     id: 'grok-imagine-image-pro',
     displayName: 'Grok Imagine Image Pro',
+    lifecycleStatus: 'active',
     capabilities: buildXAiImageCapabilities(),
   },
-] as const satisfies readonly ProviderModelDescriptor[];
+] as const satisfies readonly ImageModelDescriptor[];
 
-const XAI_IMAGE_MODEL_MAP = new Map<string, ProviderModelDescriptor>(
+const XAI_IMAGE_MODEL_MAP = new Map<string, ImageModelDescriptor>(
   XAI_IMAGE_MODEL_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
 );
 
 export function isXAiImageModel(modelId: string): boolean {
   return XAI_IMAGE_MODEL_MAP.has(modelId);
+}
+
+export function getXAiImageModelDescriptor(modelId: string) {
+  return XAI_IMAGE_MODEL_MAP.get(modelId);
 }
 
 export function resolveXAiModelDisplayName(modelId: string): string {
@@ -32,6 +41,10 @@ export function resolveXAiModelCapabilities(modelId: string) {
       supportsStreaming: true,
     }
   );
+}
+
+export function getXAiImageDefaultModelId() {
+  return XAI_IMAGE_MODEL_DESCRIPTORS[0]?.id ?? null;
 }
 
 export function buildXAiModelCatalog(listedModelIds: string[]): ProviderModel[] {
@@ -47,10 +60,12 @@ export function buildXAiModelCatalog(listedModelIds: string[]): ProviderModel[] 
   return [...listedModels, ...knownImageModels];
 }
 
-export function buildXAiImageCatalog(models: ProviderModel[]): ProviderCatalog {
+export function buildXAiImageCatalog(
+  models: ProviderModel[],
+): CanonicalImageProviderCatalog {
   return {
     providerId: 'xai',
-    defaultModelId: 'grok-imagine-image',
+    defaultModelId: getXAiImageDefaultModelId(),
     models: models.filter(isImageCapableModel).map(toProviderModelDescriptor),
   };
 }
@@ -156,10 +171,14 @@ function isImageCapableModel(model: ProviderModel) {
 
 function toProviderModelDescriptor(
   model: ProviderModel,
-): ProviderModelDescriptor {
+): ImageModelDescriptor {
   return {
     id: model.id,
     displayName: model.displayName,
-    capabilities: model.capabilities ?? { supportsStreaming: true },
+    lifecycleStatus: XAI_IMAGE_MODEL_MAP.get(model.id)?.lifecycleStatus ?? 'active',
+    capabilities: {
+      supportsStreaming: model.capabilities?.supportsStreaming ?? true,
+      ...(model.capabilities ?? {}),
+    },
   };
 }

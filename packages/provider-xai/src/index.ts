@@ -12,9 +12,9 @@ import type {
   ProviderModel,
 } from '@lxp/provider-sdk';
 import { buildXAiImageCatalog, buildXAiModelCatalog } from './image/catalog.js';
-import { XAiImageClient } from './image/image-client.js';
-import { XAiImageEditHandler } from './image/image-edit-handler.js';
-import { XAiImageGenerationHandler } from './image/image-generation-handler.js';
+import { XAiImageApiClient } from './image/api-client.js';
+import { XAiImageEditService } from './image/edit-service.js';
+import { XAiImageGenerationService } from './image/generation-service.js';
 
 export class XaiProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -26,8 +26,9 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
 
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
-  private readonly imageClient: XAiImageClient;
-  private readonly imageGenerationHandler: XAiImageGenerationHandler;
+  private readonly imageApiClient: XAiImageApiClient;
+  private readonly imageGenerationService: XAiImageGenerationService;
+  private readonly imageEditService: XAiImageEditService;
 
   constructor(
     baseUrl = process.env.XAI_BASE_URL ?? 'https://api.x.ai/v1',
@@ -35,8 +36,17 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
-    this.imageClient = new XAiImageClient(this.baseUrl, this.requestTimeoutMs);
-    this.imageGenerationHandler = new XAiImageGenerationHandler(this.imageClient);
+    this.imageApiClient = new XAiImageApiClient(
+      this.baseUrl,
+      this.requestTimeoutMs,
+    );
+    this.imageGenerationService = new XAiImageGenerationService(
+      this.imageApiClient,
+    );
+    this.imageEditService = new XAiImageEditService(
+      this.imageApiClient,
+      (hostname) => this.lookupHostname(hostname),
+    );
   }
 
   readonly providerId: LlmProviderAdapter['providerId'] = 'xai';
@@ -48,7 +58,7 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    return buildXAiModelCatalog(await this.imageClient.listModelIds(context));
+    return buildXAiModelCatalog(await this.imageApiClient.listModelIds(context));
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
@@ -130,17 +140,14 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     request: GatewayImageGenerationRequest,
     context: ProviderExecutionContext,
   ) {
-    return this.imageGenerationHandler.execute(request, context);
+    return this.imageGenerationService.execute(request, context);
   }
 
   async editImage(
     request: GatewayImageEditRequest,
     context: ProviderExecutionContext,
   ) {
-    return new XAiImageEditHandler(
-      this.imageClient,
-      (hostname) => this.lookupHostname(hostname),
-    ).execute(request, context);
+    return this.imageEditService.execute(request, context);
   }
 
   private dispatchChatRequest(

@@ -1,8 +1,5 @@
-import type {
-  GatewayGeneratedImage,
-  GatewayImageGenerationResponse,
-} from '@lxp/contracts';
-import type { ProviderExecutionContext } from '@lxp/provider-sdk';
+import type { GatewayImageGenerationResponse } from '@lxp/contracts';
+import type { CanonicalImageResult, ProviderExecutionContext } from '@lxp/provider-sdk';
 
 export interface XAiGeneratedImage {
   url?: string;
@@ -17,14 +14,14 @@ export interface XAiImageResponsePayload {
 }
 
 export function mapXAiImageResponse(
-  requestedModel: string | undefined,
+  requestedModel: string,
   context: ProviderExecutionContext,
   payload: XAiImageResponsePayload,
 ): GatewayImageGenerationResponse {
   return {
     requestId: context.requestId,
     providerId: 'xai',
-    model: payload.model ?? requestedModel ?? 'unknown-model',
+    model: payload.model ?? requestedModel,
     images: (payload.data ?? []).map(mapXAiGeneratedImage),
     providerMetadata: {
       created: payload.created,
@@ -32,10 +29,10 @@ export function mapXAiImageResponse(
   };
 }
 
-function mapXAiGeneratedImage(image: XAiGeneratedImage): GatewayGeneratedImage {
+function mapXAiGeneratedImage(image: XAiGeneratedImage): CanonicalImageResult {
   return {
-    url: image.url,
-    b64Json: image.b64_json,
-    revisedPrompt: image.revised_prompt,
+    ...(image.url ? { url: image.url } : {}),
+    ...(image.b64_json ? { b64Json: image.b64_json } : {}),
+    ...(image.revised_prompt ? { revisedPrompt: image.revised_prompt } : {}),
   };
 }

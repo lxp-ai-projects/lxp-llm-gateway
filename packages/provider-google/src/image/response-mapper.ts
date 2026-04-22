@@ -1,7 +1,4 @@
-import type {
-  GatewayGeneratedImage,
-  GatewayImageGenerationResponse,
-} from '@lxp/contracts';
+import type { GatewayImageGenerationResponse } from '@lxp/contracts';
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
 export interface GoogleGenerateContentResponse {
@@ -30,7 +27,7 @@ export function mapGoogleGenerateContentResponse(
   context: ProviderExecutionContext,
   payload: GoogleGenerateContentResponse,
 ): GatewayImageGenerationResponse {
-  const images: GatewayGeneratedImage[] = [];
+  const images = [];
   const textOutputs: string[] = [];
 
   for (const candidate of payload.candidates ?? []) {

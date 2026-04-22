@@ -1,15 +1,16 @@
-import type {
-  GatewayImageEditRequest,
-  GatewayImageGenerationRequest,
-  GatewayImageReference,
-} from '@lxp/contracts';
 import { resolveGatewayImageReference } from '@lxp/provider-sdk';
+import type {
+  CanonicalImageEditRequest,
+  CanonicalImageGenerateRequest,
+  ImageModelDescriptor,
+} from '@lxp/provider-sdk';
 
-export function buildXAiImageGenerationBody(
-  request: GatewayImageGenerationRequest,
+export function buildXAiImageGenerationRequest(
+  request: CanonicalImageGenerateRequest,
+  model: ImageModelDescriptor,
 ) {
   return {
-    model: request.model,
+    model: model.id,
     prompt: request.prompt,
     n: request.n,
     aspect_ratio: request.aspectRatio,
@@ -18,16 +19,19 @@ export function buildXAiImageGenerationBody(
   };
 }
 
-export async function buildXAiImageEditBody(
-  request: GatewayImageEditRequest,
-  lookupHostname: (hostname: string) => Promise<Array<{ address: string; family: number }>>,
+export async function buildXAiImageEditRequest(
+  request: CanonicalImageEditRequest,
+  model: ImageModelDescriptor,
+  lookupHostname: (
+    hostname: string,
+  ) => Promise<Array<{ address: string; family: number }>>,
 ) {
   const mappedImages = await Promise.all(
     request.images.map((image) => mapXAiImageReference(image, lookupHostname)),
   );
 
   return {
-    model: request.model,
+    model: model.id,
     prompt: request.prompt,
     n: request.n,
     aspect_ratio: request.aspectRatio,
@@ -39,8 +43,10 @@ export async function buildXAiImageEditBody(
 }
 
 async function mapXAiImageReference(
-  image: GatewayImageReference,
-  lookupHostname: (hostname: string) => Promise<Array<{ address: string; family: number }>>,
+  image: CanonicalImageEditRequest['images'][number],
+  lookupHostname: (
+    hostname: string,
+  ) => Promise<Array<{ address: string; family: number }>>,
 ) {
   const resolvedReference = await resolveGatewayImageReference(image, {
     mode: 'passthrough-url',

@@ -1,6 +1,6 @@
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
-export class GoogleImageClient {
+export class GoogleImageApiClient {
   constructor(
     private readonly openAiBaseUrl: string,
     private readonly nativeBaseUrl: string,
@@ -26,7 +26,7 @@ export class GoogleImageClient {
     return (payload.data ?? []).map((model) => model.id);
   }
 
-  generateContent(
+  postGenerateContent(
     context: ProviderExecutionContext,
     model: string,
     body: unknown,
@@ -130,9 +130,7 @@ export class GoogleImageClient {
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        throw new Error(
-          `Google Gemini request timed out after ${timeoutMs} ms.`,
-        );
+        throw new Error(`Google Gemini request timed out after ${timeoutMs} ms.`);
       }
 
       throw error;
