@@ -63,7 +63,7 @@ Phase 2 should assume:
 - CI quality gates already cover typecheck, test, and build
 - new provider capabilities should extend `packages/provider-sdk`, not bypass it
 - image history, save state, and gateway-managed reference assets belong in the application layer, not in provider packages
-- image-provider packages should stay thin at the adapter boundary and split image concerns into provider catalog, transport client, request mapper, response mapper, and generation/edit handlers
+- image-provider packages should stay thin at the adapter boundary and split image concerns into provider catalog, model policy, transport client, request mapper, response mapper, and generation/edit services
 
 The next planned capability expansion is:
 
@@ -73,10 +73,10 @@ The next planned capability expansion is:
 - reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
 - paginated image job history and reusable saved/generated assets for operators
 
-Current image-provider posture is not perfectly uniform:
+Current image-provider posture is:
 
 - `xAI Grok` image models are exposed for generation and editing
 - `Google Gemini` image models are exposed for generation and editing
-- `OpenAI GPT Image` is exposed for generation, but editing is intentionally disabled in the gateway until the upstream OpenAI `images/edits` runtime accepts GPT Image models consistently
+- `OpenAI GPT Image` is exposed for generation and editing through the same seam, with provider-owned capability metadata controlling the UI affordances
 
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.

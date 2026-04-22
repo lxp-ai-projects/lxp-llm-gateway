@@ -228,11 +228,22 @@ Provider adapters remain responsible only for:
 The current image-provider implementation pattern is now explicit across `provider-openai`, `provider-xai`, and `provider-google`:
 
 - a provider-owned image catalog/registry for model descriptors and defaults
+- a provider model-policy module for capability checks and request validation
 - a provider transport client for upstream HTTP concerns
 - provider-specific request mappers
 - provider-specific response mappers
-- thin generation and edit handlers
+- thin generation and edit services
 - a thin adapter that orchestrates those pieces and exposes only the shared seam
+
+That pattern is the reference architecture for future image-capable providers.
+
+The intent is:
+
+- `index.ts` remains a composition root only
+- catalog changes should be mostly declarative when adding or retiring a model
+- model capability decisions stay centralized in provider-owned policy modules
+- request normalization, endpoint choice, HTTP transport, and response parsing must not collapse back into a single class
+- `gateway-api` continues to see only the shared provider seam, not provider-specific image endpoint rules
 
 ## UI Direction
 

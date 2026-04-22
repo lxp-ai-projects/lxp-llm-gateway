@@ -398,4 +398,6 @@ The current implementation now also includes:
 - gateway-managed image asset upload for mobile-safe reference workflows
 - persisted image job history with pagination at 10 jobs per page
 - save and reuse flows for generated images through gateway-managed assets
-- a consistent provider-internal image pattern across OpenAI, xAI, and Google: catalog, transport client, request mapper, response mapper, and generation/edit handlers
+- a consistent provider-internal image pattern across OpenAI, xAI, and Google: catalog, model policy, transport client, request mapper, response mapper, and generation/edit services
+
+That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.

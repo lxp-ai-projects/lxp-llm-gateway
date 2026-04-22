@@ -31,6 +31,20 @@ Chat, model catalog listing, image generation, and image editing are separate pr
 - if a provider package fetches remote reference media in order to transform normalized gateway inputs into provider-native payloads, that package must also own SSRF and content-validation controls for that fetch path
 - shared validation and fetch-safety logic for normalized image references may live in `provider-sdk`, but concrete adapters remain responsible for deciding when to use it and how to map the resulting data into provider-native payloads
 - model-catalog metadata needed by capability-specific UI flows, such as supported image aspect ratios, response formats, resolutions, output formats, background modes, quality presets, input fidelity, compression ranges, and request limits, should also remain provider-owned and flow through normalized adapter results
-- provider packages may truthfully expose a narrower runtime capability set than a provider's marketing or documentation suggests when the live upstream API behaves differently; that truth should flow through model capabilities and UI affordances instead of being hidden behind optimistic gateway behavior
 - application concerns such as asset persistence, save state, history pagination, and resolution of gateway-managed asset references are explicitly outside provider packages and belong in the gateway application layer
-- within a provider package, the preferred image-workflow decomposition is: provider catalog/registry, transport client, request mapper, response mapper, and generation/edit handlers, with the exported adapter remaining an orchestration layer only
+- within a provider package, the preferred image-workflow decomposition is: provider catalog/registry, model policy, transport client, request mapper, response mapper, and generation/edit services, with the exported adapter remaining a composition/orchestration layer only
+
+### Image Provider Reference Pattern
+
+For image-capable providers, the reference implementation shape is now:
+
+- `src/index.ts` as a composition root only
+- `src/image/catalog.ts` for static model descriptors, labels, lifecycle state, and defaults
+- `src/image/model-policy.ts` for capability checks and request validation
+- `src/image/request-mapper.ts` for canonical request to provider payload mapping
+- `src/image/api-client.ts` for raw upstream HTTP transport only
+- `src/image/response-mapper.ts` for provider payload to canonical response mapping
+- `src/image/generation-service.ts` for generation orchestration
+- `src/image/edit-service.ts` for edit orchestration
+
+This pattern is the expected template for future image providers because it keeps model evolution mostly declarative and prevents request normalization, endpoint selection, HTTP transport, and response parsing from collapsing into one mixed-responsibility class.
