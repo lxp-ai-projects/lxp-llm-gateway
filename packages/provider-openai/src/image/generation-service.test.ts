@@ -27,7 +27,7 @@ test('OpenAiImageGenerationService orchestrates request validation, transport, a
     );
     const response = await service.execute(
       {
-        model: 'gpt-image-1.5',
+        model: 'gpt-image-2',
         prompt: 'A transparent product packshot',
         n: 2,
         responseFormat: 'b64_json',

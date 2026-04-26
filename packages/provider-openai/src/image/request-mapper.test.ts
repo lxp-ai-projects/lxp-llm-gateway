@@ -8,10 +8,10 @@ import {
 } from './request-mapper.js';
 
 test('buildOpenAiImageGenerationRequest maps canonical generation requests to OpenAI JSON', () => {
-  const model = resolveOpenAiImageModelDescriptor('gpt-image-1.5');
+  const model = resolveOpenAiImageModelDescriptor('gpt-image-2');
   const request = buildOpenAiImageGenerationRequest(
     {
-      model: 'gpt-image-1.5',
+      model: 'gpt-image-2',
       prompt: 'A chrome hummingbird',
       n: 2,
       resolution: '1024x1536',
@@ -26,7 +26,7 @@ test('buildOpenAiImageGenerationRequest maps canonical generation requests to Op
 
   assert.equal(request.kind, 'json');
   assert.deepEqual(request.body, {
-    model: 'gpt-image-1.5',
+    model: 'gpt-image-2',
     prompt: 'A chrome hummingbird',
     n: 2,
     size: '1024x1536',
@@ -39,10 +39,10 @@ test('buildOpenAiImageGenerationRequest maps canonical generation requests to Op
 });
 
 test('buildOpenAiImageEditRequest maps canonical edit requests to OpenAI JSON', () => {
-  const model = resolveOpenAiImageModelDescriptor('gpt-image-1.5');
+  const model = resolveOpenAiImageModelDescriptor('gpt-image-2');
   const request = buildOpenAiImageEditRequest(
     {
-      model: 'gpt-image-1.5',
+      model: 'gpt-image-2',
       prompt: 'Edit this image',
       images: [
         { type: 'image_url', url: 'https://example.com/source.png' },
@@ -53,7 +53,6 @@ test('buildOpenAiImageEditRequest maps canonical edit requests to OpenAI JSON', 
       quality: 'high',
       outputFormat: 'webp',
       outputCompression: 80,
-      inputFidelity: 'high',
     },
     model,
     'user-1',
@@ -61,14 +60,13 @@ test('buildOpenAiImageEditRequest maps canonical edit requests to OpenAI JSON', 
 
   assert.equal(request.kind, 'json');
   assert.deepEqual(request.body, {
-    model: 'gpt-image-1.5',
+    model: 'gpt-image-2',
     prompt: 'Edit this image',
     images: [
       { image_url: 'https://example.com/source.png' },
       { image_url: 'data:image/png;base64,abc123' },
     ],
     background: 'transparent',
-    input_fidelity: 'high',
     output_format: 'webp',
     output_compression: 80,
     quality: 'high',

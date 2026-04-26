@@ -27,7 +27,7 @@ test('OpenAiImageEditService orchestrates edit requests end to end', async () =>
     );
     const response = await service.execute(
       {
-        model: 'gpt-image-1.5',
+        model: 'gpt-image-2',
         prompt: 'Edit this image',
         images: [
           {
@@ -36,7 +36,6 @@ test('OpenAiImageEditService orchestrates edit requests end to end', async () =>
           },
         ],
         background: 'transparent',
-        inputFidelity: 'high',
         outputFormat: 'webp',
         outputCompression: 80,
         quality: 'high',

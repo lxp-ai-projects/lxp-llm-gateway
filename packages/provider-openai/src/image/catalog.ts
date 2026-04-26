@@ -42,6 +42,38 @@ const OPENAI_IMAGE_INPUT_FIDELITIES = [
 
 export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
   {
+    id: 'gpt-image-2',
+    displayName: 'GPT Image 2',
+    lifecycleStatus: 'active',
+    capabilities: {
+      supportsStreaming: false,
+      supportsImageGeneration: true,
+      supportsImageEditing: true,
+      supportedImageResponseFormats: [...OPENAI_IMAGE_RESPONSE_FORMATS],
+      supportedImageResolutions: [...OPENAI_IMAGE_RESOLUTIONS],
+      supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
+      supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
+      supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
+      imageOutputCompressionRange: {
+        min: 0,
+        max: 100,
+        defaultValue: 100,
+        step: 1,
+      },
+      maxGeneratedImagesPerRequest: 10,
+      maxReferenceImagesPerRequest: 16,
+      imageDefaults: {
+        responseFormat: 'b64_json',
+        resolution: '1024x1024',
+        background: 'auto',
+        quality: 'auto',
+        outputFormat: 'png',
+        outputCompression: 100,
+        imageCount: 1,
+      } as const,
+    },
+  },
+  {
     id: 'gpt-image-1.5',
     displayName: 'GPT Image 1.5',
     lifecycleStatus: 'active',
@@ -54,7 +86,6 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
       supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
       supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
       supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
-      supportedImageInputFidelities: [...OPENAI_IMAGE_INPUT_FIDELITIES],
       imageOutputCompressionRange: {
         min: 0,
         max: 100,
@@ -62,7 +93,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         step: 1,
       },
       maxGeneratedImagesPerRequest: 10,
-      maxReferenceImagesPerRequest: 5,
+      maxReferenceImagesPerRequest: 16,
       imageDefaults: {
         responseFormat: 'b64_json',
         resolution: '1024x1024',
@@ -95,7 +126,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         step: 1,
       },
       maxGeneratedImagesPerRequest: 10,
-      maxReferenceImagesPerRequest: 5,
+      maxReferenceImagesPerRequest: 16,
       imageDefaults: {
         responseFormat: 'b64_json',
         resolution: '1024x1024',
@@ -120,7 +151,6 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
       supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
       supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
       supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
-      supportedImageInputFidelities: [...OPENAI_IMAGE_INPUT_FIDELITIES],
       imageOutputCompressionRange: {
         min: 0,
         max: 100,
@@ -128,7 +158,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         step: 1,
       },
       maxGeneratedImagesPerRequest: 10,
-      maxReferenceImagesPerRequest: 5,
+      maxReferenceImagesPerRequest: 16,
       imageDefaults: {
         responseFormat: 'b64_json',
         resolution: '1024x1024',

@@ -39,15 +39,16 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
       [
         'gpt-4o',
         'gpt-4.1-mini',
+        'gpt-image-2',
         'gpt-image-1.5',
         'gpt-image-1',
         'gpt-image-1-mini',
       ],
     );
 
-    const imageModel = models.find((model) => model.id === 'gpt-image-1.5');
+    const imageModel = models.find((model) => model.id === 'gpt-image-2');
     assert.ok(imageModel);
-    assert.equal(imageModel.displayName, 'GPT Image 1.5');
+    assert.equal(imageModel.displayName, 'GPT Image 2');
     assert.equal(imageModel.capabilities?.supportsImageGeneration, true);
     assert.equal(imageModel.capabilities?.supportsImageEditing, true);
     assert.deepEqual(imageModel.capabilities?.supportedImageResponseFormats, [
@@ -63,18 +64,7 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
       { value: 'opaque', label: 'Opaque' },
       { value: 'transparent', label: 'Transparent' },
     ]);
-    assert.deepEqual(imageModel.capabilities?.supportedImageInputFidelities, [
-      {
-        value: 'low',
-        label: 'Low',
-        description: 'Looser adherence to the reference image.',
-      },
-      {
-        value: 'high',
-        label: 'High',
-        description: 'Preserve source details more strictly.',
-      },
-    ]);
+    assert.equal(imageModel.capabilities?.supportedImageInputFidelities, undefined);
     assert.deepEqual(imageModel.capabilities?.imageOutputCompressionRange, {
       min: 0,
       max: 100,
@@ -118,10 +108,10 @@ test('OpenAiProviderAdapter exposes a normalized image catalog with the document
 
     assert.ok(catalog);
     assert.equal(catalog.providerId, 'openai');
-    assert.equal(catalog.defaultModelId, 'gpt-image-1.5');
+    assert.equal(catalog.defaultModelId, 'gpt-image-2');
     assert.deepEqual(
       catalog.models.map((model) => model.id),
-      ['gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini'],
+      ['gpt-image-2', 'gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini'],
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -212,7 +202,7 @@ test('OpenAiProviderAdapter sends image generation requests to the OpenAI images
     const adapter = new OpenAiProviderAdapter();
     const response = await adapter.generateImage(
       {
-        model: 'gpt-image-1.5',
+        model: 'gpt-image-2',
         prompt: 'A transparent product packshot',
         n: 2,
         responseFormat: 'b64_json',
@@ -231,7 +221,7 @@ test('OpenAiProviderAdapter sends image generation requests to the OpenAI images
 
     assert.equal(calls[0]?.url, 'https://api.openai.com/v1/images/generations');
     assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
-      model: 'gpt-image-1.5',
+      model: 'gpt-image-2',
       prompt: 'A transparent product packshot',
       n: 2,
       size: '1024x1536',
@@ -275,7 +265,7 @@ test('OpenAiProviderAdapter sends image edit requests to the OpenAI images edits
     const adapter = new OpenAiProviderAdapter();
     const response = await adapter.editImage(
       {
-        model: 'gpt-image-1.5',
+        model: 'gpt-image-2',
         prompt: 'Edit this image',
         images: [
           {
@@ -289,7 +279,6 @@ test('OpenAiProviderAdapter sends image edit requests to the OpenAI images edits
           },
         ],
         background: 'transparent',
-        inputFidelity: 'high',
         outputFormat: 'webp',
         outputCompression: 80,
         quality: 'high',
@@ -304,14 +293,13 @@ test('OpenAiProviderAdapter sends image edit requests to the OpenAI images edits
 
     assert.equal(calls[0]?.url, 'https://api.openai.com/v1/images/edits');
     assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
-      model: 'gpt-image-1.5',
+      model: 'gpt-image-2',
       prompt: 'Edit this image',
       images: [
         { image_url: 'https://example.com/source.png' },
         { image_url: 'data:image/png;base64,abc123' },
       ],
       background: 'transparent',
-      input_fidelity: 'high',
       output_format: 'webp',
       output_compression: 80,
       quality: 'high',

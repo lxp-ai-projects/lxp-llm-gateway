@@ -35,12 +35,15 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
   constructor(
     baseUrl = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
     requestTimeoutMs = Number(process.env.OPENAI_REQUEST_TIMEOUT_MS ?? '90000'),
+    imageRequestTimeoutMs = Number(
+      process.env.OPENAI_IMAGE_REQUEST_TIMEOUT_MS ?? '300000',
+    ),
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
     this.imageApiClient = new OpenAiImageApiClient(
       this.baseUrl,
-      this.requestTimeoutMs,
+      imageRequestTimeoutMs,
     );
     this.imageGenerationService = new OpenAiImageGenerationService(
       this.imageApiClient,

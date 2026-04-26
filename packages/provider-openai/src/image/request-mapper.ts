@@ -48,7 +48,9 @@ export function buildOpenAiImageEditRequest(
       prompt: request.prompt,
       images: request.images.map(mapOpenAiReferenceImage),
       background: request.background,
-      input_fidelity: request.inputFidelity,
+      ...(request.inputFidelity
+        ? { input_fidelity: request.inputFidelity }
+        : {}),
       output_format: request.outputFormat,
       output_compression: request.outputCompression,
       quality: request.quality,
