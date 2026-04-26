@@ -269,13 +269,14 @@ test('OpenAiProviderAdapter sends image edit requests to the OpenAI images edits
         prompt: 'Edit this image',
         images: [
           {
-            type: 'image_url',
-            url: 'https://example.com/source.png',
-          },
-          {
             type: 'data_url',
             url: 'data:image/png;base64,abc123',
             mimeType: 'image/png',
+          },
+          {
+            type: 'data_url',
+            url: 'data:image/jpeg;base64,def456',
+            mimeType: 'image/jpeg',
           },
         ],
         background: 'transparent',
@@ -292,20 +293,17 @@ test('OpenAiProviderAdapter sends image edit requests to the OpenAI images edits
     );
 
     assert.equal(calls[0]?.url, 'https://api.openai.com/v1/images/edits');
-    assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
-      model: 'gpt-image-2',
-      prompt: 'Edit this image',
-      images: [
-        { image_url: 'https://example.com/source.png' },
-        { image_url: 'data:image/png;base64,abc123' },
-      ],
-      background: 'transparent',
-      output_format: 'webp',
-      output_compression: 80,
-      quality: 'high',
-      size: '1024x1536',
-      user: 'user-1',
-    });
+    const body = calls[0]?.init?.body;
+    assert.ok(body instanceof FormData);
+    assert.equal(body.get('model'), 'gpt-image-2');
+    assert.equal(body.get('prompt'), 'Edit this image');
+    assert.equal(body.get('background'), 'transparent');
+    assert.equal(body.get('output_format'), 'webp');
+    assert.equal(body.get('output_compression'), '80');
+    assert.equal(body.get('quality'), 'high');
+    assert.equal(body.get('size'), '1024x1536');
+    assert.equal(body.get('user'), 'user-1');
+    assert.equal(body.getAll('image[]').length, 2);
     assert.equal(response.images[0]?.b64Json, 'edited-base64');
     assert.equal(response.images[0]?.revisedPrompt, 'Refined edit prompt');
   } finally {
@@ -382,8 +380,9 @@ test('OpenAiProviderAdapter formats image client errors generically', async () =
             prompt: 'Edit this image',
             images: [
               {
-                type: 'image_url',
-                url: 'https://example.com/source.png',
+                type: 'data_url',
+                url: 'data:image/png;base64,abc123',
+                mimeType: 'image/png',
               },
             ],
           },

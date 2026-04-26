@@ -45,8 +45,8 @@ test('buildOpenAiImageEditRequest maps canonical edit requests to OpenAI JSON', 
       model: 'gpt-image-2',
       prompt: 'Edit this image',
       images: [
-        { type: 'image_url', url: 'https://example.com/source.png' },
         { type: 'data_url', url: 'data:image/png;base64,abc123' },
+        { type: 'data_url', url: 'data:image/jpeg;base64,def456' },
       ],
       resolution: '1024x1536',
       background: 'transparent',
@@ -56,21 +56,26 @@ test('buildOpenAiImageEditRequest maps canonical edit requests to OpenAI JSON', 
     },
     model,
     'user-1',
+    {
+      fetchWithTimeout: async () => {
+        throw new Error('unexpected fetch');
+      },
+      lookupHostname: async () => [],
+      timeoutMs: 30_000,
+      maxBytes: 50 * 1024 * 1024,
+    },
   );
 
-  assert.equal(request.kind, 'json');
-  assert.deepEqual(request.body, {
-    model: 'gpt-image-2',
-    prompt: 'Edit this image',
-    images: [
-      { image_url: 'https://example.com/source.png' },
-      { image_url: 'data:image/png;base64,abc123' },
-    ],
-    background: 'transparent',
-    output_format: 'webp',
-    output_compression: 80,
-    quality: 'high',
-    size: '1024x1536',
-    user: 'user-1',
+  return request.then((mappedRequest) => {
+    assert.equal(mappedRequest.kind, 'multipart');
+    assert.equal(mappedRequest.body.get('model'), 'gpt-image-2');
+    assert.equal(mappedRequest.body.get('prompt'), 'Edit this image');
+    assert.equal(mappedRequest.body.get('background'), 'transparent');
+    assert.equal(mappedRequest.body.get('output_format'), 'webp');
+    assert.equal(mappedRequest.body.get('output_compression'), '80');
+    assert.equal(mappedRequest.body.get('quality'), 'high');
+    assert.equal(mappedRequest.body.get('size'), '1024x1536');
+    assert.equal(mappedRequest.body.get('user'), 'user-1');
+    assert.equal(mappedRequest.body.getAll('image[]').length, 2);
   });
 });

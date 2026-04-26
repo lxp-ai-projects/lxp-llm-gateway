@@ -18,6 +18,8 @@ import type {
   ProviderModelSummary,
 } from './api-client.types';
 
+const IMAGE_REQUEST_TIMEOUT_MS = 300000;
+
 export const gatewayApiClient = {
   async getHealth(): Promise<{ status: string }> {
     return request<{ status: string }>(`${gatewayApiUrl}/api/v1/health`);
@@ -85,7 +87,7 @@ export const gatewayApiClient = {
       {
         method: 'POST',
         body: JSON.stringify(payload),
-        timeoutMs: 90000,
+        timeoutMs: IMAGE_REQUEST_TIMEOUT_MS,
       },
     );
   },
@@ -110,7 +112,7 @@ export const gatewayApiClient = {
       {
         method: 'POST',
         body: JSON.stringify(payload),
-        timeoutMs: 90000,
+        timeoutMs: IMAGE_REQUEST_TIMEOUT_MS,
       },
     );
   },

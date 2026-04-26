@@ -6,13 +6,17 @@ import { renderWithProviders } from '../test/test-utils';
 import { ImageGenerationPage } from './image-generation-page';
 
 const {
+  deleteImageAssetMock,
   editImageMock,
+  getImageAssetsMock,
   generateImageMock,
   getImageCatalogMock,
   getImageHistoryMock,
   setImageAssetSavedMock,
+  updateImageAssetMock,
   uploadImageAssetMock,
 } = vi.hoisted(() => ({
+  deleteImageAssetMock: vi.fn(async () => ({ deleted: true as const })),
   editImageMock: vi.fn(async () => ({
     requestId: 'request-edit-1',
     jobId: 'job-edit-1',
@@ -46,11 +50,11 @@ const {
       {
         providerId: 'openai',
         displayName: 'OpenAI',
-        defaultModelId: 'gpt-image-1.5',
+        defaultModelId: 'gpt-image-2',
         models: [
           {
-            id: 'gpt-image-1.5',
-            displayName: 'GPT Image 1.5',
+            id: 'gpt-image-2',
+            displayName: 'GPT Image 2',
             capabilities: {
               supportsImageGeneration: true,
               supportsImageEditing: false,
@@ -96,6 +100,19 @@ const {
       },
     ],
   })),
+  getImageAssetsMock: vi.fn(async () => ({
+    items: [
+      {
+        id: 'asset-upload-catalog-1',
+        label: 'Uploaded reference',
+        mimeType: 'image/png',
+        contentUrl: '/api/v1/images/assets/asset-upload-catalog-1/content',
+        sourceType: 'upload',
+        saved: false,
+        createdAt: '2026-04-21T11:00:00.000Z',
+      },
+    ],
+  })),
   getImageHistoryMock: vi.fn(async (page = 1) => ({
     items: [
       {
@@ -135,6 +152,17 @@ const {
       createdAt: '2026-04-21T12:00:00.000Z',
     },
   })),
+  updateImageAssetMock: vi.fn(async (assetId: string, payload: { label: string }) => ({
+    asset: {
+      id: assetId,
+      label: payload.label,
+      mimeType: 'image/png',
+      contentUrl: `/api/v1/images/assets/${assetId}/content`,
+      sourceType: 'upload',
+      saved: false,
+      createdAt: '2026-04-21T11:00:00.000Z',
+    },
+  })),
   uploadImageAssetMock: vi.fn(async () => ({
     asset: {
       id: 'asset-upload-1',
@@ -154,21 +182,27 @@ vi.mock('../lib/api-client', async () => {
     ...actual,
     gatewayApiClient: {
       getImageCatalog: getImageCatalogMock,
+      getImageAssets: getImageAssetsMock,
       getImageHistory: getImageHistoryMock,
       generateImage: generateImageMock,
       editImage: editImageMock,
       uploadImageAsset: uploadImageAssetMock,
+      deleteImageAsset: deleteImageAssetMock,
+      updateImageAsset: updateImageAssetMock,
       setImageAssetSaved: setImageAssetSavedMock,
     },
   };
 });
 
 beforeEach(() => {
+  deleteImageAssetMock.mockClear();
   editImageMock.mockClear();
+  getImageAssetsMock.mockClear();
   generateImageMock.mockClear();
   getImageCatalogMock.mockClear();
   getImageHistoryMock.mockClear();
   setImageAssetSavedMock.mockClear();
+  updateImageAssetMock.mockClear();
   uploadImageAssetMock.mockClear();
 });
 
@@ -181,11 +215,12 @@ test('ImageGenerationPage renders providers and fields from the backend image ca
 
   await screen.findByRole('heading', { name: 'Image Generation Lab' });
   await waitFor(() => expect(getImageCatalogMock).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(getImageAssetsMock).toHaveBeenCalledTimes(1));
 
   expect(screen.getByTestId('image-provider-select')).toBeInTheDocument();
   expect(screen.getByTestId('image-model-select')).toBeInTheDocument();
   expect(screen.getByTestId('image-response-format-select')).toBeInTheDocument();
-  expect(screen.getByText('History')).toBeInTheDocument();
+  expect(screen.getByText('Generated history')).toBeInTheDocument();
   expect(screen.getByText('10 items per page')).toBeInTheDocument();
 });
 
@@ -208,7 +243,7 @@ test('ImageGenerationPage generates, saves, and reuses image assets from history
     expect(setImageAssetSavedMock).toHaveBeenCalledWith('asset-result-1', true),
   );
 
-  await user.click(screen.getAllByRole('button', { name: 'Use' })[0]);
+  await user.click(await screen.findByTestId('history-use-asset-history-1'));
   expect(screen.getByText('History asset 1')).toBeInTheDocument();
 });
 
@@ -269,7 +304,7 @@ test('ImageGenerationPage paginates history and routes edit mode through asset r
   fireEvent.change(screen.getByLabelText('Prompt'), {
     target: { value: 'Turn this into a cinematic still' },
   });
-  await user.click(screen.getByRole('button', { name: 'Use' }));
+  await user.click(await screen.findByTestId('history-use-asset-history-2'));
   await user.click(screen.getByTestId('image-submit'));
 
   await waitFor(() => expect(editImageMock).toHaveBeenCalledTimes(1));
@@ -283,20 +318,24 @@ test('ImageGenerationPage paginates history and routes edit mode through asset r
 });
 
 test('ImageGenerationPage uploads a local file and adds it as a reference asset', async () => {
+  const user = userEvent.setup();
   renderWithProviders(<ImageGenerationPage />);
 
   await screen.findByRole('heading', { name: 'Image Generation Lab' });
 
   const file = new File(['image-bytes'], 'sample.png', { type: 'image/png' });
-  fireEvent.change(screen.getByTestId('image-reference-upload-input'), {
-    target: { files: [file] },
-  });
+  await user.upload(screen.getByTestId('image-reference-upload-input'), file);
 
   await waitFor(() => expect(uploadImageAssetMock).toHaveBeenCalledTimes(1));
   expect(await screen.findByText('upload.png')).toBeInTheDocument();
+  expect(await screen.findByAltText('upload.png')).toHaveAttribute(
+    'src',
+    expect.stringContaining('/api/v1/images/assets/asset-upload-1/content'),
+  );
 });
 
 test('ImageGenerationPage upload still works when crypto.randomUUID is unavailable', async () => {
+  const user = userEvent.setup();
   vi.stubGlobal('crypto', {
     getRandomValues: (bytes: Uint8Array) => {
       for (let index = 0; index < bytes.length; index += 1) {
@@ -311,12 +350,93 @@ test('ImageGenerationPage upload still works when crypto.randomUUID is unavailab
   await screen.findByRole('heading', { name: 'Image Generation Lab' });
 
   const file = new File(['image-bytes'], 'mobile.png', { type: 'image/png' });
-  fireEvent.change(screen.getByTestId('image-reference-upload-input'), {
-    target: { files: [file] },
-  });
+  await user.upload(screen.getByTestId('image-reference-upload-input'), file);
 
   await waitFor(() => expect(uploadImageAssetMock).toHaveBeenCalledTimes(1));
   expect(await screen.findByText('upload.png')).toBeInTheDocument();
+});
+
+test('ImageGenerationPage reuses and deletes uploaded reference assets from the catalog', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  expect(await screen.findByText('Uploaded reference')).toBeInTheDocument();
+
+  await user.click(
+    await screen.findByTestId('reference-catalog-use-asset-upload-catalog-1'),
+  );
+  expect(await screen.findByText('Selected references')).toBeInTheDocument();
+  expect(screen.getAllByAltText('Uploaded reference')[0]).toHaveAttribute(
+    'src',
+    expect.stringContaining('/api/v1/images/assets/asset-upload-catalog-1/content'),
+  );
+
+  await user.click(
+    screen.getByTestId('reference-catalog-delete-asset-upload-catalog-1'),
+  );
+  expect(
+    screen.getByTestId('reference-catalog-confirm-delete-asset-upload-catalog-1'),
+  ).toBeInTheDocument();
+  await user.click(
+    screen.getByTestId('reference-catalog-confirm-delete-asset-upload-catalog-1'),
+  );
+  await waitFor(() =>
+    expect(deleteImageAssetMock).toHaveBeenCalledWith('asset-upload-catalog-1'),
+  );
+});
+
+test('ImageGenerationPage renames uploaded reference assets from the catalog', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  const labelInput = await screen.findByTestId(
+    'reference-catalog-label-asset-upload-catalog-1',
+  );
+
+  await user.clear(labelInput);
+  await user.type(labelInput, 'Mood board ref');
+  await user.click(
+    screen.getByTestId('reference-catalog-rename-asset-upload-catalog-1'),
+  );
+
+  await waitFor(() =>
+    expect(updateImageAssetMock).toHaveBeenCalledWith('asset-upload-catalog-1', {
+      label: 'Mood board ref',
+    }),
+  );
+});
+
+test('ImageGenerationPage filters uploaded reference assets from the catalog', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  await user.type(screen.getByTestId('reference-catalog-search'), 'missing');
+  expect(
+    screen.getByText('No uploaded references match the current filters.'),
+  ).toBeInTheDocument();
+
+  await user.clear(screen.getByTestId('reference-catalog-search'));
+  await user.click(screen.getByTestId('reference-catalog-use-asset-upload-catalog-1'));
+  fireEvent.click(screen.getByTestId('reference-catalog-filter'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="selected"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="selected"]') as Element);
+  expect(screen.getAllByText('Uploaded reference').length).toBeGreaterThan(0);
+});
+
+test('ImageGenerationPage opens a responsive full-size history preview', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  await user.click(await screen.findByTestId('history-view-asset-history-1'));
+
+  expect(await screen.findByText('Full-size preview')).toBeInTheDocument();
+  expect(await screen.findByTestId('history-preview-image')).toBeInTheDocument();
 });
 
 test('ImageGenerationPage renders immediate base64 results with the returned MIME type', async () => {

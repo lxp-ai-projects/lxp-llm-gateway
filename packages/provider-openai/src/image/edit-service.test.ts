@@ -31,8 +31,9 @@ test('OpenAiImageEditService orchestrates edit requests end to end', async () =>
         prompt: 'Edit this image',
         images: [
           {
-            type: 'image_url',
-            url: 'https://example.com/source.png',
+            type: 'data_url',
+            url: 'data:image/png;base64,abc123',
+            mimeType: 'image/png',
           },
         ],
         background: 'transparent',
