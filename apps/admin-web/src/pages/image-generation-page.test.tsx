@@ -98,6 +98,48 @@ const {
           },
         ],
       },
+      {
+        providerId: 'nanogpt',
+        displayName: 'NanoGPT',
+        defaultModelId: 'hidream',
+        models: [
+          {
+            id: 'hidream',
+            displayName: 'HiDream',
+            capabilities: {
+              supportsImageGeneration: true,
+              supportsImageEditing: false,
+              requiresPaidAccess: false,
+              supportedImageResponseFormats: ['url', 'b64_json'],
+              supportedImageResolutions: [{ value: '1024x1024', label: '1024x1024' }],
+              maxGeneratedImagesPerRequest: 4,
+              imageDefaults: {
+                responseFormat: 'b64_json',
+                resolution: '1024x1024',
+                imageCount: 1,
+              },
+            },
+          },
+          {
+            id: 'gpt-image-1',
+            displayName: 'GPT Image 1',
+            capabilities: {
+              supportsImageGeneration: true,
+              supportsImageEditing: true,
+              requiresPaidAccess: true,
+              supportedImageResponseFormats: ['url', 'b64_json'],
+              supportedImageResolutions: [{ value: '1024x1024', label: '1024x1024' }],
+              maxGeneratedImagesPerRequest: 1,
+              maxReferenceImagesPerRequest: 5,
+              imageDefaults: {
+                responseFormat: 'b64_json',
+                resolution: '1024x1024',
+                imageCount: 1,
+              },
+            },
+          },
+        ],
+      },
     ],
   })),
   getImageAssetsMock: vi.fn(async () => ({
@@ -426,6 +468,28 @@ test('ImageGenerationPage filters uploaded reference assets from the catalog', a
   );
   fireEvent.click(document.querySelector('[role="option"][value="selected"]') as Element);
   expect(screen.getAllByText('Uploaded reference').length).toBeGreaterThan(0);
+});
+
+test('ImageGenerationPage hides NanoGPT paid-only models until the toggle is enabled', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="nanogpt"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="nanogpt"]') as Element);
+
+  expect(await screen.findByTestId('nanogpt-paid-models-toggle')).toBeInTheDocument();
+  expect(screen.getByDisplayValue('HiDream')).toBeInTheDocument();
+  expect(screen.queryByDisplayValue('GPT Image 1')).not.toBeInTheDocument();
+
+  await user.click(screen.getByTestId('nanogpt-paid-models-toggle'));
+  fireEvent.click(screen.getByTestId('image-model-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="gpt-image-1"]')).not.toBeNull(),
+  );
 });
 
 test('ImageGenerationPage opens a responsive full-size history preview', async () => {
