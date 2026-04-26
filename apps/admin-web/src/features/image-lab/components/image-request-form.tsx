@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Group,
   Image,
   NumberInput,
@@ -118,6 +119,17 @@ export function ImageRequestForm({
           onChange={(value) => imageLab.setModelId(value ?? '')}
           value={imageLab.modelId}
         />
+
+        {imageLab.hasNanoGptPaidModels ? (
+          <Checkbox
+            checked={imageLab.showNanoGptPaidModels}
+            data-testid="nanogpt-paid-models-toggle"
+            label="Show NanoGPT paid-only models"
+            onChange={(event) =>
+              imageLab.setShowNanoGptPaidModels(event.currentTarget.checked)
+            }
+          />
+        ) : null}
 
         <Textarea
           autosize

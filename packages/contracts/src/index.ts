@@ -108,6 +108,7 @@ export interface GatewayImageCatalogModel {
     supportsStreaming?: boolean;
     supportsImageGeneration?: boolean;
     supportsImageEditing?: boolean;
+    requiresPaidAccess?: boolean;
     supportedImageAspectRatios?: Array<{
       value: string;
       label: string;

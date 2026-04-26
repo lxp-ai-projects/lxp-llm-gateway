@@ -132,6 +132,7 @@ export type ProviderModelSummary = {
     supportsStreaming?: boolean;
     supportsImageGeneration?: boolean;
     supportsImageEditing?: boolean;
+    requiresPaidAccess?: boolean;
     supportedImageAspectRatios?: ImageAspectRatioOption[];
     supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
     supportedImageResolutions?: ImageResolutionOption[];

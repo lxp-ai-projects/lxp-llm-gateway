@@ -35,6 +35,7 @@ export function useImageLab() {
   const [results, setResults] = useState<GatewayGeneratedImage[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(DEFAULT_HISTORY_PAGE);
+  const [showNanoGptPaidModels, setShowNanoGptPaidModels] = useState(false);
 
   const catalogQuery = useQuery({
     queryKey: ['image-catalog'],
@@ -51,7 +52,18 @@ export function useImageLab() {
 
   const providers = catalogQuery.data?.providers ?? [];
   const selectedProvider = providers.find((provider) => provider.providerId === providerId);
-  const models = selectedProvider?.models ?? [];
+  const hasNanoGptPaidModels = Boolean(
+    selectedProvider?.providerId === 'nanogpt' &&
+      selectedProvider.models.some(
+        (model) => model.capabilities?.requiresPaidAccess === true,
+      ),
+  );
+  const models =
+    selectedProvider?.providerId === 'nanogpt' && !showNanoGptPaidModels
+      ? (selectedProvider?.models ?? []).filter(
+          (model) => model.capabilities?.requiresPaidAccess !== true,
+        )
+      : selectedProvider?.models ?? [];
   const selectedModel = models.find((model) => model.id === modelId);
   const capabilities = selectedModel?.capabilities;
 
@@ -292,6 +304,8 @@ export function useImageLab() {
     setProviderId,
     modelId,
     setModelId,
+    showNanoGptPaidModels,
+    setShowNanoGptPaidModels,
     aspectRatio,
     setAspectRatio,
     responseFormat,
@@ -319,6 +333,7 @@ export function useImageLab() {
     history: historyQuery.data,
     historyPage,
     setHistoryPage,
+    hasNanoGptPaidModels,
     catalogQuery,
     historyQuery,
     assetsQuery,

@@ -227,3 +227,242 @@ test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtim
     globalThis.fetch = originalFetch;
   }
 });
+
+test('NanoGptProviderAdapter exposes NanoGPT image models from the subscription and paid endpoints', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+
+  globalThis.fetch = (async (url) => {
+    const rawUrl = String(url);
+    calls.push(rawUrl);
+
+    if (rawUrl.includes('/subscription/v1/image-models')) {
+      return new Response(
+        JSON.stringify({
+          object: 'list',
+          data: [
+            {
+              id: 'hidream',
+              object: 'model',
+              created: 1706745600,
+              owned_by: 'hidream',
+              name: 'HiDream',
+              category: 'image',
+              capabilities: {
+                image_generation: true,
+                image_to_image: false,
+                inpainting: false,
+              },
+              supported_parameters: {
+                resolutions: ['1024x1024', '512x512'],
+                max_images: 4,
+              },
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        object: 'list',
+        data: [
+          {
+            id: 'gpt-image-1',
+            object: 'model',
+            created: 1706745600,
+            owned_by: 'openai',
+            name: 'GPT Image 1',
+            category: 'image',
+            capabilities: {
+              image_generation: true,
+              image_to_image: true,
+              inpainting: false,
+            },
+            supported_parameters: {
+              resolutions: ['1024x1024'],
+              max_images: 1,
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const catalog = await adapter.listImageCatalog?.({
+      requestId: 'req-image-catalog',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'nano-secret-token',
+      },
+    });
+
+    assert.ok(catalog);
+    assert.deepEqual(calls, [
+      'https://nano-gpt.com/api/subscription/v1/image-models?detailed=true',
+      'https://nano-gpt.com/api/paid/v1/image-models?detailed=true',
+    ]);
+    assert.equal(catalog.defaultModelId, 'hidream');
+    assert.deepEqual(
+      catalog.models.map((model) => ({
+        id: model.id,
+        paid: model.capabilities.requiresPaidAccess,
+      })),
+      [
+        { id: 'hidream', paid: false },
+        { id: 'gpt-image-1', paid: true },
+      ],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter sends image generation requests to the NanoGPT image endpoint', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    return new Response(
+      JSON.stringify({
+        created: 123,
+        data: [{ b64_json: 'generated-base64' }],
+        cost: 0.04,
+        paymentSource: 'subscription',
+        remainingBalance: 12.34,
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const response = await adapter.generateImage?.(
+      {
+        model: 'hidream',
+        prompt: 'A sunset over a mountain range',
+        n: 2,
+        responseFormat: 'b64_json',
+        resolution: '1024x1024',
+      },
+      {
+        requestId: 'req-image-generate',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'nano-secret-token',
+        },
+      },
+    );
+
+    assert.ok(response);
+    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/images/generations');
+    assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
+      model: 'hidream',
+      prompt: 'A sunset over a mountain range',
+      n: 2,
+      size: '1024x1024',
+      response_format: 'b64_json',
+      user: 'user-1',
+    });
+    assert.equal(response.images[0]?.b64Json, 'generated-base64');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter sends image edit requests with data URL references', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    return new Response(
+      JSON.stringify({
+        created: 124,
+        data: [{ b64_json: 'edited-base64' }],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const response = await adapter.editImage?.(
+      {
+        model: 'gpt-image-1',
+        prompt: 'Combine these images into a creative collage',
+        images: [
+          {
+            type: 'data_url',
+            url: 'data:image/png;base64,abc123',
+            mimeType: 'image/png',
+          },
+          {
+            type: 'data_url',
+            url: 'data:image/jpeg;base64,def456',
+            mimeType: 'image/jpeg',
+          },
+        ],
+        responseFormat: 'b64_json',
+        resolution: '1024x1024',
+      },
+      {
+        requestId: 'req-image-edit',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'nano-secret-token',
+        },
+      },
+    );
+
+    assert.ok(response);
+    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/images/generations');
+    assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
+      model: 'gpt-image-1',
+      prompt: 'Combine these images into a creative collage',
+      size: '1024x1024',
+      response_format: 'b64_json',
+      user: 'user-1',
+      imageDataUrls: [
+        'data:image/png;base64,abc123',
+        'data:image/jpeg;base64,def456',
+      ],
+    });
+    assert.equal(response.images[0]?.b64Json, 'edited-base64');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

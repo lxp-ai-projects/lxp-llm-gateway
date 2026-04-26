@@ -1,29 +1,53 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import * as dns from 'node:dns/promises';
+
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+} from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderModel,
   ProviderExecutionContext,
 } from '@lxp/provider-sdk';
+import { buildProviderImageHttpError as buildImageError } from '@lxp/provider-sdk';
+
+import { NanoGptImageApiClient } from './image/api-client.js';
+import { buildNanoGptImageCatalog } from './image/catalog.js';
+import {
+  buildNanoGptImageEditRequest,
+  buildNanoGptImageGenerationRequest,
+} from './image/request-mapper.js';
+import { mapNanoGptImageResponse } from './image/response-mapper.js';
 
 export class NanoGptProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
     chat: true,
     modelCatalog: true,
-    imageGeneration: false,
-    imageEditing: false,
+    imageGeneration: true,
+    imageEditing: true,
   } as const;
 
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
+  private readonly imageApiClient: NanoGptImageApiClient;
 
   constructor(
     baseUrl = process.env.NANOGPT_BASE_URL ?? 'https://nano-gpt.com/api/v1',
     requestTimeoutMs = Number(
       process.env.NANOGPT_REQUEST_TIMEOUT_MS ?? '90000',
     ),
+    imageRequestTimeoutMs = Number(
+      process.env.NANOGPT_IMAGE_REQUEST_TIMEOUT_MS ?? '300000',
+    ),
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
+    this.imageApiClient = new NanoGptImageApiClient(
+      this.baseUrl,
+      imageRequestTimeoutMs,
+    );
   }
 
   readonly providerId = 'nanogpt' as const;
@@ -59,6 +83,21 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       id: model.id,
       displayName: model.name ?? model.id,
     }));
+  }
+
+  async listImageCatalog(context: ProviderExecutionContext) {
+    const [subscriptionCatalog, paidCatalog] = await Promise.all([
+      this.imageApiClient.listImageModels(
+        context,
+        '/subscription/v1/image-models',
+      ),
+      this.imageApiClient.listImageModels(context, '/paid/v1/image-models'),
+    ]);
+
+    return buildNanoGptImageCatalog({
+      subscriptionModels: subscriptionCatalog.data ?? [],
+      paidModels: paidCatalog.data ?? [],
+    });
   }
 
   async chat(
@@ -150,6 +189,58 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     }
 
     return response.body;
+  }
+
+  async generateImage(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ) {
+    const response = await this.imageApiClient.postGenerations(
+      context,
+      buildNanoGptImageGenerationRequest(request, context.userId),
+    );
+
+    if (!response.ok) {
+      throw await buildImageError('NanoGPT', 'image generation', response);
+    }
+
+    const payload = (await response.json()) as Parameters<
+      typeof mapNanoGptImageResponse
+    >[2];
+    return mapNanoGptImageResponse(
+      request.model ?? 'hidream',
+      context,
+      payload,
+    );
+  }
+
+  async editImage(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ) {
+    const response = await this.imageApiClient.postGenerations(
+      context,
+      await buildNanoGptImageEditRequest(request, context.userId, {
+        fetchWithTimeout: (url, init, timeoutMs) =>
+          this.fetchWithTimeout(url, init, timeoutMs),
+        lookupHostname: (hostname) => dns.lookup(hostname, { all: true }),
+        maxBytes: 4 * 1024 * 1024,
+        timeoutMs: 30000,
+      }),
+    );
+
+    if (!response.ok) {
+      throw await buildImageError('NanoGPT', 'image edit request', response);
+    }
+
+    const payload = (await response.json()) as Parameters<
+      typeof mapNanoGptImageResponse
+    >[2];
+    return mapNanoGptImageResponse(
+      request.model ?? 'hidream',
+      context,
+      payload,
+    );
   }
 
   private dispatchChatRequest(
