@@ -418,6 +418,120 @@ test('NanoGptProviderAdapter falls back to the canonical image catalog when Nano
   }
 });
 
+test('NanoGptProviderAdapter assigns Google-aligned multi-reference limits to Nano Banana variants', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (url) => {
+    const rawUrl = String(url);
+
+    if (rawUrl.includes('/subscription/v1/image-models')) {
+      return new Response(
+        JSON.stringify({
+          object: 'list',
+          data: [
+            {
+              id: 'nano-banana-2',
+              object: 'model',
+              created: 1706745600,
+              owned_by: 'google',
+              name: 'Nano Banana 2',
+              category: 'image',
+              capabilities: {
+                image_generation: true,
+                image_to_image: true,
+                inpainting: false,
+              },
+              supported_parameters: {
+                resolutions: ['1K', '2K', '4K'],
+                max_images: 4,
+              },
+            },
+            {
+              id: 'nano-banana-pro-edit',
+              object: 'model',
+              created: 1706745600,
+              owned_by: 'google',
+              name: 'Nano Banana Pro Edit',
+              category: 'image',
+              capabilities: {
+                image_generation: true,
+                image_to_image: true,
+                inpainting: true,
+              },
+              supported_parameters: {
+                resolutions: ['1K', '2K', '4K'],
+                max_images: 4,
+              },
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        object: 'list',
+        data: [
+          {
+            id: 'nano-banana-pro-edit-ultra',
+            object: 'model',
+            created: 1706745600,
+            owned_by: 'google',
+            name: 'Nano Banana Pro Ultra Edit',
+            category: 'image',
+            capabilities: {
+              image_generation: true,
+              image_to_image: true,
+              inpainting: true,
+            },
+            supported_parameters: {
+              resolutions: ['4K', '8K'],
+              max_images: 2,
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const catalog = await adapter.listImageCatalog?.({
+      requestId: 'req-image-catalog-banana',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'nano-secret-token',
+      },
+    });
+
+    assert.ok(catalog);
+    const modelLimits = Object.fromEntries(
+      (catalog?.models ?? []).map((model) => [
+        model.id,
+        model.capabilities.maxReferenceImagesPerRequest,
+      ]),
+    );
+
+    assert.equal(modelLimits['nano-banana-2'], 5);
+    assert.equal(modelLimits['nano-banana-pro-edit'], 14);
+    assert.equal(modelLimits['nano-banana-pro-edit-ultra'], 10);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('NanoGptProviderAdapter sends image generation requests to the NanoGPT image endpoint', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];

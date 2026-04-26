@@ -5,11 +5,20 @@ import type {
 
 import type { NanoGptImageModelRecord } from './api-client.js';
 
-const NANO_GPT_MULTI_IMAGE_MODELS = new Set([
-  'flux-kontext',
-  'flux-kontext/dev',
-  'gpt-4o-image',
-  'gpt-image-1',
+const NANO_GPT_MAX_REFERENCE_IMAGES_BY_MODEL = new Map<string, number>([
+  ['flux-kontext', 5],
+  ['flux-kontext/dev', 5],
+  ['gpt-4o-image', 5],
+  ['gpt-image-1', 5],
+  ['nano-banana', 5],
+  ['nano-banana-edit', 5],
+  ['gemini-flash-edit', 5],
+  ['nano-banana-2', 5],
+  ['nano-banana-2-fast', 5],
+  ['nano-banana-pro', 14],
+  ['nano-banana-pro-edit', 14],
+  ['nano-banana-pro-ultra', 14],
+  ['nano-banana-pro-edit-ultra', 10],
 ]);
 
 export function buildNanoGptImageCatalog(input: {
@@ -65,6 +74,9 @@ function toImageModelDescriptor(
   const supportsEditing = Boolean(
     model.capabilities?.image_to_image || model.capabilities?.inpainting,
   );
+  const maxReferenceImagesPerRequest =
+    NANO_GPT_MAX_REFERENCE_IMAGES_BY_MODEL.get(model.id) ??
+    (supportsEditing ? 1 : undefined);
 
   return {
     id: model.id,
@@ -83,12 +95,8 @@ function toImageModelDescriptor(
       ...(typeof maxImages === 'number'
         ? { maxGeneratedImagesPerRequest: maxImages }
         : {}),
-      ...(supportsEditing
-        ? {
-            maxReferenceImagesPerRequest: NANO_GPT_MULTI_IMAGE_MODELS.has(model.id)
-              ? 5
-              : 1,
-          }
+      ...(typeof maxReferenceImagesPerRequest === 'number'
+        ? { maxReferenceImagesPerRequest }
         : {}),
       imageDefaults: {
         responseFormat: 'b64_json',
