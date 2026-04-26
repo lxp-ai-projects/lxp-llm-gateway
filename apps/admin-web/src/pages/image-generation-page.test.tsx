@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import { renderWithProviders } from '../test/test-utils';
 import { ImageGenerationPage } from './image-generation-page';
@@ -172,6 +172,10 @@ beforeEach(() => {
   uploadImageAssetMock.mockClear();
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 test('ImageGenerationPage renders providers and fields from the backend image catalog', async () => {
   renderWithProviders(<ImageGenerationPage />);
 
@@ -284,6 +288,29 @@ test('ImageGenerationPage uploads a local file and adds it as a reference asset'
   await screen.findByRole('heading', { name: 'Image Generation Lab' });
 
   const file = new File(['image-bytes'], 'sample.png', { type: 'image/png' });
+  fireEvent.change(screen.getByTestId('image-reference-upload-input'), {
+    target: { files: [file] },
+  });
+
+  await waitFor(() => expect(uploadImageAssetMock).toHaveBeenCalledTimes(1));
+  expect(await screen.findByText('upload.png')).toBeInTheDocument();
+});
+
+test('ImageGenerationPage upload still works when crypto.randomUUID is unavailable', async () => {
+  vi.stubGlobal('crypto', {
+    getRandomValues: (bytes: Uint8Array) => {
+      for (let index = 0; index < bytes.length; index += 1) {
+        bytes[index] = index;
+      }
+      return bytes;
+    },
+  });
+
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+
+  const file = new File(['image-bytes'], 'mobile.png', { type: 'image/png' });
   fireEvent.change(screen.getByTestId('image-reference-upload-input'), {
     target: { files: [file] },
   });

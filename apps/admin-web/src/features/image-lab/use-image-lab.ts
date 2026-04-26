@@ -6,6 +6,7 @@ import type {
   GatewayGeneratedImage,
   GatewayImageAssetSummary,
 } from '../../lib/api-client.types';
+import { createClientId } from '../../lib/id';
 import type { ImageReferenceDraft } from './types';
 import { resolveImageFormDefaults } from './image-form-defaults';
 import { buildImageRequestPayload } from './image-request';
@@ -193,7 +194,7 @@ export function useImageLab() {
       [
         ...current,
         {
-          id: crypto.randomUUID(),
+          id: createClientId(),
           kind: 'image_url' as const,
           url: trimmedUrl,
           label: trimmedUrl,
@@ -276,7 +277,7 @@ export function useImageLab() {
 
 function mapAssetReference(asset: GatewayImageAssetSummary): ImageReferenceDraft {
   return {
-    id: crypto.randomUUID(),
+    id: createClientId(),
     kind: 'asset',
     assetId: asset.id,
     label: asset.label ?? 'Gateway image asset',
