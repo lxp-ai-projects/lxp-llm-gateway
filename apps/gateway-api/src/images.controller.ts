@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -20,6 +21,7 @@ import { GatewayImageGenerationRequestDto } from './gateway/dto/gateway-image-ge
 import { ImageApplicationService } from './images/image-application.service';
 import { ImageAssetSaveRequestDto } from './images/dto/image-asset-save-request.dto';
 import { ImageAssetUploadRequestDto } from './images/dto/image-asset-upload-request.dto';
+import { ImageAssetUpdateRequestDto } from './images/dto/image-asset-update-request.dto';
 import { ImageHistoryQueryDto } from './images/dto/image-history-query.dto';
 
 @Controller('images')
@@ -91,6 +93,20 @@ export class ImagesController {
     return this.imageApplicationService.uploadAsset(request, authContext);
   }
 
+  @Get('assets')
+  async listAssets(
+    @Headers('authorization') authorizationHeader: string | undefined,
+    @Req()
+    httpRequest: Request & { cookies?: Record<string, string | undefined> },
+  ) {
+    const authContext = await this.gatewayAuthService.authenticateAccessToken(
+      authorizationHeader,
+      httpRequest.cookies?.lxp_access_token,
+    );
+
+    return this.imageApplicationService.listAssets(authContext);
+  }
+
   @Patch('assets/:assetId/save')
   async setAssetSaved(
     @Param('assetId') assetId: string,
@@ -109,6 +125,37 @@ export class ImagesController {
       request,
       authContext,
     );
+  }
+
+  @Patch('assets/:assetId')
+  async updateAsset(
+    @Param('assetId') assetId: string,
+    @Body() request: ImageAssetUpdateRequestDto,
+    @Headers('authorization') authorizationHeader: string | undefined,
+    @Req()
+    httpRequest: Request & { cookies?: Record<string, string | undefined> },
+  ) {
+    const authContext = await this.gatewayAuthService.authenticateAccessToken(
+      authorizationHeader,
+      httpRequest.cookies?.lxp_access_token,
+    );
+
+    return this.imageApplicationService.updateAsset(assetId, request, authContext);
+  }
+
+  @Delete('assets/:assetId')
+  async deleteAsset(
+    @Param('assetId') assetId: string,
+    @Headers('authorization') authorizationHeader: string | undefined,
+    @Req()
+    httpRequest: Request & { cookies?: Record<string, string | undefined> },
+  ) {
+    const authContext = await this.gatewayAuthService.authenticateAccessToken(
+      authorizationHeader,
+      httpRequest.cookies?.lxp_access_token,
+    );
+
+    return this.imageApplicationService.deleteAsset(assetId, authContext);
   }
 
   @Get('history')

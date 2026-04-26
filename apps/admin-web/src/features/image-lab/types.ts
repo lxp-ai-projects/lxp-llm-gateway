@@ -11,12 +11,14 @@ export type ImageReferenceDraft =
       assetId: string;
       label: string;
       previewUrl: string;
+      sourceType: 'upload' | 'generated';
     }
   | {
       id: string;
       kind: 'image_url';
       url: string;
       label: string;
+      previewUrl: string;
     };
 
 export type ImageLabResult = GatewayGeneratedImage;

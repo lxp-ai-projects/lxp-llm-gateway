@@ -9,6 +9,7 @@ import {
 
 @Entity({ name: 'image_assets' })
 @Index('ix_image_assets_user_id_created_at', ['userId', 'createdAt'])
+@Index('ix_image_assets_user_id_source_type_content_hash', ['userId', 'sourceType', 'contentHash'])
 export class ImageAssetEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -27,6 +28,9 @@ export class ImageAssetEntity {
 
   @Column({ name: 'data_url', type: 'text' })
   dataUrl!: string;
+
+  @Column({ name: 'content_hash', type: 'varchar', length: 64, nullable: true })
+  contentHash!: string | null;
 
   @Column({ name: 'original_url', type: 'text', nullable: true })
   originalUrl!: string | null;

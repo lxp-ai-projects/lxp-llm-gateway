@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import type {
@@ -68,6 +69,15 @@ class InMemoryRepository<T extends Record<string, any>> {
       this.items.push(item);
     }
     return item;
+  }
+
+  async delete(criteria: Record<string, any>) {
+    const index = this.items.findIndex((item) =>
+      Object.entries(criteria).every(([key, value]) => item[key] === value),
+    );
+    if (index >= 0) {
+      this.items.splice(index, 1);
+    }
   }
 }
 
@@ -157,6 +167,12 @@ class FakeImageProvider implements LlmProviderAdapter {
   }
 }
 
+function hashBase64Payload(dataBase64: string) {
+  return createHash('sha256')
+    .update(Buffer.from(dataBase64, 'base64'))
+    .digest('hex');
+}
+
 test('ImageApplicationService persists generated images and exposes gateway-managed asset URLs', async () => {
   const provider = new FakeImageProvider();
   const service = new ImageApplicationService(
@@ -208,6 +224,7 @@ test('ImageApplicationService resolves asset references before provider edit req
         label: 'Upload',
         mimeType: 'image/png',
         dataUrl: 'data:image/png;base64,abc123',
+        contentHash: 'hash-upload-asset-1',
         originalUrl: null,
         isSaved: false,
         createdAt: new Date(),
@@ -271,6 +288,7 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
     label: `Asset ${index + 1}`,
     mimeType: 'image/png',
     dataUrl: 'data:image/png;base64,abc123',
+    contentHash: `hash-asset-${index + 1}`,
     originalUrl: null,
     isSaved: false,
     createdAt: now,
@@ -409,4 +427,225 @@ test('ImageApplicationService uploads a supported image asset', async () => {
   assert.equal(response.asset.label, 'upload.png');
   assert.equal(response.asset.mimeType, 'image/png');
   assert.equal(response.asset.sourceType, 'upload');
+});
+
+test('ImageApplicationService reuses an existing uploaded asset when the content matches exactly', async () => {
+  const provider = new FakeImageProvider();
+  const assetRepository = new InMemoryRepository([
+    {
+      id: 'asset-upload-existing',
+      userId: 'user-1',
+      sourceType: 'upload',
+      label: 'existing.png',
+      mimeType: 'image/png',
+      dataUrl: 'data:image/png;base64,abc123',
+      contentHash: hashBase64Payload('abc123'),
+      originalUrl: null,
+      isSaved: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]);
+  const service = new ImageApplicationService(
+    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
+    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
+    assetRepository as never,
+    new InMemoryRepository() as never,
+    new InMemoryRepository() as never,
+    {
+      getProvider: () => provider,
+      listProviders: () => [provider],
+    } as never,
+    {
+      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
+    } as never,
+  );
+
+  const response = await service.uploadAsset(
+    {
+      dataUrl: 'data:image/png;base64,abc123',
+      label: 'duplicate-name.png',
+    },
+    {
+      userId: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      roles: ['user'],
+      defaultProviderId: null,
+      defaultModel: null,
+    },
+  );
+
+  assert.equal(response.asset.id, 'asset-upload-existing');
+  assert.equal((await assetRepository.find()).length, 1);
+});
+
+test('ImageApplicationService renames uploaded reference assets', async () => {
+  const provider = new FakeImageProvider();
+  const assetRepository = new InMemoryRepository([
+    {
+      id: 'asset-upload-rename',
+      userId: 'user-1',
+      sourceType: 'upload',
+      label: 'before.png',
+      mimeType: 'image/png',
+      dataUrl: 'data:image/png;base64,abc123',
+      contentHash: 'hash-upload-rename',
+      originalUrl: null,
+      isSaved: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]);
+  const service = new ImageApplicationService(
+    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
+    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
+    assetRepository as never,
+    new InMemoryRepository() as never,
+    new InMemoryRepository() as never,
+    {
+      getProvider: () => provider,
+      listProviders: () => [provider],
+    } as never,
+    {
+      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
+    } as never,
+  );
+
+  const response = await service.updateAsset(
+    'asset-upload-rename',
+    { label: 'After rename' },
+    {
+      userId: 'user-1',
+      userUuid: 'user-public-1',
+      emailHash: 'hash-1',
+      roles: ['user'],
+      defaultProviderId: null,
+      defaultModel: null,
+    },
+  );
+
+  assert.equal(response.asset.label, 'After rename');
+});
+
+test('ImageApplicationService lists uploaded reference assets in reverse chronological order', async () => {
+  const provider = new FakeImageProvider();
+  const service = new ImageApplicationService(
+    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
+    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
+    new InMemoryRepository([
+      {
+        id: 'asset-generated-1',
+        userId: 'user-1',
+        sourceType: 'generated',
+        label: 'Generated',
+        mimeType: 'image/png',
+        dataUrl: 'data:image/png;base64,generated',
+        contentHash: 'hash-generated-1',
+        originalUrl: null,
+        isSaved: false,
+        createdAt: new Date('2026-04-21T10:00:00.000Z'),
+        updatedAt: new Date('2026-04-21T10:00:00.000Z'),
+      },
+      {
+        id: 'asset-upload-1',
+        userId: 'user-1',
+        sourceType: 'upload',
+        label: 'Older upload',
+        mimeType: 'image/png',
+        dataUrl: 'data:image/png;base64,older',
+        contentHash: 'hash-upload-1',
+        originalUrl: null,
+        isSaved: false,
+        createdAt: new Date('2026-04-21T11:00:00.000Z'),
+        updatedAt: new Date('2026-04-21T11:00:00.000Z'),
+      },
+      {
+        id: 'asset-upload-2',
+        userId: 'user-1',
+        sourceType: 'upload',
+        label: 'Newest upload',
+        mimeType: 'image/png',
+        dataUrl: 'data:image/png;base64,newest',
+        contentHash: 'hash-upload-2',
+        originalUrl: null,
+        isSaved: false,
+        createdAt: new Date('2026-04-21T12:00:00.000Z'),
+        updatedAt: new Date('2026-04-21T12:00:00.000Z'),
+      },
+    ]) as never,
+    new InMemoryRepository() as never,
+    new InMemoryRepository() as never,
+    {
+      getProvider: () => provider,
+      listProviders: () => [provider],
+    } as never,
+    {
+      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
+    } as never,
+  );
+
+  const response = await service.listAssets({
+    userId: 'user-1',
+    userUuid: 'user-public-1',
+    emailHash: 'hash-1',
+    roles: ['user'],
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  assert.deepEqual(
+    response.items.map((asset: { id: string }) => asset.id),
+    ['asset-upload-2', 'asset-upload-1'],
+  );
+});
+
+test('ImageApplicationService deletes uploaded reference assets', async () => {
+  const provider = new FakeImageProvider();
+  const assetRepository = new InMemoryRepository([
+    {
+      id: 'asset-upload-1',
+      userId: 'user-1',
+      sourceType: 'upload',
+      label: 'Upload',
+      mimeType: 'image/png',
+      dataUrl: 'data:image/png;base64,abc123',
+      contentHash: 'hash-upload-1',
+      originalUrl: null,
+      isSaved: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]);
+  const service = new ImageApplicationService(
+    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
+    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
+    assetRepository as never,
+    new InMemoryRepository() as never,
+    new InMemoryRepository() as never,
+    {
+      getProvider: () => provider,
+      listProviders: () => [provider],
+    } as never,
+    {
+      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
+    } as never,
+  );
+
+  const response = await service.deleteAsset('asset-upload-1', {
+    userId: 'user-1',
+    userUuid: 'user-public-1',
+    emailHash: 'hash-1',
+    roles: ['user'],
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  assert.deepEqual(response, { deleted: true });
+  assert.equal(
+    await assetRepository.findOne({
+      where: { id: 'asset-upload-1', userId: 'user-1' },
+    }),
+    null,
+  );
 });

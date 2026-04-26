@@ -177,6 +177,14 @@ export type GatewayImageAssetSummary = {
   createdAt: string;
 };
 
+export type GatewayImageAssetListResponse = {
+  items: GatewayImageAssetSummary[];
+};
+
+export type GatewayImageAssetUpdateRequest = {
+  label: string;
+};
+
 export type GatewayImageHistoryItem = {
   id: string;
   requestId: string;

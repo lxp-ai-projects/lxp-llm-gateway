@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 
 import {
   BadGatewayException,
@@ -9,10 +10,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import type {
   GatewayGeneratedImage,
+  GatewayImageAssetListResponse,
   GatewayImageAssetSaveRequest,
   GatewayImageAssetSummary,
   GatewayImageAssetUploadRequest,
   GatewayImageAssetUploadResponse,
+  GatewayImageAssetUpdateRequest,
   GatewayImageCatalogResponse,
   GatewayImageEditRequest,
   GatewayImageGenerationRequest,
@@ -205,6 +208,7 @@ export class ImageApplicationService {
     const user = await this.resolveUser(authContext.emailHash);
     const parsedDataUrl = parseDataUrlReference(request.dataUrl);
     const dataBytes = Buffer.byteLength(parsedDataUrl.dataBase64, 'base64');
+    const contentHash = this.computeImageContentHash(parsedDataUrl.dataBase64);
 
     if (!GATEWAY_IMAGE_ASSET_MIME_TYPES.has(parsedDataUrl.mimeType)) {
       throw new BadRequestException(
@@ -218,18 +222,47 @@ export class ImageApplicationService {
       );
     }
 
+    const existingAsset = await this.imageAssetRepository.findOne({
+      where: {
+        userId: user.id,
+        sourceType: 'upload',
+        contentHash,
+      },
+    });
+
+    if (existingAsset) {
+      return {
+        asset: this.mapAssetSummary(existingAsset),
+      };
+    }
+
     const asset = await this.imageAssetRepository.save({
       userId: user.id,
       sourceType: 'upload',
       label: request.label?.trim() || null,
       mimeType: parsedDataUrl.mimeType,
       dataUrl: request.dataUrl,
+      contentHash,
       originalUrl: null,
       isSaved: false,
     });
 
     return {
       asset: this.mapAssetSummary(asset),
+    };
+  }
+
+  async listAssets(
+    authContext: GatewayAuthContext,
+  ): Promise<GatewayImageAssetListResponse> {
+    const user = await this.resolveUser(authContext.emailHash);
+    const assets = await this.imageAssetRepository.find({
+      where: { userId: user.id, sourceType: 'upload' },
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      items: assets.map((asset) => this.mapAssetSummary(asset)),
     };
   }
 
@@ -321,6 +354,49 @@ export class ImageApplicationService {
     return {
       asset: this.mapAssetSummary(savedAsset),
     };
+  }
+
+  async updateAsset(
+    assetId: string,
+    request: GatewayImageAssetUpdateRequest,
+    authContext: GatewayAuthContext,
+  ) {
+    const user = await this.resolveUser(authContext.emailHash);
+    const asset = await this.imageAssetRepository.findOne({
+      where: { id: assetId, userId: user.id },
+    });
+
+    if (!asset) {
+      throw new NotFoundException('Image asset not found.');
+    }
+
+    if (asset.sourceType !== 'upload') {
+      throw new BadRequestException('Only uploaded reference assets can be renamed.');
+    }
+
+    asset.label = request.label.trim();
+    const savedAsset = await this.imageAssetRepository.save(asset);
+    return {
+      asset: this.mapAssetSummary(savedAsset),
+    };
+  }
+
+  async deleteAsset(assetId: string, authContext: GatewayAuthContext) {
+    const user = await this.resolveUser(authContext.emailHash);
+    const asset = await this.imageAssetRepository.findOne({
+      where: { id: assetId, userId: user.id },
+    });
+
+    if (!asset) {
+      throw new NotFoundException('Image asset not found.');
+    }
+
+    if (asset.sourceType !== 'upload') {
+      throw new BadRequestException('Only uploaded reference assets can be deleted.');
+    }
+
+    await this.imageAssetRepository.delete({ id: asset.id, userId: user.id });
+    return { deleted: true as const };
   }
 
   async getAssetContent(
@@ -416,6 +492,7 @@ export class ImageApplicationService {
       label: `Generated image ${index + 1}`,
       mimeType: parsedDataUrl.mimeType,
       dataUrl,
+      contentHash: this.computeImageContentHash(parsedDataUrl.dataBase64),
       originalUrl: image.url ?? null,
       isSaved: false,
     } as ImageAssetEntity);
@@ -512,6 +589,12 @@ export class ImageApplicationService {
 
   private buildDataUrl(dataBase64: string, mimeType?: string) {
     return `data:${mimeType ?? 'image/png'};base64,${dataBase64}`;
+  }
+
+  private computeImageContentHash(dataBase64: string) {
+    return createHash('sha256')
+      .update(Buffer.from(dataBase64, 'base64'))
+      .digest('hex');
   }
 
   private async fetchWithTimeout(

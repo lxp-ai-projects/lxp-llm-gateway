@@ -210,8 +210,16 @@ export interface GatewayImageAssetUploadResponse {
   asset: GatewayImageAssetSummary;
 }
 
+export interface GatewayImageAssetListResponse {
+  items: GatewayImageAssetSummary[];
+}
+
 export interface GatewayImageAssetSaveRequest {
   saved: boolean;
+}
+
+export interface GatewayImageAssetUpdateRequest {
+  label: string;
 }
 
 export interface GatewayErrorResponse {

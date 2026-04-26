@@ -44,6 +44,10 @@ export function useImageLab() {
     queryKey: ['image-history', historyPage],
     queryFn: () => gatewayApiClient.getImageHistory(historyPage),
   });
+  const assetsQuery = useQuery({
+    queryKey: ['image-assets'],
+    queryFn: () => gatewayApiClient.getImageAssets(),
+  });
 
   const providers = catalogQuery.data?.providers ?? [];
   const selectedProvider = providers.find((provider) => provider.providerId === providerId);
@@ -156,6 +160,35 @@ export function useImageLab() {
       void queryClient.invalidateQueries({ queryKey: ['image-history'] });
     },
   });
+  const updateAssetMutation = useMutation({
+    mutationFn: (payload: { assetId: string; label: string }) =>
+      gatewayApiClient.updateImageAsset(payload.assetId, { label: payload.label }),
+    onSuccess: ({ asset }) => {
+      setReferences((current) =>
+        current.map((reference) =>
+          reference.kind === 'asset' && reference.assetId === asset.id
+            ? {
+                ...reference,
+                label: asset.label ?? 'Gateway image asset',
+              }
+            : reference,
+        ),
+      );
+      void queryClient.invalidateQueries({ queryKey: ['image-assets'] });
+    },
+  });
+  const deleteAssetMutation = useMutation({
+    mutationFn: (assetId: string) => gatewayApiClient.deleteImageAsset(assetId),
+    onSuccess: (_, assetId) => {
+      setReferences((current) =>
+        current.filter(
+          (reference) => reference.kind !== 'asset' || reference.assetId !== assetId,
+        ),
+      );
+      void queryClient.invalidateQueries({ queryKey: ['image-assets'] });
+      void queryClient.invalidateQueries({ queryKey: ['image-history'] });
+    },
+  });
 
   async function handleFileSelection(fileList: FileList | null) {
     if (!fileList?.length) {
@@ -177,6 +210,7 @@ export function useImageLab() {
       setReferences((current) =>
         [...current, ...nextReferences].slice(0, maxReferenceImages),
       );
+      void queryClient.invalidateQueries({ queryKey: ['image-assets'] });
     } catch (error) {
       setRequestError(
         error instanceof Error ? error.message : 'Image upload failed.',
@@ -198,6 +232,7 @@ export function useImageLab() {
           kind: 'image_url' as const,
           url: trimmedUrl,
           label: trimmedUrl,
+          previewUrl: trimmedUrl,
         },
       ].slice(0, maxReferenceImages),
     );
@@ -215,6 +250,31 @@ export function useImageLab() {
 
   function removeReference(referenceId: string) {
     setReferences((current) => current.filter((reference) => reference.id !== referenceId));
+  }
+
+  async function deleteReferenceAsset(assetId: string) {
+    try {
+      await deleteAssetMutation.mutateAsync(assetId);
+      setRequestError(null);
+    } catch (error) {
+      setRequestError(
+        error instanceof Error ? error.message : 'Image asset deletion failed.',
+      );
+    }
+  }
+
+  async function renameReferenceAsset(assetId: string, label: string) {
+    try {
+      await updateAssetMutation.mutateAsync({
+        assetId,
+        label: label.trim(),
+      });
+      setRequestError(null);
+    } catch (error) {
+      setRequestError(
+        error instanceof Error ? error.message : 'Image asset rename failed.',
+      );
+    }
   }
 
   const mediaUrl = (value: string | undefined) =>
@@ -253,6 +313,7 @@ export function useImageLab() {
     referenceUrl,
     setReferenceUrl,
     references,
+    referenceAssets: assetsQuery.data?.items ?? [],
     requestError,
     results,
     history: historyQuery.data,
@@ -260,9 +321,12 @@ export function useImageLab() {
     setHistoryPage,
     catalogQuery,
     historyQuery,
+    assetsQuery,
     generateMutation,
     uploadMutation,
     saveMutation,
+    updateAssetMutation,
+    deleteAssetMutation,
     supportsImageEditing,
     maxReferenceImages,
     canEdit,
@@ -271,6 +335,8 @@ export function useImageLab() {
     addReferenceUrl,
     addReferenceAsset,
     removeReference,
+    renameReferenceAsset,
+    deleteReferenceAsset,
     mediaUrl,
   };
 }
@@ -282,6 +348,7 @@ function mapAssetReference(asset: GatewayImageAssetSummary): ImageReferenceDraft
     assetId: asset.id,
     label: asset.label ?? 'Gateway image asset',
     previewUrl: resolveGatewayMediaUrl(asset.contentUrl),
+    sourceType: asset.sourceType,
   };
 }
 

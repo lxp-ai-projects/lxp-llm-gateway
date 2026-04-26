@@ -8,7 +8,9 @@ import type {
   GatewayChatResponse,
   GatewayChatStreamChunk,
   GatewayChatStreamResult,
+  GatewayImageAssetListResponse,
   GatewayImageAssetSummary,
+  GatewayImageAssetUpdateRequest,
   GatewayImageCatalogResponse,
   GatewayImageGenerationResponse,
   GatewayImageHistoryResponse,
@@ -127,6 +129,12 @@ export const gatewayApiClient = {
     );
   },
 
+  async getImageAssets(): Promise<GatewayImageAssetListResponse> {
+    return request<GatewayImageAssetListResponse>(
+      `${gatewayApiUrl}/api/v1/images/assets`,
+    );
+  },
+
   async setImageAssetSaved(
     assetId: string,
     saved: boolean,
@@ -136,6 +144,28 @@ export const gatewayApiClient = {
       {
         method: 'PATCH',
         body: JSON.stringify({ saved }),
+      },
+    );
+  },
+
+  async deleteImageAsset(assetId: string): Promise<{ deleted: true }> {
+    return request<{ deleted: true }>(
+      `${gatewayApiUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
+  async updateImageAsset(
+    assetId: string,
+    payload: GatewayImageAssetUpdateRequest,
+  ): Promise<{ asset: GatewayImageAssetSummary }> {
+    return request<{ asset: GatewayImageAssetSummary }>(
+      `${gatewayApiUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
       },
     );
   },

@@ -40,6 +40,7 @@ test('gateway persistence entities can be instantiated with expected fields', ()
   asset.label = 'Moonlit forest';
   asset.mimeType = 'image/png';
   asset.dataUrl = 'data:image/png;base64,abc123';
+  asset.contentHash = 'hash-123';
   asset.originalUrl = null;
   asset.isSaved = true;
 
