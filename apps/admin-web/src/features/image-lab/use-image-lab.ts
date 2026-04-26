@@ -5,6 +5,7 @@ import { gatewayApiClient, gatewayApiUrl } from '../../lib/api-client';
 import type {
   GatewayGeneratedImage,
   GatewayImageAssetSummary,
+  ProviderModelSummary,
 } from '../../lib/api-client.types';
 import { createClientId } from '../../lib/id';
 import type { ImageReferenceDraft } from './types';
@@ -58,13 +59,19 @@ export function useImageLab() {
         (model) => model.capabilities?.requiresPaidAccess === true,
       ),
   );
-  const models =
+  const models: ProviderModelSummary[] = (
     selectedProvider?.providerId === 'nanogpt' && !showNanoGptPaidModels
       ? (selectedProvider?.models ?? []).filter(
-          (model) => model.capabilities?.requiresPaidAccess !== true,
+          (model: ProviderModelSummary) =>
+            model.capabilities?.requiresPaidAccess !== true,
         )
-      : selectedProvider?.models ?? [];
-  const selectedModel = models.find((model) => model.id === modelId);
+      : selectedProvider?.models ?? []
+  )
+    .slice()
+    .sort((left: ProviderModelSummary, right: ProviderModelSummary) =>
+    (left.displayName || left.id).localeCompare(right.displayName || right.id),
+  );
+  const selectedModel = models.find((model: ProviderModelSummary) => model.id === modelId);
   const capabilities = selectedModel?.capabilities;
 
   useEffect(() => {

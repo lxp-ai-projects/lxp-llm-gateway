@@ -29,6 +29,11 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 
+import type {
+  ImageAspectRatioOption,
+  ImageInputFidelityOption,
+  ProviderModelSummary,
+} from '../../../lib/api-client.types';
 import type { ReturnTypeUseImageLab } from '../use-image-lab.types';
 
 export function ImageRequestForm({
@@ -110,7 +115,7 @@ export function ImageRequestForm({
         />
 
         <Select
-          data={imageLab.models.map((model) => ({
+          data={imageLab.models.map((model: ProviderModelSummary) => ({
             value: model.id,
             label: model.displayName,
           }))}
@@ -144,8 +149,8 @@ export function ImageRequestForm({
           {aspectRatios.length ? (
             <Select
               data={aspectRatios.map((option) => ({
-                value: option.value,
-                label: option.label,
+                value: (option as ImageAspectRatioOption).value,
+                label: (option as ImageAspectRatioOption).label,
               }))}
               data-testid="image-aspect-ratio-select"
               label="Aspect ratio"
@@ -155,7 +160,7 @@ export function ImageRequestForm({
           ) : null}
           {responseFormats.length ? (
             <Select
-              data={responseFormats.map((format) => ({
+              data={responseFormats.map((format: 'url' | 'b64_json') => ({
                 value: format,
                 label: format === 'b64_json' ? 'Base64' : 'Hosted URL',
               }))}
@@ -234,8 +239,8 @@ export function ImageRequestForm({
           {imageLab.references.length > 0 && inputFidelities.length ? (
             <Select
               data={inputFidelities.map((option) => ({
-                value: option.value,
-                label: option.label,
+                value: (option as ImageInputFidelityOption).value,
+                label: (option as ImageInputFidelityOption).label,
               }))}
               data-testid="image-input-fidelity-select"
               label="Input fidelity"

@@ -15,24 +15,34 @@ const NANO_GPT_MULTI_IMAGE_MODELS = new Set([
 export function buildNanoGptImageCatalog(input: {
   subscriptionModels: NanoGptImageModelRecord[];
   paidModels: NanoGptImageModelRecord[];
+  allModels?: NanoGptImageModelRecord[];
 }): CanonicalImageProviderCatalog {
   const mergedModels = new Map<string, NanoGptImageModelRecord>();
-  const paidOnlyModelIds = new Set<string>();
+  const subscriptionModelIds = new Set<string>(
+    input.subscriptionModels.map((model) => model.id),
+  );
+  const paidModelIds = new Set<string>(input.paidModels.map((model) => model.id));
+
+  for (const model of input.allModels ?? []) {
+    mergedModels.set(model.id, model);
+  }
 
   for (const model of input.subscriptionModels) {
     mergedModels.set(model.id, model);
   }
 
   for (const model of input.paidModels) {
-    if (!mergedModels.has(model.id)) {
-      paidOnlyModelIds.add(model.id);
-      mergedModels.set(model.id, model);
-    }
+    mergedModels.set(model.id, model);
   }
 
   const models = Array.from(mergedModels.values())
     .filter((model) => model.category === 'image' || model.capabilities?.image_generation)
-    .map((model) => toImageModelDescriptor(model, paidOnlyModelIds.has(model.id)));
+    .map((model) =>
+      toImageModelDescriptor(
+        model,
+        paidModelIds.has(model.id) && !subscriptionModelIds.has(model.id),
+      ),
+    );
 
   return {
     providerId: 'nanogpt',

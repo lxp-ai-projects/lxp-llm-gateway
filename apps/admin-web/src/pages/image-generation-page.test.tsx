@@ -104,23 +104,6 @@ const {
         defaultModelId: 'hidream',
         models: [
           {
-            id: 'hidream',
-            displayName: 'HiDream',
-            capabilities: {
-              supportsImageGeneration: true,
-              supportsImageEditing: false,
-              requiresPaidAccess: false,
-              supportedImageResponseFormats: ['url', 'b64_json'],
-              supportedImageResolutions: [{ value: '1024x1024', label: '1024x1024' }],
-              maxGeneratedImagesPerRequest: 4,
-              imageDefaults: {
-                responseFormat: 'b64_json',
-                resolution: '1024x1024',
-                imageCount: 1,
-              },
-            },
-          },
-          {
             id: 'gpt-image-1',
             displayName: 'GPT Image 1',
             capabilities: {
@@ -131,6 +114,23 @@ const {
               supportedImageResolutions: [{ value: '1024x1024', label: '1024x1024' }],
               maxGeneratedImagesPerRequest: 1,
               maxReferenceImagesPerRequest: 5,
+              imageDefaults: {
+                responseFormat: 'b64_json',
+                resolution: '1024x1024',
+                imageCount: 1,
+              },
+            },
+          },
+          {
+            id: 'hidream',
+            displayName: 'HiDream',
+            capabilities: {
+              supportsImageGeneration: true,
+              supportsImageEditing: false,
+              requiresPaidAccess: false,
+              supportedImageResponseFormats: ['url', 'b64_json'],
+              supportedImageResolutions: [{ value: '1024x1024', label: '1024x1024' }],
+              maxGeneratedImagesPerRequest: 4,
               imageDefaults: {
                 responseFormat: 'b64_json',
                 resolution: '1024x1024',
@@ -488,7 +488,28 @@ test('ImageGenerationPage hides NanoGPT paid-only models until the toggle is ena
   await user.click(screen.getByTestId('nanogpt-paid-models-toggle'));
   fireEvent.click(screen.getByTestId('image-model-select'));
   await waitFor(() =>
-    expect(document.querySelector('[role="option"][value="gpt-image-1"]')).not.toBeNull(),
+  expect(document.querySelector('[role="option"][value="gpt-image-1"]')).not.toBeNull(),
+  );
+});
+
+test('ImageGenerationPage sorts NanoGPT image models alphabetically', async () => {
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="nanogpt"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="nanogpt"]') as Element);
+
+  fireEvent.click(screen.getByTestId('image-model-select'));
+  const visibleOptions = Array.from(
+    document.querySelectorAll('[role="option"]'),
+  ).map((option) => option.textContent?.trim()).filter(Boolean);
+
+  expect(visibleOptions.indexOf('GPT Image 1')).toBeLessThan(
+    visibleOptions.indexOf('HiDream'),
   );
 });
 

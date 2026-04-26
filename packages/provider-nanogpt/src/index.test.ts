@@ -315,18 +315,104 @@ test('NanoGptProviderAdapter exposes NanoGPT image models from the subscription 
     assert.deepEqual(calls, [
       'https://nano-gpt.com/api/subscription/v1/image-models?detailed=true',
       'https://nano-gpt.com/api/paid/v1/image-models?detailed=true',
+      'https://nano-gpt.com/api/v1/image-models?detailed=true',
     ]);
     assert.equal(catalog.defaultModelId, 'hidream');
     assert.deepEqual(
-      catalog.models.map((model) => ({
-        id: model.id,
-        paid: model.capabilities.requiresPaidAccess,
-      })),
+      catalog.models
+        .map((model) => ({
+          id: model.id,
+          paid: model.capabilities.requiresPaidAccess,
+        }))
+        .sort((left, right) => left.id.localeCompare(right.id)),
       [
-        { id: 'hidream', paid: false },
         { id: 'gpt-image-1', paid: true },
+        { id: 'hidream', paid: false },
       ],
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter falls back to the canonical image catalog when NanoGPT filtered endpoints are unavailable', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+
+  globalThis.fetch = (async (url) => {
+    const rawUrl = String(url);
+    calls.push(rawUrl);
+
+    if (
+      rawUrl.includes('/subscription/v1/image-models') ||
+      rawUrl.includes('/paid/v1/image-models')
+    ) {
+      return new Response('not found', { status: 404 });
+    }
+
+    if (rawUrl.includes('/v1/image-models')) {
+      return new Response(
+        JSON.stringify({
+          object: 'list',
+          data: [
+            {
+              id: 'hidream',
+              object: 'model',
+              created: 1706745600,
+              owned_by: 'hidream',
+              name: 'HiDream',
+              category: 'image',
+              capabilities: {
+                image_generation: true,
+                image_to_image: true,
+                inpainting: false,
+              },
+              supported_parameters: {
+                resolutions: ['1024x1024'],
+                max_images: 4,
+              },
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    }
+
+    return new Response('unexpected', { status: 500 });
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const catalog = await adapter.listImageCatalog?.({
+      requestId: 'req-image-catalog-fallback',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'nano-secret-token',
+      },
+    });
+
+    assert.ok(catalog);
+    assert.equal(catalog?.defaultModelId, 'hidream');
+    assert.deepEqual(
+      catalog?.models.map((model) => ({
+        id: model.id,
+        requiresPaidAccess: model.capabilities.requiresPaidAccess,
+      })),
+      [
+        {
+          id: 'hidream',
+          requiresPaidAccess: false,
+        },
+      ],
+    );
+    assert.ok(calls.some((url) => url.includes('/subscription/v1/image-models')));
+    assert.ok(calls.some((url) => url.includes('/paid/v1/image-models')));
+    assert.ok(calls.some((url) => url.includes('/v1/image-models')));
   } finally {
     globalThis.fetch = originalFetch;
   }

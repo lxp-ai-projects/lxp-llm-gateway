@@ -86,17 +86,25 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
-    const [subscriptionCatalog, paidCatalog] = await Promise.all([
-      this.imageApiClient.listImageModels(
-        context,
-        '/subscription/v1/image-models',
-      ),
-      this.imageApiClient.listImageModels(context, '/paid/v1/image-models'),
-    ]);
+    const [subscriptionCatalog, paidCatalog, canonicalCatalog] =
+      await Promise.all([
+        this.imageApiClient
+          .listImageModels(context, '/subscription/v1/image-models')
+          .catch(() => null),
+        this.imageApiClient
+          .listImageModels(context, '/paid/v1/image-models')
+          .catch(() => null),
+        this.imageApiClient.listImageModels(context, '/image-models').catch(() => null),
+      ]);
+
+    if (!subscriptionCatalog && !paidCatalog && !canonicalCatalog) {
+      throw new Error('NanoGPT image catalog lookup failed for all known endpoints.');
+    }
 
     return buildNanoGptImageCatalog({
-      subscriptionModels: subscriptionCatalog.data ?? [],
-      paidModels: paidCatalog.data ?? [],
+      subscriptionModels: subscriptionCatalog?.data ?? [],
+      paidModels: paidCatalog?.data ?? [],
+      allModels: canonicalCatalog?.data ?? [],
     });
   }
 
