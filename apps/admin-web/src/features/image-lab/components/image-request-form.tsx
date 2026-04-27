@@ -368,7 +368,7 @@ export function ImageRequestForm({
         </Stack>
       </Modal>
 
-      <Card className="section-card">
+      <Card className="section-card image-request-form">
         <Stack gap="md">
           <Title order={3}>Image request</Title>
 

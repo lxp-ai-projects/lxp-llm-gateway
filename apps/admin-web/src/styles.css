@@ -737,6 +737,13 @@ a {
     gap: 8px;
   }
 
+  .image-request-form .mantine-InputWrapper-label {
+    display: flex;
+    align-items: flex-end;
+    min-height: 2.6rem;
+    line-height: 1.2;
+  }
+
   .image-results-grid {
     grid-template-columns: minmax(0, 1fr);
   }
