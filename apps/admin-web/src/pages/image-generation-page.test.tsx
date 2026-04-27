@@ -115,13 +115,49 @@ const {
               supportsImageGeneration: true,
               supportsImageEditing: true,
               requiresPaidAccess: true,
-              supportedImageResponseFormats: ['url', 'b64_json'],
-              supportedImageResolutions: [{ value: '1024x1024', label: '1024x1024' }],
-              maxGeneratedImagesPerRequest: 1,
-              maxReferenceImagesPerRequest: 5,
+              supportedImageResponseFormats: ['b64_json'],
+              supportedImageResolutions: [
+                { value: 'auto', label: 'Auto' },
+                { value: '1024x1024', label: '1024x1024' },
+                { value: '1536x1024', label: '1536x1024' },
+                { value: '1024x1536', label: '1024x1536' },
+              ],
+              supportedImageBackgrounds: [
+                { value: 'auto', label: 'Auto' },
+                { value: 'opaque', label: 'Opaque' },
+                { value: 'transparent', label: 'Transparent' },
+              ],
+              supportedImageQualities: [
+                { value: 'auto', label: 'Auto' },
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+              ],
+              supportedImageModerations: [
+                { value: 'auto', label: 'Auto' },
+                { value: 'low', label: 'Low' },
+              ],
+              supportedImageOutputFormats: ['png', 'jpeg', 'webp'],
+              supportedImageInputFidelities: [
+                { value: 'low', label: 'Low' },
+                { value: 'high', label: 'High' },
+              ],
+              imageOutputCompressionRange: {
+                min: 0,
+                max: 100,
+                step: 1,
+              },
+              maxGeneratedImagesPerRequest: 10,
+              maxReferenceImagesPerRequest: 16,
               imageDefaults: {
                 responseFormat: 'b64_json',
                 resolution: '1024x1024',
+                background: 'auto',
+                quality: 'auto',
+                moderation: 'auto',
+                outputFormat: 'png',
+                outputCompression: 100,
+                inputFidelity: 'low',
                 imageCount: 1,
               },
             },
@@ -140,6 +176,48 @@ const {
                 responseFormat: 'b64_json',
                 resolution: '1024x1024',
                 imageCount: 1,
+              },
+            },
+          },
+          {
+            id: 'wan-2.7-image-pro',
+            displayName: 'Wan 2.7 Image Pro',
+            capabilities: {
+              supportsImageGeneration: true,
+              supportsImageEditing: true,
+              requiresPaidAccess: false,
+              supportedImageResponseFormats: ['url', 'b64_json'],
+              supportedImageResolutions: [
+                { value: '1K', label: '1K' },
+                { value: '2K', label: '2K' },
+                { value: '4K', label: '4K' },
+              ],
+              maxGeneratedImagesPerRequest: 4,
+              maxReferenceImagesPerRequest: 9,
+              imageDefaults: {
+                responseFormat: 'b64_json',
+                resolution: '2K',
+                imageCount: 1,
+              },
+              imageGenerationOptions: {
+                supportedImageResolutions: [
+                  { value: '1K', label: '1K' },
+                  { value: '2K', label: '2K' },
+                  { value: '4K', label: '4K' },
+                ],
+                imageDefaults: {
+                  resolution: '2K',
+                },
+              },
+              imageEditOptions: {
+                supportedImageResolutions: [
+                  { value: '1K', label: '1K' },
+                  { value: '2K', label: '2K' },
+                ],
+                maxReferenceImagesPerRequest: 9,
+                imageDefaults: {
+                  resolution: '2K',
+                },
               },
             },
           },
@@ -552,6 +630,73 @@ test('ImageGenerationPage sorts NanoGPT image models alphabetically', async () =
   expect(visibleOptions.indexOf('GPT Image 1')).toBeLessThan(
     visibleOptions.indexOf('HiDream'),
   );
+});
+
+test('ImageGenerationPage applies mode-specific WAN resolutions when references switch the request to edit mode', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="nanogpt"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="nanogpt"]') as Element);
+
+  fireEvent.click(screen.getByTestId('image-model-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="wan-2.7-image-pro"]')).not.toBeNull(),
+  );
+  fireEvent.click(
+    document.querySelector('[role="option"][value="wan-2.7-image-pro"]') as Element,
+  );
+
+  fireEvent.click(screen.getByTestId('image-resolution-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="4K"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="4K"]') as Element);
+
+  fireEvent.change(screen.getByTestId('image-reference-url-input'), {
+    target: { value: 'https://example.com/reference.png' },
+  });
+  await user.click(screen.getByTestId('image-add-reference-url'));
+
+  fireEvent.click(screen.getByTestId('image-resolution-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="4K"]')).toBeNull(),
+  );
+  expect(document.querySelector('[role="option"][value="2K"]')).not.toBeNull();
+});
+
+test('ImageGenerationPage shows OpenAI-aligned GPT image controls for NanoGPT models', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="nanogpt"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="nanogpt"]') as Element);
+
+  await user.click(screen.getByTestId('nanogpt-paid-models-toggle'));
+  fireEvent.click(screen.getByTestId('image-model-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="gpt-image-1"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="gpt-image-1"]') as Element);
+
+  expect(
+    screen.getByText('OpenAI-aligned GPT Image options'),
+  ).toBeInTheDocument();
+  expect(screen.getByTestId('image-background-select')).toBeInTheDocument();
+  expect(screen.getByTestId('image-quality-select')).toBeInTheDocument();
+  expect(screen.getByTestId('image-moderation-select')).toBeInTheDocument();
+  expect(screen.getByTestId('image-output-format-select')).toBeInTheDocument();
+  expect(screen.getByTestId('image-output-compression-input')).toBeInTheDocument();
 });
 
 test('ImageGenerationPage opens a responsive full-size history preview', async () => {

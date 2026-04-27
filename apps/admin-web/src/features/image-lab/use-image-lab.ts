@@ -74,6 +74,12 @@ export function useImageLab() {
   );
   const selectedModel = models.find((model: ProviderModelSummary) => model.id === modelId);
   const capabilities = selectedModel?.capabilities;
+  const supportsImageEditing = capabilities?.supportsImageEditing === true;
+  const activeImageMode = references.length > 0 && supportsImageEditing ? 'edit' : 'generation';
+  const selectedCapabilities = resolveImageModeCapabilities(
+    capabilities,
+    activeImageMode,
+  );
 
   useEffect(() => {
     if (providerId || !providers.length) {
@@ -100,7 +106,7 @@ export function useImageLab() {
   }, [modelId, selectedProvider]);
 
   useEffect(() => {
-    const defaults = resolveImageFormDefaults(selectedModel);
+    const defaults = resolveImageFormDefaults(selectedCapabilities);
     setAspectRatio(defaults.aspectRatio);
     setResponseFormat(defaults.responseFormat);
     setResolution(defaults.resolution);
@@ -111,9 +117,8 @@ export function useImageLab() {
     setOutputCompression(defaults.outputCompression);
     setInputFidelity(defaults.inputFidelity);
     setImageCount(defaults.imageCount);
-  }, [selectedModel]);
+  }, [selectedCapabilities]);
 
-  const supportsImageEditing = capabilities?.supportsImageEditing === true;
   const maxReferenceImages = resolveMaxReferenceImages(
     selectedProvider?.providerId,
     selectedModel,
@@ -310,6 +315,7 @@ export function useImageLab() {
     providers,
     selectedProvider,
     selectedModel,
+    selectedCapabilities,
     models,
     prompt,
     setPrompt,
@@ -411,7 +417,10 @@ function resolveMaxReferenceImages(
   providerId: string | undefined,
   model: ProviderModelSummary | undefined,
 ) {
-  const catalogValue = model?.capabilities?.maxReferenceImagesPerRequest;
+  const editOptions = model?.capabilities?.imageEditOptions;
+  const catalogValue =
+    editOptions?.maxReferenceImagesPerRequest ??
+    model?.capabilities?.maxReferenceImagesPerRequest;
 
   if (providerId !== 'nanogpt' || !model) {
     return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
@@ -458,6 +467,30 @@ function resolveMaxReferenceImages(
     )
   ) {
     return Math.max(catalogValue ?? 0, 10);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'qwen-image',
+      'qwen-image-edit',
+      'qwen-image-img2img',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 3);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'wan-2-7-image-pro',
+      'wan2-7-image-pro',
+      'wan2-7-image-professional-edition',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 9);
   }
 
   if (
@@ -513,4 +546,31 @@ function normalizeModelToken(value: string | undefined) {
 
 function isOneOf(valueA: string, valueB: string, ...candidates: string[]) {
   return candidates.includes(valueA) || candidates.includes(valueB);
+}
+
+function resolveImageModeCapabilities(
+  capabilities: ProviderModelSummary['capabilities'] | undefined,
+  mode: 'generation' | 'edit',
+) {
+  if (!capabilities) {
+    return undefined;
+  }
+
+  const modeOptions =
+    mode === 'edit'
+      ? capabilities.imageEditOptions
+      : capabilities.imageGenerationOptions;
+
+  if (!modeOptions) {
+    return capabilities;
+  }
+
+  return {
+    ...capabilities,
+    ...modeOptions,
+    imageDefaults: {
+      ...(capabilities.imageDefaults ?? {}),
+      ...(modeOptions.imageDefaults ?? {}),
+    },
+  };
 }

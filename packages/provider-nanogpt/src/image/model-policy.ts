@@ -26,9 +26,14 @@ export function validateNanoGptImageGenerationRequest(
   model: ImageModelDescriptor,
 ) {
   assertGenerationSupported(model);
-  assertAllowedResponseFormat(request.responseFormat, model);
-  assertAllowedResolution(request.resolution, model);
-  assertAllowedImageCount(request.n, model);
+  assertAllowedResponseFormat(request.responseFormat, model, 'generation');
+  assertAllowedResolution(request.resolution, model, 'generation');
+  assertAllowedBackground(request.background, model, 'generation');
+  assertAllowedQuality(request.quality, model, 'generation');
+  assertAllowedModeration(request.moderation, model, 'generation');
+  assertAllowedOutputFormat(request.outputFormat, model, 'generation');
+  assertAllowedOutputCompression(request.outputCompression, model, 'generation');
+  assertAllowedImageCount(request.n, model, 'generation');
 }
 
 export function validateNanoGptImageEditRequest(
@@ -36,15 +41,23 @@ export function validateNanoGptImageEditRequest(
   model: ImageModelDescriptor,
 ) {
   assertEditingSupported(model);
-  assertAllowedResponseFormat(request.responseFormat, model);
-  assertAllowedResolution(request.resolution, model);
-  assertAllowedImageCount(request.n, model);
+  assertAllowedResponseFormat(request.responseFormat, model, 'edit');
+  assertAllowedResolution(request.resolution, model, 'edit');
+  assertAllowedBackground(request.background, model, 'edit');
+  assertAllowedQuality(request.quality, model, 'edit');
+  assertAllowedModeration(request.moderation, model, 'edit');
+  assertAllowedOutputFormat(request.outputFormat, model, 'edit');
+  assertAllowedOutputCompression(request.outputCompression, model, 'edit');
+  assertAllowedInputFidelity(request.inputFidelity, model, 'edit');
+  assertAllowedImageCount(request.n, model, 'edit');
 
   if (request.images.length === 0) {
     throw new Error('NanoGPT image editing requires at least one reference image.');
   }
 
-  const maxReferences = model.capabilities.maxReferenceImagesPerRequest;
+  const maxReferences =
+    resolveModeCapabilities(model, 'edit').maxReferenceImagesPerRequest ??
+    model.capabilities.maxReferenceImagesPerRequest;
   if (maxReferences && request.images.length > maxReferences) {
     throw new Error(
       `NanoGPT image model ${model.id} supports at most ${maxReferences} reference image(s).`,
@@ -69,12 +82,16 @@ function assertEditingSupported(model: ImageModelDescriptor) {
 function assertAllowedResponseFormat(
   responseFormat: CanonicalImageGenerateRequest['responseFormat'] | undefined,
   model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
 ) {
   if (!responseFormat) {
     return;
   }
 
-  const supportedFormats = model.capabilities.supportedImageResponseFormats ?? [];
+  const supportedFormats =
+    resolveModeCapabilities(model, mode).supportedImageResponseFormats ??
+    model.capabilities.supportedImageResponseFormats ??
+    [];
   if (!supportedFormats.includes(responseFormat)) {
     throw new Error(
       `NanoGPT image model ${model.id} does not support response format ${responseFormat}.`,
@@ -85,15 +102,21 @@ function assertAllowedResponseFormat(
 function assertAllowedResolution(
   resolution: string | undefined,
   model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
 ) {
   if (!resolution) {
     return;
   }
 
-  const supportedResolutions = model.capabilities.supportedImageResolutions ?? [];
+  const supportedResolutions =
+    resolveModeCapabilities(model, mode).supportedImageResolutions ??
+    model.capabilities.supportedImageResolutions ??
+    [];
   if (
     supportedResolutions.length > 0 &&
-    !supportedResolutions.some((entry) => entry.value === resolution)
+    !supportedResolutions.some(
+      (entry: { value: string; label: string }) => entry.value === resolution,
+    )
   ) {
     throw new Error(
       `NanoGPT image model ${model.id} does not support resolution ${resolution}.`,
@@ -104,15 +127,143 @@ function assertAllowedResolution(
 function assertAllowedImageCount(
   imageCount: number | undefined,
   model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
 ) {
   if (imageCount === undefined) {
     return;
   }
 
-  const maxImages = model.capabilities.maxGeneratedImagesPerRequest;
+  const maxImages =
+    resolveModeCapabilities(model, mode).maxGeneratedImagesPerRequest ??
+    model.capabilities.maxGeneratedImagesPerRequest;
   if (maxImages && imageCount > maxImages) {
     throw new Error(
       `NanoGPT image model ${model.id} supports at most ${maxImages} image(s) per request.`,
+    );
+  }
+}
+
+function assertAllowedBackground(
+  background: string | undefined,
+  model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
+) {
+  if (!background) {
+    return;
+  }
+
+  const supportedBackgrounds =
+    resolveModeCapabilities(model, mode).supportedImageBackgrounds ??
+    model.capabilities.supportedImageBackgrounds ??
+    [];
+  if (!supportedBackgrounds.some((entry) => entry.value === background)) {
+    throw new Error(
+      `NanoGPT image model ${model.id} does not support background ${background}.`,
+    );
+  }
+}
+
+function assertAllowedQuality(
+  quality: string | undefined,
+  model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
+) {
+  if (!quality) {
+    return;
+  }
+
+  const supportedQualities =
+    resolveModeCapabilities(model, mode).supportedImageQualities ??
+    model.capabilities.supportedImageQualities ??
+    [];
+  if (!supportedQualities.some((entry) => entry.value === quality)) {
+    throw new Error(
+      `NanoGPT image model ${model.id} does not support quality ${quality}.`,
+    );
+  }
+}
+
+function assertAllowedModeration(
+  moderation: string | undefined,
+  model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
+) {
+  if (!moderation) {
+    return;
+  }
+
+  const supportedModerations =
+    resolveModeCapabilities(model, mode).supportedImageModerations ??
+    model.capabilities.supportedImageModerations ??
+    [];
+  if (!supportedModerations.some((entry) => entry.value === moderation)) {
+    throw new Error(
+      `NanoGPT image model ${model.id} does not support moderation ${moderation}.`,
+    );
+  }
+}
+
+function assertAllowedOutputFormat(
+  outputFormat: string | undefined,
+  model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
+) {
+  if (!outputFormat) {
+    return;
+  }
+
+  const supportedFormats =
+    resolveModeCapabilities(model, mode).supportedImageOutputFormats ??
+    model.capabilities.supportedImageOutputFormats ??
+    [];
+  if (!supportedFormats.some((entry) => entry.value === outputFormat)) {
+    throw new Error(
+      `NanoGPT image model ${model.id} does not support output format ${outputFormat}.`,
+    );
+  }
+}
+
+function assertAllowedOutputCompression(
+  outputCompression: number | undefined,
+  model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
+) {
+  if (outputCompression === undefined) {
+    return;
+  }
+
+  const range =
+    resolveModeCapabilities(model, mode).imageOutputCompressionRange ??
+    model.capabilities.imageOutputCompressionRange;
+  if (!range) {
+    throw new Error(
+      `NanoGPT image model ${model.id} does not support output compression.`,
+    );
+  }
+
+  if (outputCompression < range.min || outputCompression > range.max) {
+    throw new Error(
+      `NanoGPT image model ${model.id} supports output compression between ${range.min} and ${range.max}.`,
+    );
+  }
+}
+
+function assertAllowedInputFidelity(
+  inputFidelity: string | undefined,
+  model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
+) {
+  if (!inputFidelity) {
+    return;
+  }
+
+  const supportedFidelities =
+    resolveModeCapabilities(model, mode).supportedImageInputFidelities ??
+    model.capabilities.supportedImageInputFidelities ??
+    [];
+  if (!supportedFidelities.some((entry) => entry.value === inputFidelity)) {
+    throw new Error(
+      `NanoGPT image model ${model.id} does not support input fidelity ${inputFidelity}.`,
     );
   }
 }
@@ -125,12 +276,23 @@ function assertCombinedSeedreamImageSetLimit(
     return;
   }
 
-  const requestedOutputCount = request.n ?? model.capabilities.imageDefaults?.imageCount ?? 1;
-  if (request.images.length + requestedOutputCount > 15) {
+  const editDefaults = resolveModeCapabilities(model, 'edit').imageDefaults;
+  const fallbackOutputCount =
+    editDefaults?.imageCount ?? model.capabilities.imageDefaults?.imageCount ?? 1;
+  if (request.images.length + (request.n ?? fallbackOutputCount) > 15) {
     throw new Error(
       `NanoGPT image model ${model.id} supports at most 15 combined reference and output image(s) for Seedream image-set workflows.`,
     );
   }
+}
+
+function resolveModeCapabilities(
+  model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
+) {
+  return mode === 'edit'
+    ? (model.capabilities.imageEditOptions ?? {})
+    : (model.capabilities.imageGenerationOptions ?? {});
 }
 
 function isSeedreamImageSetModel(modelId: string) {

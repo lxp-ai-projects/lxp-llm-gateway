@@ -1,4 +1,7 @@
-import type { ProviderModelSummary } from '../../lib/api-client.types';
+import type {
+  ImageModeCapabilityOptions,
+  ProviderModelSummary,
+} from '../../lib/api-client.types';
 
 export interface ImageFormDefaults {
   aspectRatio: string;
@@ -14,9 +17,11 @@ export interface ImageFormDefaults {
 }
 
 export function resolveImageFormDefaults(
-  model: ProviderModelSummary | undefined,
+  capabilities:
+    | ProviderModelSummary['capabilities']
+    | ImageModeCapabilityOptions
+    | undefined,
 ): ImageFormDefaults {
-  const capabilities = model?.capabilities;
   const imageDefaults = capabilities?.imageDefaults;
 
   return {

@@ -12,11 +12,85 @@ interface NanoGptImageModelCapabilityOverride {
 }
 
 const NANO_GPT_DEFAULT_IMAGE_RESPONSE_FORMATS = ['url', 'b64_json'] as const;
+const NANO_GPT_OPENAI_IMAGE_RESPONSE_FORMATS = ['b64_json'] as const;
+const NANO_GPT_OPENAI_IMAGE_RESOLUTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: '1024x1024', label: '1024x1024' },
+  { value: '1536x1024', label: '1536x1024' },
+  { value: '1024x1536', label: '1024x1536' },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_OUTPUT_FORMATS = [
+  { value: 'png', label: 'PNG' },
+  { value: 'jpeg', label: 'JPEG' },
+  { value: 'webp', label: 'WebP' },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_BACKGROUNDS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'opaque', label: 'Opaque' },
+  { value: 'transparent', label: 'Transparent' },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_QUALITIES = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_MODERATIONS = [
+  {
+    value: 'auto',
+    label: 'Auto',
+    description: 'Use the default moderation level for GPT image models.',
+  },
+  {
+    value: 'low',
+    label: 'Low',
+    description:
+      'Less restrictive filtering, but prompts and images can still be rejected.',
+  },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_INPUT_FIDELITIES = [
+  {
+    value: 'low',
+    label: 'Low',
+    description: 'Looser adherence to the reference image.',
+  },
+  {
+    value: 'high',
+    label: 'High',
+    description: 'Preserve source details more strictly.',
+  },
+] as const;
 const NANO_GPT_SEEDREAM_IMAGE_SET_RESOLUTIONS = [
   { value: '1K', label: '1K' },
   { value: '2K', label: '2K' },
   { value: '4K', label: '4K' },
 ] as const;
+const NANO_GPT_OPENAI_ALIGNED_IMAGE_CAPABILITIES = {
+  supportedImageResponseFormats: [...NANO_GPT_OPENAI_IMAGE_RESPONSE_FORMATS],
+  supportedImageResolutions: [...NANO_GPT_OPENAI_IMAGE_RESOLUTIONS],
+  supportedImageOutputFormats: [...NANO_GPT_OPENAI_IMAGE_OUTPUT_FORMATS],
+  supportedImageBackgrounds: [...NANO_GPT_OPENAI_IMAGE_BACKGROUNDS],
+  supportedImageQualities: [...NANO_GPT_OPENAI_IMAGE_QUALITIES],
+  supportedImageModerations: [...NANO_GPT_OPENAI_IMAGE_MODERATIONS],
+  imageOutputCompressionRange: {
+    min: 0,
+    max: 100,
+    defaultValue: 100,
+    step: 1,
+  },
+  maxReferenceImagesPerRequest: 16,
+  maxGeneratedImagesPerRequest: 10,
+  imageDefaults: {
+    responseFormat: 'b64_json',
+    resolution: '1024x1024',
+    background: 'auto',
+    quality: 'auto',
+    moderation: 'auto',
+    outputFormat: 'png',
+    outputCompression: 100,
+    imageCount: 1,
+  },
+} as const satisfies Partial<ImageModelCapabilities>;
 const NANO_GPT_SEEDREAM_IMAGE_SET_CAPABILITY_OVERRIDE = {
   supportsImageGeneration: true,
   supportsImageEditing: true,
@@ -41,14 +115,92 @@ const NANO_GPT_IMAGE_MODEL_CAPABILITY_OVERRIDES: readonly NanoGptImageModelCapab
       },
     },
     {
-      matches: (modelId) =>
-        modelId === 'gpt-image-1' ||
-        modelId === 'gpt-image-1.5' ||
-        modelId === 'gpt-image-1-mini' ||
-        modelId === 'chatgpt-image-latest',
+      matches: isQwenImageModelId,
       capabilities: {
-        maxReferenceImagesPerRequest: 16,
-        maxGeneratedImagesPerRequest: 10,
+        maxReferenceImagesPerRequest: 3,
+      },
+    },
+    {
+      matches: isWan27ImageProModelId,
+      capabilities: {
+        supportedImageResolutions: [
+          { value: '1K', label: '1K' },
+          { value: '2K', label: '2K' },
+          { value: '4K', label: '4K' },
+        ],
+        maxReferenceImagesPerRequest: 9,
+        imageDefaults: {
+          responseFormat: 'b64_json',
+          resolution: '2K',
+          imageCount: 1,
+        },
+        imageGenerationOptions: {
+          supportedImageResolutions: [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K' },
+            { value: '4K', label: '4K' },
+          ],
+          imageDefaults: {
+            resolution: '2K',
+          },
+        },
+        imageEditOptions: {
+          supportedImageResolutions: [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K' },
+          ],
+          maxReferenceImagesPerRequest: 9,
+          imageDefaults: {
+            resolution: '2K',
+          },
+        },
+      },
+    },
+    {
+      matches: isWan27ImageModelId,
+      capabilities: {
+        supportedImageResolutions: [
+          { value: '1K', label: '1K' },
+          { value: '2K', label: '2K' },
+        ],
+        maxReferenceImagesPerRequest: 9,
+        imageDefaults: {
+          responseFormat: 'b64_json',
+          resolution: '2K',
+          imageCount: 1,
+        },
+        imageGenerationOptions: {
+          supportedImageResolutions: [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K' },
+          ],
+          imageDefaults: {
+            resolution: '2K',
+          },
+        },
+        imageEditOptions: {
+          supportedImageResolutions: [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K' },
+          ],
+          maxReferenceImagesPerRequest: 9,
+          imageDefaults: {
+            resolution: '2K',
+          },
+        },
+      },
+    },
+    {
+      matches: isNanoGptOpenAiAlignedGptImageModelId,
+      capabilities: {
+        ...NANO_GPT_OPENAI_ALIGNED_IMAGE_CAPABILITIES,
+      },
+    },
+    {
+      matches: isNanoGptOpenAiInputFidelityGptImageModelId,
+      capabilities: {
+        ...NANO_GPT_OPENAI_ALIGNED_IMAGE_CAPABILITIES,
+        supportedImageInputFidelities: [...NANO_GPT_OPENAI_IMAGE_INPUT_FIDELITIES],
       },
     },
     {
@@ -271,6 +423,47 @@ function isSeedEdit3ModelId(modelId: string) {
     normalized === 'seededit-3-0-i2i' ||
     normalized === 'seededit-3-0'
   );
+}
+
+function isWan27ImageProModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'wan-2-7-image-pro' ||
+    normalized === 'wan2-7-image-pro' ||
+    normalized === 'wan2-7-image-professional-edition'
+  );
+}
+
+function isWan27ImageModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return normalized === 'wan-2-7-image' || normalized === 'wan2-7-image';
+}
+
+function isQwenImageModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'qwen-image' ||
+    normalized === 'qwen-image-edit' ||
+    normalized === 'qwen-image-img2img'
+  );
+}
+
+function isNanoGptOpenAiAlignedGptImageModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'gpt-image-2' ||
+    normalized === 'gpt-image-1-5' ||
+    normalized === 'gpt-image-1-mini' ||
+    normalized === 'chatgpt-image-latest'
+  );
+}
+
+function isNanoGptOpenAiInputFidelityGptImageModelId(modelId: string) {
+  return normalizeNanoGptModelId(modelId) === 'gpt-image-1';
 }
 
 function normalizeNanoGptModelId(modelId: string) {

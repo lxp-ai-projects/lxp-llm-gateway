@@ -131,6 +131,32 @@ export type ImageOutputCompressionRange = {
   step?: number;
 };
 
+export type ImageModeCapabilityOptions = {
+  supportedImageAspectRatios?: ImageAspectRatioOption[];
+  supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
+  supportedImageResolutions?: ImageResolutionOption[];
+  supportedImageOutputFormats?: ImageOutputFormatOption[];
+  supportedImageBackgrounds?: ImageBackgroundOption[];
+  supportedImageQualities?: ImageQualityOption[];
+  supportedImageModerations?: ImageModerationOption[];
+  supportedImageInputFidelities?: ImageInputFidelityOption[];
+  imageOutputCompressionRange?: ImageOutputCompressionRange;
+  maxGeneratedImagesPerRequest?: number;
+  maxReferenceImagesPerRequest?: number;
+  imageDefaults?: {
+    aspectRatio?: string;
+    responseFormat?: 'url' | 'b64_json';
+    resolution?: string;
+    background?: string;
+    quality?: string;
+    moderation?: string;
+    outputFormat?: string;
+    outputCompression?: number;
+    inputFidelity?: string;
+    imageCount?: number;
+  };
+};
+
 export type ProviderModelSummary = {
   id: string;
   displayName: string;
@@ -162,6 +188,8 @@ export type ProviderModelSummary = {
       inputFidelity?: string;
       imageCount?: number;
     };
+    imageGenerationOptions?: ImageModeCapabilityOptions;
+    imageEditOptions?: ImageModeCapabilityOptions;
   };
 };
 

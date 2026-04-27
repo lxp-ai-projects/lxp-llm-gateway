@@ -564,11 +564,16 @@ test('NanoGptProviderAdapter sends image generation requests to the NanoGPT imag
     const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
     const response = await adapter.generateImage?.(
       {
-        model: 'hidream',
+        model: 'gpt-image-1.5',
         prompt: 'A sunset over a mountain range',
         n: 2,
         responseFormat: 'b64_json',
         resolution: '1024x1024',
+        background: 'transparent',
+        quality: 'high',
+        moderation: 'low',
+        outputFormat: 'webp',
+        outputCompression: 80,
       },
       {
         requestId: 'req-image-generate',
@@ -582,10 +587,15 @@ test('NanoGptProviderAdapter sends image generation requests to the NanoGPT imag
     assert.ok(response);
     assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/images/generations');
     assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
-      model: 'hidream',
+      model: 'gpt-image-1.5',
       prompt: 'A sunset over a mountain range',
       n: 2,
       size: '1024x1024',
+      background: 'transparent',
+      quality: 'high',
+      moderation: 'low',
+      output_format: 'webp',
+      output_compression: 80,
       response_format: 'b64_json',
       user: 'user-1',
     });
@@ -639,6 +649,12 @@ test('NanoGptProviderAdapter sends image edit requests with data URL references'
         ],
         responseFormat: 'b64_json',
         resolution: '1024x1024',
+        background: 'transparent',
+        quality: 'high',
+        moderation: 'low',
+        outputFormat: 'webp',
+        outputCompression: 80,
+        inputFidelity: 'high',
       },
       {
         requestId: 'req-image-edit',
@@ -655,6 +671,12 @@ test('NanoGptProviderAdapter sends image edit requests with data URL references'
       model: 'gpt-image-1',
       prompt: 'Combine these images into a creative collage',
       size: '1024x1024',
+      background: 'transparent',
+      quality: 'high',
+      moderation: 'low',
+      output_format: 'webp',
+      output_compression: 80,
+      input_fidelity: 'high',
       response_format: 'b64_json',
       user: 'user-1',
       imageDataUrls: [
@@ -795,4 +817,232 @@ test('buildNanoGptImageCatalog aligns NanoGPT OpenAI model aliases with OpenAI e
     references: 16,
     generated: 10,
   });
+  assert.deepEqual(
+    catalog.models
+      .find((model) => model.id === 'gpt-image-1')
+      ?.capabilities.supportedImageResponseFormats,
+    ['b64_json'],
+  );
+  assert.deepEqual(
+    catalog.models
+      .find((model) => model.id === 'gpt-image-1')
+      ?.capabilities.supportedImageBackgrounds?.map((entry) => entry.value),
+    ['auto', 'opaque', 'transparent'],
+  );
+  assert.deepEqual(
+    catalog.models
+      .find((model) => model.id === 'gpt-image-1')
+      ?.capabilities.supportedImageInputFidelities?.map((entry) => entry.value),
+    ['low', 'high'],
+  );
+});
+
+test('buildNanoGptImageCatalog aligns GPT Image 1.5 alias ids with OpenAI capabilities', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'gpt-image-1_5',
+        name: 'GPT Image 1.5',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+        supported_parameters: {
+          resolutions: ['1024x1024'],
+          max_images: 1,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'gpt-image-1_5');
+  assert.ok(model);
+  assert.deepEqual(model.capabilities.supportedImageResponseFormats, ['b64_json']);
+  assert.deepEqual(
+    model.capabilities.supportedImageBackgrounds?.map((entry) => entry.value),
+    ['auto', 'opaque', 'transparent'],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedImageQualities?.map((entry) => entry.value),
+    ['auto', 'low', 'medium', 'high'],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedImageModerations?.map((entry) => entry.value),
+    ['auto', 'low'],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedImageOutputFormats?.map((entry) => entry.value),
+    ['png', 'jpeg', 'webp'],
+  );
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 16);
+  assert.equal(model.capabilities.maxGeneratedImagesPerRequest, 10);
+});
+
+test('buildNanoGptImageCatalog aligns GPT Image 2 with OpenAI capabilities', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'gpt-image-2',
+        name: 'GPT Image 2',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+        supported_parameters: {
+          resolutions: ['1024x1024'],
+          max_images: 1,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'gpt-image-2');
+  assert.ok(model);
+  assert.deepEqual(model.capabilities.supportedImageResponseFormats, ['b64_json']);
+  assert.deepEqual(
+    model.capabilities.supportedImageBackgrounds?.map((entry) => entry.value),
+    ['auto', 'opaque', 'transparent'],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedImageQualities?.map((entry) => entry.value),
+    ['auto', 'low', 'medium', 'high'],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedImageModerations?.map((entry) => entry.value),
+    ['auto', 'low'],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedImageOutputFormats?.map((entry) => entry.value),
+    ['png', 'jpeg', 'webp'],
+  );
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 16);
+  assert.equal(model.capabilities.maxGeneratedImagesPerRequest, 10);
+});
+
+test('buildNanoGptImageCatalog aligns GPT Image Mini and ChatGPT image alias ids with OpenAI capabilities', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'gpt image 1 mini',
+        name: 'GPT Image 1 Mini',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+      {
+        id: 'chatgpt image latest',
+        name: 'ChatGPT Image Latest',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const miniModel = catalog.models.find((entry) => entry.id === 'gpt image 1 mini');
+  const latestModel = catalog.models.find((entry) => entry.id === 'chatgpt image latest');
+  assert.ok(miniModel);
+  assert.ok(latestModel);
+  assert.deepEqual(
+    miniModel.capabilities.supportedImageModerations?.map((entry) => entry.value),
+    ['auto', 'low'],
+  );
+  assert.deepEqual(
+    latestModel.capabilities.supportedImageBackgrounds?.map((entry) => entry.value),
+    ['auto', 'opaque', 'transparent'],
+  );
+  assert.deepEqual(
+    latestModel.capabilities.supportedImageOutputFormats?.map((entry) => entry.value),
+    ['png', 'jpeg', 'webp'],
+  );
+  assert.equal(latestModel.capabilities.maxReferenceImagesPerRequest, 16);
+  assert.equal(latestModel.capabilities.maxGeneratedImagesPerRequest, 10);
+});
+
+test('buildNanoGptImageCatalog aligns Wan 2.7 Image Pro with Alibaba Cloud multi-reference limits', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'wan-2.7-image-pro',
+        name: 'Wan 2.7 Image Pro',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'wan-2.7-image-pro');
+  assert.ok(model);
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 9);
+  assert.deepEqual(model.capabilities.supportedImageResolutions, [
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+    { value: '4K', label: '4K' },
+  ]);
+});
+
+test('buildNanoGptImageCatalog aligns Wan 2.7 Image with documented resolution tiers', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'wan2.7-image',
+        name: 'Wan 2.7 Image',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'wan2.7-image');
+  assert.ok(model);
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 9);
+  assert.deepEqual(model.capabilities.supportedImageResolutions, [
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+  ]);
+});
+
+test('buildNanoGptImageCatalog aligns Qwen Image with a 3-reference edit limit', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'qwen-image',
+        name: 'Qwen Image',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'qwen-image');
+  assert.ok(model);
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 3);
 });

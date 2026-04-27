@@ -75,6 +75,21 @@ export interface ImageModelDefaults {
   imageCount?: number;
 }
 
+export interface ImageModeCapabilityOptions {
+  supportedImageAspectRatios?: ImageAspectRatioOption[];
+  supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
+  supportedImageResolutions?: ImageResolutionOption[];
+  supportedImageOutputFormats?: ImageOutputFormatOption[];
+  supportedImageBackgrounds?: ImageBackgroundOption[];
+  supportedImageQualities?: ImageQualityOption[];
+  supportedImageModerations?: ImageModerationOption[];
+  supportedImageInputFidelities?: ImageInputFidelityOption[];
+  imageOutputCompressionRange?: ImageOutputCompressionRange;
+  maxGeneratedImagesPerRequest?: number;
+  maxReferenceImagesPerRequest?: number;
+  imageDefaults?: ImageModelDefaults;
+}
+
 export interface ModelCapability {
   id: string;
   supportsStreaming: boolean;
@@ -93,6 +108,8 @@ export interface ModelCapability {
   maxGeneratedImagesPerRequest?: number;
   maxReferenceImagesPerRequest?: number;
   imageDefaults?: ImageModelDefaults;
+  imageGenerationOptions?: ImageModeCapabilityOptions;
+  imageEditOptions?: ImageModeCapabilityOptions;
 }
 
 export interface ImageProviderModelCatalogEntry {

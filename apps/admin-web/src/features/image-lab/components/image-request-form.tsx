@@ -60,7 +60,7 @@ export function ImageRequestForm({
   );
   const [referenceCatalogPage, setReferenceCatalogPage] = useState(1);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
-  const capabilities = imageLab.selectedModel?.capabilities;
+  const capabilities = imageLab.selectedCapabilities;
   const aspectRatios = capabilities?.supportedImageAspectRatios ?? [];
   const responseFormats = capabilities?.supportedImageResponseFormats ?? [];
   const resolutions = capabilities?.supportedImageResolutions ?? [];
@@ -71,10 +71,20 @@ export function ImageRequestForm({
   const inputFidelities = capabilities?.supportedImageInputFidelities ?? [];
   const outputCompressionRange = capabilities?.imageOutputCompressionRange;
   const maxGeneratedImagesPerRequest = capabilities?.maxGeneratedImagesPerRequest ?? 1;
-  const showOpenAiModerationControl =
-    imageLab.selectedProvider?.providerId === 'openai' &&
-    imageLab.selectedModel?.id.toLowerCase().startsWith('gpt') === true &&
+  const normalizedModelId = imageLab.selectedModel?.id.trim().toLowerCase() ?? '';
+  const isOpenAiAlignedGptImageModel =
+    normalizedModelId.startsWith('gpt') ||
+    normalizedModelId === 'chatgpt-image-latest';
+  const isOpenAiOrNanoGptProvider =
+    imageLab.selectedProvider?.providerId === 'openai' ||
+    imageLab.selectedProvider?.providerId === 'nanogpt';
+  const showGptImageModerationControl =
+    isOpenAiOrNanoGptProvider &&
+    isOpenAiAlignedGptImageModel &&
     moderations.length > 0;
+  const showNanoGptOpenAiAlignedNotice =
+    imageLab.selectedProvider?.providerId === 'nanogpt' &&
+    isOpenAiAlignedGptImageModel;
   const selectedReferenceCount = imageLab.references.length;
   const selectedReferencesLabel =
     selectedReferenceCount === 1
@@ -399,131 +409,142 @@ export function ImageRequestForm({
           />
         ) : null}
 
-        <Textarea
-          autosize
-          data-testid="image-prompt-input"
-          label="Prompt"
-          minRows={5}
-          onChange={(event) => imageLab.setPrompt(event.currentTarget.value)}
-          value={imageLab.prompt}
-        />
+        <Accordion chevronPosition="right" defaultValue="prompt-and-options" variant="separated">
+          <Accordion.Item value="prompt-and-options">
+            <Accordion.Control data-testid="prompt-options-accordion">
+              Prompt and options
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Stack gap="md">
+                <Textarea
+                  autosize
+                  data-testid="image-prompt-input"
+                  label="Prompt"
+                  minRows={5}
+                  onChange={(event) => imageLab.setPrompt(event.currentTarget.value)}
+                  value={imageLab.prompt}
+                />
 
-        <Group grow align="start">
-          {aspectRatios.length ? (
-            <Select
-              data={aspectRatios.map((option) => ({
-                value: (option as ImageAspectRatioOption).value,
-                label: (option as ImageAspectRatioOption).label,
-              }))}
-              data-testid="image-aspect-ratio-select"
-              label="Aspect ratio"
-              onChange={(value) => imageLab.setAspectRatio(value ?? '')}
-              value={imageLab.aspectRatio}
-            />
-          ) : null}
-          {responseFormats.length ? (
-            <Select
-              data={responseFormats.map((format: 'url' | 'b64_json') => ({
-                value: format,
-                label: format === 'b64_json' ? 'Base64' : 'Hosted URL',
-              }))}
-              data-testid="image-response-format-select"
-              label="Response format"
-              onChange={(value) =>
-                imageLab.setResponseFormat((value as 'url' | 'b64_json') ?? 'b64_json')
-              }
-              value={imageLab.responseFormat}
-            />
-          ) : null}
-          <Select
-            data={buildImageCountOptions(maxGeneratedImagesPerRequest)}
-            data-testid="image-count-select"
-            label="Count"
-            onChange={(value) => imageLab.setImageCount(value ?? '1')}
-            value={imageLab.imageCount}
-          />
-        </Group>
+                <Group grow align="start">
+                  {aspectRatios.length ? (
+                    <Select
+                      data={aspectRatios.map((option) => ({
+                        value: (option as ImageAspectRatioOption).value,
+                        label: (option as ImageAspectRatioOption).label,
+                      }))}
+                      data-testid="image-aspect-ratio-select"
+                      label="Aspect ratio"
+                      onChange={(value) => imageLab.setAspectRatio(value ?? '')}
+                      value={imageLab.aspectRatio}
+                    />
+                  ) : null}
+                  {responseFormats.length ? (
+                    <Select
+                      data={responseFormats.map((format: 'url' | 'b64_json') => ({
+                        value: format,
+                        label: format === 'b64_json' ? 'Base64' : 'Hosted URL',
+                      }))}
+                      data-testid="image-response-format-select"
+                      label="Response format"
+                      onChange={(value) =>
+                        imageLab.setResponseFormat((value as 'url' | 'b64_json') ?? 'b64_json')
+                      }
+                      value={imageLab.responseFormat}
+                    />
+                  ) : null}
+                  <Select
+                    data={buildImageCountOptions(maxGeneratedImagesPerRequest)}
+                    data-testid="image-count-select"
+                    label="Count"
+                    onChange={(value) => imageLab.setImageCount(value ?? '1')}
+                    value={imageLab.imageCount}
+                  />
+                </Group>
 
-        <Group grow align="start">
-          {resolutions.length ? (
-            <Select
-              data={resolutions}
-              data-testid="image-resolution-select"
-              label="Resolution"
-              onChange={(value) => imageLab.setResolution(value ?? '')}
-              value={imageLab.resolution}
-            />
-          ) : null}
-          {backgrounds.length ? (
-            <Select
-              data={backgrounds}
-              data-testid="image-background-select"
-              label="Background"
-              onChange={(value) => imageLab.setBackground(value ?? '')}
-              value={imageLab.background}
-            />
-          ) : null}
-          {qualities.length ? (
-            <Select
-              data={qualities}
-              data-testid="image-quality-select"
-              label="Quality"
-              onChange={(value) => imageLab.setQuality(value ?? '')}
-              value={imageLab.quality}
-            />
-          ) : null}
-          {showOpenAiModerationControl ? (
-            <Select
-              data={moderations.map((option) => ({
-                value: (option as ImageModerationOption).value,
-                label: (option as ImageModerationOption).label,
-              }))}
-              data-testid="image-moderation-select"
-              label="Moderation"
-              onChange={(value) => imageLab.setModeration(value ?? '')}
-              value={imageLab.moderation}
-            />
-          ) : null}
-        </Group>
+                <Group grow align="start">
+                  {resolutions.length ? (
+                    <Select
+                      data={resolutions}
+                      data-testid="image-resolution-select"
+                      label="Resolution"
+                      onChange={(value) => imageLab.setResolution(value ?? '')}
+                      value={imageLab.resolution}
+                    />
+                  ) : null}
+                  {backgrounds.length ? (
+                    <Select
+                      data={backgrounds}
+                      data-testid="image-background-select"
+                      label="Background"
+                      onChange={(value) => imageLab.setBackground(value ?? '')}
+                      value={imageLab.background}
+                    />
+                  ) : null}
+                  {qualities.length ? (
+                    <Select
+                      data={qualities}
+                      data-testid="image-quality-select"
+                      label="Quality"
+                      onChange={(value) => imageLab.setQuality(value ?? '')}
+                      value={imageLab.quality}
+                    />
+                  ) : null}
+                  {showGptImageModerationControl ? (
+                    <Select
+                      data={moderations.map((option) => ({
+                        value: (option as ImageModerationOption).value,
+                        label: (option as ImageModerationOption).label,
+                      }))}
+                      data-testid="image-moderation-select"
+                      label="Moderation"
+                      onChange={(value) => imageLab.setModeration(value ?? '')}
+                      value={imageLab.moderation}
+                    />
+                  ) : null}
+                </Group>
 
-        <Group grow align="start">
-          {outputFormats.length ? (
-            <Select
-              data={outputFormats}
-              data-testid="image-output-format-select"
-              label="Output format"
-              onChange={(value) => imageLab.setOutputFormat(value ?? '')}
-              value={imageLab.outputFormat}
-            />
-          ) : null}
-          {outputCompressionRange ? (
-            <NumberInput
-              data-testid="image-output-compression-input"
-              label="Compression"
-              min={outputCompressionRange.min}
-              max={outputCompressionRange.max}
-              step={outputCompressionRange.step ?? 1}
-              onChange={(value) =>
-                imageLab.setOutputCompression(
-                  typeof value === 'number' ? value : '',
-                )
-              }
-              value={imageLab.outputCompression}
-            />
-          ) : null}
-          {imageLab.references.length > 0 && inputFidelities.length ? (
-            <Select
-              data={inputFidelities.map((option) => ({
-                value: (option as ImageInputFidelityOption).value,
-                label: (option as ImageInputFidelityOption).label,
-              }))}
-              data-testid="image-input-fidelity-select"
-              label="Input fidelity"
-              onChange={(value) => imageLab.setInputFidelity(value ?? '')}
-              value={imageLab.inputFidelity}
-            />
-          ) : null}
-        </Group>
+                <Group grow align="start">
+                  {outputFormats.length ? (
+                    <Select
+                      data={outputFormats}
+                      data-testid="image-output-format-select"
+                      label="Output format"
+                      onChange={(value) => imageLab.setOutputFormat(value ?? '')}
+                      value={imageLab.outputFormat}
+                    />
+                  ) : null}
+                  {outputCompressionRange ? (
+                    <NumberInput
+                      data-testid="image-output-compression-input"
+                      label="Compression"
+                      min={outputCompressionRange.min}
+                      max={outputCompressionRange.max}
+                      step={outputCompressionRange.step ?? 1}
+                      onChange={(value) =>
+                        imageLab.setOutputCompression(
+                          typeof value === 'number' ? value : '',
+                        )
+                      }
+                      value={imageLab.outputCompression}
+                    />
+                  ) : null}
+                  {imageLab.references.length > 0 && inputFidelities.length ? (
+                    <Select
+                      data={inputFidelities.map((option) => ({
+                        value: (option as ImageInputFidelityOption).value,
+                        label: (option as ImageInputFidelityOption).label,
+                      }))}
+                      data-testid="image-input-fidelity-select"
+                      label="Input fidelity"
+                      onChange={(value) => imageLab.setInputFidelity(value ?? '')}
+                      value={imageLab.inputFidelity}
+                    />
+                  ) : null}
+                </Group>
+              </Stack>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
 
         <Alert color="blue" title="Reference assets">
           Upload through the gateway, paste a public image URL, or reuse images
@@ -539,7 +560,15 @@ export function ImageRequestForm({
           </Alert>
         ) : null}
 
-        {showOpenAiModerationControl ? (
+        {showNanoGptOpenAiAlignedNotice ? (
+          <Alert color="blue" title="OpenAI-aligned GPT Image options">
+            This NanoGPT model follows the OpenAI GPT image option set for
+            resolution, background, quality, moderation, output format, and
+            compression.
+          </Alert>
+        ) : null}
+
+        {showGptImageModerationControl ? (
           <Alert color="blue" title="OpenAI moderation">
             Choosing <strong>Low</strong> makes filtering less restrictive, but it
             does not disable moderation. OpenAI can still reject prompts or images

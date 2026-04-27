@@ -94,6 +94,61 @@ export interface GatewayGeneratedImage {
   providerMetadata?: Record<string, unknown>;
 }
 
+export interface GatewayImageModeCapabilityOptions {
+  supportedImageAspectRatios?: Array<{
+    value: string;
+    label: string;
+    useCase?: string;
+  }>;
+  supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
+  supportedImageResolutions?: Array<{
+    value: string;
+    label: string;
+  }>;
+  supportedImageOutputFormats?: Array<{
+    value: string;
+    label: string;
+  }>;
+  supportedImageBackgrounds?: Array<{
+    value: string;
+    label: string;
+  }>;
+  supportedImageQualities?: Array<{
+    value: string;
+    label: string;
+  }>;
+  supportedImageModerations?: Array<{
+    value: string;
+    label: string;
+    description?: string;
+  }>;
+  supportedImageInputFidelities?: Array<{
+    value: string;
+    label: string;
+    description?: string;
+  }>;
+  imageOutputCompressionRange?: {
+    min: number;
+    max: number;
+    defaultValue?: number;
+    step?: number;
+  };
+  maxGeneratedImagesPerRequest?: number;
+  maxReferenceImagesPerRequest?: number;
+  imageDefaults?: {
+    aspectRatio?: string;
+    responseFormat?: 'url' | 'b64_json';
+    resolution?: string;
+    background?: string;
+    quality?: string;
+    moderation?: string;
+    outputFormat?: string;
+    outputCompression?: number;
+    inputFidelity?: string;
+    imageCount?: number;
+  };
+}
+
 export interface GatewayImageGenerationResponse {
   jobId?: string;
   requestId: string;
@@ -163,6 +218,8 @@ export interface GatewayImageCatalogModel {
       inputFidelity?: string;
       imageCount?: number;
     };
+    imageGenerationOptions?: GatewayImageModeCapabilityOptions;
+    imageEditOptions?: GatewayImageModeCapabilityOptions;
   };
 }
 
