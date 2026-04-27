@@ -58,11 +58,14 @@ The repository now includes:
 
 ## Provider Support
 
-| Status              | Meaning                                                                           | Current providers                                |
-|---------------------|-----------------------------------------------------------------------------------|--------------------------------------------------|
-| `tested, certified` | Tested by the development team.                                                   | Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok |
-| `experimental`      | Implemented, but not fully tested by the development team. Expect defects/errors. | Anthropic Claude |
+| Status              | Meaning                                                                           | Current providers                                                  |
+|---------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------|
+| `Tested (QA)`       | Tested by the development team and currently confirmed to work in `lxp-llm-gateway`. | Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok |
+| `Not yet QA'd`      | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. | Anthropic Claude                                                   |
 
+Image-model compatibility by provider is documented in:
+
+- [docs/product/image-provider-compatibility-matrix.md](docs/product/image-provider-compatibility-matrix.md)
 
 ## Selected Stack
 
