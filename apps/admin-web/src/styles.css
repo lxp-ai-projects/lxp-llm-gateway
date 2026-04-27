@@ -469,6 +469,30 @@ a {
   gap: 16px;
 }
 
+.image-history-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(18, 34, 44, 0.08);
+}
+
+.image-history-card .mantine-Accordion-control {
+  padding: 10px 12px;
+}
+
+.image-history-summary {
+  min-width: 0;
+  flex: 1;
+}
+
+.image-history-thumbnail {
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.image-history-detail-card {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(18, 34, 44, 0.08);
+}
+
 .image-result-card {
   background: rgba(255, 255, 255, 0.9);
   border-color: rgba(18, 34, 44, 0.08);
@@ -735,6 +759,15 @@ a {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+  }
+
+  .image-history-card .mantine-Accordion-control {
+    padding: 8px 10px;
+  }
+
+  .image-history-thumbnail {
+    width: 72px;
+    height: 72px;
   }
 
   .image-request-form .mantine-InputWrapper-label {

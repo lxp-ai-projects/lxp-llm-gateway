@@ -1,5 +1,8 @@
 import {
+  Accordion,
   Alert,
+  Anchor,
+  Badge,
   Button,
   Card,
   Group,
@@ -24,6 +27,7 @@ export function ImageHistoryPanel({
     src: string;
     alt: string;
   } | null>(null);
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
 
   return (
@@ -61,82 +65,182 @@ export function ImageHistoryPanel({
             </Alert>
           ) : (
             <Stack gap="sm">
-              {history.items.map((item) => (
-                <Card key={item.id} withBorder>
-                  <Stack gap="sm">
-                    <Group justify="space-between">
-                      <Text fw={600} size="sm">
-                        {item.providerId} / {item.model}
-                      </Text>
-                      <Text c="dimmed" size="sm">
-                        {new Date(item.createdAt).toLocaleString()}
-                      </Text>
-                    </Group>
-                    <Text size="sm">{item.prompt}</Text>
-                    <Group>
-                      {item.images.map((image) => {
-                        const src = imageLab.mediaUrl(image.contentUrl);
-                        const alt = image.label ?? 'History asset';
+              {history.items.map((item) => {
+                const primaryImage = item.images[0];
+                const primarySrc = primaryImage
+                  ? imageLab.mediaUrl(primaryImage.contentUrl)
+                  : null;
+                const primaryAlt = primaryImage?.label ?? 'History asset';
 
-                        return (
-                          <Stack key={image.id} gap="xs">
-                            <Image
-                              alt={alt}
-                              data-testid={`history-image-${image.id}`}
-                              h={96}
-                              onClick={() =>
-                                setSelectedImage({
-                                  src: src ?? '',
-                                  alt,
-                                })
-                              }
-                              radius="md"
-                              src={src}
-                              style={{ cursor: 'zoom-in' }}
-                              w={96}
-                            />
-                            <Group gap="xs">
-                              <Button
-                                data-testid={`history-use-${image.id}`}
-                                onClick={() => imageLab.addReferenceAsset(image)}
-                                size="compact-xs"
-                                variant="light"
-                              >
-                                Use
-                              </Button>
-                              <Button
-                                data-testid={`history-view-${image.id}`}
-                                onClick={() =>
-                                  setSelectedImage({
-                                    src: src ?? '',
-                                    alt,
-                                  })
-                                }
-                                size="compact-xs"
-                                variant="default"
-                              >
-                                View full size
-                              </Button>
-                              <Button
-                                onClick={() =>
-                                  imageLab.saveMutation.mutate({
-                                    assetId: image.id,
-                                    saved: !image.saved,
-                                  })
-                                }
-                                size="compact-xs"
-                                variant="default"
-                              >
-                                {image.saved ? 'Saved' : 'Save'}
-                              </Button>
+                return (
+                  <Card key={item.id} className="image-history-card" withBorder>
+                    <Stack gap="sm">
+                      <Accordion
+                        chevronPosition="right"
+                        defaultValue={null}
+                        variant="separated"
+                      >
+                        <Accordion.Item value={item.id}>
+                          <Accordion.Control data-testid={`history-accordion-${item.id}`}>
+                            <Group align="flex-start" gap="md" wrap="nowrap">
+                              {primaryImage ? (
+                                <Image
+                                  alt={primaryAlt}
+                                  className="image-history-thumbnail"
+                                  data-testid={`history-image-${primaryImage.id}`}
+                                  h={88}
+                                  radius="md"
+                                  src={primarySrc}
+                                  w={88}
+                                />
+                              ) : null}
+                              <Stack className="image-history-summary" gap={4}>
+                                <Text fw={600} size="sm">
+                                  {item.providerId} / {item.model}
+                                </Text>
+                                <Text c="dimmed" size="sm">
+                                  {new Date(item.createdAt).toLocaleString()}
+                                </Text>
+                                <Text c="dimmed" lineClamp={2} size="sm">
+                                  {item.prompt}
+                                </Text>
+                              </Stack>
                             </Group>
-                          </Stack>
-                        );
-                      })}
-                    </Group>
-                  </Stack>
-                </Card>
-              ))}
+                          </Accordion.Control>
+                          <Accordion.Panel>
+                            <Stack gap="md">
+                              <Stack gap={4}>
+                                <Text fw={600} size="sm">
+                                  Prompt
+                                </Text>
+                                <Text size="sm">{item.prompt}</Text>
+                                <Button
+                                  onClick={async () => {
+                                    await navigator.clipboard.writeText(item.prompt);
+                                    setCopiedPromptId(item.id);
+                                  }}
+                                  size="compact-sm"
+                                  variant="light"
+                                >
+                                  {copiedPromptId === item.id
+                                    ? 'Copied prompt'
+                                    : 'Copy prompt to clipboard'}
+                                </Button>
+                              </Stack>
+
+                              <Stack gap={4}>
+                                <Text fw={600} size="sm">
+                                  Reference assets used
+                                </Text>
+                                <Text c="dimmed" size="sm">
+                                  Not captured in the current history payload.
+                                </Text>
+                              </Stack>
+
+                              <Stack gap={4}>
+                                <Text fw={600} size="sm">
+                                  Generation options
+                                </Text>
+                                <Group gap="xs">
+                                  <Badge variant="light">{item.mode}</Badge>
+                                  <Badge variant="light">{item.providerId}</Badge>
+                                  <Badge variant="light">{item.model}</Badge>
+                                </Group>
+                              </Stack>
+
+                              <Stack gap={4}>
+                                <Text fw={600} size="sm">
+                                  Provider response / metadata
+                                </Text>
+                                <Text c="dimmed" size="sm">
+                                  Not captured in the current history payload.
+                                </Text>
+                              </Stack>
+
+                              <Stack gap="xs">
+                                <Text fw={600} size="sm">
+                                  Result URL / storage info
+                                </Text>
+                                {item.images.map((image) => (
+                                  <Card key={image.id} className="image-history-detail-card" withBorder>
+                                    <Stack gap={4}>
+                                      <Text fw={500} size="sm">
+                                        {image.label ?? image.id}
+                                      </Text>
+                                      <Text c="dimmed" size="sm">
+                                        Asset ID: {image.id}
+                                      </Text>
+                                      <Text c="dimmed" size="sm">
+                                        Mime type: {image.mimeType}
+                                      </Text>
+                                      <Text c="dimmed" size="sm">
+                                        Source type: {image.sourceType}
+                                      </Text>
+                                      <Text c="dimmed" size="sm">
+                                        Saved: {image.saved ? 'Yes' : 'No'}
+                                      </Text>
+                                      <Anchor
+                                        href={imageLab.mediaUrl(image.contentUrl) ?? image.contentUrl}
+                                        size="sm"
+                                        target="_blank"
+                                      >
+                                        Open stored asset
+                                      </Anchor>
+                                      {image.revisedPrompt ? (
+                                        <Text c="dimmed" size="sm">
+                                          Revised prompt: {image.revisedPrompt}
+                                        </Text>
+                                      ) : null}
+                                    </Stack>
+                                  </Card>
+                                ))}
+                              </Stack>
+                            </Stack>
+                          </Accordion.Panel>
+                        </Accordion.Item>
+                      </Accordion>
+
+                      {primaryImage ? (
+                        <Group gap="xs">
+                          <Button
+                            data-testid={`history-use-${primaryImage.id}`}
+                            onClick={() => imageLab.addReferenceAsset(primaryImage)}
+                            size="compact-sm"
+                            variant="light"
+                          >
+                            Use as reference
+                          </Button>
+                          <Button
+                            data-testid={`history-view-${primaryImage.id}`}
+                            onClick={() =>
+                              setSelectedImage({
+                                src: primarySrc ?? '',
+                                alt: primaryAlt,
+                              })
+                            }
+                            size="compact-sm"
+                            variant="default"
+                          >
+                            View full size
+                          </Button>
+                          <Button
+                            onClick={() =>
+                              imageLab.saveMutation.mutate({
+                                assetId: primaryImage.id,
+                                saved: !primaryImage.saved,
+                              })
+                            }
+                            size="compact-sm"
+                            variant="default"
+                          >
+                            {primaryImage.saved ? 'Saved' : 'Save'}
+                          </Button>
+                        </Group>
+                      ) : null}
+                    </Stack>
+                  </Card>
+                );
+              })}
             </Stack>
           )}
 

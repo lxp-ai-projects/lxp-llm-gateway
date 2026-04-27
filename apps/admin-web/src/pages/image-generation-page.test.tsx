@@ -12,6 +12,7 @@ const {
   generateImageMock,
   getImageCatalogMock,
   getImageHistoryMock,
+  writeClipboardTextMock,
   setImageAssetSavedMock,
   updateImageAssetMock,
   uploadImageAssetMock,
@@ -266,6 +267,7 @@ const {
     totalItems: 12,
     totalPages: 2,
   })),
+  writeClipboardTextMock: vi.fn(async () => undefined),
   setImageAssetSavedMock: vi.fn(async (assetId: string, saved: boolean) => ({
     asset: {
       id: assetId,
@@ -326,9 +328,17 @@ beforeEach(() => {
   generateImageMock.mockClear();
   getImageCatalogMock.mockClear();
   getImageHistoryMock.mockClear();
+  writeClipboardTextMock.mockClear();
   setImageAssetSavedMock.mockClear();
   updateImageAssetMock.mockClear();
   uploadImageAssetMock.mockClear();
+
+  vi.stubGlobal('navigator', {
+    ...navigator,
+    clipboard: {
+      writeText: writeClipboardTextMock,
+    },
+  });
 });
 
 afterEach(() => {
@@ -400,7 +410,7 @@ test('ImageGenerationPage generates, saves, and reuses image assets from history
   );
 
   await user.click(await screen.findByTestId('history-use-asset-history-1'));
-  expect(screen.getByText('History asset 1')).toBeInTheDocument();
+  expect(screen.getByText('Selected reference (1)')).toBeInTheDocument();
 });
 
 test('ImageGenerationPage shows animated loading placeholders while generation is in progress', async () => {
@@ -590,7 +600,6 @@ test('ImageGenerationPage filters uploaded reference assets from the catalog', a
 });
 
 test('ImageGenerationPage hides NanoGPT paid-only models until the toggle is enabled', async () => {
-  const user = userEvent.setup();
   renderWithProviders(<ImageGenerationPage />);
 
   await screen.findByRole('heading', { name: 'Image Generation Lab' });
@@ -604,10 +613,13 @@ test('ImageGenerationPage hides NanoGPT paid-only models until the toggle is ena
   expect(screen.getByDisplayValue('HiDream')).toBeInTheDocument();
   expect(screen.queryByDisplayValue('GPT Image 1')).not.toBeInTheDocument();
 
-  await user.click(screen.getByTestId('nanogpt-paid-models-toggle'));
+  fireEvent.click(screen.getByTestId('nanogpt-paid-models-toggle'));
+  await waitFor(() =>
+    expect(screen.getByTestId('nanogpt-paid-models-toggle')).toBeChecked(),
+  );
   fireEvent.click(screen.getByTestId('image-model-select'));
   await waitFor(() =>
-  expect(document.querySelector('[role="option"][value="gpt-image-1"]')).not.toBeNull(),
+    expect(document.querySelector('[role="option"][value="gpt-image-1"]')).not.toBeNull(),
   );
 });
 
@@ -708,6 +720,25 @@ test('ImageGenerationPage opens a responsive full-size history preview', async (
 
   expect(await screen.findByText('Full-size preview')).toBeInTheDocument();
   expect(await screen.findByTestId('history-preview-image')).toBeInTheDocument();
+});
+
+test('ImageGenerationPage copies the expanded history prompt to the clipboard', async () => {
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  const [historySummary] = await screen.findAllByText('History prompt 1');
+  const historyControl = historySummary.closest('button');
+  expect(historyControl).not.toBeNull();
+  fireEvent.click(historyControl as HTMLElement);
+  const copyButton = await screen.findByRole('button', {
+    name: 'Copy prompt to clipboard',
+  });
+  fireEvent.click(copyButton);
+
+  await waitFor(() =>
+    expect(writeClipboardTextMock).toHaveBeenCalledWith('History prompt 1'),
+  );
+  expect(screen.getByRole('button', { name: 'Copied prompt' })).toBeInTheDocument();
 });
 
 test('ImageGenerationPage renders immediate base64 results with the returned MIME type', async () => {
