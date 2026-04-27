@@ -146,6 +146,51 @@ test('validateNanoGptImageEditRequest rejects 4K for Wan 2.7 Image Pro editing',
   );
 });
 
+test('resolveNanoGptImageModelDescriptor aligns Nano Banana with Google Gemini image options', () => {
+  const descriptor = resolveNanoGptImageModelDescriptor('nano-banana');
+
+  assert.deepEqual(
+    descriptor.capabilities.supportedImageAspectRatios?.map((entry) => entry.value),
+    ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'],
+  );
+  assert.deepEqual(descriptor.capabilities.supportedImageResponseFormats, ['b64_json']);
+  assert.deepEqual(descriptor.capabilities.supportedImageResolutions, [
+    { value: '1K', label: '1K' },
+  ]);
+  assert.equal(descriptor.capabilities.imageDefaults?.aspectRatio, '1:1');
+  assert.equal(descriptor.capabilities.imageDefaults?.resolution, '1K');
+});
+
+test('resolveNanoGptImageModelDescriptor aligns Nano Banana 2 with Google Gemini image options', () => {
+  const descriptor = resolveNanoGptImageModelDescriptor('nano-banana-2');
+
+  assert.deepEqual(descriptor.capabilities.supportedImageResolutions, [
+    { value: '512', label: '512' },
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+    { value: '4K', label: '4K' },
+  ]);
+  assert.equal(descriptor.capabilities.imageDefaults?.aspectRatio, '1:1');
+  assert.equal(descriptor.capabilities.imageDefaults?.resolution, '512');
+  assert.equal(descriptor.capabilities.maxReferenceImagesPerRequest, 14);
+});
+
+test('validateNanoGptImageGenerationRequest rejects unsupported Nano Banana aspect ratios', () => {
+  const descriptor = resolveNanoGptImageModelDescriptor('nano-banana');
+
+  assert.throws(
+    () =>
+      validateNanoGptImageGenerationRequest(
+        {
+          prompt: 'A product shot',
+          aspectRatio: '7:1',
+        },
+        descriptor,
+      ),
+    /does not support aspect ratio 7:1/,
+  );
+});
+
 test('resolveNanoGptImageModelDescriptor aligns GPT Image 1 with OpenAI image options', () => {
   const descriptor = resolveNanoGptImageModelDescriptor('gpt-image-1');
 

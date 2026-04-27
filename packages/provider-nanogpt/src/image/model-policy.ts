@@ -26,6 +26,7 @@ export function validateNanoGptImageGenerationRequest(
   model: ImageModelDescriptor,
 ) {
   assertGenerationSupported(model);
+  assertAllowedAspectRatio(request.aspectRatio, model, 'generation');
   assertAllowedResponseFormat(request.responseFormat, model, 'generation');
   assertAllowedResolution(request.resolution, model, 'generation');
   assertAllowedBackground(request.background, model, 'generation');
@@ -41,6 +42,7 @@ export function validateNanoGptImageEditRequest(
   model: ImageModelDescriptor,
 ) {
   assertEditingSupported(model);
+  assertAllowedAspectRatio(request.aspectRatio, model, 'edit');
   assertAllowedResponseFormat(request.responseFormat, model, 'edit');
   assertAllowedResolution(request.resolution, model, 'edit');
   assertAllowedBackground(request.background, model, 'edit');
@@ -95,6 +97,26 @@ function assertAllowedResponseFormat(
   if (!supportedFormats.includes(responseFormat)) {
     throw new Error(
       `NanoGPT image model ${model.id} does not support response format ${responseFormat}.`,
+    );
+  }
+}
+
+function assertAllowedAspectRatio(
+  aspectRatio: string | undefined,
+  model: ImageModelDescriptor,
+  mode: 'generation' | 'edit',
+) {
+  if (!aspectRatio) {
+    return;
+  }
+
+  const supportedAspectRatios =
+    resolveModeCapabilities(model, mode).supportedImageAspectRatios ??
+    model.capabilities.supportedImageAspectRatios ??
+    [];
+  if (!supportedAspectRatios.some((entry) => entry.value === aspectRatio)) {
+    throw new Error(
+      `NanoGPT image model ${model.id} does not support aspect ratio ${aspectRatio}.`,
     );
   }
 }

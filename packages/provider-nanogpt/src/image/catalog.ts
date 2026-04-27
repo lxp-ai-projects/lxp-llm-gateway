@@ -65,6 +65,58 @@ const NANO_GPT_SEEDREAM_IMAGE_SET_RESOLUTIONS = [
   { value: '2K', label: '2K' },
   { value: '4K', label: '4K' },
 ] as const;
+const NANO_GPT_GOOGLE_IMAGE_ASPECT_RATIOS = [
+  { value: '1:1', label: '1:1', useCase: 'Square assets and social posts' },
+  { value: '2:3', label: '2:3', useCase: 'Portrait photography' },
+  { value: '3:2', label: '3:2', useCase: 'Landscape photography' },
+  { value: '3:4', label: '3:4', useCase: 'Portrait layouts' },
+  { value: '4:3', label: '4:3', useCase: 'Presentations and illustrations' },
+  { value: '4:5', label: '4:5', useCase: 'Tall social formats' },
+  { value: '5:4', label: '5:4', useCase: 'Product and editorial crops' },
+  { value: '9:16', label: '9:16', useCase: 'Stories and vertical mobile' },
+  { value: '16:9', label: '16:9', useCase: 'Widescreen and banners' },
+  { value: '21:9', label: '21:9', useCase: 'Ultra-wide hero visuals' },
+] as const;
+const NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES = {
+  supportsImageGeneration: true,
+  supportsImageEditing: true,
+  supportedImageResponseFormats: ['b64_json'],
+  supportedImageAspectRatios: [...NANO_GPT_GOOGLE_IMAGE_ASPECT_RATIOS],
+  supportedImageResolutions: [{ value: '1K', label: '1K' }],
+  imageDefaults: {
+    responseFormat: 'b64_json',
+    aspectRatio: '1:1',
+    resolution: '1K',
+    imageCount: 1,
+  },
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_GOOGLE_NANO_BANANA_2_CAPABILITIES = {
+  ...NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES,
+  supportedImageResolutions: [
+    { value: '512', label: '512' },
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+    { value: '4K', label: '4K' },
+  ],
+  maxReferenceImagesPerRequest: 14,
+  imageDefaults: {
+    ...NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES.imageDefaults,
+    resolution: '512',
+  },
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_GOOGLE_NANO_BANANA_PRO_CAPABILITIES = {
+  ...NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES,
+  supportedImageResolutions: [
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+    { value: '4K', label: '4K' },
+  ],
+  maxReferenceImagesPerRequest: 14,
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_GOOGLE_NANO_BANANA_PRO_EDIT_ULTRA_CAPABILITIES = {
+  ...NANO_GPT_GOOGLE_NANO_BANANA_PRO_CAPABILITIES,
+  maxReferenceImagesPerRequest: 10,
+} as const satisfies Partial<ImageModelCapabilities>;
 const NANO_GPT_OPENAI_ALIGNED_IMAGE_CAPABILITIES = {
   supportedImageResponseFormats: [...NANO_GPT_OPENAI_IMAGE_RESPONSE_FORMATS],
   supportedImageResolutions: [...NANO_GPT_OPENAI_IMAGE_RESOLUTIONS],
@@ -204,35 +256,28 @@ const NANO_GPT_IMAGE_MODEL_CAPABILITY_OVERRIDES: readonly NanoGptImageModelCapab
       },
     },
     {
-      matches: (modelId) =>
-        modelId === 'nano-banana' ||
-        modelId === 'nano-banana-edit' ||
-        modelId === 'gemini-flash-edit',
+      matches: isNanoBananaBaseModelId,
       capabilities: {
+        ...NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES,
         maxReferenceImagesPerRequest: 5,
       },
     },
     {
-      matches: (modelId) =>
-        modelId === 'nano-banana-2' ||
-        modelId === 'nano-banana-2-fast',
+      matches: isNanoBanana2ModelId,
       capabilities: {
-        maxReferenceImagesPerRequest: 14,
+        ...NANO_GPT_GOOGLE_NANO_BANANA_2_CAPABILITIES,
       },
     },
     {
-      matches: (modelId) =>
-        modelId === 'nano-banana-pro' ||
-        modelId === 'nano-banana-pro-edit' ||
-        modelId === 'nano-banana-pro-ultra',
+      matches: isNanoBananaProModelId,
       capabilities: {
-        maxReferenceImagesPerRequest: 14,
+        ...NANO_GPT_GOOGLE_NANO_BANANA_PRO_CAPABILITIES,
       },
     },
     {
-      matches: (modelId) => modelId === 'nano-banana-pro-edit-ultra',
+      matches: isNanoBananaProEditUltraModelId,
       capabilities: {
-        maxReferenceImagesPerRequest: 10,
+        ...NANO_GPT_GOOGLE_NANO_BANANA_PRO_EDIT_ULTRA_CAPABILITIES,
       },
     },
     {
@@ -464,6 +509,36 @@ function isNanoGptOpenAiAlignedGptImageModelId(modelId: string) {
 
 function isNanoGptOpenAiInputFidelityGptImageModelId(modelId: string) {
   return normalizeNanoGptModelId(modelId) === 'gpt-image-1';
+}
+
+function isNanoBananaBaseModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'nano-banana' ||
+    normalized === 'nano-banana-edit' ||
+    normalized === 'gemini-flash-edit'
+  );
+}
+
+function isNanoBanana2ModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return normalized === 'nano-banana-2' || normalized === 'nano-banana-2-fast';
+}
+
+function isNanoBananaProModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'nano-banana-pro' ||
+    normalized === 'nano-banana-pro-edit' ||
+    normalized === 'nano-banana-pro-ultra'
+  );
+}
+
+function isNanoBananaProEditUltraModelId(modelId: string) {
+  return normalizeNanoGptModelId(modelId) === 'nano-banana-pro-edit-ultra';
 }
 
 function normalizeNanoGptModelId(modelId: string) {

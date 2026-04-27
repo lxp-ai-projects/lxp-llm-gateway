@@ -528,6 +528,26 @@ test('NanoGptProviderAdapter assigns Google-aligned multi-reference limits to Na
     assert.equal(modelLimits['nano-banana-2'], 14);
     assert.equal(modelLimits['nano-banana-pro-edit'], 14);
     assert.equal(modelLimits['nano-banana-pro-edit-ultra'], 10);
+    assert.deepEqual(
+      catalog?.models.find((model) => model.id === 'nano-banana-2')?.capabilities
+        .supportedImageAspectRatios?.map((entry) => entry.value),
+      ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'],
+    );
+    assert.deepEqual(
+      catalog?.models.find((model) => model.id === 'nano-banana-2')?.capabilities
+        .supportedImageResolutions,
+      [
+        { value: '512', label: '512' },
+        { value: '1K', label: '1K' },
+        { value: '2K', label: '2K' },
+        { value: '4K', label: '4K' },
+      ],
+    );
+    assert.equal(
+      catalog?.models.find((model) => model.id === 'nano-banana-2')?.capabilities
+        .imageDefaults?.aspectRatio,
+      '1:1',
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -685,6 +705,67 @@ test('NanoGptProviderAdapter sends image edit requests with data URL references'
       ],
     });
     assert.equal(response.images[0]?.b64Json, 'edited-base64');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter sends Nano Banana aspect ratio requests to the NanoGPT image endpoint', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    return new Response(
+      JSON.stringify({
+        created: 123,
+        data: [{ b64_json: 'generated-base64' }],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const response = await adapter.generateImage?.(
+      {
+        model: 'nano-banana',
+        prompt: 'A studio portrait',
+        n: 1,
+        aspectRatio: '4:5',
+        responseFormat: 'b64_json',
+        resolution: '1K',
+      },
+      {
+        requestId: 'req-image-generate-banana',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'nano-secret-token',
+        },
+      },
+    );
+
+    assert.ok(response);
+    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/images/generations');
+    assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
+      model: 'nano-banana',
+      prompt: 'A studio portrait',
+      n: 1,
+      aspect_ratio: '4:5',
+      size: '1K',
+      response_format: 'b64_json',
+      user: 'user-1',
+    });
+    assert.equal(response.images[0]?.b64Json, 'generated-base64');
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -997,6 +1078,37 @@ test('buildNanoGptImageCatalog aligns Wan 2.7 Image Pro with Alibaba Cloud multi
     { value: '2K', label: '2K' },
     { value: '4K', label: '4K' },
   ]);
+});
+
+test('buildNanoGptImageCatalog aligns Nano Banana with Google Gemini capabilities', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'nano-banana',
+        name: 'Nano Banana',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'nano-banana');
+  assert.ok(model);
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 5);
+  assert.deepEqual(
+    model.capabilities.supportedImageAspectRatios?.map((entry) => entry.value),
+    ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'],
+  );
+  assert.deepEqual(model.capabilities.supportedImageResolutions, [
+    { value: '1K', label: '1K' },
+  ]);
+  assert.equal(model.capabilities.imageDefaults?.aspectRatio, '1:1');
+  assert.equal(model.capabilities.imageDefaults?.resolution, '1K');
 });
 
 test('buildNanoGptImageCatalog aligns Wan 2.7 Image with documented resolution tiers', () => {
