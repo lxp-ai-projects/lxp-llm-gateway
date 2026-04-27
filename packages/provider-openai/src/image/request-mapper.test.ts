@@ -17,6 +17,7 @@ test('buildOpenAiImageGenerationRequest maps canonical generation requests to Op
       resolution: '1024x1536',
       background: 'transparent',
       quality: 'high',
+      moderation: 'low',
       outputFormat: 'webp',
       outputCompression: 80,
     },
@@ -32,6 +33,7 @@ test('buildOpenAiImageGenerationRequest maps canonical generation requests to Op
     size: '1024x1536',
     background: 'transparent',
     quality: 'high',
+    moderation: 'low',
     output_format: 'webp',
     output_compression: 80,
     user: 'user-1',
@@ -51,6 +53,7 @@ test('buildOpenAiImageEditRequest maps canonical edit requests to OpenAI JSON', 
       resolution: '1024x1536',
       background: 'transparent',
       quality: 'high',
+      moderation: 'low',
       outputFormat: 'webp',
       outputCompression: 80,
     },
@@ -74,6 +77,7 @@ test('buildOpenAiImageEditRequest maps canonical edit requests to OpenAI JSON', 
     assert.equal(mappedRequest.body.get('output_format'), 'webp');
     assert.equal(mappedRequest.body.get('output_compression'), '80');
     assert.equal(mappedRequest.body.get('quality'), 'high');
+    assert.equal(mappedRequest.body.get('moderation'), 'low');
     assert.equal(mappedRequest.body.get('size'), '1024x1536');
     assert.equal(mappedRequest.body.get('user'), 'user-1');
     assert.equal(mappedRequest.body.getAll('image[]').length, 2);

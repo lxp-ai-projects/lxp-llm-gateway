@@ -31,3 +31,4 @@ lerna-debug.log*
 http-client.private.env.json
 **/http-client.private.env.json
 /apps/admin-web/coverage/
+/.codex/

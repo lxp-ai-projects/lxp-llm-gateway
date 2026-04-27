@@ -69,6 +69,10 @@ export class GatewayImageGenerationRequestDto
   quality?: string;
 
   @IsOptional()
+  @IsIn(['low', 'auto'])
+  moderation?: string;
+
+  @IsOptional()
   @IsString()
   @MinLength(1)
   outputFormat?: string;

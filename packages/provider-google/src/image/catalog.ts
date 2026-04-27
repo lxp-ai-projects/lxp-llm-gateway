@@ -28,12 +28,15 @@ export const GOOGLE_IMAGE_MODEL_DESCRIPTORS = [
     id: 'gemini-3.1-flash-image-preview',
     displayName: 'Nano Banana 2',
     lifecycleStatus: 'preview',
-    capabilities: buildGoogleImageCapabilities([
-      { value: '512', label: '512' },
-      { value: '1K', label: '1K' },
-      { value: '2K', label: '2K' },
-      { value: '4K', label: '4K' },
-    ]),
+    capabilities: buildGoogleImageCapabilities(
+      [
+        { value: '512', label: '512' },
+        { value: '1K', label: '1K' },
+        { value: '2K', label: '2K' },
+        { value: '4K', label: '4K' },
+      ],
+      14,
+    ),
   },
 ] as const satisfies readonly ImageModelDescriptor[];
 

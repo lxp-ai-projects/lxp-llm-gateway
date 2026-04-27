@@ -61,6 +61,7 @@ export interface GatewayImageGenerationRequest {
   resolution?: GatewayImageResolution;
   background?: string;
   quality?: string;
+  moderation?: string;
   outputFormat?: string;
   outputCompression?: GatewayImageOutputCompression;
 }
@@ -76,6 +77,7 @@ export interface GatewayImageEditRequest {
   resolution?: GatewayImageResolution;
   background?: string;
   quality?: string;
+  moderation?: string;
   outputFormat?: string;
   outputCompression?: GatewayImageOutputCompression;
   inputFidelity?: string;
@@ -131,6 +133,11 @@ export interface GatewayImageCatalogModel {
       value: string;
       label: string;
     }>;
+    supportedImageModerations?: Array<{
+      value: string;
+      label: string;
+      description?: string;
+    }>;
     supportedImageInputFidelities?: Array<{
       value: string;
       label: string;
@@ -150,6 +157,7 @@ export interface GatewayImageCatalogModel {
       resolution?: string;
       background?: string;
       quality?: string;
+      moderation?: string;
       outputFormat?: string;
       outputCompression?: number;
       inputFidelity?: string;

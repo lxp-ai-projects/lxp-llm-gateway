@@ -5,6 +5,7 @@ import type {
 import {
   buildProviderHttpError,
   formatGoogleGeminiRateLimitError,
+  formatGoogleGeminiTemporaryUnavailableError,
 } from '@lxp/provider-sdk';
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
@@ -48,6 +49,7 @@ export class GoogleImageEditService {
     if (!response.ok) {
       throw await buildProviderHttpError('Google Gemini image request', response, {
         rateLimitFormatter: formatGoogleGeminiRateLimitError,
+        serverErrorFormatter: formatGoogleGeminiTemporaryUnavailableError,
       });
     }
 

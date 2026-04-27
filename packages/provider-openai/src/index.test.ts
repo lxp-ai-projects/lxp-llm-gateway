@@ -43,6 +43,7 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
         'gpt-image-1.5',
         'gpt-image-1',
         'gpt-image-1-mini',
+        'chatgpt-image-latest',
       ],
     );
 
@@ -64,6 +65,10 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
       { value: 'opaque', label: 'Opaque' },
       { value: 'transparent', label: 'Transparent' },
     ]);
+    assert.deepEqual(
+      imageModel.capabilities?.supportedImageModerations?.map((entry) => entry.value),
+      ['auto', 'low'],
+    );
     assert.equal(imageModel.capabilities?.supportedImageInputFidelities, undefined);
     assert.deepEqual(imageModel.capabilities?.imageOutputCompressionRange, {
       min: 0,
@@ -76,6 +81,7 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
       resolution: '1024x1024',
       background: 'auto',
       quality: 'auto',
+      moderation: 'auto',
       outputFormat: 'png',
       outputCompression: 100,
       imageCount: 1,
@@ -111,7 +117,13 @@ test('OpenAiProviderAdapter exposes a normalized image catalog with the document
     assert.equal(catalog.defaultModelId, 'gpt-image-2');
     assert.deepEqual(
       catalog.models.map((model) => model.id),
-      ['gpt-image-2', 'gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini'],
+      [
+        'gpt-image-2',
+        'gpt-image-1.5',
+        'gpt-image-1',
+        'gpt-image-1-mini',
+        'chatgpt-image-latest',
+      ],
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -209,6 +221,7 @@ test('OpenAiProviderAdapter sends image generation requests to the OpenAI images
         resolution: '1024x1536',
         background: 'transparent',
         quality: 'high',
+        moderation: 'low',
         outputFormat: 'webp',
         outputCompression: 80,
       },
@@ -227,6 +240,7 @@ test('OpenAiProviderAdapter sends image generation requests to the OpenAI images
       size: '1024x1536',
       background: 'transparent',
       quality: 'high',
+      moderation: 'low',
       output_format: 'webp',
       output_compression: 80,
       user: 'user-1',
@@ -283,6 +297,7 @@ test('OpenAiProviderAdapter sends image edit requests to the OpenAI images edits
         outputFormat: 'webp',
         outputCompression: 80,
         quality: 'high',
+        moderation: 'low',
         resolution: '1024x1536',
       },
       {
@@ -301,6 +316,7 @@ test('OpenAiProviderAdapter sends image edit requests to the OpenAI images edits
     assert.equal(body.get('output_format'), 'webp');
     assert.equal(body.get('output_compression'), '80');
     assert.equal(body.get('quality'), 'high');
+    assert.equal(body.get('moderation'), 'low');
     assert.equal(body.get('size'), '1024x1536');
     assert.equal(body.get('user'), 'user-1');
     assert.equal(body.getAll('image[]').length, 2);

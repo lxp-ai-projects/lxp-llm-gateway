@@ -15,6 +15,23 @@ test('resolveOpenAiImageModelDescriptor returns the catalog entry for GPT Image 
   assert.equal(model.capabilities.supportsImageEditing, true);
 });
 
+test('resolveOpenAiImageModelDescriptor exposes the documented GPT image edit limit for chatgpt-image-latest', () => {
+  const model = resolveOpenAiImageModelDescriptor('chatgpt-image-latest');
+
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 16);
+  assert.equal(model.capabilities.maxGeneratedImagesPerRequest, 10);
+});
+
+test('resolveOpenAiImageModelDescriptor exposes moderation controls for GPT image models', () => {
+  const model = resolveOpenAiImageModelDescriptor('gpt-image-2');
+
+  assert.deepEqual(
+    model.capabilities.supportedImageModerations?.map((option) => option.value),
+    ['auto', 'low'],
+  );
+  assert.equal(model.capabilities.imageDefaults?.moderation, 'auto');
+});
+
 test('validateOpenAiImageGenerationRequest rejects unsupported response formats', () => {
   const model = resolveOpenAiImageModelDescriptor('gpt-image-1.5');
 
@@ -82,5 +99,22 @@ test('validateOpenAiImageEditRequest rejects input fidelity for GPT Image 2', ()
         model,
       ),
     /does not support input fidelity high/,
+  );
+});
+
+test('validateOpenAiImageGenerationRequest rejects unsupported moderation values', () => {
+  const model = resolveOpenAiImageModelDescriptor('gpt-image-2');
+
+  assert.throws(
+    () =>
+      validateOpenAiImageGenerationRequest(
+        {
+          model: 'gpt-image-2',
+          prompt: 'A product shot',
+          moderation: 'strict',
+        },
+        model,
+      ),
+    /does not support moderation strict/,
   );
 });

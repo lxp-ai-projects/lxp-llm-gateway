@@ -40,6 +40,7 @@ test('OpenAiImageEditService orchestrates edit requests end to end', async () =>
         outputFormat: 'webp',
         outputCompression: 80,
         quality: 'high',
+        moderation: 'low',
         resolution: '1024x1536',
       },
       {

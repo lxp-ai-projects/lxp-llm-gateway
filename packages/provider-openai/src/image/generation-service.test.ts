@@ -34,6 +34,7 @@ test('OpenAiImageGenerationService orchestrates request validation, transport, a
         resolution: '1024x1536',
         background: 'transparent',
         quality: 'high',
+        moderation: 'low',
         outputFormat: 'webp',
         outputCompression: 80,
       },

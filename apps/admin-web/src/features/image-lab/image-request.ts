@@ -14,6 +14,7 @@ export function buildImageRequestPayload(input: {
   resolution: string;
   background: string;
   quality: string;
+  moderation: string;
   outputFormat: string;
   outputCompression: number | '';
   inputFidelity: string;
@@ -29,6 +30,7 @@ export function buildImageRequestPayload(input: {
     resolution: input.resolution || undefined,
     background: input.background || undefined,
     quality: input.quality || undefined,
+    moderation: input.moderation || undefined,
     outputFormat: input.outputFormat || undefined,
     outputCompression:
       typeof input.outputCompression === 'number'

@@ -91,6 +91,7 @@ export {
   buildProviderHttpError,
   buildProviderImageHttpError,
   formatGoogleGeminiRateLimitError,
+  formatGoogleGeminiTemporaryUnavailableError,
   formatOpenAiRateLimitError,
   formatXAiImageClientError,
 } from './provider-error-utils.js';

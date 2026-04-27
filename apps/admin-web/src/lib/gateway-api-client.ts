@@ -79,6 +79,7 @@ export const gatewayApiClient = {
     resolution?: string;
     background?: string;
     quality?: string;
+    moderation?: string;
     outputFormat?: string;
     outputCompression?: number;
   }): Promise<GatewayImageGenerationResponse> {
@@ -103,6 +104,7 @@ export const gatewayApiClient = {
     resolution?: string;
     background?: string;
     quality?: string;
+    moderation?: string;
     outputFormat?: string;
     outputCompression?: number;
     inputFidelity?: string;

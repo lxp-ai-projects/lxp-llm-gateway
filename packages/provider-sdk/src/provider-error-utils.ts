@@ -3,6 +3,7 @@ export async function buildProviderHttpError(
   response: Response,
   options?: {
     rateLimitFormatter?: (errorText: string, response: Response) => string | null;
+    serverErrorFormatter?: (errorText: string, response: Response) => string | null;
   },
 ): Promise<Error> {
   const errorText = await response.text();
@@ -10,9 +11,14 @@ export async function buildProviderHttpError(
     response.status === 429
       ? options?.rateLimitFormatter?.(errorText, response) ?? null
       : null;
+  const formattedServerErrorMessage =
+    response.status >= 500
+      ? options?.serverErrorFormatter?.(errorText, response) ?? null
+      : null;
 
   return new Error(
     formattedRateLimitMessage ??
+      formattedServerErrorMessage ??
       `${prefix} failed with status ${response.status}: ${errorText}`,
   );
 }
@@ -83,6 +89,43 @@ export function formatGoogleGeminiRateLimitError(errorText: string) {
     return `Google Gemini quota exceeded (${error.status ?? 'RESOURCE_EXHAUSTED'}). ${firstLine ?? 'Check your plan, billing, and current usage.'}${retryDelay ? ` Retry in ${retryDelay}.` : ''} Rate limits: ${helpUrl}`;
   } catch {
     return `Google Gemini quota exceeded. ${errorText}`;
+  }
+}
+
+export function formatGoogleGeminiTemporaryUnavailableError(
+  errorText: string,
+  response: Response,
+) {
+  try {
+    const payload = JSON.parse(errorText) as {
+      error?: {
+        code?: number;
+        message?: string;
+        status?: string;
+      };
+    };
+    const error = payload.error;
+
+    if (
+      response.status !== 503 &&
+      error?.status !== 'UNAVAILABLE' &&
+      error?.code !== 503
+    ) {
+      return null;
+    }
+
+    const firstLine = error?.message
+      ?.split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)[0];
+
+    return `Google Gemini is temporarily unavailable due to high demand${error?.status ? ` (${error.status})` : ''}. ${firstLine ?? 'Please try again in a few moments.'}`;
+  } catch {
+    if (response.status !== 503) {
+      return null;
+    }
+
+    return 'Google Gemini is temporarily unavailable due to high demand. Please try again in a few moments.';
   }
 }
 

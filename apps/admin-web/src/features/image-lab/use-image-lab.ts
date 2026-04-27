@@ -27,6 +27,7 @@ export function useImageLab() {
   const [resolution, setResolution] = useState('');
   const [background, setBackground] = useState('');
   const [quality, setQuality] = useState('');
+  const [moderation, setModeration] = useState('');
   const [outputFormat, setOutputFormat] = useState('');
   const [outputCompression, setOutputCompression] = useState<number | ''>('');
   const [inputFidelity, setInputFidelity] = useState('');
@@ -105,6 +106,7 @@ export function useImageLab() {
     setResolution(defaults.resolution);
     setBackground(defaults.background);
     setQuality(defaults.quality);
+    setModeration(defaults.moderation);
     setOutputFormat(defaults.outputFormat);
     setOutputCompression(defaults.outputCompression);
     setInputFidelity(defaults.inputFidelity);
@@ -112,7 +114,10 @@ export function useImageLab() {
   }, [selectedModel]);
 
   const supportsImageEditing = capabilities?.supportsImageEditing === true;
-  const maxReferenceImages = capabilities?.maxReferenceImagesPerRequest ?? 5;
+  const maxReferenceImages = resolveMaxReferenceImages(
+    selectedProvider?.providerId,
+    selectedModel,
+  );
   const canEdit = supportsImageEditing && references.length > 0;
   const pendingResultCount = Math.max(1, Number.parseInt(imageCount, 10) || 1);
 
@@ -137,6 +142,7 @@ export function useImageLab() {
         resolution,
         background,
         quality,
+        moderation,
         outputFormat,
         outputCompression,
         inputFidelity,
@@ -323,6 +329,8 @@ export function useImageLab() {
     setBackground,
     quality,
     setQuality,
+    moderation,
+    setModeration,
     outputFormat,
     setOutputFormat,
     outputCompression,
@@ -397,4 +405,112 @@ function readFileAsDataUrl(file: File): Promise<string> {
       reject(reader.error ?? new Error(`Unable to read ${file.name}.`));
     reader.readAsDataURL(file);
   });
+}
+
+function resolveMaxReferenceImages(
+  providerId: string | undefined,
+  model: ProviderModelSummary | undefined,
+) {
+  const catalogValue = model?.capabilities?.maxReferenceImagesPerRequest;
+
+  if (providerId !== 'nanogpt' || !model) {
+    return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
+  }
+
+  const normalizedModelId = normalizeModelToken(model.id);
+  const normalizedDisplayName = normalizeModelToken(model.displayName);
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'seedream-4-0',
+      'seedream-4-0-250828',
+      'seedream-4-5',
+      'seedream-4-5-251128',
+      'seedream-5-0-lite',
+      'seedream-5-0-lite-260128',
+      'seedream-5-lite',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 10);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'nano-banana-2',
+      'nano-banana-2-fast',
+      'nano-banana-pro',
+      'nano-banana-pro-edit',
+      'nano-banana-pro-ultra',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 14);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'nano-banana-pro-edit-ultra',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 10);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'nano-banana',
+      'nano-banana-edit',
+      'gemini-flash-edit',
+      'gpt-4o-image',
+      'flux-kontext',
+      'flux-kontext-dev',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 5);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'gpt-image-1',
+      'gpt-image-1-5',
+      'gpt-image-1-mini',
+      'chatgpt-image-latest',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 16);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'seededit-3-0',
+      'seededit-3-0-i2i',
+      'seededit-3-0-i2i-250628',
+    )
+  ) {
+    return 1;
+  }
+
+  return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
+}
+
+function normalizeModelToken(value: string | undefined) {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_/\s.]+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function isOneOf(valueA: string, valueB: string, ...candidates: string[]) {
+  return candidates.includes(valueA) || candidates.includes(valueB);
 }

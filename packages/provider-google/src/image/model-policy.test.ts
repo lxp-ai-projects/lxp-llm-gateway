@@ -14,6 +14,14 @@ test('resolveGoogleImageModelDescriptor returns the default Google image model',
   assert.equal(descriptor.capabilities.supportsImageEditing, true);
 });
 
+test('resolveGoogleImageModelDescriptor exposes the Gemini 3 multi-reference limit', () => {
+  const descriptor = resolveGoogleImageModelDescriptor(
+    'gemini-3.1-flash-image-preview',
+  );
+
+  assert.equal(descriptor.capabilities.maxReferenceImagesPerRequest, 14);
+});
+
 test('validateGoogleImageGenerationRequest rejects unsupported response formats', () => {
   const descriptor = resolveGoogleImageModelDescriptor('gemini-2.5-flash-image');
 

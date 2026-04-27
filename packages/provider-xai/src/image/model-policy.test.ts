@@ -14,6 +14,12 @@ test('resolveXAiImageModelDescriptor returns the default xAI image model', () =>
   assert.equal(descriptor.capabilities.supportsImageEditing, true);
 });
 
+test('resolveXAiImageModelDescriptor keeps the documented multi-image edit limit for Grok Imagine Pro', () => {
+  const descriptor = resolveXAiImageModelDescriptor('grok-imagine-image-pro');
+
+  assert.equal(descriptor.capabilities.maxReferenceImagesPerRequest, 5);
+});
+
 test('validateXAiImageGenerationRequest rejects unsupported image counts', () => {
   const descriptor = resolveXAiImageModelDescriptor('grok-imagine-image');
 

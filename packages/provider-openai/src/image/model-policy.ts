@@ -35,6 +35,7 @@ export function validateOpenAiImageGenerationRequest(
   assertAllowedResolution(request.resolution, model);
   assertAllowedBackground(request.background, model);
   assertAllowedQuality(request.quality, model);
+  assertAllowedModeration(request.moderation, model);
   assertAllowedOutputFormat(request.outputFormat, model);
   assertAllowedOutputCompression(request.outputCompression, model);
   assertAllowedImageCount(request.n, model);
@@ -49,6 +50,7 @@ export function validateOpenAiImageEditRequest(
   assertAllowedResolution(request.resolution, model);
   assertAllowedBackground(request.background, model);
   assertAllowedQuality(request.quality, model);
+  assertAllowedModeration(request.moderation, model);
   assertAllowedOutputFormat(request.outputFormat, model);
   assertAllowedOutputCompression(request.outputCompression, model);
   assertAllowedInputFidelity(request.inputFidelity, model);
@@ -154,6 +156,22 @@ function assertAllowedOutputFormat(
   if (!supportedFormats.some((entry) => entry.value === outputFormat)) {
     throw new Error(
       `OpenAI image model ${model.id} does not support output format ${outputFormat}.`,
+    );
+  }
+}
+
+function assertAllowedModeration(
+  moderation: string | undefined,
+  model: ImageModelDescriptor,
+) {
+  if (!moderation) {
+    return;
+  }
+
+  const supportedModerations = model.capabilities.supportedImageModerations ?? [];
+  if (!supportedModerations.some((entry) => entry.value === moderation)) {
+    throw new Error(
+      `OpenAI image model ${model.id} does not support moderation ${moderation}.`,
     );
   }
 }

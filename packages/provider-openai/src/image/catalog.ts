@@ -27,6 +27,19 @@ const OPENAI_IMAGE_QUALITIES = [
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
 ] as const;
+const OPENAI_IMAGE_MODERATIONS = [
+  {
+    value: 'auto',
+    label: 'Auto',
+    description: 'Use the default moderation level for GPT image models.',
+  },
+  {
+    value: 'low',
+    label: 'Low',
+    description:
+      'Less restrictive filtering, but prompts and images can still be rejected.',
+  },
+] as const;
 const OPENAI_IMAGE_INPUT_FIDELITIES = [
   {
     value: 'low',
@@ -54,6 +67,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
       supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
       supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
       supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
+      supportedImageModerations: [...OPENAI_IMAGE_MODERATIONS],
       imageOutputCompressionRange: {
         min: 0,
         max: 100,
@@ -67,6 +81,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         resolution: '1024x1024',
         background: 'auto',
         quality: 'auto',
+        moderation: 'auto',
         outputFormat: 'png',
         outputCompression: 100,
         imageCount: 1,
@@ -86,6 +101,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
       supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
       supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
       supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
+      supportedImageModerations: [...OPENAI_IMAGE_MODERATIONS],
       imageOutputCompressionRange: {
         min: 0,
         max: 100,
@@ -99,6 +115,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         resolution: '1024x1024',
         background: 'auto',
         quality: 'auto',
+        moderation: 'auto',
         outputFormat: 'png',
         outputCompression: 100,
         imageCount: 1,
@@ -118,6 +135,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
       supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
       supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
       supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
+      supportedImageModerations: [...OPENAI_IMAGE_MODERATIONS],
       supportedImageInputFidelities: [...OPENAI_IMAGE_INPUT_FIDELITIES],
       imageOutputCompressionRange: {
         min: 0,
@@ -132,6 +150,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         resolution: '1024x1024',
         background: 'auto',
         quality: 'auto',
+        moderation: 'auto',
         outputFormat: 'png',
         outputCompression: 100,
         imageCount: 1,
@@ -151,6 +170,7 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
       supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
       supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
       supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
+      supportedImageModerations: [...OPENAI_IMAGE_MODERATIONS],
       imageOutputCompressionRange: {
         min: 0,
         max: 100,
@@ -164,6 +184,41 @@ export const OPENAI_IMAGE_MODEL_DESCRIPTORS = [
         resolution: '1024x1024',
         background: 'auto',
         quality: 'auto',
+        moderation: 'auto',
+        outputFormat: 'png',
+        outputCompression: 100,
+        imageCount: 1,
+      } as const,
+    },
+  },
+  {
+    id: 'chatgpt-image-latest',
+    displayName: 'ChatGPT Image Latest',
+    lifecycleStatus: 'active',
+    capabilities: {
+      supportsStreaming: false,
+      supportsImageGeneration: true,
+      supportsImageEditing: true,
+      supportedImageResponseFormats: [...OPENAI_IMAGE_RESPONSE_FORMATS],
+      supportedImageResolutions: [...OPENAI_IMAGE_RESOLUTIONS],
+      supportedImageOutputFormats: [...OPENAI_IMAGE_OUTPUT_FORMATS],
+      supportedImageBackgrounds: [...OPENAI_IMAGE_BACKGROUNDS],
+      supportedImageQualities: [...OPENAI_IMAGE_QUALITIES],
+      supportedImageModerations: [...OPENAI_IMAGE_MODERATIONS],
+      imageOutputCompressionRange: {
+        min: 0,
+        max: 100,
+        defaultValue: 100,
+        step: 1,
+      },
+      maxGeneratedImagesPerRequest: 10,
+      maxReferenceImagesPerRequest: 16,
+      imageDefaults: {
+        responseFormat: 'b64_json',
+        resolution: '1024x1024',
+        background: 'auto',
+        quality: 'auto',
+        moderation: 'auto',
         outputFormat: 'png',
         outputCompression: 100,
         imageCount: 1,

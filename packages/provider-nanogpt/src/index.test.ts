@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { NanoGptProviderAdapter } from './index';
+import { buildNanoGptImageCatalog } from './image/catalog.js';
 
 test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request', async () => {
   const originalFetch = globalThis.fetch;
@@ -524,7 +525,7 @@ test('NanoGptProviderAdapter assigns Google-aligned multi-reference limits to Na
       ]),
     );
 
-    assert.equal(modelLimits['nano-banana-2'], 5);
+    assert.equal(modelLimits['nano-banana-2'], 14);
     assert.equal(modelLimits['nano-banana-pro-edit'], 14);
     assert.equal(modelLimits['nano-banana-pro-edit-ultra'], 10);
   } finally {
@@ -665,4 +666,133 @@ test('NanoGptProviderAdapter sends image edit requests with data URL references'
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('buildNanoGptImageCatalog aligns Seedream 4.x capabilities with BytePlus image-set docs', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'seedream-4-0-250828',
+        name: 'Seedream 4.0',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'seedream-4-0-250828');
+  assert.ok(model);
+  assert.equal(model.capabilities.supportsImageGeneration, true);
+  assert.equal(model.capabilities.supportsImageEditing, true);
+  assert.equal(model.capabilities.maxGeneratedImagesPerRequest, 15);
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 10);
+  assert.deepEqual(model.capabilities.supportedImageResolutions, [
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+    { value: '4K', label: '4K' },
+  ]);
+});
+
+test('buildNanoGptImageCatalog classifies SeedEdit 3.0 as edit-only', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'seededit-3-0-i2i-250628',
+        name: 'SeedEdit 3.0',
+        category: 'image',
+        capabilities: {
+          image_generation: false,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'seededit-3-0-i2i-250628');
+  assert.ok(model);
+  assert.equal(model.capabilities.supportsImageGeneration, false);
+  assert.equal(model.capabilities.supportsImageEditing, true);
+  assert.equal(model.capabilities.maxGeneratedImagesPerRequest, 1);
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 1);
+});
+
+test('buildNanoGptImageCatalog applies Seedream 4.5 overrides to NanoGPT-style alias ids', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'seedream-4.5',
+        name: 'Seedream 4.5',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === 'seedream-4.5');
+  assert.ok(model);
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 10);
+  assert.equal(model.capabilities.maxGeneratedImagesPerRequest, 15);
+});
+
+test('buildNanoGptImageCatalog aligns NanoGPT OpenAI model aliases with OpenAI edit limits', () => {
+  const catalog = buildNanoGptImageCatalog({
+    subscriptionModels: [
+      {
+        id: 'gpt-image-1',
+        name: 'GPT Image 1',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+        supported_parameters: {
+          resolutions: ['1024x1024'],
+          max_images: 1,
+        },
+      },
+      {
+        id: 'chatgpt-image-latest',
+        name: 'ChatGPT Image Latest',
+        category: 'image',
+        capabilities: {
+          image_generation: true,
+          image_to_image: true,
+          inpainting: false,
+        },
+      },
+    ],
+    paidModels: [],
+  });
+
+  const modelLimits = Object.fromEntries(
+    catalog.models.map((model) => [
+      model.id,
+      {
+        references: model.capabilities.maxReferenceImagesPerRequest,
+        generated: model.capabilities.maxGeneratedImagesPerRequest,
+      },
+    ]),
+  );
+
+  assert.deepEqual(modelLimits['gpt-image-1'], {
+    references: 16,
+    generated: 10,
+  });
+  assert.deepEqual(modelLimits['chatgpt-image-latest'], {
+    references: 16,
+    generated: 10,
+  });
 });

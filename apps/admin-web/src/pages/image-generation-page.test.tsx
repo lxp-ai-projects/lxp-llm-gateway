@@ -61,10 +61,15 @@ const {
               supportedImageResponseFormats: ['b64_json'],
               supportedImageResolutions: [{ value: '1024x1024', label: '1024x1024' }],
               supportedImageBackgrounds: [{ value: 'auto', label: 'Auto' }],
+              supportedImageModerations: [
+                { value: 'auto', label: 'Auto' },
+                { value: 'low', label: 'Low' },
+              ],
               imageDefaults: {
                 responseFormat: 'b64_json',
                 resolution: '1024x1024',
                 background: 'auto',
+                moderation: 'auto',
                 imageCount: 1,
               },
             },
@@ -262,8 +267,39 @@ test('ImageGenerationPage renders providers and fields from the backend image ca
   expect(screen.getByTestId('image-provider-select')).toBeInTheDocument();
   expect(screen.getByTestId('image-model-select')).toBeInTheDocument();
   expect(screen.getByTestId('image-response-format-select')).toBeInTheDocument();
+  expect(screen.getByTestId('image-moderation-select')).toBeInTheDocument();
   expect(screen.getByText('Generated history')).toBeInTheDocument();
   expect(screen.getByText('10 items per page')).toBeInTheDocument();
+});
+
+test('ImageGenerationPage only shows OpenAI moderation for GPT-prefixed OpenAI image models', async () => {
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  await waitFor(() =>
+    expect(screen.getByTestId('image-moderation-select')).toBeInTheDocument(),
+  );
+  expect(screen.getByText('OpenAI moderation')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="xai"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="xai"]') as Element);
+
+  await waitFor(() =>
+    expect(screen.queryByTestId('image-moderation-select')).not.toBeInTheDocument(),
+  );
+
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="openai"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="openai"]') as Element);
+
+  await waitFor(() =>
+    expect(screen.getByTestId('image-moderation-select')).toBeInTheDocument(),
+  );
 });
 
 test('ImageGenerationPage generates, saves, and reuses image assets from history', async () => {
@@ -403,12 +439,14 @@ test('ImageGenerationPage reuses and deletes uploaded reference assets from the 
   renderWithProviders(<ImageGenerationPage />);
 
   await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  await user.click(screen.getByTestId('reference-catalog-open'));
   expect(await screen.findByText('Uploaded reference')).toBeInTheDocument();
 
   await user.click(
     await screen.findByTestId('reference-catalog-use-asset-upload-catalog-1'),
   );
-  expect(await screen.findByText('Selected references')).toBeInTheDocument();
+  expect(await screen.findByText('Selected reference (1)')).toBeInTheDocument();
+  await user.click(screen.getByTestId('selected-references-accordion'));
   expect(screen.getAllByAltText('Uploaded reference')[0]).toHaveAttribute(
     'src',
     expect.stringContaining('/api/v1/images/assets/asset-upload-catalog-1/content'),
@@ -433,6 +471,7 @@ test('ImageGenerationPage renames uploaded reference assets from the catalog', a
   renderWithProviders(<ImageGenerationPage />);
 
   await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  await user.click(screen.getByTestId('reference-catalog-open'));
   const labelInput = await screen.findByTestId(
     'reference-catalog-label-asset-upload-catalog-1',
   );
@@ -455,12 +494,14 @@ test('ImageGenerationPage filters uploaded reference assets from the catalog', a
   renderWithProviders(<ImageGenerationPage />);
 
   await screen.findByRole('heading', { name: 'Image Generation Lab' });
-  await user.type(screen.getByTestId('reference-catalog-search'), 'missing');
+  await user.click(screen.getByTestId('reference-catalog-open'));
+  const searchInput = await screen.findByTestId('reference-catalog-search');
+  await user.type(searchInput, 'missing');
   expect(
     screen.getByText('No uploaded references match the current filters.'),
   ).toBeInTheDocument();
 
-  await user.clear(screen.getByTestId('reference-catalog-search'));
+  await user.clear(searchInput);
   await user.click(screen.getByTestId('reference-catalog-use-asset-upload-catalog-1'));
   fireEvent.click(screen.getByTestId('reference-catalog-filter'));
   await waitFor(() =>

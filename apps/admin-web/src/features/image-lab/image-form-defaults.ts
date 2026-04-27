@@ -6,6 +6,7 @@ export interface ImageFormDefaults {
   resolution: string;
   background: string;
   quality: string;
+  moderation: string;
   outputFormat: string;
   outputCompression: number | '';
   inputFidelity: string;
@@ -38,6 +39,10 @@ export function resolveImageFormDefaults(
     quality:
       imageDefaults?.quality ??
       capabilities?.supportedImageQualities?.[0]?.value ??
+      '',
+    moderation:
+      imageDefaults?.moderation ??
+      capabilities?.supportedImageModerations?.[0]?.value ??
       '',
     outputFormat:
       imageDefaults?.outputFormat ??

@@ -43,6 +43,12 @@ export interface ImageQualityOption {
   label: string;
 }
 
+export interface ImageModerationOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+
 export interface ImageInputFidelityOption {
   value: string;
   label: string;
@@ -62,6 +68,7 @@ export interface ImageModelDefaults {
   resolution?: string;
   background?: string;
   quality?: string;
+  moderation?: string;
   outputFormat?: string;
   outputCompression?: number;
   inputFidelity?: string;
@@ -80,6 +87,7 @@ export interface ModelCapability {
   supportedImageOutputFormats?: ImageOutputFormatOption[];
   supportedImageBackgrounds?: ImageBackgroundOption[];
   supportedImageQualities?: ImageQualityOption[];
+  supportedImageModerations?: ImageModerationOption[];
   supportedImageInputFidelities?: ImageInputFidelityOption[];
   imageOutputCompressionRange?: ImageOutputCompressionRange;
   maxGeneratedImagesPerRequest?: number;

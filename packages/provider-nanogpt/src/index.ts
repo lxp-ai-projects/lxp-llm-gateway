@@ -16,6 +16,11 @@ import { buildProviderImageHttpError as buildImageError } from '@lxp/provider-sd
 import { NanoGptImageApiClient } from './image/api-client.js';
 import { buildNanoGptImageCatalog } from './image/catalog.js';
 import {
+  resolveNanoGptImageModelDescriptor,
+  validateNanoGptImageEditRequest,
+  validateNanoGptImageGenerationRequest,
+} from './image/model-policy.js';
+import {
   buildNanoGptImageEditRequest,
   buildNanoGptImageGenerationRequest,
 } from './image/request-mapper.js';
@@ -203,6 +208,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     request: GatewayImageGenerationRequest,
     context: ProviderExecutionContext,
   ) {
+    const model = resolveNanoGptImageModelDescriptor(request.model);
+    validateNanoGptImageGenerationRequest(request, model);
+
     const response = await this.imageApiClient.postGenerations(
       context,
       buildNanoGptImageGenerationRequest(request, context.userId),
@@ -215,17 +223,16 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     const payload = (await response.json()) as Parameters<
       typeof mapNanoGptImageResponse
     >[2];
-    return mapNanoGptImageResponse(
-      request.model ?? 'hidream',
-      context,
-      payload,
-    );
+    return mapNanoGptImageResponse(model.id, context, payload);
   }
 
   async editImage(
     request: GatewayImageEditRequest,
     context: ProviderExecutionContext,
   ) {
+    const model = resolveNanoGptImageModelDescriptor(request.model);
+    validateNanoGptImageEditRequest(request, model);
+
     const response = await this.imageApiClient.postGenerations(
       context,
       await buildNanoGptImageEditRequest(request, context.userId, {
@@ -244,11 +251,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     const payload = (await response.json()) as Parameters<
       typeof mapNanoGptImageResponse
     >[2];
-    return mapNanoGptImageResponse(
-      request.model ?? 'hidream',
-      context,
-      payload,
-    );
+    return mapNanoGptImageResponse(model.id, context, payload);
   }
 
   private dispatchChatRequest(

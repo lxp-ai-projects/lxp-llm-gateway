@@ -615,3 +615,45 @@ test('GoogleProviderAdapter formats quota exceeded errors for image requests', a
     globalThis.fetch = originalFetch;
   }
 });
+
+test('GoogleProviderAdapter formats temporary high-demand image errors', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          code: 503,
+          message:
+            'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.',
+          status: 'UNAVAILABLE',
+        },
+      }),
+      {
+        status: 503,
+        headers: { 'content-type': 'application/json' },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new GoogleProviderAdapter();
+
+    await assert.rejects(
+      () =>
+        adapter.generateImage(
+          {
+            model: 'gemini-2.5-flash-image',
+            prompt: 'A product shot',
+            responseFormat: 'b64_json',
+          },
+          {
+            requestId: 'request-8',
+            userId: 'user-1',
+            providerAccess: { apiKey: 'google-token' },
+          },
+        ),
+      /Google Gemini is temporarily unavailable due to high demand \(UNAVAILABLE\).*Please try again later\./,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

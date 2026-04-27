@@ -36,6 +36,7 @@ export function buildOpenAiImageGenerationRequest(
       size: request.resolution,
       background: request.background,
       quality: request.quality,
+      moderation: request.moderation,
       output_format: request.outputFormat,
       output_compression: request.outputCompression,
       user: userId,
@@ -76,6 +77,7 @@ export async function buildOpenAiImageEditRequest(
   appendIfDefined(formData, 'size', request.resolution);
   appendIfDefined(formData, 'background', request.background);
   appendIfDefined(formData, 'quality', request.quality);
+  appendIfDefined(formData, 'moderation', request.moderation);
   appendIfDefined(formData, 'output_format', request.outputFormat);
   appendIfDefined(formData, 'output_compression', request.outputCompression);
   appendIfDefined(formData, 'input_fidelity', request.inputFidelity);

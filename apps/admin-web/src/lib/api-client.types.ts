@@ -112,6 +112,12 @@ export type ImageQualityOption = {
   label: string;
 };
 
+export type ImageModerationOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
 export type ImageInputFidelityOption = {
   value: string;
   label: string;
@@ -139,6 +145,7 @@ export type ProviderModelSummary = {
     supportedImageOutputFormats?: ImageOutputFormatOption[];
     supportedImageBackgrounds?: ImageBackgroundOption[];
     supportedImageQualities?: ImageQualityOption[];
+    supportedImageModerations?: ImageModerationOption[];
     supportedImageInputFidelities?: ImageInputFidelityOption[];
     imageOutputCompressionRange?: ImageOutputCompressionRange;
     maxGeneratedImagesPerRequest?: number;
@@ -149,6 +156,7 @@ export type ProviderModelSummary = {
       resolution?: string;
       background?: string;
       quality?: string;
+      moderation?: string;
       outputFormat?: string;
       outputCompression?: number;
       inputFidelity?: string;
