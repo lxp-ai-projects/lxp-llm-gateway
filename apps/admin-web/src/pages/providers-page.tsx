@@ -16,22 +16,33 @@ export function ProvidersPage() {
     currentDefaultModel,
     currentDefaultProviderDisplayName,
     currentDefaultProviderId,
+    currentDefaultImageModel,
+    currentDefaultImageProviderDisplayName,
+    currentDefaultImageProviderId,
     defaultModel,
     defaultModelOptions,
     defaultProviderId,
     defaultProviderOptions,
+    defaultImageModel,
+    defaultImageModelOptions,
+    defaultImageProviderId,
+    defaultImageProviderOptions,
     editingCredentialId,
     handleCredentialSubmit,
     handleDefaultsSubmit,
     isCredentialPending,
     isDefaultsPending,
     isModelLoading,
+    isImageModelLoading,
     label,
+    imageModelErrorMessage,
     modelErrorMessage,
     onApiTokenChange,
     onBaseUrlChange,
     onDefaultModelChange,
     onDefaultProviderChange,
+    onDefaultImageModelChange,
+    onDefaultImageProviderChange,
     onLabelChange,
     onProviderChange,
     providerId,
@@ -44,7 +55,7 @@ export function ProvidersPage() {
     <>
       <PageHeader
         title="Provider Credentials"
-        description="Manage your write-only provider credentials and choose the default provider/model used when gateway chat requests omit those values."
+        description="Manage your write-only provider credentials and choose separate default provider/model pairs for gateway chat and gateway image generation/editing."
       />
       <Grid>
         <Grid.Col span={{ base: 12, lg: 5 }}>
@@ -71,12 +82,20 @@ export function ProvidersPage() {
               defaultModelOptions={defaultModelOptions}
               defaultProviderId={defaultProviderId}
               defaultProviderOptions={defaultProviderOptions}
+              defaultImageModel={defaultImageModel}
+              defaultImageModelOptions={defaultImageModelOptions}
+              defaultImageProviderId={defaultImageProviderId}
+              defaultImageProviderOptions={defaultImageProviderOptions}
               isDirty={providerSettingsDirty}
+              imageModelErrorMessage={imageModelErrorMessage}
+              isImageModelLoading={isImageModelLoading}
               isModelLoading={isModelLoading}
               isPending={isDefaultsPending}
               modelErrorMessage={modelErrorMessage}
               onDefaultModelChange={onDefaultModelChange}
               onDefaultProviderChange={onDefaultProviderChange}
+              onDefaultImageModelChange={onDefaultImageModelChange}
+              onDefaultImageProviderChange={onDefaultImageProviderChange}
               onSubmit={handleDefaultsSubmit}
             />
           </Stack>
@@ -90,6 +109,11 @@ export function ProvidersPage() {
               currentDefaultProviderDisplayName
             }
             currentDefaultProviderId={currentDefaultProviderId}
+            currentDefaultImageModel={currentDefaultImageModel}
+            currentDefaultImageProviderDisplayName={
+              currentDefaultImageProviderDisplayName
+            }
+            currentDefaultImageProviderId={currentDefaultImageProviderId}
             onEditCredential={beginCredentialEdit}
           />
         </Grid.Col>

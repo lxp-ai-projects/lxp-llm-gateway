@@ -225,6 +225,34 @@ test('gatewayApiClient.chat surfaces timeout aborts with a user-facing error', a
   );
 });
 
+test('gatewayApiClient.editImage uses the longer image timeout window', async () => {
+  const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+  vi.mocked(fetch).mockResolvedValueOnce(
+    jsonResponse({
+      requestId: 'request-image-1',
+      jobId: 'job-image-1',
+      providerId: 'openai',
+      model: 'gpt-image-2',
+      images: [],
+    }),
+  );
+
+  await gatewayApiClient.editImage({
+    providerId: 'openai',
+    model: 'gpt-image-2',
+    prompt: 'Edit this image',
+    images: [{ type: 'asset', assetId: 'asset-1' }],
+  });
+
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining('/api/v1/images/edits'),
+    expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }),
+  );
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 300000);
+});
+
 test('gatewayApiClient.chatStream formats JSON error bodies from the gateway', async () => {
   vi.mocked(fetch).mockResolvedValueOnce(
     new Response(

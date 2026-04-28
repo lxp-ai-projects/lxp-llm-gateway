@@ -18,4 +18,6 @@ export type GatewayAuthContext = {
   roles: string[];
   defaultProviderId: ProviderId | null;
   defaultModel: string | null;
+  defaultImageProviderId: ProviderId | null;
+  defaultImageModel: string | null;
 };

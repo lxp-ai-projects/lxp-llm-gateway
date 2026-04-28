@@ -10,6 +10,7 @@ import { useProvidersController } from './use-providers-controller';
 
 const {
   createOwnProviderCredentialMock,
+  getImageCatalogMock,
   getModelsMock,
   getOwnProviderCredentialsMock,
   getOwnProviderSettingsMock,
@@ -34,6 +35,30 @@ const {
     createdAt: '2026-04-17T00:00:00.000Z',
     updatedAt: '2026-04-17T00:00:00.000Z',
     lastUsedAt: null,
+  })),
+  getImageCatalogMock: vi.fn(async () => ({
+    providers: [
+      {
+        providerId: 'nanogpt',
+        displayName: 'NanoGPT',
+        defaultModelId: 'mistral-medium',
+        models: [
+          { id: 'mistral-medium', displayName: 'Mistral Medium' },
+          { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
+        ],
+      },
+      {
+        providerId: 'google',
+        displayName: 'Google Gemini',
+        defaultModelId: 'gemini-3.1-flash-image-preview',
+        models: [
+          {
+            id: 'gemini-3.1-flash-image-preview',
+            displayName: 'Gemini 3.1 Flash Image Preview',
+          },
+        ],
+      },
+    ],
   })),
   getModelsMock: vi.fn(async () => ({
     providerId: 'nanogpt',
@@ -60,6 +85,8 @@ const {
     userUuid: 'user-1',
     defaultProviderId: 'nanogpt',
     defaultModel: 'z-ai/glm-4.6:thinking',
+    defaultImageProviderId: 'nanogpt',
+    defaultImageModel: 'mistral-medium',
   })),
   updateOwnProviderCredentialMock: vi.fn(async () => ({
     id: 'credential-1',
@@ -77,6 +104,8 @@ const {
     userUuid: 'user-1',
     defaultProviderId: 'nanogpt',
     defaultModel: 'mistral-medium',
+    defaultImageProviderId: 'nanogpt',
+    defaultImageModel: 'mistral-medium',
   })),
 }));
 
@@ -95,6 +124,7 @@ vi.mock('../../../lib/api-client', () => ({
     updateOwnProviderSettings: updateOwnProviderSettingsMock,
   },
   gatewayApiClient: {
+    getImageCatalog: getImageCatalogMock,
     getModels: getModelsMock,
   },
 }));
@@ -121,6 +151,7 @@ function createWrapper() {
 
 beforeEach(() => {
   createOwnProviderCredentialMock.mockClear();
+  getImageCatalogMock.mockClear();
   getModelsMock.mockClear();
   getOwnProviderCredentialsMock.mockClear();
   getOwnProviderSettingsMock.mockClear();
@@ -159,6 +190,32 @@ beforeEach(() => {
     userUuid: 'user-1',
     defaultProviderId: 'nanogpt',
     defaultModel: 'z-ai/glm-4.6:thinking',
+    defaultImageProviderId: 'nanogpt',
+    defaultImageModel: 'mistral-medium',
+  });
+  getImageCatalogMock.mockResolvedValue({
+    providers: [
+      {
+        providerId: 'nanogpt',
+        displayName: 'NanoGPT',
+        defaultModelId: 'mistral-medium',
+        models: [
+          { id: 'mistral-medium', displayName: 'Mistral Medium' },
+          { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
+        ],
+      },
+      {
+        providerId: 'google',
+        displayName: 'Google Gemini',
+        defaultModelId: 'gemini-3.1-flash-image-preview',
+        models: [
+          {
+            id: 'gemini-3.1-flash-image-preview',
+            displayName: 'Gemini 3.1 Flash Image Preview',
+          },
+        ],
+      },
+    ],
   });
 });
 
@@ -245,6 +302,8 @@ test('useProvidersController blocks Google Gemini credentials without an API tok
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   const { result } = renderHook(() => useProvidersController(), { wrapper });
@@ -278,6 +337,8 @@ test('useProvidersController clears invalid default models and saves dirty defau
     userUuid: 'user-1',
     defaultProviderId: 'nanogpt',
     defaultModel: 'missing-model',
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   const { result } = renderHook(() => useProvidersController(), { wrapper });
@@ -300,6 +361,8 @@ test('useProvidersController clears invalid default models and saves dirty defau
     expect(updateOwnProviderSettingsMock).toHaveBeenCalledWith({
       defaultProviderId: 'nanogpt',
       defaultModel: null,
+      defaultImageProviderId: null,
+      defaultImageModel: null,
     }),
   );
 });
@@ -311,6 +374,8 @@ test('useProvidersController surfaces model loading errors and provider fallback
     userUuid: 'user-1',
     defaultProviderId: 'custom-provider',
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
   getModelsMock.mockRejectedValue(
     new Error('Provider model registry is offline.'),
@@ -332,6 +397,9 @@ test('useProvidersController surfaces model loading errors and provider fallback
   expect(result.current.defaultProviderOptions).toEqual([
     { label: 'NanoGPT', value: 'nanogpt' },
   ]);
+  expect(result.current.defaultImageProviderOptions).toEqual([
+    { label: 'NanoGPT', value: 'nanogpt' },
+  ]);
 });
 
 test('useProvidersController blocks Ollama cloud credentials without an API token', async () => {
@@ -346,6 +414,8 @@ test('useProvidersController blocks Ollama cloud credentials without an API toke
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   const { result } = renderHook(() => useProvidersController(), { wrapper });

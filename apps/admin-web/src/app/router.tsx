@@ -25,6 +25,11 @@ const ProfilePage = lazy(async () =>
 const ChatPage = lazy(async () =>
   import('../pages/chat-page').then((module) => ({ default: module.ChatPage })),
 );
+const ImageGenerationPage = lazy(async () =>
+  import('../pages/image-generation-page').then((module) => ({
+    default: module.ImageGenerationPage,
+  })),
+);
 const UsersPage = lazy(async () =>
   import('../pages/users-page').then((module) => ({
     default: module.UsersPage,
@@ -92,6 +97,7 @@ export const router = createBrowserRouter([
       { path: 'providers', element: withSuspense(<ProvidersPage />) },
       { path: 'profile', element: withSuspense(<ProfilePage />) },
       { path: 'chat', element: withSuspense(<ChatPage />) },
+      { path: 'images', element: withSuspense(<ImageGenerationPage />) },
       {
         path: 'admin/users',
         element: withSuspense(

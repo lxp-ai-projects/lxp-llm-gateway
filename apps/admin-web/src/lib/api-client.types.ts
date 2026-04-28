@@ -51,9 +51,203 @@ export type GatewayChatStreamResult = {
   finishReason?: string | null;
 };
 
+export type GatewayImageReference =
+  | {
+      type: 'image_url';
+      url: string;
+    }
+  | {
+      type: 'data_url';
+      url: string;
+      mimeType?: string;
+    }
+  | {
+      type: 'asset';
+      assetId: string;
+    };
+
+export type GatewayGeneratedImage = {
+  assetId?: string;
+  contentUrl?: string;
+  url?: string;
+  b64Json?: string;
+  mimeType?: string;
+  revisedPrompt?: string;
+  saved?: boolean;
+  providerMetadata?: Record<string, unknown>;
+};
+
+export type GatewayImageGenerationResponse = {
+  jobId?: string;
+  requestId: string;
+  providerId: string;
+  model: string;
+  images: GatewayGeneratedImage[];
+  providerMetadata?: Record<string, unknown>;
+};
+
+export type ImageAspectRatioOption = {
+  value: string;
+  label: string;
+  useCase?: string;
+};
+
+export type ImageResolutionOption = {
+  value: string;
+  label: string;
+};
+
+export type ImageOutputFormatOption = {
+  value: string;
+  label: string;
+};
+
+export type ImageBackgroundOption = {
+  value: string;
+  label: string;
+};
+
+export type ImageQualityOption = {
+  value: string;
+  label: string;
+};
+
+export type ImageModerationOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+export type ImageInputFidelityOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+export type ImageOutputCompressionRange = {
+  min: number;
+  max: number;
+  defaultValue?: number;
+  step?: number;
+};
+
+export type ImageModeCapabilityOptions = {
+  supportedImageAspectRatios?: ImageAspectRatioOption[];
+  supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
+  supportedImageResolutions?: ImageResolutionOption[];
+  supportedImageOutputFormats?: ImageOutputFormatOption[];
+  supportedImageBackgrounds?: ImageBackgroundOption[];
+  supportedImageQualities?: ImageQualityOption[];
+  supportedImageModerations?: ImageModerationOption[];
+  supportedImageInputFidelities?: ImageInputFidelityOption[];
+  imageOutputCompressionRange?: ImageOutputCompressionRange;
+  maxGeneratedImagesPerRequest?: number;
+  maxReferenceImagesPerRequest?: number;
+  imageDefaults?: {
+    aspectRatio?: string;
+    responseFormat?: 'url' | 'b64_json';
+    resolution?: string;
+    background?: string;
+    quality?: string;
+    moderation?: string;
+    outputFormat?: string;
+    outputCompression?: number;
+    inputFidelity?: string;
+    imageCount?: number;
+  };
+};
+
 export type ProviderModelSummary = {
   id: string;
   displayName: string;
+  capabilities?: {
+    supportsStreaming?: boolean;
+    supportsImageGeneration?: boolean;
+    supportsImageEditing?: boolean;
+    requiresPaidAccess?: boolean;
+    supportedImageAspectRatios?: ImageAspectRatioOption[];
+    supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
+    supportedImageResolutions?: ImageResolutionOption[];
+    supportedImageOutputFormats?: ImageOutputFormatOption[];
+    supportedImageBackgrounds?: ImageBackgroundOption[];
+    supportedImageQualities?: ImageQualityOption[];
+    supportedImageModerations?: ImageModerationOption[];
+    supportedImageInputFidelities?: ImageInputFidelityOption[];
+    imageOutputCompressionRange?: ImageOutputCompressionRange;
+    maxGeneratedImagesPerRequest?: number;
+    maxReferenceImagesPerRequest?: number;
+    imageDefaults?: {
+      aspectRatio?: string;
+      responseFormat?: 'url' | 'b64_json';
+      resolution?: string;
+      background?: string;
+      quality?: string;
+      moderation?: string;
+      outputFormat?: string;
+      outputCompression?: number;
+      inputFidelity?: string;
+      imageCount?: number;
+    };
+    imageGenerationOptions?: ImageModeCapabilityOptions;
+    imageEditOptions?: ImageModeCapabilityOptions;
+  };
+};
+
+export type GatewayImageCatalogProvider = {
+  providerId: string;
+  displayName: string;
+  defaultModelId: string | null;
+  models: ProviderModelSummary[];
+};
+
+export type GatewayImageCatalogResponse = {
+  providers: GatewayImageCatalogProvider[];
+};
+
+export type GatewayImageAssetSummary = {
+  id: string;
+  label: string | null;
+  mimeType: string | null;
+  contentUrl: string;
+  sourceType: 'upload' | 'generated';
+  saved: boolean;
+  createdAt: string;
+};
+
+export type GatewayImageAssetListResponse = {
+  items: GatewayImageAssetSummary[];
+};
+
+export type GatewayImageAssetUpdateRequest = {
+  label: string;
+};
+
+export type GatewayImageHistoryItem = {
+  id: string;
+  requestId: string;
+  providerId: string;
+  model: string;
+  prompt: string;
+  mode: 'generation' | 'edit';
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  durationMs?: number;
+  providerMetadata?: Record<string, unknown>;
+  images: Array<
+    GatewayImageAssetSummary & {
+      revisedPrompt?: string;
+      providerMetadata?: Record<string, unknown>;
+    }
+  >;
+};
+
+export type GatewayImageHistoryResponse = {
+  items: GatewayImageHistoryItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
 };
 
 export type ProviderCredentialSummary = {
@@ -73,6 +267,8 @@ export type ProviderSettingsSummary = {
   userUuid: string;
   defaultProviderId: string | null;
   defaultModel: string | null;
+  defaultImageProviderId: string | null;
+  defaultImageModel: string | null;
 };
 
 export type AdminUserSummary = {

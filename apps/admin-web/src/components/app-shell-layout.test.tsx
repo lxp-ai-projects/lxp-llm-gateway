@@ -9,12 +9,14 @@ import { adminWebTheme } from '../app/theme';
 import { AppShellLayout } from './app-shell-layout';
 
 const {
+  getGatewayHealthMock,
   logoutMock,
   invalidateQueriesMock,
   navigateMock,
   useRuntimeConfigMock,
   useSessionMock,
 } = vi.hoisted(() => ({
+  getGatewayHealthMock: vi.fn(),
   logoutMock: vi.fn(async () => undefined),
   invalidateQueriesMock: vi.fn(async () => undefined),
   navigateMock: vi.fn(),
@@ -25,6 +27,9 @@ const {
 vi.mock('../lib/api-client', () => ({
   adminApiClient: {
     logout: logoutMock,
+  },
+  gatewayApiClient: {
+    getHealth: getGatewayHealthMock,
   },
 }));
 
@@ -83,6 +88,7 @@ function renderShell(initialEntry = '/app/admin/users') {
 
 beforeEach(() => {
   logoutMock.mockClear();
+  getGatewayHealthMock.mockReset();
   invalidateQueriesMock.mockClear();
   navigateMock.mockClear();
   useRuntimeConfigMock.mockReset();
@@ -93,9 +99,10 @@ beforeEach(() => {
       gatewayOnline: false,
     },
   });
+  getGatewayHealthMock.mockResolvedValue({ status: 'down' });
 });
 
-test('AppShellLayout shows admin navigation and offline gateway state', () => {
+test('AppShellLayout shows admin navigation and offline gateway state', async () => {
   useSessionMock.mockReturnValue({
     data: {
       displayName: 'Patrick',
@@ -108,10 +115,26 @@ test('AppShellLayout shows admin navigation and offline gateway state', () => {
 
   expect(screen.getByText('Patrick')).toBeInTheDocument();
   expect(screen.getByText('patrick@example.com')).toBeInTheDocument();
-  expect(screen.getByText('Gateway offline')).toBeInTheDocument();
+  expect(await screen.findByText('Gateway offline')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /users/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /analytics/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /health/i })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /image lab/i })).toBeInTheDocument();
+});
+
+test('AppShellLayout shows online gateway state from the real gateway health check', async () => {
+  useSessionMock.mockReturnValue({
+    data: {
+      displayName: 'Patrick',
+      email: 'patrick@example.com',
+      roles: ['admin'],
+    },
+  });
+  getGatewayHealthMock.mockResolvedValue({ status: 'ok' });
+
+  renderShell();
+
+  expect(await screen.findByText('Gateway online')).toBeInTheDocument();
 });
 
 test('AppShellLayout hides admin-only links for regular users and logs out', async () => {

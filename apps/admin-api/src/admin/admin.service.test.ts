@@ -541,6 +541,39 @@ test('AdminService updates provider settings for a user', async () => {
 
   assert.equal(settings.defaultProviderId, 'nanogpt');
   assert.equal(settings.defaultModel, 'z-ai/glm-4.6:thinking');
+  assert.equal(settings.defaultImageProviderId, null);
+  assert.equal(settings.defaultImageModel, null);
+});
+
+test('AdminService updates image defaults separately from chat defaults', async () => {
+  const { service } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await service.storeProviderCredential({
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
+
+  const settings = await service.updateProviderSettingsForUser(
+    createdUser.userUuid,
+    {
+      defaultProviderId: 'nanogpt',
+      defaultModel: 'z-ai/glm-4.6:thinking',
+      defaultImageProviderId: 'nanogpt',
+      defaultImageModel: 'mistral-medium',
+    },
+  );
+
+  assert.equal(settings.defaultProviderId, 'nanogpt');
+  assert.equal(settings.defaultModel, 'z-ai/glm-4.6:thinking');
+  assert.equal(settings.defaultImageProviderId, 'nanogpt');
+  assert.equal(settings.defaultImageModel, 'mistral-medium');
 });
 
 test('AdminService rejects default provider selection without an active credential', async () => {
@@ -588,6 +621,8 @@ test('AdminService clears default model when the default provider is cleared', a
 
   assert.equal(settings.defaultProviderId, null);
   assert.equal(settings.defaultModel, null);
+  assert.equal(settings.defaultImageProviderId, null);
+  assert.equal(settings.defaultImageModel, null);
 });
 
 test('AdminService bootstraps the first admin only once', async () => {

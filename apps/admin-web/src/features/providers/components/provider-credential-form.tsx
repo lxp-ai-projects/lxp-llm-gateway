@@ -107,12 +107,11 @@ export function ProviderCredentialForm({
               variant="light"
               title="Billing and key responsibility"
             >
-              xAI Grok support is experimental and requires additional
-              certification tests before it can be considered stable. Usage is
-              billed through your xAI account. Protect this API key, do not
-              share it, and only use keys your organization is authorized to
-              spend with. LXP is not responsible for authorized or
-              unauthorized charges made with this key.
+              xAI Grok support is certified. Usage is billed through your xAI
+              account. Protect this API key, do not share it, and only use
+              keys your organization is authorized to spend with. LXP is not
+              responsible for authorized or unauthorized charges made with this
+              key.
             </Alert>
           ) : null}
           {isOpenAi ? (
@@ -121,12 +120,11 @@ export function ProviderCredentialForm({
               variant="light"
               title="Billing and key responsibility"
             >
-              OpenAI support is experimental and requires additional
-              certification tests before it can be considered stable. Usage is
-              billed through your OpenAI account. Protect this API key, do not
-              share it, and only use keys your organization is authorized to
-              spend with. LXP is not responsible for authorized or
-              unauthorized charges made with this key.
+              OpenAI support is certified. Usage is billed through your OpenAI
+              account. Protect this API key, do not share it, and only use
+              keys your organization is authorized to spend with. LXP is not
+              responsible for authorized or unauthorized charges made with this
+              key.
             </Alert>
           ) : null}
           {isAnthropic ? (

@@ -36,4 +36,8 @@ export class ProviderRegistryService {
 
     return defaultProvider;
   }
+
+  listProviders(): LlmProviderAdapter[] {
+    return Array.from(this.providers.values());
+  }
 }

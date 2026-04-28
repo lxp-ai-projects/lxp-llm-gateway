@@ -1,21 +1,75 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import * as dns from 'node:dns/promises';
+
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+} from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
 
+import {
+  buildGoogleImageCatalog,
+  buildGoogleModelCatalog,
+} from './image/catalog.js';
+import { GoogleImageApiClient } from './image/api-client.js';
+import { GoogleImageEditService } from './image/edit-service.js';
+import { GoogleImageGenerationService } from './image/generation-service.js';
+
+const GOOGLE_OPENAI_BASE_URL =
+  process.env.GOOGLE_BASE_URL ??
+  'https://generativelanguage.googleapis.com/v1beta/openai';
+const GOOGLE_NATIVE_BASE_URL =
+  process.env.GOOGLE_NATIVE_BASE_URL ??
+  'https://generativelanguage.googleapis.com/v1beta';
+const GOOGLE_REQUEST_TIMEOUT_MS = Number(
+  process.env.GOOGLE_REQUEST_TIMEOUT_MS ?? '180000',
+);
+const GOOGLE_MAX_INLINE_REFERENCE_BYTES = Number(
+  process.env.GOOGLE_MAX_INLINE_REFERENCE_BYTES ?? String(15 * 1024 * 1024),
+);
+
 export class GoogleProviderAdapter implements LlmProviderAdapter {
+  readonly capabilities = {
+    chat: true,
+    modelCatalog: true,
+    imageGeneration: true,
+    imageEditing: true,
+  } as const;
+
   private readonly baseUrl: string;
+  private readonly nativeBaseUrl: string;
   private readonly requestTimeoutMs: number;
+  private readonly imageApiClient: GoogleImageApiClient;
+  private readonly imageGenerationService: GoogleImageGenerationService;
+  private readonly imageEditService: GoogleImageEditService;
 
   constructor(
-    baseUrl = process.env.GOOGLE_BASE_URL ??
-      'https://generativelanguage.googleapis.com/v1beta/openai',
-    requestTimeoutMs = Number(process.env.GOOGLE_REQUEST_TIMEOUT_MS ?? '90000'),
+    baseUrl = GOOGLE_OPENAI_BASE_URL,
+    requestTimeoutMs = GOOGLE_REQUEST_TIMEOUT_MS,
+    nativeBaseUrl = GOOGLE_NATIVE_BASE_URL,
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.nativeBaseUrl = nativeBaseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
+    this.imageApiClient = new GoogleImageApiClient(
+      this.baseUrl,
+      this.nativeBaseUrl,
+      this.requestTimeoutMs,
+    );
+    this.imageGenerationService = new GoogleImageGenerationService(
+      this.imageApiClient,
+    );
+    this.imageEditService = new GoogleImageEditService(
+      this.imageApiClient,
+      (hostname) => this.lookupHostname(hostname),
+      this.requestTimeoutMs,
+      GOOGLE_MAX_INLINE_REFERENCE_BYTES,
+    );
   }
 
   readonly providerId = 'google' as LlmProviderAdapter['providerId'];
@@ -27,27 +81,12 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.resolveBaseUrl(context)}/models`, {
-      headers: this.resolveHeaders(context),
-    });
+    return buildGoogleModelCatalog(await this.imageApiClient.listModelIds(context));
+  }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Google Gemini model listing failed with status ${response.status}: ${errorText}`,
-      );
-    }
-
-    const payload = (await response.json()) as {
-      data?: Array<{
-        id: string;
-      }>;
-    };
-
-    return (payload.data ?? []).map((model) => ({
-      id: model.id,
-      displayName: model.id,
-    }));
+  async listImageCatalog(context: ProviderExecutionContext) {
+    void context;
+    return buildGoogleImageCatalog(buildGoogleModelCatalog([]));
   }
 
   async chat(
@@ -128,6 +167,20 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
     return response.body;
   }
 
+  async generateImage(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.imageGenerationService.execute(request, context);
+  }
+
+  async editImage(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.imageEditService.execute(request, context);
+  }
+
   private dispatchChatRequest(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -139,7 +192,7 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          ...this.resolveHeaders(context),
+          ...this.resolveOpenAiHeaders(context),
         },
         body: JSON.stringify({
           model: request.model,
@@ -157,7 +210,7 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
     return (providerAccess.baseUrl ?? this.baseUrl).replace(/\/$/, '');
   }
 
-  private resolveHeaders(
+  private resolveOpenAiHeaders(
     context: ProviderExecutionContext,
   ): Record<string, string> {
     const providerAccess = context.providerAccess ?? {};
@@ -170,6 +223,10 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
     }
 
     return headers;
+  }
+
+  protected lookupHostname(hostname: string) {
+    return dns.lookup(hostname, { all: true });
   }
 
   private async fetchWithTimeout(

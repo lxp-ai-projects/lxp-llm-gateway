@@ -1,0 +1,564 @@
+import type {
+  CanonicalImageProviderCatalog,
+  ImageModelCapabilities,
+  ImageModelDescriptor,
+} from '@lxp/provider-sdk';
+
+import type { NanoGptImageModelRecord } from './api-client.js';
+
+interface NanoGptImageModelCapabilityOverride {
+  matches(modelId: string): boolean;
+  capabilities: Partial<ImageModelCapabilities>;
+}
+
+const NANO_GPT_DEFAULT_IMAGE_RESPONSE_FORMATS = ['url', 'b64_json'] as const;
+const NANO_GPT_OPENAI_IMAGE_RESPONSE_FORMATS = ['b64_json'] as const;
+const NANO_GPT_OPENAI_IMAGE_RESOLUTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: '1024x1024', label: '1024x1024' },
+  { value: '1536x1024', label: '1536x1024' },
+  { value: '1024x1536', label: '1024x1536' },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_OUTPUT_FORMATS = [
+  { value: 'png', label: 'PNG' },
+  { value: 'jpeg', label: 'JPEG' },
+  { value: 'webp', label: 'WebP' },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_BACKGROUNDS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'opaque', label: 'Opaque' },
+  { value: 'transparent', label: 'Transparent' },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_QUALITIES = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_MODERATIONS = [
+  {
+    value: 'auto',
+    label: 'Auto',
+    description: 'Use the default moderation level for GPT image models.',
+  },
+  {
+    value: 'low',
+    label: 'Low',
+    description:
+      'Less restrictive filtering, but prompts and images can still be rejected.',
+  },
+] as const;
+const NANO_GPT_OPENAI_IMAGE_INPUT_FIDELITIES = [
+  {
+    value: 'low',
+    label: 'Low',
+    description: 'Looser adherence to the reference image.',
+  },
+  {
+    value: 'high',
+    label: 'High',
+    description: 'Preserve source details more strictly.',
+  },
+] as const;
+const NANO_GPT_SEEDREAM_IMAGE_SET_RESOLUTIONS = [
+  { value: '1K', label: '1K' },
+  { value: '2K', label: '2K' },
+  { value: '4K', label: '4K' },
+] as const;
+const NANO_GPT_GOOGLE_IMAGE_ASPECT_RATIOS = [
+  { value: '1:1', label: '1:1', useCase: 'Square assets and social posts' },
+  { value: '2:3', label: '2:3', useCase: 'Portrait photography' },
+  { value: '3:2', label: '3:2', useCase: 'Landscape photography' },
+  { value: '3:4', label: '3:4', useCase: 'Portrait layouts' },
+  { value: '4:3', label: '4:3', useCase: 'Presentations and illustrations' },
+  { value: '4:5', label: '4:5', useCase: 'Tall social formats' },
+  { value: '5:4', label: '5:4', useCase: 'Product and editorial crops' },
+  { value: '9:16', label: '9:16', useCase: 'Stories and vertical mobile' },
+  { value: '16:9', label: '16:9', useCase: 'Widescreen and banners' },
+  { value: '21:9', label: '21:9', useCase: 'Ultra-wide hero visuals' },
+] as const;
+const NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES = {
+  supportsImageGeneration: true,
+  supportsImageEditing: true,
+  supportedImageResponseFormats: ['b64_json'],
+  supportedImageAspectRatios: [...NANO_GPT_GOOGLE_IMAGE_ASPECT_RATIOS],
+  supportedImageResolutions: [{ value: '1K', label: '1K' }],
+  imageDefaults: {
+    responseFormat: 'b64_json',
+    aspectRatio: '1:1',
+    resolution: '1K',
+    imageCount: 1,
+  },
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_GOOGLE_NANO_BANANA_2_CAPABILITIES = {
+  ...NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES,
+  supportedImageResolutions: [
+    { value: '512', label: '512' },
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+    { value: '4K', label: '4K' },
+  ],
+  maxReferenceImagesPerRequest: 14,
+  imageDefaults: {
+    ...NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES.imageDefaults,
+    resolution: '512',
+  },
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_GOOGLE_NANO_BANANA_PRO_CAPABILITIES = {
+  ...NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES,
+  supportedImageResolutions: [
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+    { value: '4K', label: '4K' },
+  ],
+  maxReferenceImagesPerRequest: 14,
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_GOOGLE_NANO_BANANA_PRO_EDIT_ULTRA_CAPABILITIES = {
+  ...NANO_GPT_GOOGLE_NANO_BANANA_PRO_CAPABILITIES,
+  maxReferenceImagesPerRequest: 10,
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_OPENAI_ALIGNED_IMAGE_CAPABILITIES = {
+  supportedImageResponseFormats: [...NANO_GPT_OPENAI_IMAGE_RESPONSE_FORMATS],
+  supportedImageResolutions: [...NANO_GPT_OPENAI_IMAGE_RESOLUTIONS],
+  supportedImageOutputFormats: [...NANO_GPT_OPENAI_IMAGE_OUTPUT_FORMATS],
+  supportedImageBackgrounds: [...NANO_GPT_OPENAI_IMAGE_BACKGROUNDS],
+  supportedImageQualities: [...NANO_GPT_OPENAI_IMAGE_QUALITIES],
+  supportedImageModerations: [...NANO_GPT_OPENAI_IMAGE_MODERATIONS],
+  imageOutputCompressionRange: {
+    min: 0,
+    max: 100,
+    defaultValue: 100,
+    step: 1,
+  },
+  maxReferenceImagesPerRequest: 16,
+  maxGeneratedImagesPerRequest: 10,
+  imageDefaults: {
+    responseFormat: 'b64_json',
+    resolution: '1024x1024',
+    background: 'auto',
+    quality: 'auto',
+    moderation: 'auto',
+    outputFormat: 'png',
+    outputCompression: 100,
+    imageCount: 1,
+  },
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_SEEDREAM_IMAGE_SET_CAPABILITY_OVERRIDE = {
+  supportsImageGeneration: true,
+  supportsImageEditing: true,
+  supportedImageResponseFormats: [...NANO_GPT_DEFAULT_IMAGE_RESPONSE_FORMATS],
+  supportedImageResolutions: [...NANO_GPT_SEEDREAM_IMAGE_SET_RESOLUTIONS],
+  maxGeneratedImagesPerRequest: 15,
+  // BytePlus documents a 2-10 multi-reference input limit for Seedream image-set
+  // flows. The 14-image figure applies to output count with a single reference image.
+  maxReferenceImagesPerRequest: 10,
+  imageDefaults: {
+    responseFormat: 'b64_json',
+    resolution: '1K',
+    imageCount: 1,
+  },
+} as const satisfies Partial<ImageModelCapabilities>;
+const NANO_GPT_IMAGE_MODEL_CAPABILITY_OVERRIDES: readonly NanoGptImageModelCapabilityOverride[] =
+  [
+    {
+      matches: (modelId) => modelId === 'flux-kontext' || modelId === 'flux-kontext/dev',
+      capabilities: {
+        maxReferenceImagesPerRequest: 5,
+      },
+    },
+    {
+      matches: isQwenImageModelId,
+      capabilities: {
+        maxReferenceImagesPerRequest: 3,
+      },
+    },
+    {
+      matches: isWan27ImageProModelId,
+      capabilities: {
+        supportedImageResolutions: [
+          { value: '1K', label: '1K' },
+          { value: '2K', label: '2K' },
+          { value: '4K', label: '4K' },
+        ],
+        maxReferenceImagesPerRequest: 9,
+        imageDefaults: {
+          responseFormat: 'b64_json',
+          resolution: '2K',
+          imageCount: 1,
+        },
+        imageGenerationOptions: {
+          supportedImageResolutions: [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K' },
+            { value: '4K', label: '4K' },
+          ],
+          imageDefaults: {
+            resolution: '2K',
+          },
+        },
+        imageEditOptions: {
+          supportedImageResolutions: [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K' },
+          ],
+          maxReferenceImagesPerRequest: 9,
+          imageDefaults: {
+            resolution: '2K',
+          },
+        },
+      },
+    },
+    {
+      matches: isWan27ImageModelId,
+      capabilities: {
+        supportedImageResolutions: [
+          { value: '1K', label: '1K' },
+          { value: '2K', label: '2K' },
+        ],
+        maxReferenceImagesPerRequest: 9,
+        imageDefaults: {
+          responseFormat: 'b64_json',
+          resolution: '2K',
+          imageCount: 1,
+        },
+        imageGenerationOptions: {
+          supportedImageResolutions: [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K' },
+          ],
+          imageDefaults: {
+            resolution: '2K',
+          },
+        },
+        imageEditOptions: {
+          supportedImageResolutions: [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K' },
+          ],
+          maxReferenceImagesPerRequest: 9,
+          imageDefaults: {
+            resolution: '2K',
+          },
+        },
+      },
+    },
+    {
+      matches: isNanoGptOpenAiAlignedGptImageModelId,
+      capabilities: {
+        ...NANO_GPT_OPENAI_ALIGNED_IMAGE_CAPABILITIES,
+      },
+    },
+    {
+      matches: isNanoGptOpenAiInputFidelityGptImageModelId,
+      capabilities: {
+        ...NANO_GPT_OPENAI_ALIGNED_IMAGE_CAPABILITIES,
+        supportedImageInputFidelities: [...NANO_GPT_OPENAI_IMAGE_INPUT_FIDELITIES],
+      },
+    },
+    {
+      matches: isNanoBananaBaseModelId,
+      capabilities: {
+        ...NANO_GPT_GOOGLE_NANO_BANANA_BASE_CAPABILITIES,
+        maxReferenceImagesPerRequest: 5,
+      },
+    },
+    {
+      matches: isNanoBanana2ModelId,
+      capabilities: {
+        ...NANO_GPT_GOOGLE_NANO_BANANA_2_CAPABILITIES,
+      },
+    },
+    {
+      matches: isNanoBananaProModelId,
+      capabilities: {
+        ...NANO_GPT_GOOGLE_NANO_BANANA_PRO_CAPABILITIES,
+      },
+    },
+    {
+      matches: isNanoBananaProEditUltraModelId,
+      capabilities: {
+        ...NANO_GPT_GOOGLE_NANO_BANANA_PRO_EDIT_ULTRA_CAPABILITIES,
+      },
+    },
+    {
+      matches: isSeedreamImageSetModelId,
+      capabilities: NANO_GPT_SEEDREAM_IMAGE_SET_CAPABILITY_OVERRIDE,
+    },
+    {
+      matches: isSeedream3TextToImageModelId,
+      capabilities: {
+        supportsImageGeneration: true,
+        supportsImageEditing: false,
+        supportedImageResponseFormats: [...NANO_GPT_DEFAULT_IMAGE_RESPONSE_FORMATS],
+        supportedImageResolutions: [{ value: '2K', label: '2K' }],
+        maxGeneratedImagesPerRequest: 1,
+        imageDefaults: {
+          responseFormat: 'b64_json',
+          resolution: '2K',
+          imageCount: 1,
+        },
+      },
+    },
+    {
+      matches: isSeedEdit3ModelId,
+      capabilities: {
+        supportsImageGeneration: false,
+        supportsImageEditing: true,
+        supportedImageResponseFormats: [...NANO_GPT_DEFAULT_IMAGE_RESPONSE_FORMATS],
+        maxGeneratedImagesPerRequest: 1,
+        maxReferenceImagesPerRequest: 1,
+        imageDefaults: {
+          responseFormat: 'b64_json',
+          imageCount: 1,
+        },
+      },
+    },
+  ];
+
+const NANO_GPT_BASE_KNOWN_MODEL_CAPABILITIES = {
+  supportsStreaming: false,
+  supportsImageGeneration: true,
+  supportsImageEditing: true,
+  supportedImageResponseFormats: [...NANO_GPT_DEFAULT_IMAGE_RESPONSE_FORMATS],
+  imageDefaults: {
+    responseFormat: 'b64_json',
+    imageCount: 1,
+  },
+} as const satisfies ImageModelCapabilities;
+
+export function buildNanoGptImageCatalog(input: {
+  subscriptionModels: NanoGptImageModelRecord[];
+  paidModels: NanoGptImageModelRecord[];
+  allModels?: NanoGptImageModelRecord[];
+}): CanonicalImageProviderCatalog {
+  const mergedModels = new Map<string, NanoGptImageModelRecord>();
+  const subscriptionModelIds = new Set<string>(
+    input.subscriptionModels.map((model) => model.id),
+  );
+  const paidModelIds = new Set<string>(input.paidModels.map((model) => model.id));
+
+  for (const model of input.allModels ?? []) {
+    mergedModels.set(model.id, model);
+  }
+
+  for (const model of input.subscriptionModels) {
+    mergedModels.set(model.id, model);
+  }
+
+  for (const model of input.paidModels) {
+    mergedModels.set(model.id, model);
+  }
+
+  const models = Array.from(mergedModels.values())
+    .filter((model) => model.category === 'image' || model.capabilities?.image_generation)
+    .map((model) =>
+      toImageModelDescriptor(
+        model,
+        paidModelIds.has(model.id) && !subscriptionModelIds.has(model.id),
+      ),
+    );
+
+  return {
+    providerId: 'nanogpt',
+    defaultModelId:
+      models.find((model) => !model.capabilities.requiresPaidAccess)?.id ??
+      models[0]?.id ??
+      null,
+    models,
+  };
+}
+
+export function resolveNanoGptKnownImageCapabilities(
+  modelId: string,
+): ImageModelCapabilities {
+  return applyCapabilityOverrides(modelId, {
+    ...NANO_GPT_BASE_KNOWN_MODEL_CAPABILITIES,
+    imageDefaults: {
+      ...NANO_GPT_BASE_KNOWN_MODEL_CAPABILITIES.imageDefaults,
+    },
+  });
+}
+
+function toImageModelDescriptor(
+  model: NanoGptImageModelRecord,
+  requiresPaidAccess: boolean,
+): ImageModelDescriptor {
+  const resolutions = model.supported_parameters?.resolutions ?? [];
+  const maxImages =
+    model.supported_parameters?.fixed_image_count ??
+    model.supported_parameters?.max_images;
+  const supportsEditing = Boolean(
+    model.capabilities?.image_to_image || model.capabilities?.inpainting,
+  );
+  const baseCapabilities: ImageModelCapabilities = {
+    supportsStreaming: false,
+    supportsImageGeneration: model.capabilities?.image_generation ?? true,
+    supportsImageEditing: supportsEditing,
+    requiresPaidAccess,
+    supportedImageResponseFormats: [...NANO_GPT_DEFAULT_IMAGE_RESPONSE_FORMATS],
+    supportedImageResolutions: resolutions.map((resolution) => ({
+      value: resolution,
+      label: resolution,
+    })),
+    ...(typeof maxImages === 'number'
+      ? { maxGeneratedImagesPerRequest: maxImages }
+      : {}),
+    ...(supportsEditing ? { maxReferenceImagesPerRequest: 1 } : {}),
+    imageDefaults: {
+      responseFormat: 'b64_json',
+      resolution: resolutions[0],
+      imageCount: model.supported_parameters?.fixed_image_count ?? 1,
+    },
+  };
+  const capabilities = applyCapabilityOverrides(model.id, baseCapabilities);
+
+  return {
+    id: model.id,
+    displayName: model.name ?? model.id,
+    lifecycleStatus: resolveLifecycleStatus(model),
+    capabilities,
+  };
+}
+
+function applyCapabilityOverrides(
+  modelId: string,
+  baseCapabilities: ImageModelCapabilities,
+): ImageModelCapabilities {
+  return NANO_GPT_IMAGE_MODEL_CAPABILITY_OVERRIDES.reduce(
+    (capabilities, override) =>
+      override.matches(modelId)
+        ? {
+            ...capabilities,
+            ...override.capabilities,
+          }
+        : capabilities,
+    baseCapabilities,
+  );
+}
+
+function isSeedreamImageSetModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'seedream-4-0-250828' ||
+    normalized === 'seedream-4-5-251128' ||
+    normalized === 'seedream-5-0-lite-260128' ||
+    normalized === 'seedream-4-0' ||
+    normalized === 'seedream-4-5' ||
+    normalized === 'seedream-5-0-lite' ||
+    normalized === 'seedream-5-lite'
+  );
+}
+
+function isSeedream3TextToImageModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'seedream-3-0-t2i-250415' ||
+    normalized === 'seedream-3-0-t2i' ||
+    normalized === 'seedream-3-0'
+  );
+}
+
+function isSeedEdit3ModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'seededit-3-0-i2i-250628' ||
+    normalized === 'seededit-3-0-i2i' ||
+    normalized === 'seededit-3-0'
+  );
+}
+
+function isWan27ImageProModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'wan-2-7-image-pro' ||
+    normalized === 'wan2-7-image-pro' ||
+    normalized === 'wan2-7-image-professional-edition'
+  );
+}
+
+function isWan27ImageModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return normalized === 'wan-2-7-image' || normalized === 'wan2-7-image';
+}
+
+function isQwenImageModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'qwen-image' ||
+    normalized === 'qwen-image-edit' ||
+    normalized === 'qwen-image-img2img'
+  );
+}
+
+function isNanoGptOpenAiAlignedGptImageModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'gpt-image-2' ||
+    normalized === 'gpt-image-1-5' ||
+    normalized === 'gpt-image-1-mini' ||
+    normalized === 'chatgpt-image-latest'
+  );
+}
+
+function isNanoGptOpenAiInputFidelityGptImageModelId(modelId: string) {
+  return normalizeNanoGptModelId(modelId) === 'gpt-image-1';
+}
+
+function isNanoBananaBaseModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'nano-banana' ||
+    normalized === 'nano-banana-edit' ||
+    normalized === 'gemini-flash-edit'
+  );
+}
+
+function isNanoBanana2ModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return normalized === 'nano-banana-2' || normalized === 'nano-banana-2-fast';
+}
+
+function isNanoBananaProModelId(modelId: string) {
+  const normalized = normalizeNanoGptModelId(modelId);
+
+  return (
+    normalized === 'nano-banana-pro' ||
+    normalized === 'nano-banana-pro-edit' ||
+    normalized === 'nano-banana-pro-ultra'
+  );
+}
+
+function isNanoBananaProEditUltraModelId(modelId: string) {
+  return normalizeNanoGptModelId(modelId) === 'nano-banana-pro-edit-ultra';
+}
+
+function normalizeNanoGptModelId(modelId: string) {
+  return modelId
+    .trim()
+    .toLowerCase()
+    .replace(/[_/\s.]+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function resolveLifecycleStatus(
+  model: NanoGptImageModelRecord,
+): ImageModelDescriptor['lifecycleStatus'] {
+  if (model.tags?.includes('preview')) {
+    return 'preview';
+  }
+
+  if (model.tags?.includes('deprecated')) {
+    return 'deprecated';
+  }
+
+  return 'active';
+}

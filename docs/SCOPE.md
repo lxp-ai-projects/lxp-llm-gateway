@@ -212,9 +212,13 @@ Provider abstraction seam:
 - adapter interfaces
 - normalized provider result types
 - shared provider execution contracts
+- capability-oriented contracts for chat, model catalog, image generation, and image editing
+- provider-owned model metadata for capability-specific constraints such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, input fidelity, compression ranges, and request limits
 - provider access configuration that can represent:
   - bearer-token providers such as `NanoGPT` and `OpenRouter`
   - endpoint-based providers such as `Ollama`
+
+The seam should evolve by adding new capability contracts, not by teaching `gateway-api` provider-specific image endpoints or payload formats.
 
 ### Provider Packages
 
@@ -234,6 +238,8 @@ Each package owns:
 - request and response mapping
 - streaming adaptation
 - provider-specific integration logic
+- provider-owned image model catalogs and defaults
+- provider-scoped transport clients and capability handlers for image workflows
 
 ## Critical Architecture Rule
 
@@ -263,11 +269,19 @@ This is the most important boundary to preserve from the start.
 - `ProviderCredentialPayload`
 - admin authentication payloads
 
-## Initial Provider Adapter Shape
+## Provider Adapter Shape
 
 ```ts
+export interface ProviderCapabilities {
+  chat: boolean;
+  modelCatalog: boolean;
+  imageGeneration: boolean;
+  imageEditing: boolean;
+}
+
 export interface LlmProviderAdapter {
   readonly providerId: string;
+  readonly capabilities: ProviderCapabilities;
 
   supportsStreaming(): boolean;
 
@@ -282,6 +296,16 @@ export interface LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<ReadableStream>;
+
+  generateImage?(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse>;
+
+  editImage?(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse>;
 }
 ```
 
@@ -298,8 +322,31 @@ The first version does not need to be perfect.
 It does need to:
 
 - isolate provider-specific logic
-- make a second provider possible later
+- make additional capabilities possible without reshaping `gateway-api` around a single provider
 - keep the gateway application clean
+
+The seam now includes image generation, image editing, and provider-owned image catalogs.
+
+The first concrete implementations are:
+
+- xAI Grok Imagine through `provider-xai`
+- Google Nano Banana through `provider-google`
+- OpenAI GPT Image through `provider-openai`
+
+That capability now supports:
+
+- prompt-based image generation
+- prompt-based image editing
+- reference images supplied as URLs or data URLs
+- provider-defined image model metadata such as supported aspect ratios, response formats, resolutions, output formats, backgrounds, quality presets, input fidelity, compression ranges, and request limits
+- future extension to additional providers without redefining the seam again
+
+Current provider reality is capability-specific:
+
+- `xAI Grok` image models support generation and editing
+- `Google Gemini` image models support generation and editing
+- `OpenAI GPT Image` supports generation and editing in the gateway through the shared seam
+- `OpenRouter` supports image generation and image editing through the shared seam, with provider-owned catalog metadata and capability reuse for known model families
 
 ## Persistence Strategy
 
@@ -343,3 +390,17 @@ Phase 1 now ends with:
 - CI enforcement for typecheck, build, and test
 
 Phase 2 should build on this state rather than re-open foundational architecture decisions.
+
+The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection, output format, transparency/background handling, input fidelity, and compression controls.
+
+The current implementation now also includes:
+
+- a canonical image provider catalog contract returned by `gateway-api`
+- gateway-managed image asset upload for mobile-safe reference workflows
+- persisted image job history with pagination at 10 jobs per page
+- save and reuse flows for generated images through gateway-managed assets
+- a consistent provider-internal image pattern across NanoGPT, OpenAI, xAI, Google, and OpenRouter: catalog, model policy, transport client, request mapper, response mapper, and generation/edit services where implemented
+- OpenRouter image generation and image editing behind the same seam, using OpenRouter chat completions plus image-specific catalog and request mapping inside `provider-openrouter`
+- provider-specific image work remaining behind `packages/provider-sdk`, not in `gateway-api`
+
+That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.

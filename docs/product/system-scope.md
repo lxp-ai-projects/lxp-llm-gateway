@@ -2,7 +2,7 @@
 
 ## Goal
 
-`lxp-llm-gateway` is a platform foundation for routing LLM traffic through a consistent gateway while keeping provider integrations isolated behind a stable adapter seam.
+`lxp-llm-gateway` is a BYOK (bring your own key) platform foundation for routing LLM traffic through a consistent gateway while keeping provider integrations isolated behind a stable adapter seam.
 
 ## In Scope
 
@@ -16,6 +16,7 @@
 - local development infrastructure
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
+- Phase 2 provider-seam expansion for image generation, image editing, and provider-owned image catalogs
 
 ## Out of Scope for Phase 1
 
@@ -43,9 +44,15 @@ The repository now contains:
 - `admin-api` as the control-plane backend for auth, users, roles, provider credentials, runtime config, and conversation transfer support
 - `gateway-api` as the data-plane backend for model listing, non-stream chat, and SSE chat streaming through the provider seam
 - `admin-web` as a role-aware SPA with public auth surfaces, user self-service, admin management, and a local chat test surface
-- Postgres-backed durable control-plane persistence
-- Redis-backed auth and operational state where ephemeral behavior is appropriate
-- one concrete provider integration, `NanoGPT`, implemented behind `packages/provider-sdk`
+- Postgres-backed durable control-plane persistence with encrypted provider credential storage
+- Redis-backed auth revocation and other operational state where ephemeral behavior is appropriate
+- BYOK provider access through user-managed provider credentials
+- provider model discovery through provider adapters, including capability-specific model metadata
+- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
+- frontend feature modules under `src/features/*`
+- CI quality gates for typecheck, test, and build
+- an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
+- operator-configurable gateway defaults for both chat and image generation/editing, with separate provider/model pairs
 
 ## Phase 2 Starting Assumptions
 
@@ -55,5 +62,25 @@ Phase 2 should assume:
 - cookie-only browser auth is the expected SPA posture
 - the SPA codebase is already organized by feature and can continue to evolve incrementally
 - CI quality gates already cover typecheck, test, and build
+- new provider capabilities should extend `packages/provider-sdk`, not bypass it
+- image history, save state, and gateway-managed reference assets belong in the application layer, not in provider packages
+- image-provider packages should stay thin at the adapter boundary and split image concerns into provider catalog, model policy, transport client, request mapper, response mapper, and generation/edit services
+
+The next planned capability expansion is:
+
+- broader provider coverage for image generation and image editing behind the existing provider seam
+- broader provider coverage for provider-owned image catalogs behind the existing provider seam
+- provider-owned capability metadata such as supported aspect ratios, response formats, resolutions, output formats, background modes, quality presets, input fidelity, compression ranges, and request limits flowing from model catalogs to the UI
+- future providers beyond the current NanoGPT, xAI, Google, OpenAI, and OpenRouter image implementations behind the same seam
+- reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
+- paginated image job history and reusable saved/generated assets for operators
+
+Current image-provider posture is:
+
+- `NanoGPT` image models are exposed for generation and editing, with provider-owned capability metadata and paid-model distinctions flowing through the catalog
+- `xAI Grok` image models are exposed for generation and editing
+- `Google Gemini` image models are exposed for generation and editing
+- `OpenAI GPT Image` is exposed for generation and editing through the same seam, with provider-owned capability metadata controlling the UI affordances
+- `OpenRouter` is exposed for image generation and image editing through the same seam, with reused capability metadata where the underlying model family already exists in another provider package
 
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.

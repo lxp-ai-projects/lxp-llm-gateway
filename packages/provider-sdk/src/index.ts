@@ -1,5 +1,16 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
-import type { ProviderId } from '@lxp/domain';
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+  GatewayImageGenerationResponse,
+} from '@lxp/contracts';
+import type {
+  ImageProviderCatalog,
+  ModelCapability,
+  ProviderCapabilities,
+  ProviderId,
+} from '@lxp/domain';
 
 export interface ProviderAccessConfig {
   baseUrl?: string;
@@ -16,14 +27,28 @@ export interface ProviderExecutionContext {
 export interface ProviderModel {
   id: string;
   displayName: string;
+  capabilities?: Partial<ModelCapability>;
+}
+
+export interface ProviderModelDescriptor extends ProviderModel {
+  capabilities: Partial<ModelCapability>;
+}
+
+export interface ProviderCatalog extends ImageProviderCatalog {
+  models: ProviderModelDescriptor[];
 }
 
 export interface LlmProviderAdapter {
   readonly providerId: ProviderId;
+  readonly capabilities: ProviderCapabilities;
 
   supportsStreaming(): boolean;
 
   listModels?(context: ProviderExecutionContext): Promise<ProviderModel[]>;
+
+  listImageCatalog?(
+    context: ProviderExecutionContext,
+  ): Promise<ImageProviderCatalog>;
 
   chat(
     request: GatewayChatRequest,
@@ -34,4 +59,43 @@ export interface LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<ReadableStream<Uint8Array>>;
+
+  generateImage?(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse>;
+
+  editImage?(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayImageGenerationResponse>;
 }
+
+export {
+  fetchPublicImageReferenceAsDataUrl,
+  parseDataUrlReference,
+  resolveGatewayImageReference,
+  validatePublicHttpsImageUrl,
+} from './image-reference-utils.js';
+export type {
+  CanonicalImageAssetReference,
+  CanonicalImageEditRequest,
+  CanonicalImageGenerateRequest,
+  CanonicalImageProviderCatalog,
+  CanonicalImageResult,
+  ImageModelCapabilities,
+  ImageModelDescriptor,
+  ImageModelLifecycleStatus,
+} from './image-contracts.js';
+export {
+  buildProviderHttpError,
+  buildProviderImageHttpError,
+  formatGoogleGeminiRateLimitError,
+  formatGoogleGeminiTemporaryUnavailableError,
+  formatOpenAiRateLimitError,
+  formatXAiImageClientError,
+} from './provider-error-utils.js';
+export type {
+  PublicImageReferencePolicy,
+  ResolvedGatewayImageReference,
+} from './image-reference-utils.js';

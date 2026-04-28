@@ -1,20 +1,54 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+} from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
 
+import {
+  buildOpenAiImageCatalog,
+  buildOpenAiModelCatalog,
+} from './image/catalog.js';
+import { OpenAiImageApiClient } from './image/api-client.js';
+import { OpenAiImageEditService } from './image/edit-service.js';
+import { OpenAiImageGenerationService } from './image/generation-service.js';
+
 export class OpenAiProviderAdapter implements LlmProviderAdapter {
+  readonly capabilities = {
+    chat: true,
+    modelCatalog: true,
+    imageGeneration: true,
+    imageEditing: true,
+  } as const;
+
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
+  private readonly imageApiClient: OpenAiImageApiClient;
+  private readonly imageGenerationService: OpenAiImageGenerationService;
+  private readonly imageEditService: OpenAiImageEditService;
 
   constructor(
     baseUrl = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
     requestTimeoutMs = Number(process.env.OPENAI_REQUEST_TIMEOUT_MS ?? '90000'),
+    imageRequestTimeoutMs = Number(
+      process.env.OPENAI_IMAGE_REQUEST_TIMEOUT_MS ?? '300000',
+    ),
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
+    this.imageApiClient = new OpenAiImageApiClient(
+      this.baseUrl,
+      imageRequestTimeoutMs,
+    );
+    this.imageGenerationService = new OpenAiImageGenerationService(
+      this.imageApiClient,
+    );
+    this.imageEditService = new OpenAiImageEditService(this.imageApiClient);
   }
 
   readonly providerId = 'openai' as LlmProviderAdapter['providerId'];
@@ -26,27 +60,13 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.resolveBaseUrl(context)}/models`, {
-      headers: this.resolveHeaders(context),
-    });
+    const listedModelIds = await this.imageApiClient.listModelIds(context);
+    return buildOpenAiModelCatalog(listedModelIds);
+  }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `OpenAI model listing failed with status ${response.status}: ${errorText}`,
-      );
-    }
-
-    const payload = (await response.json()) as {
-      data?: Array<{
-        id: string;
-      }>;
-    };
-
-    return (payload.data ?? []).map((model) => ({
-      id: model.id,
-      displayName: model.id,
-    }));
+  async listImageCatalog(context: ProviderExecutionContext) {
+    void context;
+    return buildOpenAiImageCatalog(buildOpenAiModelCatalog([]));
   }
 
   async chat(
@@ -123,6 +143,20 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     }
 
     return response.body;
+  }
+
+  async generateImage(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.imageGenerationService.execute(request, context);
+  }
+
+  async editImage(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.imageEditService.execute(request, context);
   }
 
   private dispatchChatRequest(

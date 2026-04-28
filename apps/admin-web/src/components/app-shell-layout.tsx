@@ -21,11 +21,12 @@ import {
   IconKey,
   IconLogout,
   IconMessageCircleCog,
+  IconPhoto,
   IconShield,
   IconUserCircle,
   IconUsers,
 } from '@tabler/icons-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   NavLink as RouterNavLink,
   Outlet,
@@ -33,7 +34,7 @@ import {
   useNavigate,
 } from 'react-router-dom';
 
-import { adminApiClient } from '../lib/api-client';
+import { adminApiClient, gatewayApiClient } from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 import { useSession } from '../lib/use-session';
 import { InstallAppButton } from './install-app-button';
@@ -50,6 +51,7 @@ const navigationItems: NavigationItem[] = [
   { label: 'Provider Tokens', to: '/app/providers', icon: IconKey },
   { label: 'Profile', to: '/app/profile', icon: IconUserCircle },
   { label: 'Chat Lab', to: '/app/chat', icon: IconMessageCircleCog },
+  { label: 'Image Lab', to: '/app/images', icon: IconPhoto },
   { label: 'Users', to: '/app/admin/users', icon: IconUsers, adminOnly: true },
   {
     label: 'Analytics',
@@ -72,6 +74,12 @@ export function AppShellLayout() {
   const queryClient = useQueryClient();
   const sessionQuery = useSession();
   const runtimeConfigQuery = useRuntimeConfig();
+  const gatewayHealthQuery = useQuery({
+    queryKey: ['gateway-api-health', 'shell'],
+    queryFn: () => gatewayApiClient.getHealth(),
+    retry: false,
+    refetchInterval: 30000,
+  });
   const logoutMutation = useMutation({
     mutationFn: () => adminApiClient.logout(),
     onSettled: async () => {
@@ -82,6 +90,7 @@ export function AppShellLayout() {
 
   const currentUser = sessionQuery.data;
   const isAdmin = currentUser?.roles.includes('admin') ?? false;
+  const gatewayOnline = gatewayHealthQuery.data?.status === 'ok';
   const availableItems = navigationItems.filter(
     (item) => !item.adminOnly || isAdmin,
   );
@@ -146,12 +155,10 @@ export function AppShellLayout() {
           <Group className="shell-actions" gap="sm" wrap="nowrap">
             <InstallAppButton />
             <Badge
-              color={runtimeConfigQuery.data?.gatewayOnline ? 'moss' : 'red'}
+              color={gatewayOnline ? 'moss' : 'red'}
               variant="light"
             >
-              {runtimeConfigQuery.data?.gatewayOnline
-                ? 'Gateway online'
-                : 'Gateway offline'}
+              {gatewayOnline ? 'Gateway online' : 'Gateway offline'}
             </Badge>
             <Badge
               color={isAdmin ? 'ink' : 'teal'}

@@ -1,13 +1,34 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import * as dns from 'node:dns/promises';
+
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+} from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
+import { buildXAiImageCatalog, buildXAiModelCatalog } from './image/catalog.js';
+import { XAiImageApiClient } from './image/api-client.js';
+import { XAiImageEditService } from './image/edit-service.js';
+import { XAiImageGenerationService } from './image/generation-service.js';
 
 export class XaiProviderAdapter implements LlmProviderAdapter {
+  readonly capabilities = {
+    chat: true,
+    modelCatalog: true,
+    imageGeneration: true,
+    imageEditing: true,
+  } as const;
+
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
+  private readonly imageApiClient: XAiImageApiClient;
+  private readonly imageGenerationService: XAiImageGenerationService;
+  private readonly imageEditService: XAiImageEditService;
 
   constructor(
     baseUrl = process.env.XAI_BASE_URL ?? 'https://api.x.ai/v1',
@@ -15,6 +36,17 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
+    this.imageApiClient = new XAiImageApiClient(
+      this.baseUrl,
+      this.requestTimeoutMs,
+    );
+    this.imageGenerationService = new XAiImageGenerationService(
+      this.imageApiClient,
+    );
+    this.imageEditService = new XAiImageEditService(
+      this.imageApiClient,
+      (hostname) => this.lookupHostname(hostname),
+    );
   }
 
   readonly providerId: LlmProviderAdapter['providerId'] = 'xai';
@@ -26,27 +58,12 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.resolveBaseUrl(context)}/models`, {
-      headers: this.resolveHeaders(context),
-    });
+    return buildXAiModelCatalog(await this.imageApiClient.listModelIds(context));
+  }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `xAI model listing failed with status ${response.status}: ${errorText}`,
-      );
-    }
-
-    const payload = (await response.json()) as {
-      data?: Array<{
-        id: string;
-      }>;
-    };
-
-    return (payload.data ?? []).map((model) => ({
-      id: model.id,
-      displayName: model.id,
-    }));
+  async listImageCatalog(context: ProviderExecutionContext) {
+    void context;
+    return buildXAiImageCatalog(buildXAiModelCatalog([]));
   }
 
   async chat(
@@ -119,6 +136,20 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     return response.body;
   }
 
+  async generateImage(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.imageGenerationService.execute(request, context);
+  }
+
+  async editImage(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.imageEditService.execute(request, context);
+  }
+
   private dispatchChatRequest(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -189,5 +220,9 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  protected lookupHostname(hostname: string) {
+    return dns.lookup(hostname, { all: true });
   }
 }

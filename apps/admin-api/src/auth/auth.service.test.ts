@@ -65,6 +65,8 @@ async function buildAuthService() {
     status: 'active',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     roles: [],
@@ -123,13 +125,15 @@ async function buildAuthServiceWithUser(
     passwordHash,
     displayName: 'Laurie',
     status: 'active',
-    defaultProviderId: null,
-    defaultModel: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     roles: [],
     providerCredentials: [],
     ...overrides,
+    defaultProviderId: overrides.defaultProviderId ?? null,
+    defaultModel: overrides.defaultModel ?? null,
+    defaultImageProviderId: overrides.defaultImageProviderId ?? null,
+    defaultImageModel: overrides.defaultImageModel ?? null,
   };
   const userRepository = {
     findOne: async ({ where }: { where: Partial<UserEntity> }) =>

@@ -32,4 +32,20 @@ export class UserEntity {
     nullable: true,
   })
   defaultModel!: string | null;
+
+  @Column({
+    name: 'default_image_provider_id',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  defaultImageProviderId!: ProviderId | null;
+
+  @Column({
+    name: 'default_image_model',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  defaultImageModel!: string | null;
 }

@@ -20,7 +20,7 @@ export function getProviderCatalogPricingNote(providerId: string | null) {
     }
 
     if (providerId === 'openai') {
-      return 'OpenAI support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your OpenAI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
+      return 'OpenAI support is certified. Usage is billed through your OpenAI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
     }
 
     if (providerId === 'groq') {
@@ -28,7 +28,7 @@ export function getProviderCatalogPricingNote(providerId: string | null) {
     }
 
     if (providerId === 'xai') {
-      return 'xAI Grok support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your xAI account. Protect the API key, do not share it, and verify costs before sending prompts. LXP is not responsible for authorized or unauthorized charges made with that key.';
+      return 'xAI Grok support is certified. Usage is billed through your xAI account. Protect the API key, do not share it, and verify costs before sending prompts. LXP is not responsible for authorized or unauthorized charges made with that key.';
     }
 
     return null;
@@ -92,6 +92,20 @@ export function buildDefaultProviderOptions(
       value: provider.providerId,
       label: provider.displayName,
     }));
+}
+
+export function buildDefaultImageProviderOptions(
+  credentials: ProviderCredentialSummary[],
+  supportedProviders: Array<{ providerId: string; displayName: string }>,
+  imageCatalogProviders: Array<{ providerId: string }>,
+) {
+  const imageProviderIds = new Set(
+    imageCatalogProviders.map((provider) => provider.providerId),
+  );
+
+  return buildDefaultProviderOptions(credentials, supportedProviders).filter((provider) =>
+    imageProviderIds.has(provider.value),
+  );
 }
 
 export function buildDefaultModelOptions(

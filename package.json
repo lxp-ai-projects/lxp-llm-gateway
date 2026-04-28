@@ -11,7 +11,9 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "db:migration": "pnpm --filter @lxp/admin-api migration:run"
+    "db:migration": "turbo run migration:run --filter=@lxp/admin-api --filter=@lxp/gateway-api",
+    "db:migration:admin": "pnpm --filter @lxp/admin-api migration:run",
+    "db:migration:gateway": "pnpm --filter @lxp/gateway-api migration:run"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

@@ -21,4 +21,13 @@ export class UpdateProviderSettingsDto {
   @IsString()
   @MinLength(1)
   defaultModel?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsIn(SUPPORTED_PROVIDER_IDS)
+  defaultImageProviderId?: ProviderId | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsString()
+  @MinLength(1)
+  defaultImageModel?: string | null;
 }

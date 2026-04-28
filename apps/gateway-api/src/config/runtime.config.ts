@@ -1,5 +1,9 @@
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import type { DataSourceOptions } from 'typeorm';
 
+import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
+import { ImageJobEntity } from '../persistence/entities/image-job.entity';
+import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
 import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
@@ -50,7 +54,7 @@ export function validateRuntimeConfig(
   return env;
 }
 
-export function buildTypeOrmOptions(): TypeOrmModuleOptions {
+function getBaseDataSourceOptions(): DataSourceOptions {
   return {
     type: 'postgres',
     host: process.env.DATABASE_HOST,
@@ -61,8 +65,28 @@ export function buildTypeOrmOptions(): TypeOrmModuleOptions {
     ssl: getBoolean('DATABASE_SSL', false)
       ? { rejectUnauthorized: false }
       : false,
-    entities: [UserEntity, ProviderEntity, UserProviderCredentialEntity],
+    entities: [
+      UserEntity,
+      ProviderEntity,
+      UserProviderCredentialEntity,
+      ImageAssetEntity,
+      ImageJobEntity,
+      ImageJobResultEntity,
+    ],
     synchronize: false,
+  };
+}
+
+export function buildTypeOrmOptions(): TypeOrmModuleOptions {
+  return {
+    ...getBaseDataSourceOptions(),
     autoLoadEntities: false,
+  };
+}
+
+export function buildDataSourceOptions(): DataSourceOptions {
+  return {
+    ...getBaseDataSourceOptions(),
+    migrations: ['src/persistence/migrations/*.ts'],
   };
 }

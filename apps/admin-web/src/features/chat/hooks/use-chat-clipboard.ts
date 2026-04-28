@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { copyText } from '../../../lib/copy-text';
+
 export function useChatClipboard(setChatError: (value: string | null) => void) {
   const [copiedAssistantMessageId, setCopiedAssistantMessageId] = useState<
     string | null
@@ -19,7 +21,7 @@ export function useChatClipboard(setChatError: (value: string | null) => void) {
     content: string,
   ): Promise<void> {
     try {
-      await navigator.clipboard.writeText(content);
+      await copyText(content);
       setCopiedAssistantMessageId(messageId);
 
       if (copiedMessageTimeoutRef.current !== null) {
