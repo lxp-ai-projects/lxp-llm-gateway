@@ -16,7 +16,7 @@
 - local development infrastructure
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
-- Phase 2 provider-seam expansion for image generation capabilities
+- Phase 2 provider-seam expansion for image generation, image editing, and provider-owned image catalogs
 
 ## Out of Scope for Phase 1
 
@@ -68,8 +68,9 @@ Phase 2 should assume:
 The next planned capability expansion is:
 
 - broader provider coverage for image generation and image editing behind the existing provider seam
+- broader provider coverage for provider-owned image catalogs behind the existing provider seam
 - provider-owned capability metadata such as supported aspect ratios, response formats, resolutions, output formats, background modes, quality presets, input fidelity, compression ranges, and request limits flowing from model catalogs to the UI
-- future providers beyond the current xAI, Google, and OpenAI image implementations behind the same seam
+- future providers beyond the current NanoGPT, xAI, Google, OpenAI, and OpenRouter image implementations behind the same seam
 - reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
 - paginated image job history and reusable saved/generated assets for operators
 

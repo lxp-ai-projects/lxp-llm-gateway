@@ -105,6 +105,38 @@ const {
         ],
       },
       {
+        providerId: 'google',
+        displayName: 'Google Gemini',
+        defaultModelId: 'gemini-3.1-flash-image-preview',
+        models: [
+          {
+            id: 'gemini-3.1-flash-image-preview',
+            displayName: 'Nano Banana 2',
+            capabilities: {
+              supportsImageGeneration: true,
+              supportsImageEditing: true,
+              supportedImageResponseFormats: ['b64_json'],
+              supportedImageAspectRatios: [
+                { value: '1:1', label: '1:1' },
+                { value: '2:3', label: '2:3' },
+              ],
+              supportedImageResolutions: [
+                { value: '512', label: '512' },
+                { value: '1K', label: '1K' },
+                { value: '2K', label: '2K' },
+              ],
+              maxReferenceImagesPerRequest: 14,
+              imageDefaults: {
+                responseFormat: 'b64_json',
+                aspectRatio: '1:1',
+                resolution: '512',
+                imageCount: 1,
+              },
+            },
+          },
+        ],
+      },
+      {
         providerId: 'openrouter',
         displayName: 'OpenRouter',
         defaultModelId: 'openai/gpt-5-image',
@@ -298,7 +330,14 @@ const {
         model: 'grok-imagine-image',
         prompt: `History prompt ${page}`,
         mode: 'generation',
+        startedAt: '2026-04-21T11:59:52.000Z',
+        completedAt: '2026-04-21T12:00:00.000Z',
         createdAt: '2026-04-21T12:00:00.000Z',
+        durationMs: 8000,
+        providerMetadata: {
+          finishReason: 'stop',
+          upstreamRequestId: 'provider-history-1',
+        },
         images: [
           {
             id: `asset-history-${page}`,
@@ -308,6 +347,9 @@ const {
             sourceType: 'generated',
             saved: false,
             createdAt: '2026-04-21T12:00:00.000Z',
+            providerMetadata: {
+              seed: 1234,
+            },
           },
         ],
       },
@@ -512,6 +554,105 @@ test('ImageGenerationPage shows animated loading placeholders while generation i
         assetId: 'asset-result-async-1',
         contentUrl: '/api/v1/images/assets/asset-result-async-1/content',
         url: 'https://cdn.example.com/generated-async.jpg',
+        saved: false,
+      },
+    ],
+  });
+
+  expect(await screen.findByTestId('image-result-0')).toBeInTheDocument();
+});
+
+test('ImageGenerationPage shows elapsed and estimated render timing while generation is in progress', async () => {
+  const user = userEvent.setup();
+  let resolveGeneration: ((value: Awaited<ReturnType<typeof generateImageMock>>) => void) | null =
+    null;
+  generateImageMock.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveGeneration = resolve;
+      }),
+  );
+
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="xai"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="xai"]') as Element);
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'A retro-futurist skyline at sunrise' },
+  });
+  await user.click(screen.getByTestId('image-submit'));
+
+  expect(await screen.findByTestId('image-loading-elapsed-0')).toHaveTextContent('00:00:00');
+  expect(screen.getByTestId('image-loading-estimated-0')).toHaveTextContent('00:00:08');
+  expect(screen.getByText(/Estimate based on 1 previous run/)).toBeInTheDocument();
+  expect(screen.getByTestId('image-loading-progress-0')).toBeInTheDocument();
+
+  resolveGeneration?.({
+    requestId: 'request-generate-async-2',
+    jobId: 'job-generate-async-2',
+    providerId: 'xai',
+    model: 'grok-imagine-image',
+    images: [
+      {
+        assetId: 'asset-result-async-2',
+        contentUrl: '/api/v1/images/assets/asset-result-async-2/content',
+        url: 'https://cdn.example.com/generated-async-2.jpg',
+        saved: false,
+      },
+    ],
+  });
+
+  expect(await screen.findByTestId('image-result-0')).toBeInTheDocument();
+});
+
+test('ImageGenerationPage keeps the loading card aligned to the selected aspect ratio', async () => {
+  const user = userEvent.setup();
+  let resolveGeneration: ((value: Awaited<ReturnType<typeof generateImageMock>>) => void) | null =
+    null;
+  generateImageMock.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveGeneration = resolve;
+      }),
+  );
+
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="google"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="google"]') as Element);
+
+  fireEvent.click(screen.getByTestId('image-aspect-ratio-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="2:3"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="2:3"]') as Element);
+
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'A cinematic portrait' },
+  });
+  await user.click(screen.getByTestId('image-submit'));
+
+  const loadingCard = await screen.findByTestId('image-loading-0');
+  expect(loadingCard.style.getPropertyValue('--image-result-aspect-ratio')).toBe('2 / 3');
+
+  resolveGeneration?.({
+    requestId: 'request-generate-google-1',
+    jobId: 'job-generate-google-1',
+    providerId: 'google',
+    model: 'gemini-3.1-flash-image-preview',
+    images: [
+      {
+        assetId: 'asset-result-google-1',
+        contentUrl: '/api/v1/images/assets/asset-result-google-1/content',
         saved: false,
       },
     ],
@@ -807,6 +948,20 @@ test('ImageGenerationPage copies the expanded history prompt to the clipboard', 
     expect(writeClipboardTextMock).toHaveBeenCalledWith('History prompt 1'),
   );
   expect(screen.getByRole('button', { name: 'Copied prompt' })).toBeInTheDocument();
+});
+
+test('ImageGenerationPage shows provider metadata in history details when present', async () => {
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  const [historySummary] = await screen.findAllByText('History prompt 1');
+  const historyControl = historySummary.closest('button');
+  expect(historyControl).not.toBeNull();
+  fireEvent.click(historyControl as HTMLElement);
+
+  expect(await screen.findByText('Job metadata')).toBeInTheDocument();
+  expect(screen.getByText(/provider-history-1/)).toBeInTheDocument();
+  expect(screen.getByText(/"seed": 1234/)).toBeInTheDocument();
 });
 
 test('ImageGenerationPage falls back to DOM copy when the Clipboard API is unavailable on mobile', async () => {

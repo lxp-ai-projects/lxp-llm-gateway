@@ -26,7 +26,7 @@ The seam is evolving from a chat-only adapter into a capability-oriented provide
 - model listing
 - streaming passthrough
 - normalized non-stream response delivery
-- future capability-specific execution such as image generation and image editing through the same provider seam
+- capability-specific execution such as image generation and image editing through the same provider seam
 
 It must not import provider-specific implementation details directly.
 
@@ -65,6 +65,7 @@ The seam should expose explicit surfaces for:
 
 - chat completion
 - model catalog listing
+- image provider catalog listing
 - image generation
 - image editing with reference images
 
@@ -168,7 +169,7 @@ This allows:
 
 ## Provider Capability Expansion
 
-The seam now supports image generation and image editing through the shared adapter surface.
+The seam now supports image generation, image editing, and image-provider catalog listing through the shared adapter surface.
 
 That expansion should preserve the current boundary by extending `provider-sdk` with explicit capability contracts instead of adding provider-specific branching in `gateway-api`.
 
@@ -176,7 +177,7 @@ The architectural direction is:
 
 - keep chat and image workflows as separate capability methods
 - keep capability support explicit per adapter rather than inferred from provider id
-- allow model catalogs to remain provider-owned, capability-aware, and able to expose normalized capability metadata such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, fidelity controls, compression ranges, and request limits
+- allow model catalogs to remain provider-owned, capability-aware, and able to expose normalized capability metadata such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, fidelity controls, compression ranges, lifecycle state, and request limits
 - allow image requests to carry prompt text plus zero or more reference images
 - keep provider-specific payload mapping inside provider packages
 
@@ -210,7 +211,7 @@ At the moment, the gateway exposes OpenAI GPT Image as generation and editing th
 
 OpenRouter now supports image generation and image editing behind the same seam through `/api/v1/chat/completions`, with image-capable model discovery, provider-owned option mapping, reference-image message construction, and normalized image-response parsing inside `packages/provider-openrouter`.
 
-The seam itself should only know about normalized image-generation and image-editing requests and responses.
+The seam itself should only know about normalized image-generation and image-editing requests and responses, provider image catalogs, and shared image-reference utilities.
 
 The application layer now owns:
 
@@ -224,10 +225,11 @@ Provider adapters remain responsible only for:
 
 - provider communication
 - provider-owned model catalogs and defaults
+- provider-owned image catalogs and defaults
 - provider-specific validation and payload mapping
 - provider-specific response normalization
 
-The current image-provider implementation pattern is now explicit across `provider-openai`, `provider-xai`, and `provider-google`:
+The current image-provider implementation pattern is now explicit across `provider-openai`, `provider-xai`, `provider-google`, `provider-nanogpt`, and `provider-openrouter`:
 
 - a provider-owned image catalog/registry for model descriptors and defaults
 - a provider model-policy module for capability checks and request validation
@@ -250,7 +252,7 @@ The intent is:
 
 ## UI Direction
 
-The planned operator-facing surface for this capability is an `Image Generation Lab` in `admin-web`.
+The operator-facing surface for this capability is an `Image Generation Lab` in `admin-web`.
 
 That UI should remain behind the same backend boundaries already used for chat:
 

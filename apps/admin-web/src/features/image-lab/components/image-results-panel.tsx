@@ -1,4 +1,16 @@
-import { Alert, Badge, Button, Card, Group, Image, Stack, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Group,
+  Image,
+  Progress,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
+import type { CSSProperties } from 'react';
 
 import type { ReturnTypeUseImageLab } from '../use-image-lab.types';
 
@@ -7,6 +19,7 @@ export function ImageResultsPanel({
 }: {
   imageLab: ReturnTypeUseImageLab;
 }) {
+  const selectedAspectRatio = resolveCssAspectRatio(imageLab.aspectRatio);
   const loadingCards = Array.from(
     { length: imageLab.pendingResultCount },
     (_, index) => index,
@@ -31,6 +44,9 @@ export function ImageResultsPanel({
                 data-testid={`image-loading-${index}`}
                 padding="sm"
                 radius="lg"
+                style={{
+                  '--image-result-aspect-ratio': selectedAspectRatio,
+                } as CSSProperties}
                 withBorder
               >
                 <Stack gap="sm">
@@ -52,6 +68,42 @@ export function ImageResultsPanel({
                   <Text c="dimmed" size="sm">
                     The gateway is generating this image.
                   </Text>
+                  <Group gap="md" grow>
+                    <Stack gap={2}>
+                      <Text c="dimmed" size="xs" tt="uppercase">
+                        Elapsed
+                      </Text>
+                      <Text data-testid={`image-loading-elapsed-${index}`} fw={600} size="sm">
+                        {formatDuration(imageLab.currentRenderElapsedMs)}
+                      </Text>
+                    </Stack>
+                    <Stack gap={2}>
+                      <Text c="dimmed" size="xs" tt="uppercase">
+                        Estimated
+                      </Text>
+                      <Text data-testid={`image-loading-estimated-${index}`} fw={600} size="sm">
+                        {imageLab.estimatedRenderDurationMs
+                          ? formatDuration(imageLab.estimatedRenderDurationMs)
+                          : 'Calculating...'}
+                      </Text>
+                    </Stack>
+                  </Group>
+                  {imageLab.currentRenderProgressPercent !== null ? (
+                    <Stack gap={4}>
+                      <Progress
+                        aria-label={`Rendering progress ${index + 1}`}
+                        data-testid={`image-loading-progress-${index}`}
+                        radius="xl"
+                        size="md"
+                        value={imageLab.currentRenderProgressPercent}
+                      />
+                      <Text c="dimmed" size="xs">
+                        Estimate based on {imageLab.estimatedRenderSampleSize} previous{' '}
+                        {imageLab.estimatedRenderSampleSize === 1 ? 'run' : 'runs'} for this
+                        provider and model.
+                      </Text>
+                    </Stack>
+                  ) : null}
                 </Stack>
               </Card>
             ))}
@@ -72,11 +124,16 @@ export function ImageResultsPanel({
                   data-testid={`image-result-${index}`}
                   padding="sm"
                   radius="lg"
+                  style={{
+                    '--image-result-aspect-ratio': selectedAspectRatio,
+                  } as CSSProperties}
                   withBorder
                 >
                   <Stack gap="sm">
                     {src ? (
-                      <Image alt={`Generated result ${index + 1}`} radius="md" src={src} />
+                      <div className="image-result-preview">
+                        <Image alt={`Generated result ${index + 1}`} radius="md" src={src} />
+                      </div>
                     ) : (
                       <Alert color="yellow" title="No preview available">
                         The gateway returned an image entry without a displayable payload.
@@ -136,6 +193,30 @@ export function ImageResultsPanel({
       </Stack>
     </Card>
   );
+}
+
+function resolveCssAspectRatio(value: string | undefined) {
+  if (!value?.includes(':')) {
+    return '1 / 1';
+  }
+
+  const [width, height] = value.split(':').map((part) => Number(part.trim()));
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return '1 / 1';
+  }
+
+  return `${width} / ${height}`;
+}
+
+function formatDuration(durationMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, '0'))
+    .join(':');
 }
 
 function resolveImageResultSource(

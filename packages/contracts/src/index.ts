@@ -251,10 +251,15 @@ export interface GatewayImageHistoryItem {
   model: string;
   prompt: string;
   mode: 'generation' | 'edit';
+  startedAt?: string;
+  completedAt?: string;
   createdAt: string;
+  durationMs?: number;
+  providerMetadata?: Record<string, unknown>;
   images: Array<
     GatewayImageAssetSummary & {
       revisedPrompt?: string;
+      providerMetadata?: Record<string, unknown>;
     }
   >;
 }

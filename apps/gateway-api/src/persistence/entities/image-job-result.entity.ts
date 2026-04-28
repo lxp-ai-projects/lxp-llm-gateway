@@ -26,6 +26,9 @@ export class ImageJobResultEntity {
   @Column({ name: 'revised_prompt', type: 'text', nullable: true })
   revisedPrompt!: string | null;
 
+  @Column({ name: 'provider_metadata', type: 'jsonb', nullable: true })
+  providerMetadata!: Record<string, unknown> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

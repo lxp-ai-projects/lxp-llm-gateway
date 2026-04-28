@@ -325,7 +325,7 @@ It does need to:
 - make additional capabilities possible without reshaping `gateway-api` around a single provider
 - keep the gateway application clean
 
-The next planned capability is image generation.
+The seam now includes image generation, image editing, and provider-owned image catalogs.
 
 The first concrete implementations are:
 
@@ -345,7 +345,8 @@ Current provider reality is capability-specific:
 
 - `xAI Grok` image models support generation and editing
 - `Google Gemini` image models support generation and editing
-- `OpenAI GPT Image` is currently generation-only in the gateway because the live OpenAI `images/edits` endpoint still rejects GPT Image models and reports `dall-e-2` as the accepted edit model
+- `OpenAI GPT Image` supports generation and editing in the gateway through the shared seam
+- `OpenRouter` supports image generation and image editing through the shared seam, with provider-owned catalog metadata and capability reuse for known model families
 
 ## Persistence Strategy
 

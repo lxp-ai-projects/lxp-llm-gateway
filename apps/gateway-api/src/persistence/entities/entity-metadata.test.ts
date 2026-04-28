@@ -52,6 +52,8 @@ test('gateway persistence entities can be instantiated with expected fields', ()
   job.model = 'grok-imagine-image';
   job.prompt = 'A moonlit forest';
   job.mode = 'generation';
+  job.startedAt = new Date('2026-04-27T12:00:00.000Z');
+  job.completedAt = new Date('2026-04-27T12:00:12.000Z');
 
   const jobResult = new ImageJobResultEntity();
   jobResult.id = 'job-result-row-id';
@@ -67,5 +69,6 @@ test('gateway persistence entities can be instantiated with expected fields', ()
   assert.equal(credential.maskedHint, '***1234');
   assert.equal(asset.userId, user.id);
   assert.equal(job.userId, user.id);
+  assert.equal(job.startedAt?.toISOString(), '2026-04-27T12:00:00.000Z');
   assert.equal(jobResult.assetId, asset.id);
 });

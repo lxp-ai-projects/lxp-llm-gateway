@@ -32,6 +32,15 @@ export class ImageJobEntity {
   @Column({ type: 'varchar', length: 20 })
   mode!: 'generation' | 'edit';
 
+  @Column({ name: 'provider_metadata', type: 'jsonb', nullable: true })
+  providerMetadata!: Record<string, unknown> | null;
+
+  @Column({ name: 'started_at', type: 'timestamptz', nullable: true })
+  startedAt!: Date | null;
+
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

@@ -142,6 +142,7 @@ export class ImageApplicationService {
           authContext.emailHash,
           provider.providerId,
         );
+      const startedAt = new Date();
       const providerResponse = await provider.generateImage(
         { ...request, providerId, model },
         {
@@ -151,7 +152,13 @@ export class ImageApplicationService {
         },
       );
 
-      return this.persistImageJob(user.id, providerResponse, request.prompt, 'generation');
+      return this.persistImageJob(
+        user.id,
+        providerResponse,
+        request.prompt,
+        'generation',
+        startedAt,
+      );
     } catch (error) {
       throw new BadGatewayException(
         error instanceof Error ? error.message : 'Unknown gateway error.',
@@ -184,6 +191,7 @@ export class ImageApplicationService {
         request.images,
         user.id,
       );
+      const startedAt = new Date();
       const providerResponse = await provider.editImage(
         { ...request, providerId, model, images: resolvedImages },
         {
@@ -193,7 +201,7 @@ export class ImageApplicationService {
         },
       );
 
-      return this.persistImageJob(user.id, providerResponse, request.prompt, 'edit');
+      return this.persistImageJob(user.id, providerResponse, request.prompt, 'edit', startedAt);
     } catch (error) {
       throw new BadGatewayException(
         error instanceof Error ? error.message : 'Unknown gateway error.',
@@ -312,7 +320,11 @@ export class ImageApplicationService {
         model: job.model,
         prompt: job.prompt,
         mode: job.mode,
+        startedAt: job.startedAt?.toISOString(),
+        completedAt: job.completedAt?.toISOString(),
         createdAt: job.createdAt.toISOString(),
+        durationMs: this.computeJobDurationMs(job),
+        providerMetadata: job.providerMetadata ?? undefined,
         images: (resultsByJobId.get(job.id) ?? []).reduce<
           GatewayImageHistoryResponse['items'][number]['images']
         >((items, result) => {
@@ -324,6 +336,7 @@ export class ImageApplicationService {
             items.push({
               ...this.mapAssetSummary(asset),
               revisedPrompt: result.revisedPrompt ?? undefined,
+              providerMetadata: result.providerMetadata ?? undefined,
             });
             return items;
           }, []),
@@ -424,6 +437,7 @@ export class ImageApplicationService {
     providerResponse: GatewayImageGenerationResponse,
     prompt: string,
     mode: 'generation' | 'edit',
+    startedAt: Date,
   ): Promise<GatewayImageGenerationResponse> {
     const job = await this.imageJobRepository.save({
       userId,
@@ -432,6 +446,9 @@ export class ImageApplicationService {
       model: providerResponse.model,
       prompt,
       mode,
+      startedAt,
+      completedAt: null,
+      providerMetadata: providerResponse.providerMetadata ?? null,
     } as ImageJobEntity);
 
     const images: GatewayGeneratedImage[] = [];
@@ -442,6 +459,7 @@ export class ImageApplicationService {
         assetId: storedAsset.id,
         resultIndex: index,
         revisedPrompt: image.revisedPrompt ?? null,
+        providerMetadata: image.providerMetadata ?? null,
       } as ImageJobResultEntity);
       images.push({
         ...image,
@@ -451,6 +469,9 @@ export class ImageApplicationService {
         saved: storedAsset.isSaved,
       });
     }
+
+    job.completedAt = new Date();
+    await this.imageJobRepository.save(job);
 
     return {
       ...providerResponse,
@@ -589,6 +610,15 @@ export class ImageApplicationService {
 
   private buildDataUrl(dataBase64: string, mimeType?: string) {
     return `data:${mimeType ?? 'image/png'};base64,${dataBase64}`;
+  }
+
+  private computeJobDurationMs(job: Pick<ImageJobEntity, 'startedAt' | 'completedAt'>) {
+    if (!job.startedAt || !job.completedAt) {
+      return undefined;
+    }
+
+    const durationMs = job.completedAt.getTime() - job.startedAt.getTime();
+    return durationMs >= 0 ? durationMs : undefined;
   }
 
   private computeImageContentHash(dataBase64: string) {

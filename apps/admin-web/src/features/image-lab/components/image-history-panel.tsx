@@ -166,9 +166,30 @@ export function ImageHistoryPanel({
                                 <Text fw={600} size="sm">
                                   Provider response / metadata
                                 </Text>
-                                <Text c="dimmed" size="sm">
-                                  Not captured in the current history payload.
-                                </Text>
+                                {item.providerMetadata ||
+                                item.images.some((image) => image.providerMetadata) ? (
+                                  <Stack gap="xs">
+                                    {item.providerMetadata ? (
+                                      <MetadataCard
+                                        label="Job metadata"
+                                        value={item.providerMetadata}
+                                      />
+                                    ) : null}
+                                    {item.images.map((image) =>
+                                      image.providerMetadata ? (
+                                        <MetadataCard
+                                          key={`${image.id}-provider-metadata`}
+                                          label={image.label ?? image.id}
+                                          value={image.providerMetadata}
+                                        />
+                                      ) : null,
+                                    )}
+                                  </Stack>
+                                ) : (
+                                  <Text c="dimmed" size="sm">
+                                    Not captured in the current history payload.
+                                  </Text>
+                                )}
                               </Stack>
 
                               <Stack gap="xs">
@@ -280,5 +301,26 @@ export function ImageHistoryPanel({
         </Stack>
       </Card>
     </>
+  );
+}
+
+function MetadataCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: Record<string, unknown>;
+}) {
+  return (
+    <Card className="image-history-detail-card" withBorder>
+      <Stack gap={4}>
+        <Text fw={500} size="sm">
+          {label}
+        </Text>
+        <Text className="image-history-metadata" component="pre" size="xs">
+          {JSON.stringify(value, null, 2)}
+        </Text>
+      </Stack>
+    </Card>
   );
 }

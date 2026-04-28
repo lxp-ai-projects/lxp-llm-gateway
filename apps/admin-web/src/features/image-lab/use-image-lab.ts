@@ -38,6 +38,8 @@ export function useImageLab() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(DEFAULT_HISTORY_PAGE);
   const [showNanoGptPaidModels, setShowNanoGptPaidModels] = useState(false);
+  const [activeRenderStartedAt, setActiveRenderStartedAt] = useState<number | null>(null);
+  const [renderNowMs, setRenderNowMs] = useState(() => Date.now());
 
   const catalogQuery = useQuery({
     queryKey: ['image-catalog'],
@@ -125,6 +127,17 @@ export function useImageLab() {
   );
   const canEdit = supportsImageEditing && references.length > 0;
   const pendingResultCount = Math.max(1, Number.parseInt(imageCount, 10) || 1);
+  const renderStats = resolveRenderStats(
+    historyQuery.data?.items ?? [],
+    providerId,
+    modelId,
+  );
+  const currentRenderElapsedMs =
+    activeRenderStartedAt === null ? 0 : Math.max(0, renderNowMs - activeRenderStartedAt);
+  const currentRenderProgressPercent =
+    activeRenderStartedAt === null || !renderStats.estimatedDurationMs
+      ? null
+      : Math.min(99, Math.max(0, (currentRenderElapsedMs / renderStats.estimatedDurationMs) * 100));
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -160,6 +173,9 @@ export function useImageLab() {
 
       return gatewayApiClient.generateImage(payload);
     },
+    onMutate: () => {
+      setActiveRenderStartedAt(Date.now());
+    },
     onSuccess: (response) => {
       setRequestError(null);
       setResults(response.images);
@@ -171,7 +187,23 @@ export function useImageLab() {
         error instanceof Error ? error.message : 'The image request failed.',
       );
     },
+    onSettled: () => {
+      setActiveRenderStartedAt(null);
+    },
   });
+
+  useEffect(() => {
+    if (!generateMutation.isPending) {
+      return;
+    }
+
+    setRenderNowMs(Date.now());
+    const intervalId = window.setInterval(() => {
+      setRenderNowMs(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [generateMutation.isPending]);
 
   const uploadMutation = useMutation({
     mutationFn: (payload: { dataUrl: string; label?: string }) =>
@@ -374,6 +406,10 @@ export function useImageLab() {
     renameReferenceAsset,
     deleteReferenceAsset,
     mediaUrl,
+    currentRenderElapsedMs,
+    currentRenderProgressPercent,
+    estimatedRenderDurationMs: renderStats.estimatedDurationMs,
+    estimatedRenderSampleSize: renderStats.sampleSize,
   };
 }
 
@@ -572,5 +608,47 @@ function resolveImageModeCapabilities(
       ...(capabilities.imageDefaults ?? {}),
       ...(modeOptions.imageDefaults ?? {}),
     },
+  };
+}
+
+function resolveRenderStats(
+  historyItems: Array<{
+    providerId: string;
+    model: string;
+    durationMs?: number;
+  }>,
+  providerId: string,
+  modelId: string,
+) {
+  const durations = historyItems
+    .filter(
+      (item) =>
+        item.providerId === providerId &&
+        item.model === modelId &&
+        typeof item.durationMs === 'number' &&
+        item.durationMs > 0,
+    )
+    .map((item) => item.durationMs as number)
+    .slice(0, 5);
+
+  if (!durations.length) {
+    return {
+      estimatedDurationMs: null,
+      sampleSize: 0,
+    };
+  }
+
+  const sortedDurations = durations.slice().sort((left, right) => left - right);
+  const middleIndex = Math.floor(sortedDurations.length / 2);
+  const estimatedDurationMs =
+    sortedDurations.length % 2 === 1
+      ? sortedDurations[middleIndex]
+      : Math.round(
+          (sortedDurations[middleIndex - 1] + sortedDurations[middleIndex]) / 2,
+        );
+
+  return {
+    estimatedDurationMs,
+    sampleSize: durations.length,
   };
 }

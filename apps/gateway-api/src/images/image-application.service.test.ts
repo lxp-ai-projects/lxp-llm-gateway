@@ -279,6 +279,9 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
     model: 'grok-imagine-image',
     prompt: `Prompt ${index + 1}`,
     mode: 'generation',
+    startedAt: new Date(now.getTime() + index * 1000),
+    completedAt: new Date(now.getTime() + index * 1000 + 8000),
+    providerMetadata: { upstreamRequestId: `upstream-${index + 1}` },
     createdAt: new Date(now.getTime() + index * 1000),
   }));
   const assets = Array.from({ length: 12 }, (_, index) => ({
@@ -300,6 +303,7 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
     assetId: `asset-${index + 1}`,
     resultIndex: 0,
     revisedPrompt: null,
+    providerMetadata: { finishReason: 'stop', index },
     createdAt: now,
   }));
   const service = new ImageApplicationService(
@@ -338,6 +342,14 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
   assert.equal(page1.pageSize, 10);
   assert.equal(page1.totalPages, 2);
   assert.equal(page2.items.length, 2);
+  assert.equal(page1.items[0]?.durationMs, 8000);
+  assert.deepEqual(page1.items[0]?.providerMetadata, {
+    upstreamRequestId: 'upstream-12',
+  });
+  assert.deepEqual(page1.items[0]?.images[0]?.providerMetadata, {
+    finishReason: 'stop',
+    index: 11,
+  });
 });
 
 test('ImageApplicationService returns image catalog entries even when provider credentials are not yet configured', async () => {
