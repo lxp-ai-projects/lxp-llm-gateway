@@ -74,12 +74,14 @@ export function ImageRequestForm({
   const normalizedModelId = imageLab.selectedModel?.id.trim().toLowerCase() ?? '';
   const isOpenAiAlignedGptImageModel =
     normalizedModelId.startsWith('gpt') ||
+    normalizedModelId.startsWith('openai/gpt') ||
     normalizedModelId === 'chatgpt-image-latest';
-  const isOpenAiOrNanoGptProvider =
+  const isOpenAiAlignedProvider =
     imageLab.selectedProvider?.providerId === 'openai' ||
-    imageLab.selectedProvider?.providerId === 'nanogpt';
+    imageLab.selectedProvider?.providerId === 'nanogpt' ||
+    imageLab.selectedProvider?.providerId === 'openrouter';
   const showGptImageModerationControl =
-    isOpenAiOrNanoGptProvider &&
+    isOpenAiAlignedProvider &&
     isOpenAiAlignedGptImageModel &&
     moderations.length > 0;
   const showNanoGptOpenAiAlignedNotice =

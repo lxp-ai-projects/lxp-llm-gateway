@@ -142,6 +142,22 @@ test('OpenRouterProviderAdapter exposes an image catalog with reused provider op
               output_modalities: ['image'],
             },
           },
+          {
+            id: 'sourceful/riverflow-v2-max-preview',
+            name: 'Sourceful: Riverflow V2 Max Preview',
+            architecture: {
+              input_modalities: ['text', 'image'],
+              output_modalities: ['image'],
+            },
+          },
+          {
+            id: 'black-forest-labs/flux.2-flex',
+            name: 'Black Forest Labs: FLUX.2 Flex',
+            architecture: {
+              input_modalities: ['text', 'image'],
+              output_modalities: ['image'],
+            },
+          },
         ],
       }),
       {
@@ -173,14 +189,15 @@ test('OpenRouterProviderAdapter exposes an image catalog with reused provider op
     assert.equal(geminiModel?.capabilities.supportsImageGeneration, true);
     assert.equal(geminiModel?.capabilities.supportsImageEditing, true);
     assert.ok(
+      geminiModel?.capabilities.supportedImageResolutions?.some(
+        (option) => option.value === '512',
+      ),
+    );
+    assert.equal(
       geminiModel?.capabilities.supportedImageAspectRatios?.some(
         (option) => option.value === '1:8',
       ),
-    );
-    assert.ok(
-      geminiModel?.capabilities.supportedImageResolutions?.some(
-        (option) => option.value === '0.5K',
-      ),
+      false,
     );
 
     const openAiModel = catalog?.models.find(
@@ -220,6 +237,62 @@ test('OpenRouterProviderAdapter exposes an image catalog with reused provider op
       riverflowModel?.capabilities.supportedImageResolutions?.some(
         (option) => option.value === '2K',
       ),
+    );
+
+    const riverflowPreviewModel = catalog?.models.find(
+      (model) => model.id === 'sourceful/riverflow-v2-max-preview',
+    );
+    assert.ok(riverflowPreviewModel);
+    assert.equal(riverflowPreviewModel?.lifecycleStatus, 'preview');
+    assert.equal(riverflowPreviewModel?.capabilities.supportsImageEditing, true);
+    assert.ok(
+      riverflowPreviewModel?.capabilities.supportedImageResolutions?.some(
+        (option) => option.value === '4K',
+      ),
+    );
+
+    const fluxFlexModel = catalog?.models.find(
+      (model) => model.id === 'black-forest-labs/flux.2-flex',
+    );
+    assert.ok(fluxFlexModel);
+    assert.equal(fluxFlexModel?.capabilities.supportsImageEditing, true);
+    assert.ok(
+      fluxFlexModel?.capabilities.supportedImageResolutions?.some(
+        (option) => option.value === '4MP',
+      ),
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouterProviderAdapter falls back to the known image catalog when remote discovery fails', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async () =>
+    new Response('catalog unavailable', {
+      status: 401,
+      headers: {
+        'content-type': 'text/plain',
+      },
+    })) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    const catalog = await adapter.listImageCatalog?.({
+      requestId: 'req-image-catalog-fallback',
+      userId: 'user-1',
+      providerAccess: {},
+    });
+
+    assert.ok(catalog);
+    assert.equal(catalog?.providerId, 'openrouter');
+    assert.equal(catalog?.defaultModelId, 'google/gemini-2.5-flash-image');
+    assert.ok(
+      catalog?.models.some((model) => model.id === 'openai/gpt-5-image'),
+    );
+    assert.ok(
+      catalog?.models.some((model) => model.id === 'openrouter/auto'),
     );
   } finally {
     globalThis.fetch = originalFetch;

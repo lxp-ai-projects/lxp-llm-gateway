@@ -11,6 +11,7 @@ import type {
 } from '@lxp/provider-sdk';
 import {
   buildOpenRouterImageCatalog,
+  buildKnownOpenRouterImageCatalog,
   buildOpenRouterModelCatalog,
 } from './image/catalog.js';
 import { OpenRouterImageApiClient } from './image/api-client.js';
@@ -85,9 +86,13 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
-    return buildOpenRouterImageCatalog(
-      await this.imageApiClient.listImageModels(context),
-    );
+    try {
+      return buildOpenRouterImageCatalog(
+        await this.imageApiClient.listImageModels(context),
+      );
+    } catch {
+      return buildKnownOpenRouterImageCatalog();
+    }
   }
 
   async chat(

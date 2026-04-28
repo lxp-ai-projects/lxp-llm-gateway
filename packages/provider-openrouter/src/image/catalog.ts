@@ -21,13 +21,6 @@ const OPENROUTER_IMAGE_ASPECT_RATIOS = [
   { value: '16:9', label: '16:9', useCase: 'Widescreen and banners' },
   { value: '21:9', label: '21:9', useCase: 'Ultra-wide hero visuals' },
 ] as const;
-const OPENROUTER_EXTENDED_GEMINI_IMAGE_ASPECT_RATIOS = [
-  ...OPENROUTER_IMAGE_ASPECT_RATIOS,
-  { value: '1:4', label: '1:4', useCase: 'Tall, narrow layouts' },
-  { value: '4:1', label: '4:1', useCase: 'Hero banners' },
-  { value: '1:8', label: '1:8', useCase: 'Extra-tall layouts' },
-  { value: '8:1', label: '8:1', useCase: 'Panoramic banners' },
-] as const;
 const OPENROUTER_GEMINI_1K_ONLY_RESOLUTIONS = [{ value: '1K', label: '1K' }] as const;
 const OPENROUTER_GEMINI_PRO_RESOLUTIONS = [
   { value: '1K', label: '1K' },
@@ -35,7 +28,7 @@ const OPENROUTER_GEMINI_PRO_RESOLUTIONS = [
   { value: '4K', label: '4K' },
 ] as const;
 const OPENROUTER_GEMINI_FLASH_31_RESOLUTIONS = [
-  { value: '0.5K', label: '0.5K' },
+  { value: '512', label: '512' },
   { value: '1K', label: '1K' },
   { value: '2K', label: '2K' },
   { value: '4K', label: '4K' },
@@ -169,15 +162,13 @@ const OPENROUTER_KNOWN_IMAGE_MODELS = [
         supportsImageGeneration: true,
         supportsImageEditing: true,
         supportedImageResponseFormats: [...OPENROUTER_IMAGE_RESPONSE_FORMATS],
-        supportedImageAspectRatios: [
-          ...OPENROUTER_EXTENDED_GEMINI_IMAGE_ASPECT_RATIOS,
-        ],
+        supportedImageAspectRatios: [...OPENROUTER_IMAGE_ASPECT_RATIOS],
         supportedImageResolutions: [...OPENROUTER_GEMINI_FLASH_31_RESOLUTIONS],
         maxReferenceImagesPerRequest: 14,
         imageDefaults: {
           ...OPENROUTER_GENERIC_IMAGE_DEFAULTS,
           aspectRatio: '1:1',
-          resolution: '0.5K',
+          resolution: '512',
         },
       },
     },
@@ -373,10 +364,98 @@ const OPENROUTER_KNOWN_IMAGE_MODELS = [
     outputModalities: ['image'],
   },
   {
+    id: 'sourceful/riverflow-v2-max-preview',
+    descriptor: {
+      id: 'sourceful/riverflow-v2-max-preview',
+      displayName: 'Sourceful: Riverflow V2 Max Preview',
+      lifecycleStatus: 'preview',
+      capabilities: {
+        supportsStreaming: false,
+        supportsImageGeneration: true,
+        supportsImageEditing: true,
+        supportedImageResponseFormats: [...OPENROUTER_IMAGE_RESPONSE_FORMATS],
+        supportedImageAspectRatios: [...OPENROUTER_IMAGE_ASPECT_RATIOS],
+        supportedImageResolutions: [...OPENROUTER_SOURCEFUL_PRO_RESOLUTIONS],
+        imageDefaults: {
+          ...OPENROUTER_GENERIC_IMAGE_DEFAULTS,
+          aspectRatio: '1:1',
+          resolution: '1K',
+        },
+      },
+    },
+    outputModalities: ['image'],
+  },
+  {
+    id: 'sourceful/riverflow-v2-standard-preview',
+    descriptor: {
+      id: 'sourceful/riverflow-v2-standard-preview',
+      displayName: 'Sourceful: Riverflow V2 Standard Preview',
+      lifecycleStatus: 'preview',
+      capabilities: {
+        supportsStreaming: false,
+        supportsImageGeneration: true,
+        supportsImageEditing: true,
+        supportedImageResponseFormats: [...OPENROUTER_IMAGE_RESPONSE_FORMATS],
+        supportedImageAspectRatios: [...OPENROUTER_IMAGE_ASPECT_RATIOS],
+        supportedImageResolutions: [...OPENROUTER_SOURCEFUL_PRO_RESOLUTIONS],
+        imageDefaults: {
+          ...OPENROUTER_GENERIC_IMAGE_DEFAULTS,
+          aspectRatio: '1:1',
+          resolution: '1K',
+        },
+      },
+    },
+    outputModalities: ['image'],
+  },
+  {
+    id: 'sourceful/riverflow-v2-fast-preview',
+    descriptor: {
+      id: 'sourceful/riverflow-v2-fast-preview',
+      displayName: 'Sourceful: Riverflow V2 Fast Preview',
+      lifecycleStatus: 'preview',
+      capabilities: {
+        supportsStreaming: false,
+        supportsImageGeneration: true,
+        supportsImageEditing: true,
+        supportedImageResponseFormats: [...OPENROUTER_IMAGE_RESPONSE_FORMATS],
+        supportedImageAspectRatios: [...OPENROUTER_IMAGE_ASPECT_RATIOS],
+        supportedImageResolutions: [...OPENROUTER_SOURCEFUL_FAST_RESOLUTIONS],
+        imageDefaults: {
+          ...OPENROUTER_GENERIC_IMAGE_DEFAULTS,
+          aspectRatio: '1:1',
+          resolution: '1K',
+        },
+      },
+    },
+    outputModalities: ['image'],
+  },
+  {
     id: 'black-forest-labs/flux.2-pro',
     descriptor: {
       id: 'black-forest-labs/flux.2-pro',
       displayName: 'Black Forest Labs: FLUX.2 Pro',
+      lifecycleStatus: 'active',
+      capabilities: {
+        supportsStreaming: false,
+        supportsImageGeneration: true,
+        supportsImageEditing: true,
+        supportedImageResponseFormats: [...OPENROUTER_IMAGE_RESPONSE_FORMATS],
+        supportedImageAspectRatios: [...OPENROUTER_IMAGE_ASPECT_RATIOS],
+        supportedImageResolutions: [...OPENROUTER_FLUX_MP_RESOLUTIONS],
+        imageDefaults: {
+          ...OPENROUTER_GENERIC_IMAGE_DEFAULTS,
+          aspectRatio: '1:1',
+          resolution: '4MP',
+        },
+      },
+    },
+    outputModalities: ['image'],
+  },
+  {
+    id: 'black-forest-labs/flux.2-flex',
+    descriptor: {
+      id: 'black-forest-labs/flux.2-flex',
+      displayName: 'Black Forest Labs: FLUX.2 Flex',
       lifecycleStatus: 'active',
       capabilities: {
         supportsStreaming: false,
@@ -480,6 +559,21 @@ export function buildOpenRouterImageCatalog(
       null,
     models: mappedModels,
   };
+}
+
+export function buildKnownOpenRouterImageCatalog(): CanonicalImageProviderCatalog {
+  return buildOpenRouterImageCatalog(
+    OPENROUTER_KNOWN_IMAGE_MODELS.map((model) => ({
+      id: model.id,
+      name: model.descriptor.displayName,
+      architecture: {
+        input_modalities: model.descriptor.capabilities.supportsImageEditing
+          ? ['text', 'image']
+          : ['text'],
+        output_modalities: [...model.outputModalities],
+      },
+    })),
+  );
 }
 
 export function buildOpenRouterModelCatalog(

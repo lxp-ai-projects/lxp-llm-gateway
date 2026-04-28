@@ -105,6 +105,56 @@ const {
         ],
       },
       {
+        providerId: 'openrouter',
+        displayName: 'OpenRouter',
+        defaultModelId: 'openai/gpt-5-image',
+        models: [
+          {
+            id: 'openai/gpt-5-image',
+            displayName: 'OpenAI: GPT-5 Image',
+            capabilities: {
+              supportsImageGeneration: true,
+              supportsImageEditing: true,
+              supportedImageResponseFormats: ['b64_json'],
+              supportedImageResolutions: [
+                { value: '1024x1024', label: '1024x1024' },
+              ],
+              supportedImageBackgrounds: [{ value: 'auto', label: 'Auto' }],
+              supportedImageQualities: [{ value: 'auto', label: 'Auto' }],
+              supportedImageModerations: [
+                { value: 'auto', label: 'Auto' },
+                { value: 'low', label: 'Low' },
+              ],
+              supportedImageOutputFormats: [
+                { value: 'png', label: 'PNG' },
+              ],
+              supportedImageInputFidelities: [
+                { value: 'low', label: 'Low' },
+                { value: 'high', label: 'High' },
+              ],
+              imageOutputCompressionRange: {
+                min: 0,
+                max: 100,
+                step: 1,
+              },
+              maxGeneratedImagesPerRequest: 10,
+              maxReferenceImagesPerRequest: 16,
+              imageDefaults: {
+                responseFormat: 'b64_json',
+                resolution: '1024x1024',
+                background: 'auto',
+                quality: 'auto',
+                moderation: 'auto',
+                outputFormat: 'png',
+                outputCompression: 100,
+                inputFidelity: 'low',
+                imageCount: 1,
+              },
+            },
+          },
+        ],
+      },
+      {
         providerId: 'nanogpt',
         displayName: 'NanoGPT',
         defaultModelId: 'hidream',
@@ -388,6 +438,24 @@ test('ImageGenerationPage only shows OpenAI moderation for GPT-prefixed OpenAI i
   await waitFor(() =>
     expect(screen.getByTestId('image-moderation-select')).toBeInTheDocument(),
   );
+});
+
+test('ImageGenerationPage shows OpenAI moderation controls for OpenRouter OpenAI GPT image models', async () => {
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+
+  fireEvent.click(screen.getByTestId('image-provider-select'));
+  await waitFor(() =>
+    expect(document.querySelector('[role="option"][value="openrouter"]')).not.toBeNull(),
+  );
+  fireEvent.click(document.querySelector('[role="option"][value="openrouter"]') as Element);
+
+  await waitFor(() =>
+    expect(screen.getByDisplayValue('OpenAI: GPT-5 Image')).toBeInTheDocument(),
+  );
+  expect(screen.getByTestId('image-moderation-select')).toBeInTheDocument();
+  expect(screen.getByText('OpenAI moderation')).toBeInTheDocument();
 });
 
 test('ImageGenerationPage generates, saves, and reuses image assets from history', async () => {
@@ -737,6 +805,33 @@ test('ImageGenerationPage copies the expanded history prompt to the clipboard', 
 
   await waitFor(() =>
     expect(writeClipboardTextMock).toHaveBeenCalledWith('History prompt 1'),
+  );
+  expect(screen.getByRole('button', { name: 'Copied prompt' })).toBeInTheDocument();
+});
+
+test('ImageGenerationPage falls back to DOM copy when the Clipboard API is unavailable on mobile', async () => {
+  const execCommandMock = vi.fn((command: string) => command === 'copy');
+  Object.defineProperty(document, 'execCommand', {
+    configurable: true,
+    writable: true,
+    value: execCommandMock,
+  });
+  writeClipboardTextMock.mockRejectedValueOnce(new Error('clipboard unavailable'));
+
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  const [historySummary] = await screen.findAllByText('History prompt 1');
+  const historyControl = historySummary.closest('button');
+  expect(historyControl).not.toBeNull();
+  fireEvent.click(historyControl as HTMLElement);
+  const copyButton = await screen.findByRole('button', {
+    name: 'Copy prompt to clipboard',
+  });
+  fireEvent.click(copyButton);
+
+  await waitFor(() =>
+    expect(execCommandMock).toHaveBeenCalledWith('copy'),
   );
   expect(screen.getByRole('button', { name: 'Copied prompt' })).toBeInTheDocument();
 });

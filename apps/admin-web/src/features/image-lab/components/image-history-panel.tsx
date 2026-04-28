@@ -15,6 +15,7 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import { useState } from 'react';
 
+import { copyText } from '../../../lib/copy-text';
 import type { ReturnTypeUseImageLab } from '../use-image-lab.types';
 
 export function ImageHistoryPanel({
@@ -28,6 +29,7 @@ export function ImageHistoryPanel({
     alt: string;
   } | null>(null);
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
 
   return (
@@ -116,8 +118,15 @@ export function ImageHistoryPanel({
                                 <Text size="sm">{item.prompt}</Text>
                                 <Button
                                   onClick={async () => {
-                                    await navigator.clipboard.writeText(item.prompt);
-                                    setCopiedPromptId(item.id);
+                                    try {
+                                      await copyText(item.prompt);
+                                      setCopiedPromptId(item.id);
+                                      setCopyError(null);
+                                    } catch {
+                                      setCopyError(
+                                        'Unable to copy the prompt from this browser session.',
+                                      );
+                                    }
                                   }}
                                   size="compact-sm"
                                   variant="light"
@@ -126,6 +135,11 @@ export function ImageHistoryPanel({
                                     ? 'Copied prompt'
                                     : 'Copy prompt to clipboard'}
                                 </Button>
+                                {copyError ? (
+                                  <Alert color="red" title="Copy unavailable">
+                                    {copyError}
+                                  </Alert>
+                                ) : null}
                               </Stack>
 
                               <Stack gap={4}>
