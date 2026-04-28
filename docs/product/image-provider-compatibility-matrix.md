@@ -4,6 +4,7 @@ This matrix reflects the image capabilities encoded in the current provider imag
 
 - [packages/provider-google/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-google/src/image/catalog.ts)
 - [packages/provider-nanogpt/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-nanogpt/src/image/catalog.ts)
+- [packages/provider-openrouter/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-openrouter/src/image/catalog.ts)
 - [packages/provider-openai/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-openai/src/image/catalog.ts)
 - [packages/provider-xai/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-xai/src/image/catalog.ts)
 
@@ -27,6 +28,7 @@ QA legend:
 | `Google Gemini` | 3 | Yes | Yes | `Nano Banana` family with aspect ratio support |
 | `xAI Grok` | 2 | Yes | Yes | `Grok Imagine` family with aspect ratio support |
 | `NanoGPT` | Multiple known families | Yes | Mixed by model | Dynamic catalog with family-specific overrides for OpenAI-, Gemini-, BytePlus-, Alibaba-, and Qwen-aligned models |
+| `Open Router` | 17 known models in local catalog | Yes | Mixed by model | Known image catalog reused across OpenAI-, Gemini-, ByteDance-, Sourceful-, and Black Forest Labs-aligned families, plus `openrouter/auto` |
 
 ## OpenAI
 
@@ -91,6 +93,41 @@ NanoGPT is special in this repository:
 | `wan-2.7-image`, `wan2.7-image`                                                                                             | Tested (QA) | dynamic/local override     | Yes               | Yes               | inherited/default | Gen/Edit: `1K`, `2K`                    | inherited/dynamic | 9        | Mode-specific policy with same current res set in both modes         |
 | `qwen-image`, `qwen-image-edit`, `qwen-image-img2img`                                                                       | Tested (QA) | dynamic/local override     | Yes               | Yes               | inherited/default | inherited/default                       | inherited/dynamic | 3        | Reference limit override only                                        |
 | `flux-kontext`, `flux-kontext/dev`                                                                                          | Tested (QA) | dynamic/local override     | inherited/dynamic | inherited/dynamic | inherited/default | inherited/default                       | inherited/dynamic | 5        | Reference limit override only                                        |
+
+## Open Router
+
+Open Router is special in this repository:
+
+- the upstream image model list can be discovered dynamically
+- the local catalog carries explicit known-model descriptors for the Open Router image families currently normalized in code
+- the rows below reflect the current known local catalog used for capability reuse and fallback visibility
+
+### Open Router models aligned to OpenAI
+
+| Open Router model / ids     | QA status    | Source alignment           | Gen | Edit | Response format | Resolution                                    | Max refs | Notable options                                                            |
+|-----------------------------|--------------|----------------------------|-----|------|-----------------|-----------------------------------------------|----------|----------------------------------------------------------------------------|
+| `openai/gpt-5.4-image-2`    | Not yet QA'd | OpenAI `GPT-5.4 Image 2`   | Yes | Yes  | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 16       | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
+| `openai/gpt-5-image`        | Not yet QA'd | OpenAI `GPT-5 Image`       | Yes | Yes  | `b64_json`      | Same as above                                 | 16       | Same as above plus `inputFidelity`                                         |
+| `openai/gpt-5-image-mini`   | Not yet QA'd | OpenAI `GPT-5 Image Mini`  | Yes | Yes  | `b64_json`      | Same as above                                 | 16       | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
+
+### Open Router models aligned to Google Gemini
+
+| Open Router model / ids               | QA status    | Source alignment              | Gen | Edit | Response format | Aspect ratios                                                           | Resolution              | Max refs | Notes                      |
+|---------------------------------------|--------------|-------------------------------|-----|------|-----------------|-------------------------------------------------------------------------|-------------------------|----------|----------------------------|
+| `google/gemini-2.5-flash-image`       | Not yet QA'd | Google `Nano Banana`          | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K`                    | not set in catalog | Default `aspectRatio: 1:1` |
+| `google/gemini-3-pro-image-preview`   | Not yet QA'd | Google `Nano Banana Pro`      | Yes | Yes  | `b64_json`      | Same as above                                                           | `1K`, `2K`, `4K`        | 14       | Default `aspectRatio: 1:1` |
+| `google/gemini-3.1-flash-image-preview` | Not yet QA'd | Google `Nano Banana 2`      | Yes | Yes  | `b64_json`      | Same as above                                                           | `512`, `1K`, `2K`, `4K` | 14       | Default resolution `512`   |
+
+### Open Router ByteDance, Sourceful, Black Forest Labs, and auto-router models
+
+| Open Router model / ids                                                                                        | QA status | Lifecycle in local catalog | Gen | Edit | Response format | Aspect ratios                                                           | Resolution          | Max refs           | Notes                                                      |
+|----------------------------------------------------------------------------------------------------------------|-----------|----------------------------|-----|------|-----------------|-------------------------------------------------------------------------|---------------------|--------------------|------------------------------------------------------------|
+| `bytedance-seed/seedream-4.5`                                                                                  | Yes       | `active`                   | Yes | Yes  | `b64_json`      | not set in catalog                                                      | `1K`, `2K`, `4K`    | 10                 | ByteDance-aligned capability reuse                         |
+| `sourceful/riverflow-v2-fast`, `sourceful/riverflow-v2-fast-preview`                                           | No        | mixed: `active`, `preview` | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K`, `2K`          | not set in catalog | Default `aspectRatio: 1:1`                                 |
+| `sourceful/riverflow-v2-pro`, `sourceful/riverflow-v2-max-preview`, `sourceful/riverflow-v2-standard-preview`  | Yes       | mixed: `active`, `preview` | Yes | Yes  | `b64_json`      | Same as above                                                           | `1K`, `2K`, `4K`    | not set in catalog | Default `aspectRatio: 1:1`                                 |
+| `black-forest-labs/flux.2-pro`, `black-forest-labs/flux.2-flex`, `black-forest-labs/flux.2-max`                | Yes       | `active`                   | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1MP`, `2MP`, `4MP` | not set in catalog | Default resolution `4MP`                                   |
+| `black-forest-labs/flux.2-klein-4b`                                                                            | No        | `active`                   | Yes | No   | `b64_json`      | Same as above                                                           | `1MP`, `2MP`, `4MP` | n/a                | Default resolution `1MP`; generation-only in local catalog |
+| `openrouter/auto`                                                                                              | No        | `active`                   | Yes | Yes  | `b64_json`      | not set in catalog                                                      | not set in catalog  | not set in catalog | Router entrypoint with generic defaults only               |
 
 ## Reading the matrix
 
