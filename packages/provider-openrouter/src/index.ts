@@ -1,20 +1,35 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatRequest,
+  GatewayChatResponse,
+  GatewayImageEditRequest,
+  GatewayImageGenerationRequest,
+} from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
+import {
+  buildOpenRouterImageCatalog,
+  buildOpenRouterModelCatalog,
+} from './image/catalog.js';
+import { OpenRouterImageApiClient } from './image/api-client.js';
+import { OpenRouterImageEditService } from './image/edit-service.js';
+import { OpenRouterImageGenerationService } from './image/generation-service.js';
 
 export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
     chat: true,
     modelCatalog: true,
-    imageGeneration: false,
-    imageEditing: false,
+    imageGeneration: true,
+    imageEditing: true,
   } as const;
 
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
+  private readonly imageApiClient: OpenRouterImageApiClient;
+  private readonly imageGenerationService: OpenRouterImageGenerationService;
+  private readonly imageEditService: OpenRouterImageEditService;
 
   constructor(
     baseUrl = process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1',
@@ -24,6 +39,14 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.requestTimeoutMs = requestTimeoutMs;
+    this.imageApiClient = new OpenRouterImageApiClient(
+      this.baseUrl,
+      this.requestTimeoutMs,
+    );
+    this.imageGenerationService = new OpenRouterImageGenerationService(
+      this.imageApiClient,
+    );
+    this.imageEditService = new OpenRouterImageEditService(this.imageApiClient);
   }
 
   readonly providerId = 'openrouter' as const;
@@ -53,10 +76,18 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       }>;
     };
 
-    return (payload.data ?? []).map((model) => ({
-      id: model.id,
-      displayName: model.name ?? model.id,
-    }));
+    return buildOpenRouterModelCatalog(
+      (payload.data ?? []).map((model) => ({
+        id: model.id,
+        displayName: model.name ?? model.id,
+      })),
+    );
+  }
+
+  async listImageCatalog(context: ProviderExecutionContext) {
+    return buildOpenRouterImageCatalog(
+      await this.imageApiClient.listImageModels(context),
+    );
   }
 
   async chat(
@@ -148,6 +179,20 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     }
 
     return response.body;
+  }
+
+  async generateImage(
+    request: GatewayImageGenerationRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.imageGenerationService.execute(request, context);
+  }
+
+  async editImage(
+    request: GatewayImageEditRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.imageEditService.execute(request, context);
   }
 
   private dispatchChatRequest(

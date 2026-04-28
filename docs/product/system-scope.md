@@ -75,8 +75,10 @@ The next planned capability expansion is:
 
 Current image-provider posture is:
 
+- `NanoGPT` image models are exposed for generation and editing, with provider-owned capability metadata and paid-model distinctions flowing through the catalog
 - `xAI Grok` image models are exposed for generation and editing
 - `Google Gemini` image models are exposed for generation and editing
 - `OpenAI GPT Image` is exposed for generation and editing through the same seam, with provider-owned capability metadata controlling the UI affordances
+- `OpenRouter` is exposed for image generation and image editing through the same seam, with reused capability metadata where the underlying model family already exists in another provider package
 
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.

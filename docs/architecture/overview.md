@@ -168,7 +168,7 @@ This allows:
 
 ## Provider Capability Expansion
 
-The next seam expansion is image generation support.
+The seam now supports image generation and image editing through the shared adapter surface.
 
 That expansion should preserve the current boundary by extending `provider-sdk` with explicit capability contracts instead of adding provider-specific branching in `gateway-api`.
 
@@ -206,9 +206,11 @@ Per the OpenAI docs, image generation uses `/v1/images/generations`, while image
 
 Those provider-specific details also belong only in the OpenAI provider package.
 
-At the moment, the gateway exposes OpenAI GPT Image as generation-only because the live OpenAI `images/edits` runtime still rejects GPT Image models and reports `dall-e-2` as the accepted edit model. That upstream mismatch is treated as a provider-runtime constraint, not something to paper over in `gateway-api`.
+At the moment, the gateway exposes OpenAI GPT Image as generation and editing through the shared seam. The provider package owns the image-specific request and response mapping, while the gateway stays unaware of the endpoint shape.
 
-The seam itself should only know about normalized image-generation requests and responses.
+OpenRouter now supports image generation and image editing behind the same seam through `/api/v1/chat/completions`, with image-capable model discovery, provider-owned option mapping, reference-image message construction, and normalized image-response parsing inside `packages/provider-openrouter`.
+
+The seam itself should only know about normalized image-generation and image-editing requests and responses.
 
 The application layer now owns:
 
@@ -244,6 +246,7 @@ The intent is:
 - model capability decisions stay centralized in provider-owned policy modules
 - request normalization, endpoint choice, HTTP transport, and response parsing must not collapse back into a single class
 - `gateway-api` continues to see only the shared provider seam, not provider-specific image endpoint rules
+- new image-capable providers should follow the same pattern now used by NanoGPT, OpenAI, xAI, Google, and OpenRouter
 
 ## UI Direction
 

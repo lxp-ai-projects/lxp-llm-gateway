@@ -398,6 +398,8 @@ The current implementation now also includes:
 - gateway-managed image asset upload for mobile-safe reference workflows
 - persisted image job history with pagination at 10 jobs per page
 - save and reuse flows for generated images through gateway-managed assets
-- a consistent provider-internal image pattern across OpenAI, xAI, and Google: catalog, model policy, transport client, request mapper, response mapper, and generation/edit services
+- a consistent provider-internal image pattern across NanoGPT, OpenAI, xAI, Google, and OpenRouter: catalog, model policy, transport client, request mapper, response mapper, and generation/edit services where implemented
+- OpenRouter image generation and image editing behind the same seam, using OpenRouter chat completions plus image-specific catalog and request mapping inside `provider-openrouter`
+- provider-specific image work remaining behind `packages/provider-sdk`, not in `gateway-api`
 
 That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.
