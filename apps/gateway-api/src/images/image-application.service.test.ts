@@ -173,6 +173,19 @@ function hashBase64Payload(dataBase64: string) {
     .digest('hex');
 }
 
+function buildAuthContext() {
+  return {
+    userId: 'user-1',
+    userUuid: 'user-public-1',
+    emailHash: 'hash-1',
+    roles: ['user'],
+    defaultProviderId: null,
+    defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  };
+}
+
 test('ImageApplicationService persists generated images and exposes gateway-managed asset URLs', async () => {
   const provider = new FakeImageProvider();
   const service = new ImageApplicationService(
@@ -196,14 +209,7 @@ test('ImageApplicationService persists generated images and exposes gateway-mana
       model: 'grok-imagine-image',
       prompt: 'A moonlit forest',
     },
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      roles: ['user'],
-      defaultProviderId: null,
-      defaultModel: null,
-    },
+    buildAuthContext(),
   );
 
   assert.ok(response.jobId);
@@ -249,14 +255,7 @@ test('ImageApplicationService resolves asset references before provider edit req
       prompt: 'Edit this',
       images: [{ type: 'asset', assetId: 'asset-1' }],
     },
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      roles: ['user'],
-      defaultProviderId: null,
-      defaultModel: null,
-    },
+    buildAuthContext(),
   );
 
   assert.deepEqual(provider.lastEditImages, [
@@ -321,22 +320,8 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
     } as never,
   );
 
-  const page1 = await service.listHistory(1, {
-    userId: 'user-1',
-    userUuid: 'user-public-1',
-    emailHash: 'hash-1',
-    roles: ['user'],
-    defaultProviderId: null,
-    defaultModel: null,
-  });
-  const page2 = await service.listHistory(2, {
-    userId: 'user-1',
-    userUuid: 'user-public-1',
-    emailHash: 'hash-1',
-    roles: ['user'],
-    defaultProviderId: null,
-    defaultModel: null,
-  });
+  const page1 = await service.listHistory(1, buildAuthContext());
+  const page2 = await service.listHistory(2, buildAuthContext());
 
   assert.equal(page1.items.length, 10);
   assert.equal(page1.pageSize, 10);
@@ -371,14 +356,7 @@ test('ImageApplicationService returns image catalog entries even when provider c
     } as never,
   );
 
-  const catalog = await service.getCatalog({
-    userId: 'user-1',
-    userUuid: 'user-public-1',
-    emailHash: 'hash-1',
-    roles: ['user'],
-    defaultProviderId: null,
-    defaultModel: null,
-  });
+  const catalog = await service.getCatalog(buildAuthContext());
 
   assert.deepEqual(catalog.providers, [
     {
@@ -426,14 +404,7 @@ test('ImageApplicationService uploads a supported image asset', async () => {
       dataUrl: 'data:image/png;base64,abc123',
       label: 'upload.png',
     },
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      roles: ['user'],
-      defaultProviderId: null,
-      defaultModel: null,
-    },
+    buildAuthContext(),
   );
 
   assert.equal(response.asset.label, 'upload.png');
@@ -478,14 +449,7 @@ test('ImageApplicationService reuses an existing uploaded asset when the content
       dataUrl: 'data:image/png;base64,abc123',
       label: 'duplicate-name.png',
     },
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      roles: ['user'],
-      defaultProviderId: null,
-      defaultModel: null,
-    },
+    buildAuthContext(),
   );
 
   assert.equal(response.asset.id, 'asset-upload-existing');
@@ -527,14 +491,7 @@ test('ImageApplicationService renames uploaded reference assets', async () => {
   const response = await service.updateAsset(
     'asset-upload-rename',
     { label: 'After rename' },
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      roles: ['user'],
-      defaultProviderId: null,
-      defaultModel: null,
-    },
+    buildAuthContext(),
   );
 
   assert.equal(response.asset.label, 'After rename');
@@ -597,14 +554,7 @@ test('ImageApplicationService lists uploaded reference assets in reverse chronol
     } as never,
   );
 
-  const response = await service.listAssets({
-    userId: 'user-1',
-    userUuid: 'user-public-1',
-    emailHash: 'hash-1',
-    roles: ['user'],
-    defaultProviderId: null,
-    defaultModel: null,
-  });
+  const response = await service.listAssets(buildAuthContext());
 
   assert.deepEqual(
     response.items.map((asset: { id: string }) => asset.id),
@@ -644,14 +594,7 @@ test('ImageApplicationService deletes uploaded reference assets', async () => {
     } as never,
   );
 
-  const response = await service.deleteAsset('asset-upload-1', {
-    userId: 'user-1',
-    userUuid: 'user-public-1',
-    emailHash: 'hash-1',
-    roles: ['user'],
-    defaultProviderId: null,
-    defaultModel: null,
-  });
+  const response = await service.deleteAsset('asset-upload-1', buildAuthContext());
 
   assert.deepEqual(response, { deleted: true });
   assert.equal(

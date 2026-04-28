@@ -7,6 +7,7 @@ import { ProvidersPage } from './providers-page';
 
 const {
   createOwnProviderCredentialMock,
+  getImageCatalogMock,
   getModelsMock,
   getOwnProviderCredentialsMock,
   getOwnProviderSettingsMock,
@@ -31,6 +32,30 @@ const {
     createdAt: '2026-04-17T00:00:00.000Z',
     updatedAt: '2026-04-17T00:00:00.000Z',
     lastUsedAt: null,
+  })),
+  getImageCatalogMock: vi.fn(async () => ({
+    providers: [
+      {
+        providerId: 'nanogpt',
+        displayName: 'NanoGPT',
+        defaultModelId: 'mistral-medium',
+        models: [
+          { id: 'mistral-medium', displayName: 'Mistral Medium' },
+          { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
+        ],
+      },
+      {
+        providerId: 'google',
+        displayName: 'Google Gemini',
+        defaultModelId: 'gemini-3.1-flash-image-preview',
+        models: [
+          {
+            id: 'gemini-3.1-flash-image-preview',
+            displayName: 'Gemini 3.1 Flash Image Preview',
+          },
+        ],
+      },
+    ],
   })),
   getModelsMock: vi.fn(async () => ({
     providerId: 'nanogpt',
@@ -57,6 +82,8 @@ const {
     userUuid: 'user-1',
     defaultProviderId: 'nanogpt',
     defaultModel: 'z-ai/glm-4.6:thinking',
+    defaultImageProviderId: 'nanogpt',
+    defaultImageModel: 'mistral-medium',
   })),
   updateOwnProviderCredentialMock: vi.fn(async () => ({
     id: 'credential-1',
@@ -74,6 +101,8 @@ const {
     userUuid: 'user-1',
     defaultProviderId: 'nanogpt',
     defaultModel: 'mistral-medium',
+    defaultImageProviderId: 'nanogpt',
+    defaultImageModel: 'mistral-medium',
   })),
 }));
 
@@ -92,12 +121,14 @@ vi.mock('../lib/api-client', () => ({
     updateOwnProviderSettings: updateOwnProviderSettingsMock,
   },
   gatewayApiClient: {
+    getImageCatalog: getImageCatalogMock,
     getModels: getModelsMock,
   },
 }));
 
 beforeEach(() => {
   createOwnProviderCredentialMock.mockClear();
+  getImageCatalogMock.mockClear();
   getModelsMock.mockClear();
   getOwnProviderCredentialsMock.mockClear();
   getOwnProviderSettingsMock.mockClear();
@@ -137,6 +168,32 @@ beforeEach(() => {
     userUuid: 'user-1',
     defaultProviderId: 'nanogpt',
     defaultModel: 'z-ai/glm-4.6:thinking',
+    defaultImageProviderId: 'nanogpt',
+    defaultImageModel: 'mistral-medium',
+  });
+  getImageCatalogMock.mockResolvedValue({
+    providers: [
+      {
+        providerId: 'nanogpt',
+        displayName: 'NanoGPT',
+        defaultModelId: 'mistral-medium',
+        models: [
+          { id: 'mistral-medium', displayName: 'Mistral Medium' },
+          { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
+        ],
+      },
+      {
+        providerId: 'google',
+        displayName: 'Google Gemini',
+        defaultModelId: 'gemini-3.1-flash-image-preview',
+        models: [
+          {
+            id: 'gemini-3.1-flash-image-preview',
+            displayName: 'Gemini 3.1 Flash Image Preview',
+          },
+        ],
+      },
+    ],
   });
 });
 
@@ -177,6 +234,8 @@ test('ProvidersPage shows the current gateway defaults and loads models for the 
     await screen.findByText('Current gateway defaults'),
   ).toBeInTheDocument();
   expect(getModelsMock).toHaveBeenCalledWith('nanogpt');
+  expect(screen.getByText(/Anthropic, Groq, and Ollama do not currently expose image generation or image editing/)).toBeInTheDocument();
+  expect(screen.getByTestId('providers-default-image-provider')).toHaveTextContent('NanoGPT');
 });
 
 test('ProvidersPage creates a new credential and ignores empty submit payloads', async () => {
@@ -187,6 +246,8 @@ test('ProvidersPage creates a new credential and ignores empty submit payloads',
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   renderWithProviders(<ProvidersPage />);
@@ -249,6 +310,8 @@ test('ProvidersPage clears an invalid default model and saves gateway defaults',
     userUuid: 'user-1',
     defaultProviderId: 'nanogpt',
     defaultModel: 'model-that-no-longer-exists',
+    defaultImageProviderId: 'nanogpt',
+    defaultImageModel: 'mistral-medium',
   });
 
   renderWithProviders(<ProvidersPage />);
@@ -266,6 +329,33 @@ test('ProvidersPage clears an invalid default model and saves gateway defaults',
     expect(updateOwnProviderSettingsMock).toHaveBeenCalledWith({
       defaultProviderId: 'nanogpt',
       defaultModel: null,
+      defaultImageProviderId: 'nanogpt',
+      defaultImageModel: null,
+    }),
+  );
+});
+
+test('ProvidersPage saves separate image gateway defaults', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByText('Current gateway defaults');
+  await waitFor(() =>
+    expect(screen.getByTestId('providers-default-image-model')).not.toBeDisabled(),
+  );
+  await user.selectOptions(
+    screen.getByTestId('providers-default-image-model'),
+    'z-ai/glm-4.6:thinking',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save defaults' }));
+
+  await waitFor(() =>
+    expect(updateOwnProviderSettingsMock).toHaveBeenCalledWith({
+      defaultProviderId: 'nanogpt',
+      defaultModel: 'z-ai/glm-4.6:thinking',
+      defaultImageProviderId: 'nanogpt',
+      defaultImageModel: 'z-ai/glm-4.6:thinking',
     }),
   );
 });
@@ -275,6 +365,8 @@ test('ProvidersPage surfaces model loading failures and raw provider fallback na
     userUuid: 'user-1',
     defaultProviderId: 'custom-provider',
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
   getModelsMock.mockRejectedValue(
     new Error('NanoGPT model directory is offline.'),
@@ -286,7 +378,7 @@ test('ProvidersPage surfaces model loading failures and raw provider fallback na
   const defaultsAlert = currentDefaults.closest('[role="alert"]');
   expect(defaultsAlert).not.toBeNull();
   expect(
-    within(defaultsAlert!).getByText(/Provider: custom-provider/),
+    within(defaultsAlert!).getByText(/Chat provider: custom-provider/),
   ).toBeInTheDocument();
 
   expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
@@ -300,6 +392,8 @@ test('ProvidersPage shows an xAI model access note when model loading fails', as
     userUuid: 'user-1',
     defaultProviderId: 'xai',
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
   getModelsMock.mockRejectedValue(
     new Error('xAI model listing failed with status 500: Internal server error'),
@@ -322,8 +416,10 @@ test('ProvidersPage marks default providers in both mobile and desktop credentia
     await screen.findByText('Current gateway defaults'),
   ).toBeInTheDocument();
 
-  const defaultProviderLabels = await screen.findAllByText('Default provider');
-  expect(defaultProviderLabels.length).toBeGreaterThanOrEqual(2);
+  const chatDefaultLabels = await screen.findAllByText('Chat default provider');
+  const imageDefaultLabels = await screen.findAllByText('Image default provider');
+  expect(chatDefaultLabels.length).toBeGreaterThanOrEqual(1);
+  expect(imageDefaultLabels.length).toBeGreaterThanOrEqual(1);
 });
 
 test('ProvidersPage creates an Ollama endpoint credential with a base URL', async () => {
@@ -334,6 +430,8 @@ test('ProvidersPage creates an Ollama endpoint credential with a base URL', asyn
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   createOwnProviderCredentialMock.mockResolvedValueOnce({
@@ -385,6 +483,8 @@ test('ProvidersPage blocks Ollama Cloud credentials without an API token', async
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   renderWithProviders(<ProvidersPage />);
@@ -413,6 +513,8 @@ test('ProvidersPage shows the xAI Grok billing warning and blocks missing tokens
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   renderWithProviders(<ProvidersPage />);
@@ -445,6 +547,8 @@ test('ProvidersPage shows the Google Gemini billing warning and blocks missing t
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   renderWithProviders(<ProvidersPage />);
@@ -480,6 +584,8 @@ test('ProvidersPage shows the OpenAI billing warning and blocks missing tokens',
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   renderWithProviders(<ProvidersPage />);
@@ -515,6 +621,8 @@ test('ProvidersPage shows the Anthropic billing warning and blocks missing token
     userUuid: 'user-1',
     defaultProviderId: null,
     defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
   });
 
   renderWithProviders(<ProvidersPage />);

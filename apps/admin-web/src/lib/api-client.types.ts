@@ -267,6 +267,8 @@ export type ProviderSettingsSummary = {
   userUuid: string;
   defaultProviderId: string | null;
   defaultModel: string | null;
+  defaultImageProviderId: string | null;
+  defaultImageModel: string | null;
 };
 
 export type AdminUserSummary = {

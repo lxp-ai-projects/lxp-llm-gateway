@@ -42,6 +42,8 @@ export class GatewayAuthService {
       roles: payload.roles,
       defaultProviderId: user.defaultProviderId,
       defaultModel: user.defaultModel,
+      defaultImageProviderId: user.defaultImageProviderId,
+      defaultImageModel: user.defaultImageModel,
     };
   }
 

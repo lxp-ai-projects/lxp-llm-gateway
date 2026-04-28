@@ -94,6 +94,20 @@ export function buildDefaultProviderOptions(
     }));
 }
 
+export function buildDefaultImageProviderOptions(
+  credentials: ProviderCredentialSummary[],
+  supportedProviders: Array<{ providerId: string; displayName: string }>,
+  imageCatalogProviders: Array<{ providerId: string }>,
+) {
+  const imageProviderIds = new Set(
+    imageCatalogProviders.map((provider) => provider.providerId),
+  );
+
+  return buildDefaultProviderOptions(credentials, supportedProviders).filter((provider) =>
+    imageProviderIds.has(provider.value),
+  );
+}
+
 export function buildDefaultModelOptions(
   models: Array<{ id: string; displayName: string }>,
 ) {

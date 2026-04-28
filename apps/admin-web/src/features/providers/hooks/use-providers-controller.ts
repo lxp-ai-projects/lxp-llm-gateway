@@ -5,6 +5,7 @@ import { adminApiClient, gatewayApiClient } from '../../../lib/api-client';
 import { useRuntimeConfig } from '../../../lib/use-runtime-config';
 import {
   buildDefaultModelOptions,
+  buildDefaultImageProviderOptions,
   buildDefaultProviderOptions,
   buildProviderOptions,
   resolveProviderDisplayName,
@@ -36,6 +37,10 @@ export function useProvidersController() {
     null,
   );
   const [defaultModel, setDefaultModel] = useState<string | null>(null);
+  const [defaultImageProviderId, setDefaultImageProviderId] = useState<string | null>(
+    null,
+  );
+  const [defaultImageModel, setDefaultImageModel] = useState<string | null>(null);
 
   const credentialsQuery = useQuery({
     queryKey: ['own-provider-credentials'],
@@ -44,6 +49,10 @@ export function useProvidersController() {
   const providerSettingsQuery = useQuery({
     queryKey: ['own-provider-settings'],
     queryFn: () => adminApiClient.getOwnProviderSettings(),
+  });
+  const imageCatalogQuery = useQuery({
+    queryKey: ['image-catalog-for-provider-settings'],
+    queryFn: () => gatewayApiClient.getImageCatalog(),
   });
 
   const supportedProviders = runtimeConfigQuery.data?.supportedProviders ?? [];
@@ -65,6 +74,8 @@ export function useProvidersController() {
 
     setDefaultProviderId(providerSettingsQuery.data.defaultProviderId);
     setDefaultModel(providerSettingsQuery.data.defaultModel);
+    setDefaultImageProviderId(providerSettingsQuery.data.defaultImageProviderId);
+    setDefaultImageModel(providerSettingsQuery.data.defaultImageModel);
   }, [providerSettingsQuery.data]);
 
   const defaultProviderOptions = useMemo(() => {
@@ -73,13 +84,19 @@ export function useProvidersController() {
       supportedProviders,
     );
   }, [credentialsQuery.data, supportedProviders]);
+  const defaultImageProviderOptions = useMemo(() => {
+    return buildDefaultImageProviderOptions(
+      credentialsQuery.data ?? [],
+      supportedProviders,
+      imageCatalogQuery.data?.providers ?? [],
+    );
+  }, [credentialsQuery.data, imageCatalogQuery.data?.providers, supportedProviders]);
 
   const modelsQuery = useQuery({
     queryKey: ['provider-models', defaultProviderId],
     queryFn: () => gatewayApiClient.getModels(defaultProviderId ?? undefined),
     enabled: Boolean(defaultProviderId),
   });
-
   useEffect(() => {
     if (!defaultProviderId) {
       setDefaultModel(null);
@@ -101,6 +118,32 @@ export function useProvidersController() {
     defaultProviderId,
     modelsQuery.data,
     modelsQuery.isPending,
+  ]);
+
+  useEffect(() => {
+    if (!defaultImageProviderId) {
+      setDefaultImageModel(null);
+      return;
+    }
+
+    const imageProvider = imageCatalogQuery.data?.providers.find(
+      (provider) => provider.providerId === defaultImageProviderId,
+    );
+    if (!imageProvider?.models.length) {
+      return;
+    }
+
+    const modelStillExists = imageProvider.models.some(
+      (entry) => entry.id === defaultImageModel,
+    );
+    if (!modelStillExists && !imageCatalogQuery.isPending) {
+      setDefaultImageModel(null);
+    }
+  }, [
+    defaultImageModel,
+    defaultImageProviderId,
+    imageCatalogQuery.data,
+    imageCatalogQuery.isPending,
   ]);
 
   const upsertCredentialMutation = useMutation({
@@ -133,6 +176,8 @@ export function useProvidersController() {
       adminApiClient.updateOwnProviderSettings({
         defaultProviderId: defaultProviderId ?? null,
         defaultModel: defaultProviderId ? (defaultModel ?? null) : null,
+        defaultImageProviderId: defaultImageProviderId ?? null,
+        defaultImageModel: defaultImageProviderId ? (defaultImageModel ?? null) : null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -144,7 +189,10 @@ export function useProvidersController() {
   const providerSettingsDirty =
     defaultProviderId !==
       (providerSettingsQuery.data?.defaultProviderId ?? null) ||
-    defaultModel !== (providerSettingsQuery.data?.defaultModel ?? null);
+    defaultModel !== (providerSettingsQuery.data?.defaultModel ?? null) ||
+    defaultImageProviderId !==
+      (providerSettingsQuery.data?.defaultImageProviderId ?? null) ||
+    defaultImageModel !== (providerSettingsQuery.data?.defaultImageModel ?? null);
 
   function resetCredentialForm() {
     setEditingCredentialId(null);
@@ -170,6 +218,11 @@ export function useProvidersController() {
 
   const defaultModelOptions = buildDefaultModelOptions(
     modelsQuery.data?.models ?? [],
+  );
+  const defaultImageModelOptions = buildDefaultModelOptions(
+    imageCatalogQuery.data?.providers.find(
+      (provider) => provider.providerId === defaultImageProviderId,
+    )?.models ?? [],
   );
 
   function handleCredentialSubmit(event: FormEvent<HTMLFormElement>) {
@@ -217,21 +270,41 @@ export function useProvidersController() {
       : null,
     currentDefaultProviderId:
       providerSettingsQuery.data?.defaultProviderId ?? null,
+    currentDefaultImageModel: providerSettingsQuery.data?.defaultImageModel ?? null,
+    currentDefaultImageProviderDisplayName: providerSettingsQuery.data
+      ?.defaultImageProviderId
+      ? resolveProviderDisplayName(
+          supportedProviders,
+          providerSettingsQuery.data.defaultImageProviderId,
+        )
+      : null,
+    currentDefaultImageProviderId:
+      providerSettingsQuery.data?.defaultImageProviderId ?? null,
     defaultModel,
     defaultModelOptions,
     defaultProviderId,
     defaultProviderOptions,
+    defaultImageModel,
+    defaultImageModelOptions,
+    defaultImageProviderId,
+    defaultImageProviderOptions,
     editingCredentialId,
     handleCredentialSubmit,
     handleDefaultsSubmit,
     isCredentialPending: upsertCredentialMutation.isPending,
     isDefaultsPending: saveDefaultsMutation.isPending,
     isModelLoading: modelsQuery.isPending,
+    isImageModelLoading: imageCatalogQuery.isPending,
     label,
     modelErrorMessage: modelsQuery.isError
       ? modelsQuery.error instanceof Error
         ? modelsQuery.error.message
         : 'Unable to load models for the selected provider.'
+      : null,
+    imageModelErrorMessage: imageCatalogQuery.isError
+      ? imageCatalogQuery.error instanceof Error
+        ? imageCatalogQuery.error.message
+        : 'Unable to load models for the selected image provider.'
       : null,
     onApiTokenChange: (value: string) => {
       setApiToken(value);
@@ -249,6 +322,11 @@ export function useProvidersController() {
     onDefaultProviderChange: (value: string | null) => {
       setDefaultProviderId(value);
       setDefaultModel(null);
+    },
+    onDefaultImageModelChange: (value: string | null) => setDefaultImageModel(value),
+    onDefaultImageProviderChange: (value: string | null) => {
+      setDefaultImageProviderId(value);
+      setDefaultImageModel(null);
     },
     onLabelChange: setLabel,
     onProviderChange: (value: string | null) => {

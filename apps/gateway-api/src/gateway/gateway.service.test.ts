@@ -127,6 +127,31 @@ class FakeGatewayAuditService {
   }
 }
 
+function buildAuthContext(
+  overrides: Partial<{
+    userId: string;
+    userUuid: string;
+    emailHash: string;
+    roles: string[];
+    defaultProviderId: 'nanogpt' | 'xai' | null;
+    defaultModel: string | null;
+    defaultImageProviderId: 'nanogpt' | 'xai' | null;
+    defaultImageModel: string | null;
+  }> = {},
+) {
+  return {
+    userId: 'user-1',
+    userUuid: 'user-public-1',
+    emailHash: 'hash-1',
+    roles: ['user'],
+    defaultProviderId: null,
+    defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+    ...overrides,
+  };
+}
+
 test('GatewayService routes chat requests through the provider registry', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
@@ -139,14 +164,11 @@ test('GatewayService routes chat requests through the provider registry', async 
       model: 'nano-1',
       messages: [{ role: 'user', content: 'hello' }],
     } as GatewayChatRequestDto,
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
+    buildAuthContext({
       roles: ['admin'],
       defaultProviderId: 'nanogpt',
       defaultModel: 'nano-default',
-    },
+    }),
   );
 
   assert.equal(response.providerId, 'nanogpt');
@@ -172,14 +194,7 @@ test('GatewayService wraps provider failures in a BadGatewayException', async ()
           model: 'claude-haiku-4-5-20251001',
           messages: [{ role: 'user', content: 'hello' }],
         } as GatewayChatRequestDto,
-        {
-          userId: 'user-1',
-          userUuid: 'user-public-1',
-          emailHash: 'hash-1',
-          roles: ['user'],
-          defaultProviderId: null,
-          defaultModel: null,
-        },
+        buildAuthContext(),
       ),
     (error: unknown) => {
       assert.ok(error instanceof BadGatewayException);
@@ -205,14 +220,10 @@ test('GatewayService wraps listModels provider failures in a BadGatewayException
         {
           providerId: 'xai',
         } as never,
-        {
-          userId: 'user-1',
-          userUuid: 'user-public-1',
-          emailHash: 'hash-1',
-          roles: ['user'],
+        buildAuthContext({
           defaultProviderId: 'xai',
           defaultModel: 'grok-4',
-        },
+        }),
       ),
     (error: unknown) => {
       assert.ok(error instanceof BadGatewayException);
@@ -238,14 +249,11 @@ test('GatewayService returns a provider stream when streaming is requested', asy
       messages: [{ role: 'user', content: 'hello' }],
       stream: true,
     } as GatewayChatRequestDto,
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
+    buildAuthContext({
       roles: ['admin'],
       defaultProviderId: 'nanogpt',
       defaultModel: 'nano-default',
-    },
+    }),
   );
 
   const reader = streamResponse.stream.getReader();
@@ -268,14 +276,11 @@ test('GatewayService rejects non-stream requests without messages', async () => 
           model: 'nano-1',
           messages: [],
         } as GatewayChatRequestDto,
-        {
-          userId: 'user-1',
-          userUuid: 'user-public-1',
-          emailHash: 'hash-1',
+        buildAuthContext({
           roles: ['admin'],
           defaultProviderId: 'nanogpt',
           defaultModel: 'nano-default',
-        },
+        }),
       ),
     /At least one message is required/,
   );
@@ -296,14 +301,11 @@ test('GatewayService rejects stream requests without messages', async () => {
           messages: [],
           stream: true,
         } as GatewayChatRequestDto,
-        {
-          userId: 'user-1',
-          userUuid: 'user-public-1',
-          emailHash: 'hash-1',
+        buildAuthContext({
           roles: ['admin'],
           defaultProviderId: 'nanogpt',
           defaultModel: 'nano-default',
-        },
+        }),
       ),
     /At least one message is required/,
   );
@@ -336,14 +338,11 @@ test('GatewayService rejects streaming when a provider does not support it', asy
           messages: [{ role: 'user', content: 'hello' }],
           stream: true,
         } as GatewayChatRequestDto,
-        {
-          userId: 'user-1',
-          userUuid: 'user-public-1',
-          emailHash: 'hash-1',
+        buildAuthContext({
           roles: ['admin'],
           defaultProviderId: 'nanogpt',
           defaultModel: 'nano-default',
-        },
+        }),
       ),
     /does not support streaming/,
   );
@@ -360,14 +359,10 @@ test('GatewayService uses authenticated defaults when provider and model are omi
     {
       messages: [{ role: 'user', content: 'hello' }],
     } as GatewayChatRequestDto,
-    {
-      userId: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      roles: ['user'],
+    buildAuthContext({
       defaultProviderId: 'nanogpt',
       defaultModel: 'z-ai/glm-4.6:thinking',
-    },
+    }),
   );
 
   assert.equal(response.providerId, 'nanogpt');
@@ -387,14 +382,7 @@ test('GatewayService rejects missing provider when no default provider exists', 
         {
           messages: [{ role: 'user', content: 'hello' }],
         } as GatewayChatRequestDto,
-        {
-          userId: 'user-1',
-          userUuid: 'user-public-1',
-          emailHash: 'hash-1',
-          roles: ['user'],
-          defaultProviderId: null,
-          defaultModel: null,
-        },
+        buildAuthContext(),
       ),
     /no default provider is configured/i,
   );
@@ -414,14 +402,7 @@ test('GatewayService rejects missing model when no default model exists for the 
           providerId: 'nanogpt',
           messages: [{ role: 'user', content: 'hello' }],
         } as GatewayChatRequestDto,
-        {
-          userId: 'user-1',
-          userUuid: 'user-public-1',
-          emailHash: 'hash-1',
-          roles: ['user'],
-          defaultProviderId: null,
-          defaultModel: null,
-        },
+        buildAuthContext(),
       ),
     /no default model is configured/i,
   );

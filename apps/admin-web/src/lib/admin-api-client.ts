@@ -171,6 +171,8 @@ export const adminApiClient = {
   async updateOwnProviderSettings(payload: {
     defaultProviderId?: string | null;
     defaultModel?: string | null;
+    defaultImageProviderId?: string | null;
+    defaultImageModel?: string | null;
   }): Promise<ProviderSettingsSummary> {
     return request<ProviderSettingsSummary>(
       `${adminApiUrl}/api/v1/provider-settings`,

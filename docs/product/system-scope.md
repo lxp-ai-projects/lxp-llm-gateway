@@ -52,6 +52,7 @@ The repository now contains:
 - frontend feature modules under `src/features/*`
 - CI quality gates for typecheck, test, and build
 - an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
+- operator-configurable gateway defaults for both chat and image generation/editing, with separate provider/model pairs
 
 ## Phase 2 Starting Assumptions
 

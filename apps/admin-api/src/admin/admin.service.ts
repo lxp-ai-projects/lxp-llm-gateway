@@ -72,6 +72,8 @@ export class AdminService {
       status: 'active',
       defaultProviderId: null,
       defaultModel: null,
+      defaultImageProviderId: null,
+      defaultImageModel: null,
     });
     await this.userRepository.save(user);
 
@@ -404,6 +406,8 @@ export class AdminService {
       userUuid: user.userUuid,
       defaultProviderId: user.defaultProviderId,
       defaultModel: user.defaultModel,
+      defaultImageProviderId: user.defaultImageProviderId,
+      defaultImageModel: user.defaultImageModel,
     };
   }
 
@@ -425,6 +429,14 @@ export class AdminService {
     const modelWasUpdated = Object.prototype.hasOwnProperty.call(
       dto,
       'defaultModel',
+    );
+    const imageProviderIdWasUpdated = Object.prototype.hasOwnProperty.call(
+      dto,
+      'defaultImageProviderId',
+    );
+    const imageModelWasUpdated = Object.prototype.hasOwnProperty.call(
+      dto,
+      'defaultImageModel',
     );
 
     if (providerIdWasUpdated) {
@@ -464,9 +476,7 @@ export class AdminService {
       if (dto.defaultModel === null) {
         user.defaultModel = null;
       } else {
-        const targetProviderId = providerIdWasUpdated
-          ? user.defaultProviderId
-          : user.defaultProviderId;
+        const targetProviderId = user.defaultProviderId;
 
         if (!targetProviderId) {
           throw new ConflictException('Unable to update provider settings.');
@@ -476,12 +486,61 @@ export class AdminService {
       }
     }
 
+    if (imageProviderIdWasUpdated) {
+      if (dto.defaultImageProviderId === null) {
+        user.defaultImageProviderId = null;
+        user.defaultImageModel = null;
+      } else {
+        const provider = await this.providerRepository.findOne({
+          where: {
+            providerId: dto.defaultImageProviderId,
+            status: 'active',
+          },
+        });
+        if (!provider) {
+          throw new NotFoundException('Unable to update provider settings.');
+        }
+
+        const activeCredential = await this.credentialRepository.findOne({
+          where: {
+            userId: user.id,
+            providerId: provider.id,
+            isActive: true,
+          },
+        });
+        if (!activeCredential) {
+          throw new ConflictException('Unable to update provider settings.');
+        }
+
+        user.defaultImageProviderId = dto.defaultImageProviderId ?? null;
+        if (!imageModelWasUpdated) {
+          user.defaultImageModel = null;
+        }
+      }
+    }
+
+    if (imageModelWasUpdated) {
+      if (dto.defaultImageModel === null) {
+        user.defaultImageModel = null;
+      } else {
+        const targetProviderId = user.defaultImageProviderId;
+
+        if (!targetProviderId) {
+          throw new ConflictException('Unable to update provider settings.');
+        }
+
+        user.defaultImageModel = dto.defaultImageModel?.trim() ?? null;
+      }
+    }
+
     await this.userRepository.save(user);
 
     return {
       userUuid: user.userUuid,
       defaultProviderId: user.defaultProviderId,
       defaultModel: user.defaultModel,
+      defaultImageProviderId: user.defaultImageProviderId,
+      defaultImageModel: user.defaultImageModel,
     };
   }
 

@@ -565,12 +565,12 @@ export class ImageApplicationService {
       return requestedProviderId;
     }
 
-    if (authContext.defaultProviderId) {
-      return authContext.defaultProviderId;
+    if (authContext.defaultImageProviderId) {
+      return authContext.defaultImageProviderId;
     }
 
     throw new BadRequestException(
-      'No provider was supplied and no default provider is configured for the authenticated user.',
+      'No provider was supplied and no default image provider is configured for the authenticated user.',
     );
   }
 
@@ -583,12 +583,15 @@ export class ImageApplicationService {
       return requestedModel;
     }
 
-    if (authContext.defaultProviderId === providerId && authContext.defaultModel) {
-      return authContext.defaultModel;
+    if (
+      authContext.defaultImageProviderId === providerId &&
+      authContext.defaultImageModel
+    ) {
+      return authContext.defaultImageModel;
     }
 
     throw new BadRequestException(
-      'No model was supplied and no default model is configured for the selected provider.',
+      'No model was supplied and no default image model is configured for the selected provider.',
     );
   }
 

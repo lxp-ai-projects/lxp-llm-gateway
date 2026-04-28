@@ -20,6 +20,9 @@ type ProviderCredentialsPanelProps = {
   currentDefaultModel: string | null;
   currentDefaultProviderDisplayName: string | null;
   currentDefaultProviderId: string | null;
+  currentDefaultImageModel: string | null;
+  currentDefaultImageProviderDisplayName: string | null;
+  currentDefaultImageProviderId: string | null;
   onEditCredential: (credential: {
     id: string;
     providerId: string;
@@ -32,6 +35,9 @@ export function ProviderCredentialsPanel({
   currentDefaultModel,
   currentDefaultProviderDisplayName,
   currentDefaultProviderId,
+  currentDefaultImageModel,
+  currentDefaultImageProviderDisplayName,
+  currentDefaultImageProviderId,
   onEditCredential,
 }: ProviderCredentialsPanelProps) {
   function renderCredentialEditAction(credential: {
@@ -114,14 +120,23 @@ export function ProviderCredentialsPanel({
                         </Text>
                       </div>
                     </SimpleGrid>
-                    {currentDefaultProviderId === credential.providerId ? (
+                    {currentDefaultProviderId === credential.providerId ||
+                    currentDefaultImageProviderId === credential.providerId ? (
                       <Alert
                         color="teal"
                         variant="light"
-                        title="Default provider"
+                        title="Gateway default"
                       >
-                        This provider is currently used as the default gateway
-                        provider.
+                        {currentDefaultProviderId === credential.providerId
+                          ? 'Used by gateway chat defaults.'
+                          : null}
+                        {currentDefaultProviderId === credential.providerId &&
+                        currentDefaultImageProviderId === credential.providerId
+                          ? ' '
+                          : null}
+                        {currentDefaultImageProviderId === credential.providerId
+                          ? 'Used by gateway image defaults.'
+                          : null}
                       </Alert>
                     ) : null}
                     <Group justify="flex-start">
@@ -158,7 +173,12 @@ export function ProviderCredentialsPanel({
                     </Group>
                     {currentDefaultProviderId === credential.providerId ? (
                       <Text c="dimmed" size="xs">
-                        Default provider
+                        Chat default provider
+                      </Text>
+                    ) : null}
+                    {currentDefaultImageProviderId === credential.providerId ? (
+                      <Text c="dimmed" size="xs">
+                        Image default provider
                       </Text>
                     ) : null}
                   </Stack>
@@ -180,11 +200,15 @@ export function ProviderCredentialsPanel({
           </Text>
         ) : null}
 
-        {currentDefaultProviderId ? (
+        {currentDefaultProviderId || currentDefaultImageProviderId ? (
           <Alert color="teal" title="Current gateway defaults">
-            Provider: {currentDefaultProviderDisplayName}
+            Chat provider: {currentDefaultProviderDisplayName ?? 'None configured'}
             <br />
-            Model: {currentDefaultModel ?? 'None configured'}
+            Chat model: {currentDefaultModel ?? 'None configured'}
+            <br />
+            Image provider: {currentDefaultImageProviderDisplayName ?? 'None configured'}
+            <br />
+            Image model: {currentDefaultImageModel ?? 'None configured'}
           </Alert>
         ) : null}
       </Stack>

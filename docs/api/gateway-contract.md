@@ -46,6 +46,8 @@ If `model` is omitted, the gateway uses the authenticated user's `defaultModel`,
 
 If neither explicit values nor valid defaults exist, the gateway rejects the request with a `400`.
 
+For image routes, the same fallback rule applies, but with the authenticated user's image-specific defaults: `defaultImageProviderId` and `defaultImageModel`.
+
 ## Non-Stream Response
 
 The gateway returns a normalized JSON response:
