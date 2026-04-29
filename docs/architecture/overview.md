@@ -176,6 +176,8 @@ The same posture now applies when `gateway-api` is called through the OpenAI-com
 - the facade only translates transport shape such as `/models` and `/chat/completions`
 - provider selection and credential resolution still happen inside the gateway against the authenticated or correlated internal user
 - forwarded user identity from Open WebUI remains an application-level trust decision, not a provider concern
+- for local development, a shared compatibility API key plus a trusted forwarded email header is acceptable
+- for a deployed VPS or externally reachable environment, the trusted header should only be accepted from a reverse proxy or other bounded trust zone
 
 ## Provider Capability Expansion
 

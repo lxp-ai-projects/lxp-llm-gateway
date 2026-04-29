@@ -1,5 +1,7 @@
 # Open WebUI Gateway Use Case
 
+For a practical step-by-step setup guide, see [open-webui-setup.md](open-webui-setup.md).
+
 ## Goal
 
 Run `Open WebUI` locally from Docker Compose and make it use `gateway-api` instead of the default Ollama path.
@@ -105,6 +107,21 @@ What this is not yet:
 - a shared session between `Open WebUI` and our own `admin-web`
 - a single sign-on implementation where both applications consume the same IdP tokens directly
 - a hardened zero-trust deployment model for arbitrary external callers
+
+## Deployment Posture
+
+The current compose-based setup is appropriate for local development and lab validation.
+
+For a deployed environment such as a VPS, the recommended posture is:
+
+1. put `Open WebUI` behind a trusted reverse proxy
+2. terminate authentication at the proxy or Open WebUI's native OIDC support
+3. only trust forwarded user identity headers from that proxy boundary
+4. keep `gateway-api` reachable only from the trusted deployment path
+5. use a service-account style compatibility API key, not a user-shared secret
+6. keep `BYPASS_MODEL_ACCESS_CONTROL=true` out of production unless the deployment intentionally wants Open WebUI to display every model returned by the gateway
+
+That keeps the current integration usable while preventing a public caller from forging the forwarded identity header.
 
 ## Recommended Next Step for True SSO
 
