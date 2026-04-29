@@ -26,7 +26,12 @@ function resolveCorsOrigins(): string[] {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const debugEnabled = (process.env.LXP_OPENAI_COMPAT_DEBUG ?? '').toLowerCase() === 'true';
+  const app = await NestFactory.create(AppModule, {
+    logger: debugEnabled
+      ? ['error', 'warn', 'log', 'debug']
+      : ['error', 'warn', 'log'],
+  });
   const requestBodyLimit = process.env.LXP_REQUEST_BODY_LIMIT ?? '30mb';
   app.setGlobalPrefix('api/v1');
   app.use(express.json({ limit: requestBodyLimit }));

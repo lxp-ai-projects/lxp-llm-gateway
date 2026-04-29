@@ -59,6 +59,16 @@ For `gateway-api`:
 5. gateway resolves the provider credential for that user and provider
 6. gateway decrypts the provider API token only in memory for the outbound call
 
+For trusted OpenAI-compatible internal callers such as `Open WebUI`:
+
+1. gateway validates a shared compatibility API key
+2. gateway optionally reads a trusted forwarded user email header such as `X-OpenWebUI-User-Email`
+3. gateway maps that email to the existing `users.email_hash` lookup model
+4. gateway resolves the provider credential for that mapped user and provider
+5. gateway decrypts the provider API token only in memory for the outbound call
+
+If no trusted forwarded user email is present, the gateway may fall back to a configured default compatibility user for that integration.
+
 ## Redis Responsibilities
 
 Redis should hold:

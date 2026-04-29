@@ -8,6 +8,7 @@ import {
 import type {
   AdminCreateUserInput,
   AdminUserSummary,
+  AdminUpdateUserInput,
   ChatTransferConversation,
   ProviderCredentialSummary,
   ProviderSettingsSummary,
@@ -109,11 +110,7 @@ export const adminApiClient = {
 
   async updateUser(
     userUuid: string,
-    payload: {
-      displayName?: string;
-      status?: 'active' | 'disabled';
-      roles?: string[];
-    },
+    payload: AdminUpdateUserInput,
   ): Promise<AdminUserSummary> {
     return request<AdminUserSummary>(
       `${adminApiUrl}/api/v1/admin/users/${userUuid}`,

@@ -7,6 +7,7 @@ The platform separates the data plane from the control plane.
 - `admin-web` talks to `admin-api`
 - `admin-web` talks to `gateway-api` for chat and model discovery
 - clients or trusted internal callers talk to `gateway-api`
+- trusted internal callers such as `Open WebUI` can use a thin OpenAI-compatible facade exposed by `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
 - `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-google`, `provider-xai`, `provider-openai`, and `provider-anthropic` are concrete provider implementations behind the same seam
 
@@ -20,6 +21,7 @@ The seam is evolving from a chat-only adapter into a capability-oriented provide
 
 - request intake
 - caller authentication from cookie or bearer access token
+- optional trusted OpenAI-compatible caller authentication from a shared API key plus forwarded user identity headers
 - identity resolution from `emailHash`
 - provider credential resolution
 - provider dispatch
@@ -27,6 +29,7 @@ The seam is evolving from a chat-only adapter into a capability-oriented provide
 - streaming passthrough
 - normalized non-stream response delivery
 - capability-specific execution such as image generation and image editing through the same provider seam
+- an OpenAI-compatible HTTP facade for trusted internal clients without bypassing the shared provider seam
 
 It must not import provider-specific implementation details directly.
 
@@ -109,6 +112,7 @@ The initial architecture assumes:
 - application-level encryption for stored provider API secrets
 - short-lived access tokens with server-side revocation support
 - gateway-side identity resolution from `emailHash`, not a caller-supplied internal user id
+- optional trusted-header correlation for OpenAI-compatible internal callers only when a shared API key and trusted deployment boundary are in place
 - generalized error handling that avoids overexposing account and token state to callers
 - write-only or masked-only handling for provider secrets in administrative workflows
 
@@ -166,6 +170,12 @@ This allows:
 - `Ollama` to use either a local/runtime endpoint or Ollama Cloud with bearer auth
 
 `gateway-api` resolves and decrypts provider access data, but it does not interpret provider-specific transport rules.
+
+The same posture now applies when `gateway-api` is called through the OpenAI-compatible facade used by `Open WebUI`:
+
+- the facade only translates transport shape such as `/models` and `/chat/completions`
+- provider selection and credential resolution still happen inside the gateway against the authenticated or correlated internal user
+- forwarded user identity from Open WebUI remains an application-level trust decision, not a provider concern
 
 ## Provider Capability Expansion
 
@@ -249,6 +259,31 @@ The intent is:
 - request normalization, endpoint choice, HTTP transport, and response parsing must not collapse back into a single class
 - `gateway-api` continues to see only the shared provider seam, not provider-specific image endpoint rules
 - new image-capable providers should follow the same pattern now used by NanoGPT, OpenAI, xAI, Google, and OpenRouter
+
+## OpenAI-Compatible Internal Clients
+
+`gateway-api` now also exposes a thin OpenAI-compatible surface for trusted internal clients such as `Open WebUI`.
+
+That facade currently covers:
+
+- `GET /api/v1/openai/models`
+- `POST /api/v1/openai/chat/completions`
+
+Its architectural role is intentionally narrow:
+
+- translate a standard OpenAI-compatible transport into the existing gateway request shape
+- aggregate model discovery across accessible providers
+- preserve the existing provider seam, credential resolution, and gateway-owned auditing behavior
+
+It must not become a parallel provider implementation layer.
+
+The first supported use case is local `Open WebUI` talking to a host-run `gateway-api` through Docker Compose.
+
+Open WebUI can also forward user identity headers such as `X-OpenWebUI-User-Email`.
+
+When explicitly enabled in the gateway runtime, those headers allow per-user credential resolution against the existing gateway user table.
+
+This gives the platform a practical identity-correlation path for Open WebUI traffic without teaching provider packages anything about Open WebUI itself.
 
 ## UI Direction
 

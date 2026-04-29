@@ -20,4 +20,9 @@ export class UpdateUserDto {
   @IsArray()
   @IsIn(['admin', 'user'], { each: true })
   roles?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
 }

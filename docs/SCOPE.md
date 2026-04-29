@@ -9,6 +9,7 @@ The goal is to start from a clean architecture instead of carrying forward the s
 The repository must provide:
 
 - a gateway API for LLM traffic
+- an OpenAI-compatible gateway facade for trusted internal clients such as Open WebUI
 - an admin API for control-plane operations
 - an admin web application for management workflows
 - shared packages for contracts, domain concepts, and provider integration seams
@@ -49,6 +50,7 @@ Phase 1 includes:
   - `OpenAI`
   - `Anthropic Claude`
 - local development infrastructure with Redis or Valkey
+- a first local integration use case with Open WebUI against the host-run gateway
 - an initial OpenAPI placeholder
 - basic CI-ready scripts for lint, build, and test
 - incremental UI hardening and refactor work that preserves behavior while improving maintainability, testability, and mobile operability
@@ -153,6 +155,7 @@ Responsibilities:
 - execute through a provider adapter
 - support streaming responses
 - return normalized responses
+- expose a thin OpenAI-compatible `/models` and `/chat/completions` facade for trusted internal callers without bypassing provider-sdk
 
 This is the data plane.
 
@@ -327,6 +330,12 @@ It does need to:
 
 The seam now includes image generation, image editing, and provider-owned image catalogs.
 
+The gateway layer now also includes an OpenAI-compatible facade for trusted internal clients.
+
+That facade is still part of the gateway boundary, not a provider package concern.
+
+It exists to let protocol-oriented tools such as Open WebUI call the gateway while reusing the same identity, credential-resolution, routing, and provider-seam behavior.
+
 The first concrete implementations are:
 
 - xAI Grok Imagine through `provider-xai`
@@ -369,6 +378,13 @@ These rules apply from the scaffold stage:
 
 The implementation may begin simply, but the boundaries must be sound from the beginning.
 
+For OpenAI-compatible internal clients such as Open WebUI, the current security posture is:
+
+- a shared compatibility API key can authenticate the client itself
+- forwarded user email headers can be trusted only when the deployment boundary is controlled
+- per-user provider credential resolution still happens in `gateway-api`
+- this is identity correlation for inference traffic, not yet a full shared-session SSO story across all UIs
+
 ## Recommended Execution Order
 
 1. Create root workspace configuration.
@@ -402,5 +418,7 @@ The current implementation now also includes:
 - a consistent provider-internal image pattern across NanoGPT, OpenAI, xAI, Google, and OpenRouter: catalog, model policy, transport client, request mapper, response mapper, and generation/edit services where implemented
 - OpenRouter image generation and image editing behind the same seam, using OpenRouter chat completions plus image-specific catalog and request mapping inside `provider-openrouter`
 - provider-specific image work remaining behind `packages/provider-sdk`, not in `gateway-api`
+- a first OpenAI-compatible integration path for Open WebUI through `GET /api/v1/openai/models` and `POST /api/v1/openai/chat/completions`
+- trusted internal caller support that can correlate Open WebUI requests to existing gateway users by forwarded email header when explicitly configured
 
 That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.

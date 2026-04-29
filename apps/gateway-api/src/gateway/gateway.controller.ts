@@ -4,15 +4,9 @@ import { Body, Controller, Headers, Post, Req, Res } from '@nestjs/common';
 import type { GatewayChatResponse } from '@lxp/contracts';
 
 import { GatewayAuthService } from '../auth/gateway-auth.service';
+import type { StreamableHttpResponse } from '../shared/http.types';
 import { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayService } from './gateway.service';
-
-type StreamableHttpResponse = {
-  status(code: number): StreamableHttpResponse;
-  setHeader(name: string, value: string): void;
-  flushHeaders?(): void;
-  end(chunk?: string): void;
-};
 
 @Controller('chat')
 export class GatewayController {
