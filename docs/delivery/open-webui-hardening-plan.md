@@ -40,7 +40,10 @@ The gap is that production hardening is mostly documented, but not yet fully exp
   - local and deployed Open WebUI env examples are now separate
   - local and deployed gateway compatibility profiles are now separate
   - deployed Open WebUI compose now defaults `BYPASS_MODEL_ACCESS_CONTROL` to `false`
-- Slice 5 remains planned work
+- Slice 5 is now documented concretely:
+  - ADR-008 defines the preferred identity-strengthening path
+  - Open WebUI integration docs now describe the migration path from trusted headers toward proxy-auth or OIDC-backed correlation
+  - the strengthened identity story remains explicitly outside provider implementations
 
 ## Recommended Delivery Order
 
@@ -216,4 +219,4 @@ The best next implementation pass is:
 1. make the reverse proxy contract concrete in deployment examples
 2. add explicit header stripping and reinjection examples for trusted deployments
 3. review local versus production runtime profiles in compose and env examples
-4. evaluate a stronger identity transport such as proxy-auth or OIDC-backed correlation
+4. implement a stronger identity transport such as proxy-auth or OIDC-backed correlation when deployment needs justify it

@@ -134,8 +134,8 @@ export class GatewayAuthService {
   private async authenticateTrustedOpenAiCompatibleUser(
     requestHeaders?: Record<string, string | string[] | undefined>,
   ): Promise<GatewayAuthContext> {
-    const trustedEmailHeader = this.readTrustedEmailHeader(requestHeaders);
-    if (trustedEmailHeader && !this.isTrustedIdentityCorrelationEnabled()) {
+    const trustedIdentity = this.readTrustedEmailHeader(requestHeaders);
+    if (trustedIdentity && !this.isTrustedIdentityCorrelationEnabled()) {
       if (this.isOpenAiCompatDebugEnabled()) {
         this.logger.debug(
           'OpenAI-compatible trusted identity header rejected because trusted identity mode is disabled.',
@@ -147,7 +147,7 @@ export class GatewayAuthService {
     }
 
     const email =
-      trustedEmailHeader ??
+      trustedIdentity?.email ??
       process.env.LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL?.trim();
     if (!email) {
       throw new UnauthorizedException(
@@ -167,17 +167,21 @@ export class GatewayAuthService {
       );
     }
 
-    const identitySource: GatewayAuthIdentitySource = trustedEmailHeader
+    const identitySource: GatewayAuthIdentitySource = trustedIdentity
       ? 'openai-compatible-trusted-header'
       : 'openai-compatible-default-user';
-    this.logCompatibilityIdentityResolved(user, identitySource);
+    this.logCompatibilityIdentityResolved(
+      user,
+      identitySource,
+      trustedIdentity?.headerName,
+    );
 
     if (this.isOpenAiCompatDebugEnabled()) {
-      const resolutionSource = trustedEmailHeader
+      const resolutionSource = trustedIdentity
         ? 'trusted-header'
         : 'default-user';
       this.logger.debug(
-        `OpenAI-compatible identity source=${resolutionSource} userUuid=${user.userUuid} userFingerprint=${this.fingerprintEmailHash(user.emailHash)}`,
+        `OpenAI-compatible identity source=${resolutionSource} trustedHeader=${trustedIdentity?.headerName ?? 'none'} userUuid=${user.userUuid} userFingerprint=${this.fingerprintEmailHash(user.emailHash)}`,
       );
     }
 
@@ -189,19 +193,67 @@ export class GatewayAuthService {
 
   private readTrustedEmailHeader(
     requestHeaders?: Record<string, string | string[] | undefined>,
-  ): string | undefined {
-    const configuredHeader =
-      process.env.LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER?.trim();
-    if (!configuredHeader || !requestHeaders) {
+  ): { email: string; headerName: string } | undefined {
+    const configuredHeaders = this.listTrustedEmailHeaders();
+    if (!configuredHeaders.length || !requestHeaders) {
       return undefined;
     }
 
-    const headerValue = requestHeaders[configuredHeader.toLowerCase()];
-    if (Array.isArray(headerValue)) {
-      return headerValue[0]?.trim() || undefined;
+    const matches = configuredHeaders
+      .map((headerName) => {
+        const headerValue = requestHeaders[headerName.toLowerCase()];
+        const value = Array.isArray(headerValue)
+          ? headerValue[0]?.trim() || undefined
+          : headerValue?.trim() || undefined;
+        if (!value) {
+          return undefined;
+        }
+
+        return {
+          headerName,
+          email: value,
+        };
+      })
+      .filter(
+        (
+          match,
+        ): match is {
+          email: string;
+          headerName: string;
+        } => Boolean(match),
+      );
+
+    if (!matches.length) {
+      return undefined;
     }
 
-    return headerValue?.trim() || undefined;
+    const distinctEmails = new Set(
+      matches.map((match) => match.email.trim().toLowerCase()),
+    );
+    if (distinctEmails.size > 1) {
+      throw new UnauthorizedException(
+        'Conflicting trusted identity headers were supplied for the OpenAI-compatible request.',
+      );
+    }
+
+    return matches[0];
+  }
+
+  private listTrustedEmailHeaders(): string[] {
+    const configuredHeaderList =
+      process.env.LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS?.trim() ?? '';
+    const configuredHeaders = configuredHeaderList
+      .split(',')
+      .map((header) => header.trim())
+      .filter(Boolean);
+
+    if (configuredHeaders.length) {
+      return [...new Set(configuredHeaders)];
+    }
+
+    const legacyHeader =
+      process.env.LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER?.trim();
+    return legacyHeader ? [legacyHeader] : [];
   }
 
   private isTrustedIdentityCorrelationEnabled(): boolean {
@@ -264,11 +316,13 @@ export class GatewayAuthService {
       GatewayAuthIdentitySource,
       'openai-compatible-default-user' | 'openai-compatible-trusted-header'
     >,
+    trustedHeaderName?: string,
   ): void {
     this.logger.log(
       JSON.stringify({
         event: 'gateway.compatibility.identity.resolved',
         identitySource,
+        trustedHeaderName: trustedHeaderName ?? null,
         resolvedUserUuid: user.userUuid,
         userFingerprint: this.fingerprintEmailHash(user.emailHash),
       }),

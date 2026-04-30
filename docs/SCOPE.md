@@ -390,6 +390,7 @@ For OpenAI-compatible internal clients such as Open WebUI, the current security 
 - the Open WebUI deployment should strip untrusted identity headers at the public edge and inject them only from the trusted boundary
 - for deployed environments, only Open WebUI should be public-facing when possible, while the OpenAI-compatible gateway facade remains on an internal path
 - local and deployed Open WebUI profiles should stay explicitly separate so permissive lab settings do not drift into VPS deployments
+- the long-term production direction is stronger identity correlation through OIDC, proxy-auth, or a comparable authenticated trust boundary, while keeping BYOK authority in `gateway-api`
 
 ## Recommended Execution Order
 

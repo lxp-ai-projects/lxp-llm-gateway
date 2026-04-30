@@ -56,6 +56,7 @@ See also [open-webui-hardening-plan.md](open-webui-hardening-plan.md) for implem
 - keep BYOK provider credentials in `admin-api` and `gateway-api`, never in Open WebUI
 - treat `BYPASS_MODEL_ACCESS_CONTROL=true` as a deliberate integration choice, not a generic default for public deployments
 - prefer OIDC or proxy-auth backed identity before forwarding user correlation headers in production
+- keep the strengthened identity path documented in ADRs and integration guides so future deploys do not treat the plain forwarded email header as the final target
 
 ### Documentation
 

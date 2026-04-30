@@ -13,7 +13,14 @@ The intended posture is:
 The example files in this folder are:
 
 - [caddy/open-webui.Caddyfile.example](./caddy/open-webui.Caddyfile.example)
+- [caddy/open-webui.forward-auth.Caddyfile.example](./caddy/open-webui.forward-auth.Caddyfile.example)
 - [nginx/open-webui.conf.example](./nginx/open-webui.conf.example)
+- [nginx/open-webui.auth-request.conf.example](./nginx/open-webui.auth-request.conf.example)
+
+Related compose examples live in:
+
+- [../compose/docker-compose.open-webui.vps.yml](../compose/docker-compose.open-webui.vps.yml)
+- [../compose/docker-compose.open-webui.oauth2-proxy.vps.yml](../compose/docker-compose.open-webui.oauth2-proxy.vps.yml)
 
 Both examples do the same critical thing:
 
@@ -31,3 +38,27 @@ If you later move identity injection to a reverse proxy or auth gateway, preserv
 
 - strip public identity headers first
 - inject only trusted identity after authentication
+
+## Proxy-Auth Examples
+
+This repository also includes example configurations for a stronger identity boundary:
+
+- `Caddy + forward_auth`
+- `Nginx + auth_request`
+
+These examples assume an auth gateway such as `oauth2-proxy` is already running and can return trusted headers like:
+
+- `X-Auth-Request-User`
+- `X-Auth-Request-Email`
+
+When you use that pattern:
+
+1. the public request is authenticated by the auth gateway
+2. spoofed identity headers from the public request are removed
+3. only the trusted authenticated identity is reintroduced inside the deployment boundary
+4. `gateway-api` accepts that identity only when the corresponding trusted header names are allowlisted
+
+If you want a repo-native starting point for that auth gateway, use:
+
+- [../compose/docker-compose.open-webui.oauth2-proxy.vps.yml](../compose/docker-compose.open-webui.oauth2-proxy.vps.yml)
+- [../compose/open-webui.oauth2-proxy.vps.env.example](../compose/open-webui.oauth2-proxy.vps.env.example)

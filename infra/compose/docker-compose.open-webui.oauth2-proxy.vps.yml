@@ -1,0 +1,49 @@
+name: lxp-llm-gateway-open-webui-oauth2-proxy
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3004:8080'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      HOST: 0.0.0.0
+      WEBUI_NAME: LXP Gateway
+      ENABLE_OLLAMA_API: 'false'
+      ENABLE_OPENAI_API: 'true'
+      BYPASS_MODEL_ACCESS_CONTROL: ${BYPASS_MODEL_ACCESS_CONTROL:-false}
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:?set OPENAI_API_BASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
+      ENABLE_FORWARD_USER_INFO_HEADERS: 'true'
+      AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST: 15
+    volumes:
+      - open_webui_data:/app/backend/data
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:4180:4180'
+    command:
+      - --http-address=0.0.0.0:4180
+      - --reverse-proxy=true
+      - --provider=${OAUTH2_PROXY_PROVIDER:?set OAUTH2_PROXY_PROVIDER}
+      - --client-id=${OAUTH2_PROXY_CLIENT_ID:?set OAUTH2_PROXY_CLIENT_ID}
+      - --client-secret=${OAUTH2_PROXY_CLIENT_SECRET:?set OAUTH2_PROXY_CLIENT_SECRET}
+      - --cookie-secret=${OAUTH2_PROXY_COOKIE_SECRET:?set OAUTH2_PROXY_COOKIE_SECRET}
+      - --cookie-secure=true
+      - --cookie-samesite=lax
+      - --email-domain=*
+      - --set-xauthrequest=true
+      - --pass-access-token=false
+      - --pass-authorization-header=false
+      - --upstream=http://127.0.0.1:3004
+      - --redirect-url=${OAUTH2_PROXY_REDIRECT_URL:?set OAUTH2_PROXY_REDIRECT_URL}
+      - --oidc-issuer-url=${OAUTH2_PROXY_OIDC_ISSUER_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+volumes:
+  open_webui_data:

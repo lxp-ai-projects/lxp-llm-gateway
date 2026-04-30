@@ -107,6 +107,75 @@ test('GatewayAuthService resolves a trusted Open WebUI user from the forwarded e
   );
 });
 
+test('GatewayAuthService resolves a trusted user from a proxy-auth email header when configured', async () => {
+  const lookupKey = randomBytes(32);
+  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
+  const bobHash = computeEmailHash('bob@example.com', lookupKey);
+  const users = [
+    {
+      id: 'user-1',
+      userUuid: 'uuid-1',
+      emailHash: aliceHash,
+      status: 'active',
+      defaultProviderId: 'nanogpt',
+      defaultModel: 'nano-1',
+      defaultImageProviderId: null,
+      defaultImageModel: null,
+    },
+    {
+      id: 'user-2',
+      userUuid: 'uuid-2',
+      emailHash: bobHash,
+      status: 'active',
+      defaultProviderId: 'openrouter',
+      defaultModel: 'meta-llama/llama-3.3-70b-instruct',
+      defaultImageProviderId: null,
+      defaultImageModel: null,
+    },
+  ];
+  const service = new GatewayAuthService(
+    {
+      verifyAsync: async () => {
+        throw new Error('jwt not used');
+      },
+    } as never,
+    {
+      findOne: async ({ where }: { where: { emailHash: string; status: string } }) =>
+        users.find(
+          (user) =>
+            user.emailHash === where.emailHash && user.status === where.status,
+        ) ?? null,
+    } as never,
+  );
+
+  await withEnv(
+    {
+      LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
+      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'true',
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS:
+        'X-OpenWebUI-User-Email, X-Auth-Request-Email',
+      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
+      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
+    },
+    async () => {
+      const authContext = await service.authenticateOpenAiCompatibleRequest(
+        'Bearer open-webui-shared-key',
+        undefined,
+        {
+          'x-auth-request-email': 'bob@example.com',
+        },
+      );
+
+      assert.equal(authContext.userId, 'user-2');
+      assert.equal(
+        authContext.identitySource,
+        'openai-compatible-trusted-header',
+      );
+      assert.equal(authContext.defaultProviderId, 'openrouter');
+    },
+  );
+});
+
 test('GatewayAuthService rejects a forwarded Open WebUI user header when trusted identity mode is disabled', async () => {
   const lookupKey = randomBytes(32);
   const aliceHash = computeEmailHash('alice@example.com', lookupKey);
@@ -152,6 +221,58 @@ test('GatewayAuthService rejects a forwarded Open WebUI user header when trusted
             },
           ),
         /Trusted OpenAI-compatible identity headers are not accepted/,
+      );
+    },
+  );
+});
+
+test('GatewayAuthService rejects conflicting trusted identity headers', async () => {
+  const lookupKey = randomBytes(32);
+  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
+  const service = new GatewayAuthService(
+    {
+      verifyAsync: async () => {
+        throw new Error('jwt not used');
+      },
+    } as never,
+    {
+      findOne: async ({ where }: { where: { emailHash: string; status: string } }) =>
+        where.emailHash === aliceHash && where.status === 'active'
+          ? {
+              id: 'user-1',
+              userUuid: 'uuid-1',
+              emailHash: aliceHash,
+              status: 'active',
+              defaultProviderId: 'nanogpt',
+              defaultModel: 'nano-1',
+              defaultImageProviderId: null,
+              defaultImageModel: null,
+            }
+          : null,
+    } as never,
+  );
+
+  await withEnv(
+    {
+      LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
+      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'true',
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS:
+        'X-OpenWebUI-User-Email, X-Auth-Request-Email',
+      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
+      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
+    },
+    async () => {
+      await assert.rejects(
+        () =>
+          service.authenticateOpenAiCompatibleRequest(
+            'Bearer open-webui-shared-key',
+            undefined,
+            {
+              'x-openwebui-user-email': 'alice@example.com',
+              'x-auth-request-email': 'bob@example.com',
+            },
+          ),
+        /Conflicting trusted identity headers were supplied/i,
       );
     },
   );

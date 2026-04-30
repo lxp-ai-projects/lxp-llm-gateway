@@ -43,7 +43,13 @@ This mode is for a VPS or other deployed environment.
 - public or untrusted requests must not be able to set or preserve trusted identity headers
 - Open WebUI model filtering should remain enabled by default unless the deployment explicitly chooses otherwise
 
+Trusted identity headers can be configured in two ways:
+
+- `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER` for a single header such as `X-OpenWebUI-User-Email`
+- `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS` for a comma-separated allowlist such as `X-OpenWebUI-User-Email,X-Auth-Request-Email,X-Forwarded-Email`
+
 If a request does not come from the trusted boundary, the gateway must ignore any caller-supplied identity header.
+If multiple trusted headers are present with conflicting email values, the gateway rejects the request.
 
 In the current implementation, compatibility requests are also audited against the resolved gateway user:
 
@@ -154,7 +160,9 @@ Repository examples for this boundary live in:
 
 - [infra/proxy/README.md](../../infra/proxy/README.md)
 - [infra/proxy/caddy/open-webui.Caddyfile.example](../../infra/proxy/caddy/open-webui.Caddyfile.example)
+- [infra/proxy/caddy/open-webui.forward-auth.Caddyfile.example](../../infra/proxy/caddy/open-webui.forward-auth.Caddyfile.example)
 - [infra/proxy/nginx/open-webui.conf.example](../../infra/proxy/nginx/open-webui.conf.example)
+- [infra/proxy/nginx/open-webui.auth-request.conf.example](../../infra/proxy/nginx/open-webui.auth-request.conf.example)
 
 ## Action Items
 
@@ -193,6 +201,49 @@ Operators should treat those examples as policy, not just convenience:
 
 - local mode may use permissive settings to preserve developer velocity
 - deployed mode should default to the stricter posture and opt into permissive behavior explicitly
+
+## Identity Strengthening Path
+
+The current trusted-header deployment is an intermediate posture, not the only future path.
+
+The preferred production direction is documented in [ADR-008-open-webui-identity-strengthening.md](../architecture/decisions/ADR-008-open-webui-identity-strengthening.md).
+
+The target state is:
+
+1. authenticate the human user through `OIDC`, `proxy-auth`, or a comparable trusted identity boundary
+2. strip public identity headers at the edge
+3. let only the trusted deployment path carry user identity toward `gateway-api`
+4. keep `gateway-api` as the authority for user resolution, BYOK credential selection, and usage attribution
+
+This keeps the current seam intact:
+
+- provider packages remain unaware of Open WebUI
+- provider packages remain unaware of OIDC or proxy-auth
+- the OpenAI-compatible facade remains a gateway transport concern only
+
+### Practical Migration Order
+
+1. keep local labs on shared compatibility key plus trusted header when needed
+2. keep current trusted-header mode for bounded VPS deployments
+3. move public deployments toward proxy-auth or OIDC-backed user identity using `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS`
+4. later decide whether `gateway-api` should require a stronger signed or deployment-verified identity assertion than a plain email header
+
+### Proxy-Auth Deployment Shape
+
+A practical next step for deployed environments is:
+
+1. a public proxy authenticates the user through an auth gateway such as `oauth2-proxy`
+2. the proxy strips any caller-supplied identity headers
+3. the proxy re-injects only trusted headers such as `X-Auth-Request-Email`
+4. `Open WebUI` remains the public UI
+5. `gateway-api` accepts only the configured trusted email header names
+
+Repository examples for this shape live in:
+
+- [infra/proxy/nginx/open-webui.auth-request.conf.example](../../infra/proxy/nginx/open-webui.auth-request.conf.example)
+- [infra/proxy/caddy/open-webui.forward-auth.Caddyfile.example](../../infra/proxy/caddy/open-webui.forward-auth.Caddyfile.example)
+- [infra/compose/docker-compose.open-webui.oauth2-proxy.vps.yml](../../infra/compose/docker-compose.open-webui.oauth2-proxy.vps.yml)
+- [infra/compose/open-webui.oauth2-proxy.vps.env.example](../../infra/compose/open-webui.oauth2-proxy.vps.env.example)
 
 ## Security Boundary
 

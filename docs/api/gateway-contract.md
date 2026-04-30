@@ -22,7 +22,15 @@ For trusted OpenAI-compatible callers such as `Open WebUI`, the gateway can also
 
 - authenticate the caller through `LXP_OPENAI_COMPAT_API_KEY`
 - optionally correlate the effective user from a trusted forwarded email header such as `X-OpenWebUI-User-Email`
+- optionally accept a trusted proxy-auth style email header such as `X-Auth-Request-Email` or `X-Forwarded-Email` when explicitly configured
 - otherwise fall back to `LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL`
+
+Trusted identity headers are configured through:
+
+- `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER` for the legacy single-header mode
+- `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS` for a comma-separated allowlist used by trusted proxy or OIDC-backed deployments
+
+If multiple trusted identity headers are configured and the request supplies conflicting email values, the gateway rejects the request.
 
 ## Request
 
