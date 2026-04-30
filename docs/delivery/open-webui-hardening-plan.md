@@ -36,7 +36,11 @@ The gap is that production hardening is mostly documented, but not yet fully exp
   - VPS setup docs now define the reverse-proxy contract explicitly
   - repository examples show public-edge header stripping for `Caddy` and `Nginx`
   - the supported trust chain is now written down as `public proxy -> trusted Open WebUI deployment -> gateway-api`
-- Slices 4 and 5 remain planned work
+- Slice 4 is now documented concretely:
+  - local and deployed Open WebUI env examples are now separate
+  - local and deployed gateway compatibility profiles are now separate
+  - deployed Open WebUI compose now defaults `BYPASS_MODEL_ACCESS_CONTROL` to `false`
+- Slice 5 remains planned work
 
 ## Recommended Delivery Order
 

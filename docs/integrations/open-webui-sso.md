@@ -27,6 +27,7 @@ This mode is for developer machines and lab environments.
 - the gateway may accept `X-OpenWebUI-User-Email`
 - the gateway resolves the real user from the forwarded email
 - the gateway still chooses the provider credential and default model
+- Open WebUI model filtering may be bypassed intentionally for local operability
 
 This is acceptable only when the deployment boundary is trusted.
 
@@ -40,6 +41,7 @@ This mode is for a VPS or other deployed environment.
 - the proxy injects the trusted user identity header only after authentication
 - `gateway-api` accepts the trusted header only from that bounded trust zone
 - public or untrusted requests must not be able to set or preserve trusted identity headers
+- Open WebUI model filtering should remain enabled by default unless the deployment explicitly chooses otherwise
 
 If a request does not come from the trusted boundary, the gateway must ignore any caller-supplied identity header.
 
@@ -177,6 +179,20 @@ These are the concrete next steps to improve the current posture.
 - keep local dev mode and production mode documented separately
 - use local trusted-header correlation only in controlled lab environments
 - require a stronger identity boundary such as OIDC or proxy-auth before relying on user correlation in production
+
+## Runtime Profile Guidance
+
+The repository now ships separate example profiles for:
+
+- local Open WebUI integration
+- deployed Open WebUI integration
+- local gateway Open WebUI compatibility mode
+- deployed gateway Open WebUI compatibility mode
+
+Operators should treat those examples as policy, not just convenience:
+
+- local mode may use permissive settings to preserve developer velocity
+- deployed mode should default to the stricter posture and opt into permissive behavior explicitly
 
 ## Security Boundary
 

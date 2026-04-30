@@ -13,7 +13,9 @@ services:
       WEBUI_NAME: LXP Gateway
       ENABLE_OLLAMA_API: 'false'
       ENABLE_OPENAI_API: 'true'
-      BYPASS_MODEL_ACCESS_CONTROL: 'true'
+      # Default to the safer production posture. Enable only if the deployment
+      # intentionally wants Open WebUI to display every model returned by the gateway.
+      BYPASS_MODEL_ACCESS_CONTROL: ${BYPASS_MODEL_ACCESS_CONTROL:-false}
       OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:?set OPENAI_API_BASE_URL}
       OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
       ENABLE_FORWARD_USER_INFO_HEADERS: 'true'

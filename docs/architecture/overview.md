@@ -113,6 +113,7 @@ The initial architecture assumes:
 - short-lived access tokens with server-side revocation support
 - gateway-side identity resolution from `emailHash`, not a caller-supplied internal user id
 - optional trusted-header correlation for OpenAI-compatible internal callers only when a shared API key and trusted deployment boundary are in place
+- separate local and deployed Open WebUI runtime profiles so that permissive lab settings do not silently become production defaults
 - generalized error handling that avoids overexposing account and token state to callers
 - write-only or masked-only handling for provider secrets in administrative workflows
 

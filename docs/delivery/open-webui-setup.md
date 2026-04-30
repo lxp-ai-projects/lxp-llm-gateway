@@ -26,9 +26,22 @@ Optional but recommended for trusted-user mapping:
 - `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER=X-OpenWebUI-User-Email`
 - `LXP_EMAIL_LOOKUP_KEY`
 
+Repository examples:
+
+- local Open WebUI env: [infra/compose/open-webui.local.env.example](../../infra/compose/open-webui.local.env.example)
+- VPS Open WebUI env: [infra/compose/open-webui.vps.env.example](../../infra/compose/open-webui.vps.env.example)
+- local gateway profile: [apps/gateway-api/.env.open-webui.local.example](../../apps/gateway-api/.env.open-webui.local.example)
+- trusted deployed gateway profile: [apps/gateway-api/.env.open-webui.production.example](../../apps/gateway-api/.env.open-webui.production.example)
+
 ## 2. Local Setup
 
 Use this when both apps run on your workstation.
+
+This profile is intentionally permissive:
+
+- `BYPASS_MODEL_ACCESS_CONTROL=true`
+- `ENABLE_FORWARD_USER_INFO_HEADERS=true`
+- trusted identity correlation is acceptable only because the whole machine is trusted
 
 ### Start the stack
 
@@ -81,6 +94,7 @@ Create `.env.open-webui.vps` with these values before starting it:
 ```text
 OPENAI_API_BASE_URL=https://gateway.example.com/api/v1/openai
 OPENAI_API_KEY=change-me
+BYPASS_MODEL_ACCESS_CONTROL=false
 ```
 
 You can copy the template from [open-webui.vps.env.example](../../infra/compose/open-webui.vps.env.example).
@@ -157,6 +171,7 @@ The public proxy does not invent the user identity. Its job is to prevent the pu
 - keep the OpenAI compatibility key private
 - do not expose `gateway-api` directly to the public internet unless you really mean to
 - keep the trusted email header only inside the proxy boundary
+- keep `BYPASS_MODEL_ACCESS_CONTROL=false` by default in deployed environments
 - use `BYPASS_MODEL_ACCESS_CONTROL=true` only for a trusted deployment where `Open WebUI` is intentionally allowed to display the gateway's returned model list
 
 ## 4. How Identity Works
@@ -169,6 +184,8 @@ If only `LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL` is set, all Open WebUI requests u
 
 This is the simplest mode for testing.
 
+This is also the safest compatibility fallback when you have not yet completed the trusted-header production boundary.
+
 ### Per-user correlation
 
 If `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER=X-OpenWebUI-User-Email` is set and Open WebUI forwards user info headers, the gateway resolves the real user from the forwarded email.
@@ -179,7 +196,22 @@ This correlation is only enabled when `LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLE
 
 For a VPS deployment, only turn this on once the public proxy is stripping inbound identity headers and the Open WebUI deployment is on a trusted internal path.
 
-## 5. Troubleshooting
+## 6. Runtime Profiles
+
+Use the profiles in this repository as a guardrail:
+
+- local Open WebUI: [infra/compose/open-webui.local.env.example](../../infra/compose/open-webui.local.env.example)
+- deployed Open WebUI: [infra/compose/open-webui.vps.env.example](../../infra/compose/open-webui.vps.env.example)
+- local gateway profile: [apps/gateway-api/.env.open-webui.local.example](../../apps/gateway-api/.env.open-webui.local.example)
+- deployed gateway profile: [apps/gateway-api/.env.open-webui.production.example](../../apps/gateway-api/.env.open-webui.production.example)
+
+The key behavioral differences are:
+
+1. local mode is allowed to be more permissive to make testing simple
+2. deployed mode keeps model filtering stricter by default
+3. trusted user correlation in deployed mode is valid only with the reverse-proxy contract already in place
+
+## 7. Troubleshooting
 
 - If models do not appear, check the gateway logs first.
 - If models appear for one user but not another, confirm the Open WebUI account role and the gateway user's provider credentials.
