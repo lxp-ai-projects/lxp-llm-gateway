@@ -193,6 +193,86 @@ test('GoogleProviderAdapter sends chat requests to the Gemini OpenAI-compatible 
   }
 });
 
+test('GoogleProviderAdapter forwards multimodal chat content blocks unchanged', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: 'hello from gemini',
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new GoogleProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'gemini-2.5-pro',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Explain this image.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: 'https://example.com/reference.png',
+                },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        requestId: 'request-multimodal-1',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'google-token' },
+      },
+    );
+
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      messages?: unknown;
+    };
+    assert.deepEqual(body.messages, [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'Explain this image.',
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: 'https://example.com/reference.png',
+            },
+          },
+        ],
+      },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('GoogleProviderAdapter sends native image generation requests to Gemini generateContent', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;

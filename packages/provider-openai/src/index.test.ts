@@ -187,6 +187,88 @@ test('OpenAiProviderAdapter sends chat requests to the OpenAI chat completions e
   }
 });
 
+test('OpenAiProviderAdapter forwards multimodal chat content blocks unchanged', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: 'hello from openai',
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OpenAiProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Describe this image.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: 'https://example.com/reference.png',
+                  detail: 'high',
+                },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        requestId: 'request-multimodal-1',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'openai-token' },
+      },
+    );
+
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      messages?: unknown;
+    };
+    assert.deepEqual(body.messages, [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'Describe this image.',
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: 'https://example.com/reference.png',
+              detail: 'high',
+            },
+          },
+        ],
+      },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('OpenAiProviderAdapter sends image generation requests to the OpenAI images endpoint', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;
