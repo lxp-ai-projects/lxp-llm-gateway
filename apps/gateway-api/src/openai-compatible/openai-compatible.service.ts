@@ -1,5 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatContentPart,
+  GatewayChatResponse,
+} from '@lxp/contracts';
 import type { ProviderId } from '@lxp/domain';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
@@ -128,16 +131,77 @@ export class OpenAiCompatibleService {
     messages: OpenAiCompatibleChatCompletionsRequestDto['messages'],
   ) {
     return messages.map((message) => {
-      if (typeof message.content !== 'string') {
-        throw new BadRequestException(
-          'The OpenAI-compatible facade currently supports text-only message content.',
-        );
+      if (typeof message.content === 'string') {
+        return {
+          role: message.role,
+          content: message.content,
+        };
       }
 
-      return {
-        role: message.role,
-        content: message.content,
-      };
+      if (Array.isArray(message.content)) {
+        const normalizedContent = this.normalizeContentParts(message.content);
+        if (!normalizedContent.length) {
+          throw new BadRequestException(
+            'The OpenAI-compatible facade requires at least one supported content block per chat message.',
+          );
+        }
+
+        return {
+          role: message.role,
+          content: normalizedContent,
+        };
+      }
+
+      throw new BadRequestException(
+        'The OpenAI-compatible facade currently supports text-only chat message content.',
+      );
+    });
+  }
+
+  private normalizeContentParts(content: unknown[]): GatewayChatContentPart[] {
+    return content.map((part) => {
+      if (
+        typeof part === 'object' &&
+        part !== null &&
+        'type' in part &&
+        part.type === 'text' &&
+        'text' in part &&
+        typeof part.text === 'string'
+      ) {
+        return {
+          type: 'text',
+          text: part.text,
+        };
+      }
+
+      if (
+        typeof part === 'object' &&
+        part !== null &&
+        'type' in part &&
+        part.type === 'image_url' &&
+        'image_url' in part &&
+        typeof part.image_url === 'object' &&
+        part.image_url !== null &&
+        'url' in part.image_url &&
+        typeof part.image_url.url === 'string'
+      ) {
+        const detail =
+          'detail' in part.image_url && typeof part.image_url.detail === 'string'
+            ? part.image_url.detail
+            : undefined;
+
+        return {
+          type: 'image_url',
+          image_url: {
+            url: part.image_url.url,
+            detail,
+          },
+        };
+      }
+
+      throw new BadRequestException(
+        'The OpenAI-compatible facade only supports text and image_url chat content blocks at the moment.',
+      );
     });
   }
 

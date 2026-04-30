@@ -225,3 +225,36 @@ test('AnthropicProviderAdapter formats JSON error payloads with the upstream mes
     globalThis.fetch = originalFetch;
   }
 });
+
+test('AnthropicProviderAdapter rejects gateway chat image attachments with a clear error', async () => {
+  const adapter = new AnthropicProviderAdapter();
+
+  await assert.rejects(
+    () =>
+      adapter.chat(
+        {
+          model: 'claude-sonnet-4-20250514',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Describe this image' },
+                {
+                  type: 'image_url',
+                  image_url: { url: 'https://example.com/cat.png' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          requestId: 'request-1',
+          userId: 'user-1',
+          providerAccess: {
+            apiKey: 'anthropic-token',
+          },
+        },
+      ),
+    /Anthropic gateway chat does not yet support image attachments/i,
+  );
+});

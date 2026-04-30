@@ -57,6 +57,14 @@ Fields:
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
 
+`messages[].content` can be either:
+
+- a plain string
+- an array of normalized content blocks, currently:
+  - `{ "type": "text", "text": "..." }`
+  - `{ "type": "image_url", "image_url": { "url": "https://..." } }`
+  - `{ "type": "image_url", "image_url": { "url": "data:image/png;base64,...", "detail": "high" } }`
+
 If `providerId` is omitted, the gateway uses the authenticated user's configured `defaultProviderId`.
 
 If `model` is omitted, the gateway uses the authenticated user's `defaultModel`, but only when it belongs to the resolved default provider.
@@ -110,6 +118,33 @@ Example request:
 }
 ```
 
+Multimodal example request:
+
+```json
+{
+  "model": "openrouter/openai/gpt-5-image",
+  "stream": false,
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Describe this image and suggest a caption."
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "https://example.com/photo.png",
+            "detail": "high"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
 Example response:
 
 ```json
@@ -138,7 +173,9 @@ Example response:
 
 Current compatibility limits:
 
-- message content is text-only for now
+- the facade supports plain string content plus normalized `text` and `image_url` message blocks
+- provider support for chat image attachments remains provider-specific
+- providers that are still text-only in gateway chat may reject `image_url` blocks explicitly
 - the facade currently covers model listing and chat completions, not image endpoints
 - streaming remains SSE passthrough from the existing gateway chat stream
 

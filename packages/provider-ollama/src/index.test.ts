@@ -339,3 +339,36 @@ test('OllamaProviderAdapter transforms native cloud streams into SSE chat chunks
     globalThis.fetch = originalFetch;
   }
 });
+
+test('OllamaProviderAdapter rejects gateway chat image attachments with a clear error', async () => {
+  const adapter = new OllamaProviderAdapter();
+
+  await assert.rejects(
+    () =>
+      adapter.chat(
+        {
+          model: 'qwen3:8b',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Describe this image' },
+                {
+                  type: 'image_url',
+                  image_url: { url: 'https://example.com/cat.png' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          requestId: 'req-8',
+          userId: 'user-1',
+          providerAccess: {
+            baseUrl: 'http://127.0.0.1:11434/v1',
+          },
+        },
+      ),
+    /Ollama gateway chat does not yet support image attachments/i,
+  );
+});

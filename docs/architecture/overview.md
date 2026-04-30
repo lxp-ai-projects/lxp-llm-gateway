@@ -72,6 +72,11 @@ The seam should expose explicit surfaces for:
 - image generation
 - image editing with reference images
 
+For chat, that shared seam now also carries normalized message content in either of these forms:
+
+- a plain string
+- a list of normalized content blocks such as `text` and `image_url`
+
 Model catalog results may also carry capability-specific metadata needed by the UI and gateway orchestration, such as:
 
 - image-capable model flags
@@ -188,11 +193,14 @@ The same posture now applies when `gateway-api` is called through the OpenAI-com
 
 The seam now supports image generation, image editing, and image-provider catalog listing through the shared adapter surface.
 
+The seam also now supports normalized multimodal chat inputs so that OpenAI-compatible clients can send image attachments without pushing client-specific payload rules into `gateway-api`.
+
 That expansion should preserve the current boundary by extending `provider-sdk` with explicit capability contracts instead of adding provider-specific branching in `gateway-api`.
 
 The architectural direction is:
 
 - keep chat and image workflows as separate capability methods
+- keep multimodal chat content normalized at the seam instead of teaching `gateway-api` OpenAI-, Anthropic-, or provider-native attachment payload shapes
 - keep capability support explicit per adapter rather than inferred from provider id
 - allow model catalogs to remain provider-owned, capability-aware, and able to expose normalized capability metadata such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, fidelity controls, compression ranges, lifecycle state, and request limits
 - allow image requests to carry prompt text plus zero or more reference images
@@ -291,6 +299,15 @@ Open WebUI can also forward user identity headers such as `X-OpenWebUI-User-Emai
 When explicitly enabled in the gateway runtime, those headers allow per-user credential resolution against the existing gateway user table.
 
 This gives the platform a practical identity-correlation path for Open WebUI traffic without teaching provider packages anything about Open WebUI itself.
+
+For chat payloads, the facade can now translate OpenAI-style multimodal message content into the gateway's normalized chat-content blocks.
+
+That does not mean every provider supports chat image attachments yet.
+
+Current provider behavior remains explicit:
+
+- providers with chat adapters that still only support text must reject image attachments clearly
+- the compatibility facade still covers `/models` and `/chat/completions`, not provider image-generation endpoints
 
 ## UI Direction
 

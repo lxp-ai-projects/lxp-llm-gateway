@@ -18,6 +18,7 @@
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
 - Phase 2 provider-seam expansion for image generation, image editing, and provider-owned image catalogs
+- normalized multimodal chat content in the shared seam for text and `image_url` blocks
 
 ## Out of Scope for Phase 1
 
@@ -51,6 +52,7 @@ The repository now contains:
 - BYOK provider access through user-managed provider credentials
 - optional user correlation for Open WebUI traffic through a shared compatibility key plus forwarded user email header
 - provider model discovery through provider adapters, including capability-specific model metadata
+- shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`
 - CI quality gates for typecheck, test, and build
@@ -80,6 +82,7 @@ The next planned capability expansion is:
 - reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
 - paginated image job history and reusable saved/generated assets for operators
 - deployment hardening if Open WebUI identity correlation evolves into a full shared-identity story across both UIs
+- broader provider-by-provider multimodal chat support for image attachments behind the existing seam
 
 Current image-provider posture is:
 
@@ -88,6 +91,13 @@ Current image-provider posture is:
 - `Google Gemini` image models are exposed for generation and editing
 - `OpenAI GPT Image` is exposed for generation and editing through the same seam, with provider-owned capability metadata controlling the UI affordances
 - `OpenRouter` is exposed for image generation and image editing through the same seam, with reused capability metadata where the underlying model family already exists in another provider package
+
+Current multimodal chat posture is:
+
+- the shared gateway chat contract can now carry structured `text` and `image_url` content blocks
+- the OpenAI-compatible facade can preserve those blocks into the gateway seam for trusted internal clients such as Open WebUI
+- provider support remains provider-specific
+- providers that are still text-only in gateway chat should reject image attachments explicitly rather than accepting them partially
 
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.
 

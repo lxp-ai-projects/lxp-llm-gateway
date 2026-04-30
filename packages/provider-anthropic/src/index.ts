@@ -1,4 +1,8 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatContentPart,
+  GatewayChatRequest,
+  GatewayChatResponse,
+} from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
@@ -191,7 +195,7 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
   } {
     const system = request.messages
       .filter((message) => message.role === 'system')
-      .map((message) => message.content.trim())
+      .map((message) => this.extractTextOnlyContent(message.content, 'system'))
       .filter(Boolean)
       .join('\n\n');
 
@@ -203,7 +207,7 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       )
       .map((message) => ({
         role: message.role,
-        content: message.content,
+        content: this.extractTextOnlyContent(message.content, message.role),
       }));
 
     if (messages.length === 0) {
@@ -216,6 +220,29 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       system: system || undefined,
       messages,
     };
+  }
+
+  private extractTextOnlyContent(
+    content: string | GatewayChatContentPart[],
+    role: 'system' | 'user' | 'assistant',
+  ): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    const textParts: string[] = [];
+    for (const part of content) {
+      if (part.type === 'text') {
+        textParts.push(part.text);
+        continue;
+      }
+
+      throw new Error(
+        `Anthropic gateway chat does not yet support image attachments for ${role} messages.`,
+      );
+    }
+
+    return textParts.join('\n');
   }
 
   private resolveBaseUrl(context: ProviderExecutionContext): string {

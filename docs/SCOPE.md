@@ -330,6 +330,14 @@ It does need to:
 
 The seam now includes image generation, image editing, and provider-owned image catalogs.
 
+The chat seam also now supports normalized multimodal message content for:
+
+- plain text strings
+- structured `text` content blocks
+- structured `image_url` content blocks
+
+That capability is owned by the shared seam so trusted OpenAI-compatible clients such as Open WebUI can send multimodal chat payloads without teaching `gateway-api` provider-specific attachment formats.
+
 The gateway layer now also includes an OpenAI-compatible facade for trusted internal clients.
 
 That facade is still part of the gateway boundary, not a provider package concern.
@@ -358,6 +366,8 @@ Current provider reality is capability-specific:
 - `Google Gemini` image models support generation and editing
 - `OpenAI GPT Image` supports generation and editing in the gateway through the shared seam
 - `OpenRouter` supports image generation and image editing through the shared seam, with provider-owned catalog metadata and capability reuse for known model families
+- chat-level image attachments are now preserved through the shared chat seam as normalized `image_url` blocks
+- providers that do not yet implement multimodal chat consumption, such as `Anthropic Claude` and `Ollama`, reject chat image attachments explicitly rather than failing with an opaque transport error
 
 ## Persistence Strategy
 

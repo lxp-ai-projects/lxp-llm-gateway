@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { GatewayChatContentPart } from '@lxp/contracts';
 
 import type { GatewayAuthIdentitySource } from '../auth/auth.types';
 
@@ -60,16 +61,34 @@ export class GatewayAuditService {
     return emailHash.slice(0, 16);
   }
 
-  summarizeMessages(messages: Array<{ content: string }>): {
+  summarizeMessages(
+    messages: Array<{ content: string | GatewayChatContentPart[] }>,
+  ): {
     messageCount: number;
     messageCharacters: number;
   } {
     return {
       messageCount: messages.length,
       messageCharacters: messages.reduce(
-        (total, message) => total + message.content.length,
+        (total, message) => total + this.measureContentCharacters(message.content),
         0,
       ),
     };
+  }
+
+  private measureContentCharacters(
+    content: string | GatewayChatContentPart[],
+  ): number {
+    if (typeof content === 'string') {
+      return content.length;
+    }
+
+    return content.reduce((total, part) => {
+      if (part.type === 'text') {
+        return total + part.text.length;
+      }
+
+      return total;
+    }, 0);
   }
 }
