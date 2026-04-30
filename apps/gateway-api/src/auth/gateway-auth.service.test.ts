@@ -79,6 +79,7 @@ test('GatewayAuthService resolves a trusted Open WebUI user from the forwarded e
   await withEnv(
     {
       LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
+      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'true',
       LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: 'X-OpenWebUI-User-Email',
       LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
       LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
@@ -93,10 +94,64 @@ test('GatewayAuthService resolves a trusted Open WebUI user from the forwarded e
       );
 
       assert.equal(authContext.userId, 'user-2');
+      assert.equal(
+        authContext.identitySource,
+        'openai-compatible-trusted-header',
+      );
       assert.equal(authContext.defaultProviderId, 'openrouter');
       assert.equal(
         authContext.defaultModel,
         'meta-llama/llama-3.3-70b-instruct',
+      );
+    },
+  );
+});
+
+test('GatewayAuthService rejects a forwarded Open WebUI user header when trusted identity mode is disabled', async () => {
+  const lookupKey = randomBytes(32);
+  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
+  const service = new GatewayAuthService(
+    {
+      verifyAsync: async () => {
+        throw new Error('jwt not used');
+      },
+    } as never,
+    {
+      findOne: async ({ where }: { where: { emailHash: string; status: string } }) =>
+        where.emailHash === aliceHash && where.status === 'active'
+          ? {
+              id: 'user-1',
+              userUuid: 'uuid-1',
+              emailHash: aliceHash,
+              status: 'active',
+              defaultProviderId: 'nanogpt',
+              defaultModel: 'nano-1',
+              defaultImageProviderId: null,
+              defaultImageModel: null,
+            }
+          : null,
+    } as never,
+  );
+
+  await withEnv(
+    {
+      LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
+      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'false',
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: 'X-OpenWebUI-User-Email',
+      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
+      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
+    },
+    async () => {
+      await assert.rejects(
+        () =>
+          service.authenticateOpenAiCompatibleRequest(
+            'Bearer open-webui-shared-key',
+            undefined,
+            {
+              'x-openwebui-user-email': 'bob@example.com',
+            },
+          ),
+        /Trusted OpenAI-compatible identity headers are not accepted/,
       );
     },
   );
@@ -131,6 +186,7 @@ test('GatewayAuthService falls back to the configured default Open WebUI user em
   await withEnv(
     {
       LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
+      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'false',
       LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
       LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
     },
@@ -140,6 +196,10 @@ test('GatewayAuthService falls back to the configured default Open WebUI user em
       );
 
       assert.equal(authContext.userId, 'user-1');
+      assert.equal(
+        authContext.identitySource,
+        'openai-compatible-default-user',
+      );
       assert.equal(authContext.defaultProviderId, 'nanogpt');
     },
   );

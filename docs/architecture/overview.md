@@ -178,6 +178,9 @@ The same posture now applies when `gateway-api` is called through the OpenAI-com
 - forwarded user identity from Open WebUI remains an application-level trust decision, not a provider concern
 - for local development, a shared compatibility API key plus a trusted forwarded email header is acceptable
 - for a deployed VPS or externally reachable environment, the trusted header should only be accepted from a reverse proxy or other bounded trust zone
+- for a deployed VPS or externally reachable environment, the compatibility facade should remain on an internal path when possible, with the public edge stripping user-identity headers before requests reach the trusted Open WebUI deployment
+- the Open WebUI client must not be treated as the source of truth for provider access or usage attribution
+- `gateway-api` remains the BYOK and authorization authority for provider credentials, defaults, and request execution
 
 ## Provider Capability Expansion
 

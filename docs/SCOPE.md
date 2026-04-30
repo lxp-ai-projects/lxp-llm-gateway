@@ -335,6 +335,8 @@ The gateway layer now also includes an OpenAI-compatible facade for trusted inte
 That facade is still part of the gateway boundary, not a provider package concern.
 
 It exists to let protocol-oriented tools such as Open WebUI call the gateway while reusing the same identity, credential-resolution, routing, and provider-seam behavior.
+For local development, that integration may use a shared compatibility API key plus a trusted forwarded user header.
+For deployed environments, the trusted header must only be accepted from a bounded trust boundary such as a reverse proxy.
 
 The first concrete implementations are:
 
@@ -384,6 +386,9 @@ For OpenAI-compatible internal clients such as Open WebUI, the current security 
 - forwarded user email headers can be trusted only when the deployment boundary is controlled
 - per-user provider credential resolution still happens in `gateway-api`
 - this is identity correlation for inference traffic, not yet a full shared-session SSO story across all UIs
+- public requests must not be able to supply or preserve trusted identity headers
+- the Open WebUI deployment should strip untrusted identity headers at the public edge and inject them only from the trusted boundary
+- for deployed environments, only Open WebUI should be public-facing when possible, while the OpenAI-compatible gateway facade remains on an internal path
 
 ## Recommended Execution Order
 

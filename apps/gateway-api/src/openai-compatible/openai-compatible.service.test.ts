@@ -100,6 +100,7 @@ function buildAuthContext() {
     userId: 'user-1',
     userUuid: 'uuid-1',
     emailHash: 'hash-1',
+    identitySource: 'access-token' as const,
     roles: ['user'],
     defaultProviderId: null,
     defaultModel: null,

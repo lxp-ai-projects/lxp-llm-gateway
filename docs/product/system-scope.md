@@ -57,6 +57,7 @@ The repository now contains:
 - an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
 - operator-configurable gateway defaults for both chat and image generation/editing, with separate provider/model pairs
 - a local Open WebUI use case that is intentionally trusted and compose-driven
+- a production Open WebUI posture that keeps identity injection inside a trusted proxy boundary
 
 ## Phase 2 Starting Assumptions
 
@@ -96,3 +97,5 @@ Current Open WebUI posture is:
 - the gateway can aggregate models across the authenticated user's accessible providers
 - the gateway can optionally resolve the effective user from `X-OpenWebUI-User-Email` when the deployment explicitly trusts that header
 - this is enough to make provider usage follow the mapped gateway user in a trusted deployment, but it is not yet a full SSO/session-sharing implementation between Open WebUI and the admin SPA
+- the gateway remains the BYOK and security authority, not Open WebUI
+- production deployments should strip identity headers at the public proxy boundary and inject them only from trusted infrastructure

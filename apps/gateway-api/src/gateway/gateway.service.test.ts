@@ -106,7 +106,11 @@ class FakeProviderCredentialService {
 }
 
 class FakeGatewayAuditService {
-  logStarted(): void {}
+  public startedEvents: Array<Record<string, unknown>> = [];
+
+  logStarted(event: Record<string, unknown>): void {
+    this.startedEvents.push(event);
+  }
 
   logSucceeded(): void {}
 
@@ -132,6 +136,10 @@ function buildAuthContext(
     userId: string;
     userUuid: string;
     emailHash: string;
+    identitySource:
+      | 'access-token'
+      | 'openai-compatible-default-user'
+      | 'openai-compatible-trusted-header';
     roles: string[];
     defaultProviderId: 'nanogpt' | 'xai' | null;
     defaultModel: string | null;
@@ -143,6 +151,7 @@ function buildAuthContext(
     userId: 'user-1',
     userUuid: 'user-public-1',
     emailHash: 'hash-1',
+    identitySource: 'access-token' as const,
     roles: ['user'],
     defaultProviderId: null,
     defaultModel: null,
@@ -153,8 +162,9 @@ function buildAuthContext(
 }
 
 test('GatewayService routes chat requests through the provider registry', async () => {
+  const auditService = new FakeGatewayAuditService();
   const service = new GatewayService(
-    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    auditService as unknown as GatewayAuditService,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -177,6 +187,45 @@ test('GatewayService routes chat requests through the provider registry', async 
   assert.equal(response.message.content, 'hello');
   assert.equal(response.message.reasoning, '1. Analyze the input.');
   assert.ok(response.requestId);
+  assert.equal(auditService.startedEvents[0]?.providerId, 'nanogpt');
+  assert.equal(auditService.startedEvents[0]?.model, 'nano-1');
+  assert.equal(
+    auditService.startedEvents[0]?.resolvedUserUuid,
+    'user-public-1',
+  );
+  assert.equal(auditService.startedEvents[0]?.userFingerprint, 'hash-1');
+  assert.equal(auditService.startedEvents[0]?.identitySource, 'access-token');
+  assert.equal(auditService.startedEvents[0]?.stream, false);
+});
+
+test('GatewayService audit includes compatibility identity attribution', async () => {
+  const auditService = new FakeGatewayAuditService();
+  const service = new GatewayService(
+    auditService as unknown as GatewayAuditService,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+  );
+
+  await service.chat(
+    {
+      providerId: 'nanogpt',
+      model: 'nano-1',
+      messages: [{ role: 'user', content: 'hello' }],
+    } as GatewayChatRequestDto,
+    buildAuthContext({
+      identitySource: 'openai-compatible-trusted-header' as const,
+      userUuid: 'resolved-openwebui-user',
+    }),
+  );
+
+  assert.equal(
+    auditService.startedEvents[0]?.identitySource,
+    'openai-compatible-trusted-header',
+  );
+  assert.equal(
+    auditService.startedEvents[0]?.resolvedUserUuid,
+    'resolved-openwebui-user',
+  );
 });
 
 test('GatewayService wraps provider failures in a BadGatewayException', async () => {

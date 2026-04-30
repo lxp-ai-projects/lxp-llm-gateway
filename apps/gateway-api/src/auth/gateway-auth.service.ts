@@ -9,7 +9,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { UserEntity } from '../persistence/entities/user.entity';
-import type { GatewayAuthContext, GatewayAuthTokenPayload } from './auth.types';
+import type {
+  GatewayAuthContext,
+  GatewayAuthIdentitySource,
+  GatewayAuthTokenPayload,
+} from './auth.types';
 
 @Injectable()
 export class GatewayAuthService {
@@ -43,7 +47,7 @@ export class GatewayAuthService {
     }
 
     return {
-      ...this.mapUserToAuthContext(user),
+      ...this.mapUserToAuthContext(user, 'access-token'),
       roles: payload.roles,
     };
   }
@@ -61,9 +65,10 @@ export class GatewayAuthService {
       const authContext = await this.authenticateTrustedOpenAiCompatibleUser(
         requestHeaders,
       );
+      this.logCompatibilityRequestAccepted(authContext);
       if (debugEnabled) {
         this.logger.debug(
-          `OpenAI-compatible trusted user resolved: userUuid=${authContext.userUuid} emailHash=${authContext.emailHash.slice(0, 12)}...`,
+          `OpenAI-compatible trusted user resolved: userUuid=${authContext.userUuid} userFingerprint=${this.fingerprintEmailHash(authContext.emailHash)}`,
         );
       }
       return authContext;
@@ -75,7 +80,7 @@ export class GatewayAuthService {
     );
     if (debugEnabled) {
       this.logger.debug(
-        `OpenAI-compatible access-token user resolved: userUuid=${authContext.userUuid} emailHash=${authContext.emailHash.slice(0, 12)}...`,
+        `OpenAI-compatible access-token user resolved: userUuid=${authContext.userUuid} userFingerprint=${this.fingerprintEmailHash(authContext.emailHash)}`,
       );
     }
     return authContext;
@@ -129,8 +134,20 @@ export class GatewayAuthService {
   private async authenticateTrustedOpenAiCompatibleUser(
     requestHeaders?: Record<string, string | string[] | undefined>,
   ): Promise<GatewayAuthContext> {
+    const trustedEmailHeader = this.readTrustedEmailHeader(requestHeaders);
+    if (trustedEmailHeader && !this.isTrustedIdentityCorrelationEnabled()) {
+      if (this.isOpenAiCompatDebugEnabled()) {
+        this.logger.debug(
+          'OpenAI-compatible trusted identity header rejected because trusted identity mode is disabled.',
+        );
+      }
+      throw new UnauthorizedException(
+        'Trusted OpenAI-compatible identity headers are not accepted in the current runtime mode.',
+      );
+    }
+
     const email =
-      this.readTrustedEmailHeader(requestHeaders) ??
+      trustedEmailHeader ??
       process.env.LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL?.trim();
     if (!email) {
       throw new UnauthorizedException(
@@ -150,14 +167,22 @@ export class GatewayAuthService {
       );
     }
 
+    const identitySource: GatewayAuthIdentitySource = trustedEmailHeader
+      ? 'openai-compatible-trusted-header'
+      : 'openai-compatible-default-user';
+    this.logCompatibilityIdentityResolved(user, identitySource);
+
     if (this.isOpenAiCompatDebugEnabled()) {
+      const resolutionSource = trustedEmailHeader
+        ? 'trusted-header'
+        : 'default-user';
       this.logger.debug(
-        `OpenAI-compatible trusted header email=${email} resolved userUuid=${user.userUuid}`,
+        `OpenAI-compatible identity source=${resolutionSource} userUuid=${user.userUuid} userFingerprint=${this.fingerprintEmailHash(user.emailHash)}`,
       );
     }
 
     return {
-      ...this.mapUserToAuthContext(user),
+      ...this.mapUserToAuthContext(user, identitySource),
       roles: [],
     };
   }
@@ -177,6 +202,12 @@ export class GatewayAuthService {
     }
 
     return headerValue?.trim() || undefined;
+  }
+
+  private isTrustedIdentityCorrelationEnabled(): boolean {
+    return (
+      process.env.LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED ?? ''
+    ).toLowerCase() === 'true';
   }
 
   private computeEmailHash(email: string): string {
@@ -199,16 +230,53 @@ export class GatewayAuthService {
       .digest('hex');
   }
 
-  private mapUserToAuthContext(user: UserEntity): Omit<GatewayAuthContext, 'roles'> {
+  private mapUserToAuthContext(
+    user: UserEntity,
+    identitySource: GatewayAuthIdentitySource,
+  ): Omit<GatewayAuthContext, 'roles'> {
     return {
       userId: user.id,
       userUuid: user.userUuid,
       emailHash: user.emailHash,
+      identitySource,
       defaultProviderId: user.defaultProviderId,
       defaultModel: user.defaultModel,
       defaultImageProviderId: user.defaultImageProviderId,
       defaultImageModel: user.defaultImageModel,
     };
+  }
+
+  private logCompatibilityRequestAccepted(authContext: GatewayAuthContext): void {
+    this.logger.log(
+      JSON.stringify({
+        event: 'gateway.compatibility.request.accepted',
+        authMode: 'compatibility-api-key',
+        identitySource: authContext.identitySource,
+        resolvedUserUuid: authContext.userUuid,
+        userFingerprint: this.fingerprintEmailHash(authContext.emailHash),
+      }),
+    );
+  }
+
+  private logCompatibilityIdentityResolved(
+    user: Pick<UserEntity, 'userUuid' | 'emailHash'>,
+    identitySource: Extract<
+      GatewayAuthIdentitySource,
+      'openai-compatible-default-user' | 'openai-compatible-trusted-header'
+    >,
+  ): void {
+    this.logger.log(
+      JSON.stringify({
+        event: 'gateway.compatibility.identity.resolved',
+        identitySource,
+        resolvedUserUuid: user.userUuid,
+        userFingerprint: this.fingerprintEmailHash(user.emailHash),
+      }),
+    );
+  }
+
+  private fingerprintEmailHash(emailHash: string): string {
+    return emailHash.slice(0, 16);
   }
 
   private isOpenAiCompatDebugEnabled(): boolean {

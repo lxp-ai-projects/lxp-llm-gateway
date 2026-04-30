@@ -25,12 +25,14 @@ Set these in the `gateway-api` runtime before using Open WebUI:
 
 Optional, for per-user correlation:
 
+- `LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED=true`
 - `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER=X-OpenWebUI-User-Email`
 - `LXP_EMAIL_LOOKUP_KEY`
 
 Notes:
 
 - `LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL` is the fallback user when no forwarded user email header is available
+- `LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED` must be `true` before the gateway will accept a forwarded trusted user header
 - `LXP_EMAIL_LOOKUP_KEY` must match the key used by `admin-api`, because the gateway resolves the existing `emailHash` lookup value from the forwarded email
 
 ## Start the Stack

@@ -1,10 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import type { GatewayAuthIdentitySource } from '../auth/auth.types';
+
 type GatewayAuditBase = {
   requestId: string;
   providerId: string;
   model: string;
+  resolvedUserUuid: string;
   userFingerprint: string;
+  identitySource: GatewayAuthIdentitySource;
   messageCount: number;
   messageCharacters: number;
   stream: boolean;

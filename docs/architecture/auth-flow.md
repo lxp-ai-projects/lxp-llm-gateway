@@ -66,6 +66,7 @@ For trusted OpenAI-compatible internal callers such as `Open WebUI`:
 3. gateway maps that email to the existing `users.email_hash` lookup model
 4. gateway resolves the provider credential for that mapped user and provider
 5. gateway decrypts the provider API token only in memory for the outbound call
+6. if the request does not arrive through a trusted boundary, the forwarded identity header must be ignored or stripped before it reaches `gateway-api`
 
 If no trusted forwarded user email is present, the gateway may fall back to a configured default compatibility user for that integration.
 

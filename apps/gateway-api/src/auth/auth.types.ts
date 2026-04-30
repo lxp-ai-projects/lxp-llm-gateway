@@ -11,10 +11,16 @@ export type GatewayAuthTokenPayload = {
   exp: number;
 };
 
+export type GatewayAuthIdentitySource =
+  | 'access-token'
+  | 'openai-compatible-default-user'
+  | 'openai-compatible-trusted-header';
+
 export type GatewayAuthContext = {
   userId: string;
   userUuid: string;
   emailHash: string;
+  identitySource: GatewayAuthIdentitySource;
   roles: string[];
   defaultProviderId: ProviderId | null;
   defaultModel: string | null;

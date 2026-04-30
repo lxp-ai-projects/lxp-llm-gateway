@@ -84,9 +84,11 @@ export class GatewayService {
       requestId,
       providerId: provider.providerId,
       model,
+      resolvedUserUuid: authContext.userUuid,
       userFingerprint: this.gatewayAuditService.fingerprint(
         authContext.emailHash,
       ),
+      identitySource: authContext.identitySource,
       stream: false,
       ...messageSummary,
     };
@@ -164,9 +166,11 @@ export class GatewayService {
       requestId,
       providerId: provider.providerId,
       model,
+      resolvedUserUuid: authContext.userUuid,
       userFingerprint: this.gatewayAuditService.fingerprint(
         authContext.emailHash,
       ),
+      identitySource: authContext.identitySource,
       stream: true,
       ...messageSummary,
     };
