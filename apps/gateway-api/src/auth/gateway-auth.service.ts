@@ -13,6 +13,7 @@ import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
 import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
 import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
+import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { UserEntity } from '../persistence/entities/user.entity';
 import type {
   GatewayAuthContext,
@@ -32,10 +33,7 @@ export class GatewayAuthService {
     private readonly tenantRepository: Repository<TenantEntity>,
     @InjectRepository(TenantMembershipEntity)
     private readonly tenantMembershipRepository: Repository<TenantMembershipEntity>,
-    @InjectRepository(IntegrationClientEntity)
-    private readonly integrationClientRepository: Repository<IntegrationClientEntity>,
-    @InjectRepository(ApiKeyEntity)
-    private readonly apiKeyRepository: Repository<ApiKeyEntity>,
+    private readonly tenantRlsService: TenantRlsService,
   ) {}
 
   async authenticateAccessToken(
@@ -132,101 +130,105 @@ export class GatewayAuthService {
     requestHeaders?: Record<string, string | string[] | undefined>,
   ): Promise<GatewayAuthContext | null> {
     const keyHash = this.computeApiKeyHash(bearerToken);
-    const apiKey =
-      (await this.apiKeyRepository.findOne({
-        where: {
-          keyHash,
-          status: 'active',
-          expiresAt: MoreThan(new Date()),
-        },
-        relations: {
-          integrationClient: {
+    return this.tenantRlsService.withApiKeyHashContext(
+      keyHash,
+      async (manager) => {
+        const apiKeyRepository = manager.getRepository(ApiKeyEntity);
+        const integrationClientRepository =
+          manager.getRepository(IntegrationClientEntity);
+        const apiKey =
+          (await apiKeyRepository.findOne({
+            where: {
+              keyHash,
+              status: 'active',
+              expiresAt: MoreThan(new Date()),
+            },
+          })) ??
+          (await apiKeyRepository.findOne({
+            where: {
+              keyHash,
+              status: 'active',
+              expiresAt: IsNull(),
+            },
+          }));
+        if (!apiKey) {
+          return null;
+        }
+
+        await this.tenantRlsService.setTenantContext(manager, apiKey.tenantId);
+
+        const integrationClient = await integrationClientRepository.findOne({
+          where: {
+            id: apiKey.integrationClientId,
+            tenantId: apiKey.tenantId,
+            status: 'active',
+          },
+          relations: {
             tenant: true,
             defaultUser: true,
           },
-        },
-      })) ??
-      (await this.apiKeyRepository.findOne({
-        where: {
-          keyHash,
-          status: 'active',
-          expiresAt: IsNull(),
-        },
-        relations: {
-          integrationClient: {
-            tenant: true,
-            defaultUser: true,
-          },
-        },
-      }));
-    if (!apiKey) {
-      return null;
-    }
+        });
+        if (!integrationClient || integrationClient.tenant?.status !== 'active') {
+          throw new UnauthorizedException(
+            'Integration client is not active for the supplied API key.',
+          );
+        }
 
-    const integrationClient = apiKey.integrationClient;
-    if (
-      !integrationClient ||
-      integrationClient.status !== 'active' ||
-      integrationClient.tenant?.status !== 'active'
-    ) {
-      throw new UnauthorizedException(
-        'Integration client is not active for the supplied API key.',
-      );
-    }
+        const trustedIdentity = this.readTrustedEmailHeader(requestHeaders);
+        if (
+          trustedIdentity &&
+          !integrationClient.trustedForwardedIdentityEnabled
+        ) {
+          throw new UnauthorizedException(
+            'Trusted forwarded identity is not enabled for the supplied integration client.',
+          );
+        }
 
-    const trustedIdentity = this.readTrustedEmailHeader(requestHeaders);
-    if (
-      trustedIdentity &&
-      !integrationClient.trustedForwardedIdentityEnabled
-    ) {
-      throw new UnauthorizedException(
-        'Trusted forwarded identity is not enabled for the supplied integration client.',
-      );
-    }
+        const user = trustedIdentity
+          ? await this.resolveTechnicalClientForwardedUser(
+              integrationClient.tenantId,
+              trustedIdentity.email,
+            )
+          : await this.resolveTechnicalClientDefaultUser(integrationClient);
 
-    const user = trustedIdentity
-      ? await this.resolveTechnicalClientForwardedUser(
+        const tenantAccess = await this.resolveTenantAccess(
+          user.id,
           integrationClient.tenantId,
-          trustedIdentity.email,
-        )
-      : await this.resolveTechnicalClientDefaultUser(integrationClient);
+        );
+        const identitySource: GatewayAuthIdentitySource = trustedIdentity
+          ? 'integration-client-trusted-header'
+          : 'integration-client-default-user';
 
-    const tenantAccess = await this.resolveTenantAccess(
-      user.id,
-      integrationClient.tenantId,
+        await apiKeyRepository.update(
+          { id: apiKey.id },
+          { lastUsedAt: new Date() },
+        );
+
+        this.logCompatibilityIdentityResolved(
+          user,
+          identitySource,
+          trustedIdentity?.headerName,
+          integrationClient.clientId,
+        );
+
+        return {
+          ...this.mapUserToAuthContext(
+            user,
+            identitySource,
+            tenantAccess.activeTenantId,
+            tenantAccess.activeTenantSlug,
+          ),
+          roles: tenantAccess.roles,
+          globalRoles: tenantAccess.globalRoles,
+          integrationClientId: integrationClient.clientId,
+          integrationClientKeyId: apiKey.id,
+          integrationClientScopes: this.mergeScopes(
+            integrationClient.scopes,
+            apiKey.scopes,
+          ),
+        };
+      },
     );
-    const identitySource: GatewayAuthIdentitySource = trustedIdentity
-      ? 'integration-client-trusted-header'
-      : 'integration-client-default-user';
-
-    await this.apiKeyRepository.update(
-      { id: apiKey.id },
-      { lastUsedAt: new Date() },
-    );
-
-    this.logCompatibilityIdentityResolved(
-      user,
-      identitySource,
-      trustedIdentity?.headerName,
-      integrationClient.clientId,
-    );
-
-    return {
-      ...this.mapUserToAuthContext(
-        user,
-        identitySource,
-        tenantAccess.activeTenantId,
-        tenantAccess.activeTenantSlug,
-      ),
-      roles: tenantAccess.roles,
-      globalRoles: tenantAccess.globalRoles,
-      integrationClientId: integrationClient.clientId,
-      integrationClientKeyId: apiKey.id,
-      integrationClientScopes: this.mergeScopes(
-        integrationClient.scopes,
-        apiKey.scopes,
-      ),
-    };
   }
 
   private async authenticateTrustedOpenAiCompatibleUser(

@@ -70,6 +70,8 @@ The repository now treats multi-tenancy as a first-class architectural concern:
 - tenant isolation is enforced through `tenants`, `tenant_memberships`, and an active tenant session context
 - tenant-owned data must carry `tenant_id`
 - provider credential resolution must remain tenant-aware and support tenant-default plus user-override behavior
+- tenant-aware audit and usage telemetry is persisted in Postgres, with an initial PostgreSQL RLS slice protecting those telemetry tables
+- tenant-aware technical clients now have an initial PostgreSQL RLS slice protecting `integration_clients` and `api_keys`
 
 ## Recommended Stack
 

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import test from 'node:test';
 
+import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
+import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
 import { GatewayAuthService } from './gateway-auth.service';
 
 function withEnv(
@@ -91,6 +93,14 @@ function createRepositoryMock<T>(data: T[]) {
   };
 }
 
+function createManagerRepositoryMock<T>(data: T[]) {
+  const repository = createRepositoryMock(data);
+  return {
+    findOne: repository.findOne,
+    update: repository.update,
+  };
+}
+
 function createService(fixtures?: {
   users?: Array<Record<string, unknown>>;
   tenants?: Array<Record<string, unknown>>;
@@ -98,6 +108,29 @@ function createService(fixtures?: {
   integrationClients?: Array<Record<string, unknown>>;
   apiKeys?: Array<Record<string, unknown>>;
 }) {
+  const manager = {
+    async query(): Promise<void> {},
+    getRepository(entity: unknown) {
+      if (entity === ApiKeyEntity) {
+        return createManagerRepositoryMock(fixtures?.apiKeys ?? []);
+      }
+      if (entity === IntegrationClientEntity) {
+        return createManagerRepositoryMock(fixtures?.integrationClients ?? []);
+      }
+
+      throw new Error(`Unexpected repository request in test: ${String(entity)}`);
+    },
+  };
+  const tenantRlsService = {
+    async withApiKeyHashContext<T>(
+      _apiKeyHash: string,
+      work: (entityManager: typeof manager) => Promise<T>,
+    ): Promise<T> {
+      return work(manager);
+    },
+    async setTenantContext(): Promise<void> {},
+  };
+
   return new GatewayAuthService(
     {
       verifyAsync: async () => {
@@ -107,8 +140,7 @@ function createService(fixtures?: {
     createRepositoryMock(fixtures?.users ?? []) as never,
     createRepositoryMock(fixtures?.tenants ?? []) as never,
     createRepositoryMock(fixtures?.memberships ?? []) as never,
-    createRepositoryMock(fixtures?.integrationClients ?? []) as never,
-    createRepositoryMock(fixtures?.apiKeys ?? []) as never,
+    tenantRlsService as never,
   );
 }
 

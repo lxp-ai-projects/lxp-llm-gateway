@@ -109,6 +109,8 @@ The tenant boundary is now modeled explicitly:
 - tenant-owned tables must carry `tenant_id`
 - tenant-aware credential resolution prefers user-scoped credentials only when the tenant allows override, then falls back to tenant defaults
 - technical clients such as `Open WebUI` should authenticate through tenant-scoped `integration_clients` and `api_keys`, with forwarded human identity treated only as an optional bounded enhancement
+- `audit_logs` and `usage_events` now also use PostgreSQL row-level security as a second line of defense, with the gateway setting `app.tenant_id` transactionally before telemetry writes
+- `integration_clients` and `api_keys` now also use PostgreSQL row-level security, with technical-client key lookup bootstrapped through a transaction-scoped `app.api_key_hash` before the gateway narrows the session to `app.tenant_id`
 
 Redis is used for short-lived auth and operational state such as:
 
@@ -134,6 +136,8 @@ The initial architecture assumes:
 - generalized error handling that avoids overexposing account and token state to callers
 - write-only or masked-only handling for provider secrets in administrative workflows
 - no tenant-owned repository access without tenant scoping in the application layer
+- a first RLS slice is active for tenant-owned telemetry tables, with broader table coverage still treated as follow-on hardening work
+- technical-client authentication now has a database-level backstop for `integration_clients` and `api_keys`, while image and credential tables remain follow-on RLS work
 
 ## UI Posture
 

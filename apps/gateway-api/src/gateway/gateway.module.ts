@@ -37,6 +37,7 @@ import { EncryptionService } from '../security/encryption.service';
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
+import { TenantRlsService } from '../persistence/tenant-rls.service';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { ImageJobResultEntity } from '../persistence/entities/image-job-result.e
     ProviderCredentialService,
     ProviderRegistryService,
     ImageApplicationService,
+    TenantRlsService,
     EncryptionService,
     {
       provide: LLM_PROVIDERS,
