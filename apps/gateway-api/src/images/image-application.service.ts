@@ -34,6 +34,7 @@ import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
 import { ProviderEntity } from '../persistence/entities/provider.entity';
+import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { ProviderCredentialService } from '../gateway/provider-credential.service';
@@ -61,15 +62,10 @@ export class ImageApplicationService {
     private readonly providerRepository: Repository<ProviderEntity>,
     @InjectRepository(TenantMembershipEntity)
     private readonly tenantMembershipRepository: Repository<TenantMembershipEntity>,
-    @InjectRepository(ImageAssetEntity)
-    private readonly imageAssetRepository: Repository<ImageAssetEntity>,
-    @InjectRepository(ImageJobEntity)
-    private readonly imageJobRepository: Repository<ImageJobEntity>,
-    @InjectRepository(ImageJobResultEntity)
-    private readonly imageJobResultRepository: Repository<ImageJobResultEntity>,
     private readonly providerRegistry: ProviderRegistryService,
     private readonly providerCredentialService: ProviderCredentialService,
     private readonly gatewayTelemetryService: GatewayTelemetryService,
+    private readonly tenantRlsService: TenantRlsService,
   ) {}
 
   async getCatalog(
@@ -301,14 +297,18 @@ export class ImageApplicationService {
       );
     }
 
-    const existingAsset = await this.imageAssetRepository.findOne({
-      where: {
-        userId: user.id,
-        tenantId: authContext.activeTenantId,
-        sourceType: 'upload',
-        contentHash,
-      },
-    });
+    const existingAsset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(ImageAssetEntity).findOne({
+          where: {
+            userId: user.id,
+            tenantId: authContext.activeTenantId,
+            sourceType: 'upload',
+            contentHash,
+          },
+        }),
+    );
 
     if (existingAsset) {
       return {
@@ -316,17 +316,21 @@ export class ImageApplicationService {
       };
     }
 
-    const asset = await this.imageAssetRepository.save({
-      tenantId: authContext.activeTenantId,
-      userId: user.id,
-      sourceType: 'upload',
-      label: request.label?.trim() || null,
-      mimeType: parsedDataUrl.mimeType,
-      dataUrl: request.dataUrl,
-      contentHash,
-      originalUrl: null,
-      isSaved: false,
-    });
+    const asset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(ImageAssetEntity).save({
+          tenantId: authContext.activeTenantId,
+          userId: user.id,
+          sourceType: 'upload',
+          label: request.label?.trim() || null,
+          mimeType: parsedDataUrl.mimeType,
+          dataUrl: request.dataUrl,
+          contentHash,
+          originalUrl: null,
+          isSaved: false,
+        }),
+    );
 
     return {
       asset: this.mapAssetSummary(asset),
@@ -340,14 +344,18 @@ export class ImageApplicationService {
       authContext.activeTenantId,
       authContext.emailHash,
     );
-    const assets = await this.imageAssetRepository.find({
-      where: {
-        tenantId: authContext.activeTenantId,
-        userId: user.id,
-        sourceType: 'upload',
-      },
-      order: { createdAt: 'DESC' },
-    });
+    const assets = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(ImageAssetEntity).find({
+          where: {
+            tenantId: authContext.activeTenantId,
+            userId: user.id,
+            sourceType: 'upload',
+          },
+          order: { createdAt: 'DESC' },
+        }),
+    );
 
     return {
       items: assets.map((asset) => this.mapAssetSummary(asset)),
@@ -363,33 +371,48 @@ export class ImageApplicationService {
       authContext.emailHash,
     );
     const safePage = Number.isFinite(page) && page > 0 ? page : 1;
-    const [jobs, totalItems] = await this.imageJobRepository.findAndCount({
-      where: {
-        tenantId: authContext.activeTenantId,
-        userId: user.id,
-      },
-      order: { createdAt: 'DESC' },
-      skip: (safePage - 1) * IMAGE_HISTORY_PAGE_SIZE,
-      take: IMAGE_HISTORY_PAGE_SIZE,
-    });
+    const { jobs, totalItems, jobResults, assets } =
+      await this.tenantRlsService.withTenantContext(
+        authContext.activeTenantId,
+        async (manager) => {
+          const imageJobRepository = manager.getRepository(ImageJobEntity);
+          const imageJobResultRepository =
+            manager.getRepository(ImageJobResultEntity);
+          const imageAssetRepository = manager.getRepository(ImageAssetEntity);
+          const [jobs, totalItems] = await imageJobRepository.findAndCount({
+            where: {
+              tenantId: authContext.activeTenantId,
+              userId: user.id,
+            },
+            order: { createdAt: 'DESC' },
+            skip: (safePage - 1) * IMAGE_HISTORY_PAGE_SIZE,
+            take: IMAGE_HISTORY_PAGE_SIZE,
+          });
 
-    const jobIds = jobs.map((job) => job.id);
-    const jobResults = jobIds.length
-      ? await this.imageJobResultRepository.find({
-          where: jobIds.map((jobId) => ({ jobId })),
-          order: { resultIndex: 'ASC' },
-        })
-      : [];
-    const assetIds = jobResults.map((jobResult) => jobResult.assetId);
-    const assets = assetIds.length
-      ? await this.imageAssetRepository.find({
-          where: assetIds.map((id) => ({
-            id,
-            tenantId: authContext.activeTenantId,
-            userId: user.id,
-          })),
-        })
-      : [];
+          const jobIds = jobs.map((job) => job.id);
+          const jobResults = jobIds.length
+            ? await imageJobResultRepository.find({
+                where: jobIds.map((jobId) => ({
+                  jobId,
+                  tenantId: authContext.activeTenantId,
+                })),
+                order: { resultIndex: 'ASC' },
+              })
+            : [];
+          const assetIds = jobResults.map((jobResult) => jobResult.assetId);
+          const assets = assetIds.length
+            ? await imageAssetRepository.find({
+                where: assetIds.map((id) => ({
+                  id,
+                  tenantId: authContext.activeTenantId,
+                  userId: user.id,
+                })),
+              })
+            : [];
+
+          return { jobs, totalItems, jobResults, assets };
+        },
+      );
     const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
     const resultsByJobId = new Map<string, ImageJobResultEntity[]>();
 
@@ -447,20 +470,27 @@ export class ImageApplicationService {
       authContext.activeTenantId,
       authContext.emailHash,
     );
-    const asset = await this.imageAssetRepository.findOne({
-      where: {
-        id: assetId,
-        tenantId: authContext.activeTenantId,
-        userId: user.id,
-      },
-    });
+    const asset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(ImageAssetEntity).findOne({
+          where: {
+            id: assetId,
+            tenantId: authContext.activeTenantId,
+            userId: user.id,
+          },
+        }),
+    );
 
     if (!asset) {
       throw new NotFoundException('Image asset not found.');
     }
 
     asset.isSaved = request.saved;
-    const savedAsset = await this.imageAssetRepository.save(asset);
+    const savedAsset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) => manager.getRepository(ImageAssetEntity).save(asset),
+    );
     return {
       asset: this.mapAssetSummary(savedAsset),
     };
@@ -475,13 +505,17 @@ export class ImageApplicationService {
       authContext.activeTenantId,
       authContext.emailHash,
     );
-    const asset = await this.imageAssetRepository.findOne({
-      where: {
-        id: assetId,
-        tenantId: authContext.activeTenantId,
-        userId: user.id,
-      },
-    });
+    const asset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(ImageAssetEntity).findOne({
+          where: {
+            id: assetId,
+            tenantId: authContext.activeTenantId,
+            userId: user.id,
+          },
+        }),
+    );
 
     if (!asset) {
       throw new NotFoundException('Image asset not found.');
@@ -492,7 +526,10 @@ export class ImageApplicationService {
     }
 
     asset.label = request.label.trim();
-    const savedAsset = await this.imageAssetRepository.save(asset);
+    const savedAsset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) => manager.getRepository(ImageAssetEntity).save(asset),
+    );
     return {
       asset: this.mapAssetSummary(savedAsset),
     };
@@ -503,13 +540,17 @@ export class ImageApplicationService {
       authContext.activeTenantId,
       authContext.emailHash,
     );
-    const asset = await this.imageAssetRepository.findOne({
-      where: {
-        id: assetId,
-        tenantId: authContext.activeTenantId,
-        userId: user.id,
-      },
-    });
+    const asset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(ImageAssetEntity).findOne({
+          where: {
+            id: assetId,
+            tenantId: authContext.activeTenantId,
+            userId: user.id,
+          },
+        }),
+    );
 
     if (!asset) {
       throw new NotFoundException('Image asset not found.');
@@ -519,11 +560,15 @@ export class ImageApplicationService {
       throw new BadRequestException('Only uploaded reference assets can be deleted.');
     }
 
-    await this.imageAssetRepository.delete({
-      id: asset.id,
-      tenantId: authContext.activeTenantId,
-      userId: user.id,
-    });
+    await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(ImageAssetEntity).delete({
+          id: asset.id,
+          tenantId: authContext.activeTenantId,
+          userId: user.id,
+        }),
+    );
     return { deleted: true as const };
   }
 
@@ -535,13 +580,17 @@ export class ImageApplicationService {
       authContext.activeTenantId,
       authContext.emailHash,
     );
-    const asset = await this.imageAssetRepository.findOne({
-      where: {
-        id: assetId,
-        tenantId: authContext.activeTenantId,
-        userId: user.id,
-      },
-    });
+    const asset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(ImageAssetEntity).findOne({
+          where: {
+            id: assetId,
+            tenantId: authContext.activeTenantId,
+            userId: user.id,
+          },
+        }),
+    );
 
     if (!asset) {
       throw new NotFoundException('Image asset not found.');
@@ -562,55 +611,62 @@ export class ImageApplicationService {
     mode: 'generation' | 'edit',
     startedAt: Date,
   ): Promise<GatewayImageGenerationResponse> {
-    const job = await this.imageJobRepository.save({
-      tenantId,
-      userId,
-      requestId: providerResponse.requestId,
-      providerId: providerResponse.providerId,
-      model: providerResponse.model,
-      prompt,
-      mode,
-      startedAt,
-      completedAt: null,
-      providerMetadata: providerResponse.providerMetadata ?? null,
-    } as ImageJobEntity);
-
-    const images: GatewayGeneratedImage[] = [];
-    for (const [index, image] of providerResponse.images.entries()) {
-      const storedAsset = await this.persistGeneratedAsset(
+    return this.tenantRlsService.withTenantContext(tenantId, async (manager) => {
+      const imageJobRepository = manager.getRepository(ImageJobEntity);
+      const imageJobResultRepository = manager.getRepository(ImageJobResultEntity);
+      const imageAssetRepository = manager.getRepository(ImageAssetEntity);
+      const job = await imageJobRepository.save({
         tenantId,
         userId,
-        image,
-        index,
-      );
-      await this.imageJobResultRepository.save({
-        tenantId,
+        requestId: providerResponse.requestId,
+        providerId: providerResponse.providerId,
+        model: providerResponse.model,
+        prompt,
+        mode,
+        startedAt,
+        completedAt: null,
+        providerMetadata: providerResponse.providerMetadata ?? null,
+      } as ImageJobEntity);
+
+      const images: GatewayGeneratedImage[] = [];
+      for (const [index, image] of providerResponse.images.entries()) {
+        const storedAsset = await this.persistGeneratedAsset(
+          imageAssetRepository,
+          tenantId,
+          userId,
+          image,
+          index,
+        );
+        await imageJobResultRepository.save({
+          tenantId,
+          jobId: job.id,
+          assetId: storedAsset.id,
+          resultIndex: index,
+          revisedPrompt: image.revisedPrompt ?? null,
+          providerMetadata: image.providerMetadata ?? null,
+        } as ImageJobResultEntity);
+        images.push({
+          ...image,
+          assetId: storedAsset.id,
+          contentUrl: this.buildAssetContentPath(storedAsset.id),
+          mimeType: storedAsset.mimeType ?? image.mimeType,
+          saved: storedAsset.isSaved,
+        });
+      }
+
+      job.completedAt = new Date();
+      await imageJobRepository.save(job);
+
+      return {
+        ...providerResponse,
         jobId: job.id,
-        assetId: storedAsset.id,
-        resultIndex: index,
-        revisedPrompt: image.revisedPrompt ?? null,
-        providerMetadata: image.providerMetadata ?? null,
-      } as ImageJobResultEntity);
-      images.push({
-        ...image,
-        assetId: storedAsset.id,
-        contentUrl: this.buildAssetContentPath(storedAsset.id),
-        mimeType: storedAsset.mimeType ?? image.mimeType,
-        saved: storedAsset.isSaved,
-      });
-    }
-
-    job.completedAt = new Date();
-    await this.imageJobRepository.save(job);
-
-    return {
-      ...providerResponse,
-      jobId: job.id,
-      images,
-    };
+        images,
+      };
+    });
   }
 
   private async persistGeneratedAsset(
+    imageAssetRepository: Repository<ImageAssetEntity>,
     tenantId: string,
     userId: string,
     image: GatewayGeneratedImage,
@@ -638,7 +694,7 @@ export class ImageApplicationService {
     }
 
     const parsedDataUrl = parseDataUrlReference(dataUrl, image.mimeType);
-    return this.imageAssetRepository.save({
+    return imageAssetRepository.save({
       tenantId,
       userId,
       sourceType: 'generated',
@@ -656,25 +712,27 @@ export class ImageApplicationService {
     tenantId: string,
     userId: string,
   ): Promise<GatewayImageReference[]> {
-    return Promise.all(
-      images.map(async (image) => {
-        if (image.type !== 'asset') {
-          return image;
-        }
+    return this.tenantRlsService.withTenantContext(tenantId, async (manager) =>
+      Promise.all(
+        images.map(async (image) => {
+          if (image.type !== 'asset') {
+            return image;
+          }
 
-        const asset = await this.imageAssetRepository.findOne({
-          where: { id: image.assetId, tenantId, userId },
-        });
-        if (!asset) {
-          throw new NotFoundException(`Reference asset ${image.assetId} was not found.`);
-        }
+          const asset = await manager.getRepository(ImageAssetEntity).findOne({
+            where: { id: image.assetId, tenantId, userId },
+          });
+          if (!asset) {
+            throw new NotFoundException(`Reference asset ${image.assetId} was not found.`);
+          }
 
-        return {
-          type: 'data_url' as const,
-          url: asset.dataUrl,
-          mimeType: asset.mimeType ?? undefined,
-        };
-      }),
+          return {
+            type: 'data_url' as const,
+            url: asset.dataUrl,
+            mimeType: asset.mimeType ?? undefined,
+          };
+        }),
+      ),
     );
   }
 

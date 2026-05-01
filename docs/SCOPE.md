@@ -72,6 +72,8 @@ The repository now treats multi-tenancy as a first-class architectural concern:
 - provider credential resolution must remain tenant-aware and support tenant-default plus user-override behavior
 - tenant-aware audit and usage telemetry is persisted in Postgres, with an initial PostgreSQL RLS slice protecting those telemetry tables
 - tenant-aware technical clients now have an initial PostgreSQL RLS slice protecting `integration_clients` and `api_keys`
+- tenant-aware image assets and job history now have a PostgreSQL RLS slice protecting `image_assets`, `image_jobs`, and `image_job_results`
+- tenant-aware BYOK provider credentials now have a PostgreSQL RLS slice protecting `user_provider_credentials`
 
 ## Recommended Stack
 

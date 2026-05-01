@@ -20,6 +20,7 @@ import { IntegrationClientEntity } from './persistence/entities/integration-clie
 import { TenantEntity } from './persistence/entities/tenant.entity';
 import { TenantMembershipEntity } from './persistence/entities/tenant-membership.entity';
 import { UserProviderCredentialEntity } from './persistence/entities/user-provider-credential.entity';
+import { TenantRlsService } from './persistence/tenant-rls.service';
 import { EmailProtectionService } from './security/email-protection.service';
 import { EncryptionService } from './security/encryption.service';
 import { PasswordService } from './security/password.service';
@@ -60,6 +61,7 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
     EncryptionService,
     EmailProtectionService,
     PasswordService,
+    TenantRlsService,
     AdminService,
     ConversationTransferService,
   ],

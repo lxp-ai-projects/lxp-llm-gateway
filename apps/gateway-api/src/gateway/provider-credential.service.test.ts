@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 import { ProviderCredentialService } from './provider-credential.service';
 
 function createRepositoryMock<T>(data: T[]) {
@@ -8,234 +9,424 @@ function createRepositoryMock<T>(data: T[]) {
     async findOne({
       where,
     }: {
-      where: Partial<T>;
+      where: Record<string, unknown>;
       order?: Record<string, 'ASC' | 'DESC'>;
     }): Promise<T | null> {
       return (
         data.find((item) =>
-          Object.entries(where).every(
-            ([key, value]) => item[key as keyof T] === value,
-          ),
+          Object.entries(where).every(([key, value]) => {
+            const itemValue = (item as Record<string, unknown>)[key];
+            if (
+              value &&
+              typeof value === 'object' &&
+              '_type' in (value as Record<string, unknown>)
+            ) {
+              const operator = value as { _type: string };
+              if (operator._type === 'isNull') {
+                return itemValue === null;
+              }
+            }
+
+            return itemValue === value;
+          }),
         ) ?? null
       );
     },
   };
 }
 
-test('ProviderCredentialService resolves and decrypts an active provider credential', async () => {
-  const userRepository = createRepositoryMock([
-    {
-      id: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      status: 'active',
+function createService(fixtures?: {
+  users?: Array<Record<string, unknown>>;
+  tenants?: Array<Record<string, unknown>>;
+  providers?: Array<Record<string, unknown>>;
+  credentials?: Array<Record<string, unknown>>;
+  decryptResult?: string;
+  decryptThrows?: boolean;
+}) {
+  const credentials = fixtures?.credentials ?? [];
+  const manager = {
+    async query(): Promise<void> {},
+    getRepository(entity: unknown) {
+      if (entity === UserProviderCredentialEntity) {
+        return createRepositoryMock(credentials);
+      }
+
+      throw new Error(`Unexpected repository request in test: ${String(entity)}`);
     },
-  ]);
-  const providerRepository = createRepositoryMock([
-    {
-      id: 'provider-1',
-      providerId: 'nanogpt',
-      status: 'active',
-    },
-  ]);
-  const credentialRepository = createRepositoryMock([
-    {
-      userId: 'user-1',
-      providerId: 'provider-1',
-      isActive: true,
-      encryptedSecret: 'cipher',
-      iv: 'iv',
-      authTag: 'tag',
-      keyVersion: 1,
-    },
-  ]);
-  const encryptionService = {
-    decrypt(): string {
-      return JSON.stringify({
-        apiKey: 'nano-secret-token',
-      });
+  };
+  const tenantRlsService = {
+    async withTenantContext<T>(
+      _tenantId: string,
+      work: (entityManager: typeof manager) => Promise<T>,
+    ): Promise<T> {
+      return work(manager);
     },
   };
 
-  const service = new ProviderCredentialService(
-    userRepository as never,
-    providerRepository as never,
-    credentialRepository as never,
-    encryptionService as never,
+  return new ProviderCredentialService(
+    createRepositoryMock(fixtures?.users ?? []) as never,
+    createRepositoryMock(fixtures?.tenants ?? []) as never,
+    createRepositoryMock(fixtures?.providers ?? []) as never,
+    createRepositoryMock(credentials) as never,
+    {
+      decrypt(): string {
+        if (fixtures?.decryptThrows) {
+          throw new Error('Unsupported state or unable to authenticate data');
+        }
+
+        return fixtures?.decryptResult ?? 'legacy-token';
+      },
+    } as never,
+    tenantRlsService as never,
   );
+}
+
+test('ProviderCredentialService resolves a user-scoped credential when tenant override is allowed', async () => {
+  const service = createService({
+    users: [
+      {
+        id: 'user-1',
+        emailHash: 'hash-1',
+        status: 'active',
+      },
+    ],
+    tenants: [
+      {
+        id: 'tenant-1',
+        status: 'active',
+        allowUserCredentialOverride: true,
+      },
+    ],
+    providers: [
+      {
+        id: 'provider-1',
+        providerId: 'nanogpt',
+        status: 'active',
+      },
+    ],
+    credentials: [
+      {
+        id: 'cred-user',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        providerId: 'provider-1',
+        scope: 'user',
+        isActive: true,
+        encryptedSecret: 'cipher',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+      {
+        id: 'cred-tenant',
+        tenantId: 'tenant-1',
+        userId: null,
+        providerId: 'provider-1',
+        scope: 'tenant',
+        isActive: true,
+        encryptedSecret: 'cipher-tenant',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+    ],
+    decryptResult: JSON.stringify({
+      apiKey: 'nano-secret-token',
+    }),
+  });
 
   const providerAccess = await service.resolveProviderAccess(
-    'hash-1',
+    {
+      activeTenantId: 'tenant-1',
+      emailHash: 'hash-1',
+      userId: 'user-1',
+    },
     'nanogpt',
   );
+
   assert.equal(providerAccess.apiKey, 'nano-secret-token');
 });
 
-test('ProviderCredentialService falls back to legacy raw token payloads', async () => {
-  const userRepository = createRepositoryMock([
-    {
-      id: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      status: 'active',
-    },
-  ]);
-  const providerRepository = createRepositoryMock([
-    {
-      id: 'provider-1',
-      providerId: 'nanogpt',
-      status: 'active',
-    },
-  ]);
-  const credentialRepository = createRepositoryMock([
-    {
-      userId: 'user-1',
-      providerId: 'provider-1',
-      isActive: true,
-      encryptedSecret: 'cipher',
-      iv: 'iv',
-      authTag: 'tag',
-      keyVersion: 1,
-    },
-  ]);
-
-  const service = new ProviderCredentialService(
-    userRepository as never,
-    providerRepository as never,
-    credentialRepository as never,
-    { decrypt: () => 'legacy-token' } as never,
-  );
+test('ProviderCredentialService falls back to the tenant credential when user override is disabled', async () => {
+  const service = createService({
+    users: [
+      {
+        id: 'user-1',
+        emailHash: 'hash-1',
+        status: 'active',
+      },
+    ],
+    tenants: [
+      {
+        id: 'tenant-1',
+        status: 'active',
+        allowUserCredentialOverride: false,
+      },
+    ],
+    providers: [
+      {
+        id: 'provider-1',
+        providerId: 'nanogpt',
+        status: 'active',
+      },
+    ],
+    credentials: [
+      {
+        id: 'cred-user',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        providerId: 'provider-1',
+        scope: 'user',
+        isActive: true,
+        encryptedSecret: 'cipher-user',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+      {
+        id: 'cred-tenant',
+        tenantId: 'tenant-1',
+        userId: null,
+        providerId: 'provider-1',
+        scope: 'tenant',
+        isActive: true,
+        encryptedSecret: 'cipher-tenant',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+    ],
+    decryptResult: JSON.stringify({
+      apiKey: 'tenant-secret-token',
+    }),
+  });
 
   const providerAccess = await service.resolveProviderAccess(
-    'hash-1',
+    {
+      activeTenantId: 'tenant-1',
+      emailHash: 'hash-1',
+      userId: 'user-1',
+    },
+    'nanogpt',
+  );
+
+  assert.equal(providerAccess.apiKey, 'tenant-secret-token');
+});
+
+test('ProviderCredentialService falls back to legacy raw token payloads', async () => {
+  const service = createService({
+    users: [
+      {
+        id: 'user-1',
+        emailHash: 'hash-1',
+        status: 'active',
+      },
+    ],
+    tenants: [
+      {
+        id: 'tenant-1',
+        status: 'active',
+        allowUserCredentialOverride: true,
+      },
+    ],
+    providers: [
+      {
+        id: 'provider-1',
+        providerId: 'nanogpt',
+        status: 'active',
+      },
+    ],
+    credentials: [
+      {
+        id: 'cred-user',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        providerId: 'provider-1',
+        scope: 'user',
+        isActive: true,
+        encryptedSecret: 'cipher',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+    ],
+    decryptResult: 'legacy-token',
+  });
+
+  const providerAccess = await service.resolveProviderAccess(
+    {
+      activeTenantId: 'tenant-1',
+      emailHash: 'hash-1',
+      userId: 'user-1',
+    },
     'nanogpt',
   );
   assert.equal(providerAccess.apiKey, 'legacy-token');
 });
 
 test('ProviderCredentialService throws an explicit error when credential decryption fails', async () => {
-  const userRepository = createRepositoryMock([
-    {
-      id: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      status: 'active',
-    },
-  ]);
-  const providerRepository = createRepositoryMock([
-    {
-      id: 'provider-1',
-      providerId: 'nanogpt',
-      status: 'active',
-    },
-  ]);
-  const credentialRepository = createRepositoryMock([
-    {
-      userId: 'user-1',
-      providerId: 'provider-1',
-      isActive: true,
-      encryptedSecret: 'cipher',
-      iv: 'iv',
-      authTag: 'tag',
-      keyVersion: 1,
-    },
-  ]);
-  const encryptionService = {
-    decrypt(): string {
-      throw new Error('Unsupported state or unable to authenticate data');
-    },
-  };
-
-  const service = new ProviderCredentialService(
-    userRepository as never,
-    providerRepository as never,
-    credentialRepository as never,
-    encryptionService as never,
-  );
+  const service = createService({
+    users: [
+      {
+        id: 'user-1',
+        emailHash: 'hash-1',
+        status: 'active',
+      },
+    ],
+    tenants: [
+      {
+        id: 'tenant-1',
+        status: 'active',
+        allowUserCredentialOverride: true,
+      },
+    ],
+    providers: [
+      {
+        id: 'provider-1',
+        providerId: 'nanogpt',
+        status: 'active',
+      },
+    ],
+    credentials: [
+      {
+        id: 'cred-user',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        providerId: 'provider-1',
+        scope: 'user',
+        isActive: true,
+        encryptedSecret: 'cipher',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+    ],
+    decryptThrows: true,
+  });
 
   await assert.rejects(
-    () => service.resolveProviderAccess('hash-1', 'nanogpt'),
+    () =>
+      service.resolveProviderAccess(
+        {
+          activeTenantId: 'tenant-1',
+          emailHash: 'hash-1',
+          userId: 'user-1',
+        },
+        'nanogpt',
+      ),
     /Unable to decrypt the stored credential for provider nanogpt/,
   );
 });
 
 test('ProviderCredentialService rejects missing authenticated user context', async () => {
-  const service = new ProviderCredentialService(
-    createRepositoryMock([]) as never,
-    createRepositoryMock([]) as never,
-    createRepositoryMock([]) as never,
-    { decrypt: () => 'unused' } as never,
-  );
+  const service = createService();
 
   await assert.rejects(
-    () => service.resolveProviderAccess('', 'nanogpt'),
+    () =>
+      service.resolveProviderAccess(
+        {
+          activeTenantId: 'tenant-1',
+          emailHash: '',
+          userId: 'user-1',
+        },
+        'nanogpt',
+      ),
     /Missing authenticated user email hash/,
   );
 });
 
 test('ProviderCredentialService rejects when the authenticated user cannot be resolved', async () => {
-  const service = new ProviderCredentialService(
-    createRepositoryMock([]) as never,
-    createRepositoryMock([]) as never,
-    createRepositoryMock([]) as never,
-    { decrypt: () => 'unused' } as never,
-  );
+  const service = createService({
+    tenants: [
+      {
+        id: 'tenant-1',
+        status: 'active',
+        allowUserCredentialOverride: true,
+      },
+    ],
+  });
 
   await assert.rejects(
-    () => service.resolveProviderAccess('missing-hash', 'nanogpt'),
+    () =>
+      service.resolveProviderAccess(
+        {
+          activeTenantId: 'tenant-1',
+          emailHash: 'missing-hash',
+          userId: 'user-1',
+        },
+        'nanogpt',
+      ),
     /Unable to resolve the provider credential for the authenticated request/,
   );
 });
 
 test('ProviderCredentialService rejects when the provider cannot be resolved', async () => {
-  const userRepository = createRepositoryMock([
-    {
-      id: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      status: 'active',
-    },
-  ]);
-
-  const service = new ProviderCredentialService(
-    userRepository as never,
-    createRepositoryMock([]) as never,
-    createRepositoryMock([]) as never,
-    { decrypt: () => 'unused' } as never,
-  );
+  const service = createService({
+    users: [
+      {
+        id: 'user-1',
+        emailHash: 'hash-1',
+        status: 'active',
+      },
+    ],
+    tenants: [
+      {
+        id: 'tenant-1',
+        status: 'active',
+        allowUserCredentialOverride: true,
+      },
+    ],
+  });
 
   await assert.rejects(
-    () => service.resolveProviderAccess('hash-1', 'nanogpt'),
+    () =>
+      service.resolveProviderAccess(
+        {
+          activeTenantId: 'tenant-1',
+          emailHash: 'hash-1',
+          userId: 'user-1',
+        },
+        'nanogpt',
+      ),
     /Unable to resolve the provider credential for the authenticated request/,
   );
 });
 
 test('ProviderCredentialService rejects when no active credential exists', async () => {
-  const userRepository = createRepositoryMock([
-    {
-      id: 'user-1',
-      userUuid: 'user-public-1',
-      emailHash: 'hash-1',
-      status: 'active',
-    },
-  ]);
-  const providerRepository = createRepositoryMock([
-    {
-      id: 'provider-1',
-      providerId: 'nanogpt',
-      status: 'active',
-    },
-  ]);
-
-  const service = new ProviderCredentialService(
-    userRepository as never,
-    providerRepository as never,
-    createRepositoryMock([]) as never,
-    { decrypt: () => 'unused' } as never,
-  );
+  const service = createService({
+    users: [
+      {
+        id: 'user-1',
+        emailHash: 'hash-1',
+        status: 'active',
+      },
+    ],
+    tenants: [
+      {
+        id: 'tenant-1',
+        status: 'active',
+        allowUserCredentialOverride: true,
+      },
+    ],
+    providers: [
+      {
+        id: 'provider-1',
+        providerId: 'nanogpt',
+        status: 'active',
+      },
+    ],
+  });
 
   await assert.rejects(
-    () => service.resolveProviderAccess('hash-1', 'nanogpt'),
+    () =>
+      service.resolveProviderAccess(
+        {
+          activeTenantId: 'tenant-1',
+          emailHash: 'hash-1',
+          userId: 'user-1',
+        },
+        'nanogpt',
+      ),
     /Unable to resolve the provider credential for the authenticated request/,
   );
 });

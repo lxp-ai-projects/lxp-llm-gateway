@@ -14,6 +14,7 @@ import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { RoleEntity } from '../persistence/entities/role.entity';
 import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
+import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 import { UserRoleEntity } from '../persistence/entities/user-role.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
@@ -62,6 +63,7 @@ export class AdminService {
     private readonly emailProtectionService: EmailProtectionService,
     private readonly encryptionService: EncryptionService,
     private readonly passwordService: PasswordService,
+    private readonly tenantRlsService: TenantRlsService,
   ) {}
 
   async createUser(
@@ -342,15 +344,19 @@ export class AdminService {
     const userUuid =
       typeof actorOrUserUuid === 'string' ? actorOrUserUuid : maybeUserUuid!;
     const user = await this.assertTenantScopedUser(actor.activeTenantId, userUuid);
-    const credentials = await this.credentialRepository.find({
-      where: { tenantId: actor.activeTenantId, userId: user.id },
-      relations: {
-        provider: true,
-      },
-      order: {
-        createdAt: 'DESC',
-      },
-    });
+    const credentials = await this.withCredentialRepository(
+      actor.activeTenantId,
+      (credentialRepository) =>
+        credentialRepository.find({
+          where: { tenantId: actor.activeTenantId, userId: user.id },
+          relations: {
+            provider: true,
+          },
+          order: {
+            createdAt: 'DESC',
+          },
+        }),
+    );
 
     return credentials.map((credential) => ({
       id: credential.id,
@@ -425,17 +431,21 @@ export class AdminService {
       actor.activeTenantId,
       actor.userUuid,
     );
-    const credential = await this.credentialRepository.findOne({
-      where: {
-        id: credentialId,
-        tenantId: actor.activeTenantId,
-        userId: user.id,
-        scope: 'user',
-      },
-      relations: {
-        provider: true,
-      },
-    });
+    const credential = await this.withCredentialRepository(
+      actor.activeTenantId,
+      (credentialRepository) =>
+        credentialRepository.findOne({
+          where: {
+            id: credentialId,
+            tenantId: actor.activeTenantId,
+            userId: user.id,
+            scope: 'user',
+          },
+          relations: {
+            provider: true,
+          },
+        }),
+    );
     if (!credential) {
       throw new NotFoundException('Unable to update the provider credential.');
     }
@@ -451,14 +461,18 @@ export class AdminService {
 
     const nextLabel = dto.label?.trim() ?? credential.label;
     if (nextLabel !== credential.label) {
-      const duplicateCredential = await this.credentialRepository.findOne({
-        where: {
-          tenantId: actor.activeTenantId,
-          userId: user.id,
-          providerId: credential.providerId,
-          label: nextLabel,
-        },
-      });
+      const duplicateCredential = await this.withCredentialRepository(
+        actor.activeTenantId,
+        (credentialRepository) =>
+          credentialRepository.findOne({
+            where: {
+              tenantId: actor.activeTenantId,
+              userId: user.id,
+              providerId: credential.providerId,
+              label: nextLabel,
+            },
+          }),
+      );
 
       if (duplicateCredential && duplicateCredential.id !== credential.id) {
         throw new ConflictException(
@@ -484,7 +498,9 @@ export class AdminService {
       credential.maskedHint = this.maskProviderAccess(providerAccess);
     }
 
-    await this.credentialRepository.save(credential);
+    await this.withCredentialRepository(actor.activeTenantId, (credentialRepository) =>
+      credentialRepository.save(credential),
+    );
 
     return {
       id: credential.id,
@@ -658,14 +674,18 @@ export class AdminService {
       throw new NotFoundException('Unable to store the provider credential.');
     }
 
-    const existingCredential = await this.credentialRepository.findOne({
-      where: {
-        tenantId,
-        userId: user?.id ?? IsNull(),
-        providerId: provider.id,
-        label: dto.label,
-      },
-    });
+    const existingCredential = await this.withCredentialRepository(
+      tenantId,
+      (credentialRepository) =>
+        credentialRepository.findOne({
+          where: {
+            tenantId,
+            userId: user?.id ?? IsNull(),
+            providerId: provider.id,
+            label: dto.label,
+          },
+        }),
+    );
     if (existingCredential) {
       throw new ConflictException('Unable to store the provider credential.');
     }
@@ -690,7 +710,9 @@ export class AdminService {
       maskedHint,
     });
 
-    await this.credentialRepository.save(credential);
+    await this.withCredentialRepository(tenantId, (credentialRepository) =>
+      credentialRepository.save(credential),
+    );
 
     return {
       id: credential.id,
@@ -776,28 +798,36 @@ export class AdminService {
       throw new NotFoundException('Unable to update provider settings.');
     }
 
-    const userCredential = await this.credentialRepository.findOne({
-      where: {
-        tenantId,
-        userId,
-        providerId: provider.id,
-        scope: 'user',
-        isActive: true,
-      },
-    });
+    const userCredential = await this.withCredentialRepository(
+      tenantId,
+      (credentialRepository) =>
+        credentialRepository.findOne({
+          where: {
+            tenantId,
+            userId,
+            providerId: provider.id,
+            scope: 'user',
+            isActive: true,
+          },
+        }),
+    );
     if (userCredential && tenant.allowUserCredentialOverride) {
       return;
     }
 
-    const tenantCredential = await this.credentialRepository.findOne({
-      where: {
-        tenantId,
-        userId: IsNull(),
-        providerId: provider.id,
-        scope: 'tenant',
-        isActive: true,
-      },
-    });
+    const tenantCredential = await this.withCredentialRepository(
+      tenantId,
+      (credentialRepository) =>
+        credentialRepository.findOne({
+          where: {
+            tenantId,
+            userId: IsNull(),
+            providerId: provider.id,
+            scope: 'tenant',
+            isActive: true,
+          },
+        }),
+    );
     if (!tenantCredential) {
       throw new ConflictException('Unable to update provider settings.');
     }
@@ -1023,5 +1053,16 @@ export class AdminService {
     }
 
     return null;
+  }
+
+  private async withCredentialRepository<T>(
+    tenantId: string,
+    work: (
+      credentialRepository: Repository<UserProviderCredentialEntity>,
+    ) => Promise<T>,
+  ): Promise<T> {
+    return this.tenantRlsService.withTenantContext(tenantId, async (manager) =>
+      work(manager.getRepository(UserProviderCredentialEntity)),
+    );
   }
 }

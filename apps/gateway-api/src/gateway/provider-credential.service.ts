@@ -11,6 +11,7 @@ import { IsNull, Repository } from 'typeorm';
 
 import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
+import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 import { EncryptionService } from '../security/encryption.service';
@@ -28,6 +29,7 @@ export class ProviderCredentialService {
     @InjectRepository(UserProviderCredentialEntity)
     private readonly credentialRepository: Repository<UserProviderCredentialEntity>,
     private readonly encryptionService: EncryptionService,
+    private readonly tenantRlsService: TenantRlsService,
   ) {}
 
   async resolveProviderAccess(
@@ -74,34 +76,48 @@ export class ProviderCredentialService {
       );
     }
 
-    const userCredential = await this.credentialRepository.findOne({
-      where: {
-        tenantId: tenant.id,
-        userId: user.id,
-        providerId: provider.id,
-        scope: 'user',
-        isActive: true,
-      },
-      order: {
-        id: 'DESC',
-      },
-    });
+    const { userCredential, tenantCredential } =
+      await this.tenantRlsService.withTenantContext(
+        tenant.id,
+        async (manager) => {
+          const credentialRepository =
+            manager.getRepository(UserProviderCredentialEntity);
+          const userCredential = await credentialRepository.findOne({
+            where: {
+              tenantId: tenant.id,
+              userId: user.id,
+              providerId: provider.id,
+              scope: 'user',
+              isActive: true,
+            },
+            order: {
+              id: 'DESC',
+            },
+          });
+
+          const tenantCredential = await credentialRepository.findOne({
+            where: {
+              tenantId: tenant.id,
+              userId: IsNull(),
+              providerId: provider.id,
+              scope: 'tenant',
+              isActive: true,
+            },
+            order: {
+              id: 'DESC',
+            },
+          });
+
+          return {
+            userCredential,
+            tenantCredential,
+          };
+        },
+      );
     if (userCredential && tenant.allowUserCredentialOverride) {
       return this.decryptProviderAccess(providerId, userCredential);
     }
 
-    const tenantCredential = await this.credentialRepository.findOne({
-      where: {
-        tenantId: tenant.id,
-        userId: IsNull(),
-        providerId: provider.id,
-        scope: 'tenant',
-        isActive: true,
-      },
-      order: {
-        id: 'DESC',
-      },
-    });
     if (!tenantCredential) {
       throw new NotFoundException(
         'Unable to resolve the provider credential for the authenticated request.',
