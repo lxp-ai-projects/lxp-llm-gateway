@@ -64,6 +64,13 @@ Phase 1 does not include:
 - event-driven workers
 - speculative subsystems beyond the current control-plane and gateway needs
 
+The repository now treats multi-tenancy as a first-class architectural concern:
+
+- users remain global identities
+- tenant isolation is enforced through `tenants`, `tenant_memberships`, and an active tenant session context
+- tenant-owned data must carry `tenant_id`
+- provider credential resolution must remain tenant-aware and support tenant-default plus user-override behavior
+
 ## Recommended Stack
 
 ### Workspace and Tooling

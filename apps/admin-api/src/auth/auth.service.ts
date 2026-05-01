@@ -2,8 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
+import type { GlobalRole, TenantRole } from '@lxp/domain';
 import { Repository } from 'typeorm';
 
+import { RoleEntity } from '../persistence/entities/role.entity';
+import { TenantEntity } from '../persistence/entities/tenant.entity';
+import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { UserRoleEntity } from '../persistence/entities/user-role.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { EmailProtectionService } from '../security/email-protection.service';
@@ -23,6 +27,12 @@ export class AuthService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(TenantEntity)
+    private readonly tenantRepository: Repository<TenantEntity>,
+    @InjectRepository(TenantMembershipEntity)
+    private readonly tenantMembershipRepository: Repository<TenantMembershipEntity>,
+    @InjectRepository(RoleEntity)
+    private readonly roleRepository: Repository<RoleEntity>,
     @InjectRepository(UserRoleEntity)
     private readonly userRoleRepository: Repository<UserRoleEntity>,
     private readonly emailProtectionService: EmailProtectionService,
@@ -49,8 +59,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    const roles = await this.getUserRoles(user.id);
-    return await this.issueTokenPair(user, roles);
+    const authContext = await this.resolveActiveTenantAccess(user);
+    return await this.issueTokenPair(user, authContext);
   }
 
   async refresh(refreshToken: string): Promise<TokenPair> {
@@ -64,13 +74,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired token.');
     }
 
-    const roles = await this.getUserRoles(user.id);
     await this.authTokenStore.blacklistToken(
       payload.jti,
       this.refreshTokenTtlSeconds,
     );
 
-    return this.issueTokenPair(user, roles, payload.sessionId);
+    const authContext = await this.resolveActiveTenantAccess(
+      user,
+      payload.activeTenantId,
+    );
+    return this.issueTokenPair(user, authContext, payload.sessionId);
   }
 
   async logout(
@@ -116,7 +129,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired token.');
     }
 
-    return this.mapAuthenticatedUser(user, payload.roles);
+    const authContext = await this.resolveActiveTenantAccess(
+      user,
+      payload.activeTenantId,
+    );
+    return this.mapAuthenticatedUser(user, authContext);
   }
 
   getRefreshTokenTtlSeconds(): number {
@@ -125,7 +142,12 @@ export class AuthService {
 
   private async issueTokenPair(
     user: UserEntity,
-    roles: string[],
+    authContext: {
+      activeTenantId: string;
+      activeTenantSlug: string;
+      roles: TenantRole[];
+      globalRoles: GlobalRole[];
+    },
     sessionId: string = randomUUID(),
   ): Promise<TokenPair> {
     const accessJti = randomUUID();
@@ -134,9 +156,13 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(
       {
         sub: user.emailHash,
+        userId: user.id,
         emailHash: user.emailHash,
+        activeTenantId: authContext.activeTenantId,
+        activeTenantSlug: authContext.activeTenantSlug,
         type: 'access',
-        roles,
+        roles: authContext.roles,
+        globalRoles: authContext.globalRoles,
         sessionId,
         jti: accessJti,
       } satisfies AuthTokenPayload,
@@ -148,9 +174,13 @@ export class AuthService {
     const refreshToken = await this.jwtService.signAsync(
       {
         sub: user.emailHash,
+        userId: user.id,
         emailHash: user.emailHash,
+        activeTenantId: authContext.activeTenantId,
+        activeTenantSlug: authContext.activeTenantSlug,
         type: 'refresh',
-        roles,
+        roles: authContext.roles,
+        globalRoles: authContext.globalRoles,
         sessionId,
         jti: refreshJti,
       } satisfies AuthTokenPayload,
@@ -228,7 +258,7 @@ export class AuthService {
     });
   }
 
-  private async getUserRoles(userId: string): Promise<string[]> {
+  private async getUserGlobalRoles(userId: string): Promise<GlobalRole[]> {
     const userRoles = await this.userRoleRepository.find({
       where: { userId },
       relations: {
@@ -238,14 +268,79 @@ export class AuthService {
 
     return userRoles
       .map((userRole) => userRole.role?.name)
-      .filter((roleName): roleName is string => Boolean(roleName));
+      .filter((roleName): roleName is GlobalRole => roleName === 'super_admin');
+  }
+
+  private async resolveActiveTenantAccess(
+    user: UserEntity,
+    requestedTenantId?: string,
+  ): Promise<{
+    activeTenantId: string;
+    activeTenantSlug: string;
+    roles: TenantRole[];
+    globalRoles: GlobalRole[];
+  }> {
+    const globalRoles = await this.getUserGlobalRoles(user.id);
+    const memberships = await this.tenantMembershipRepository.find({
+      where: { userId: user.id },
+      relations: {
+        tenant: true,
+      },
+    });
+    const activeMemberships = memberships.filter(
+      (membership) => membership.tenant?.status === 'active',
+    );
+    if (!activeMemberships.length) {
+      throw new UnauthorizedException(
+        'No active tenant membership is available for this user.',
+      );
+    }
+
+    const activeTenantId =
+      requestedTenantId ?? user.lastActiveTenantId ?? activeMemberships[0].tenantId;
+    const tenant = await this.tenantRepository.findOne({
+      where: {
+        id: activeTenantId,
+        status: 'active',
+      },
+    });
+    if (!tenant) {
+      throw new UnauthorizedException('Active tenant not found for session.');
+    }
+
+    const tenantRoles = activeMemberships
+      .filter((membership) => membership.tenantId === tenant.id)
+      .map((membership) => membership.role);
+    if (!tenantRoles.length && !globalRoles.includes('super_admin')) {
+      throw new UnauthorizedException(
+        'User is not a member of the active tenant.',
+      );
+    }
+
+    if (user.lastActiveTenantId !== tenant.id) {
+      user.lastActiveTenantId = tenant.id;
+      await this.userRepository.save(user);
+    }
+
+    return {
+      activeTenantId: tenant.id,
+      activeTenantSlug: tenant.slug,
+      roles: tenantRoles,
+      globalRoles,
+    };
   }
 
   private mapAuthenticatedUser(
     user: UserEntity,
-    roles: string[],
+    authContext: {
+      activeTenantId: string;
+      activeTenantSlug: string;
+      roles: TenantRole[];
+      globalRoles: GlobalRole[];
+    },
   ): AuthenticatedUser {
     return {
+      userId: user.id,
       userUuid: user.userUuid,
       email: this.emailProtectionService.reveal({
         emailHash: user.emailHash,
@@ -256,7 +351,10 @@ export class AuthService {
       }),
       displayName: user.displayName,
       status: user.status,
-      roles,
+      activeTenantId: authContext.activeTenantId,
+      activeTenantSlug: authContext.activeTenantSlug,
+      roles: authContext.roles,
+      globalRoles: authContext.globalRoles,
     };
   }
 }

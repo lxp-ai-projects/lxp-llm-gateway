@@ -1,5 +1,7 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import type { ProviderId } from '@lxp/domain';
+
+import { TenantMembershipEntity } from './tenant-membership.entity';
 
 @Entity({ name: 'users' })
 export class UserEntity {
@@ -13,6 +15,9 @@ export class UserEntity {
   @Index('ux_users_email_hash', { unique: true })
   @Column({ name: 'email_hash', type: 'varchar', length: 64 })
   emailHash!: string;
+
+  @Column({ name: 'last_active_tenant_id', type: 'uuid', nullable: true })
+  lastActiveTenantId!: string | null;
 
   @Column({ type: 'varchar', length: 30 })
   status!: 'active' | 'disabled';
@@ -48,4 +53,10 @@ export class UserEntity {
     nullable: true,
   })
   defaultImageModel!: string | null;
+
+  @OneToMany(
+    () => TenantMembershipEntity,
+    (membership) => membership.user,
+  )
+  tenantMemberships!: TenantMembershipEntity[];
 }

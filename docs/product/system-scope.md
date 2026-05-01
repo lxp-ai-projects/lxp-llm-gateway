@@ -52,6 +52,8 @@ The repository now contains:
 - BYOK provider access through user-managed provider credentials
 - optional user correlation for Open WebUI traffic through a shared compatibility key plus forwarded user email header
 - provider model discovery through provider adapters, including capability-specific model metadata
+- tenant-aware control-plane and gateway foundations based on global users, tenant memberships, and an active tenant context
+- tenant-aware technical client foundations based on integration clients and API keys
 - shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`
@@ -66,6 +68,7 @@ The repository now contains:
 Phase 2 should assume:
 
 - the provider seam is already the canonical integration boundary
+- tenant isolation is a mandatory boundary, not a best-effort convention
 - cookie-only browser auth is the expected SPA posture
 - the SPA codebase is already organized by feature and can continue to evolve incrementally
 - CI quality gates already cover typecheck, test, and build
@@ -109,3 +112,4 @@ Current Open WebUI posture is:
 - this is enough to make provider usage follow the mapped gateway user in a trusted deployment, but it is not yet a full SSO/session-sharing implementation between Open WebUI and the admin SPA
 - the gateway remains the BYOK and security authority, not Open WebUI
 - production deployments should strip identity headers at the public proxy boundary and inject them only from trusted infrastructure
+- gateway execution should emit tenant-aware audit and usage records for traceability and future quota/billing work

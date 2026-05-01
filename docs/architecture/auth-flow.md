@@ -61,14 +61,16 @@ For `gateway-api`:
 
 For trusted OpenAI-compatible internal callers such as `Open WebUI`:
 
-1. gateway validates a shared compatibility API key
-2. gateway optionally reads a trusted forwarded user email header such as `X-OpenWebUI-User-Email`
-3. gateway maps that email to the existing `users.email_hash` lookup model
-4. gateway resolves the provider credential for that mapped user and provider
-5. gateway decrypts the provider API token only in memory for the outbound call
-6. if the request does not arrive through a trusted boundary, the forwarded identity header must be ignored or stripped before it reaches `gateway-api`
+1. gateway validates a tenant-scoped API key that belongs to an `integration_client`
+2. gateway resolves the integration client, its tenant, and its allowed trust posture
+3. gateway optionally reads a trusted forwarded user email header such as `X-OpenWebUI-User-Email` only when that integration client explicitly allows forwarded identity
+4. gateway maps that email to the existing `users.email_hash` lookup model and verifies that the resolved user belongs to the same tenant
+5. if no trusted forwarded user is present, the gateway may fall back to the integration client's configured default user
+6. gateway resolves the provider credential for that effective tenant-scoped user and provider
+7. gateway decrypts the provider API token only in memory for the outbound call
+8. if the request does not arrive through a trusted boundary, the forwarded identity header must be ignored or stripped before it reaches `gateway-api`
 
-If no trusted forwarded user email is present, the gateway may fall back to a configured default compatibility user for that integration.
+The legacy shared compatibility API key remains a transition path, but it is no longer the preferred enterprise posture.
 
 ## Redis Responsibilities
 

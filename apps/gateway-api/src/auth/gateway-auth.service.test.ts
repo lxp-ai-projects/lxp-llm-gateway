@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHmac, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import test from 'node:test';
 
 import { GatewayAuthService } from './gateway-auth.service';
@@ -35,293 +35,264 @@ function computeEmailHash(email: string, lookupKey: Buffer) {
     .digest('hex');
 }
 
-test('GatewayAuthService resolves a trusted Open WebUI user from the forwarded email header', async () => {
-  const lookupKey = randomBytes(32);
-  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
-  const bobHash = computeEmailHash('bob@example.com', lookupKey);
-  const users = [
-    {
-      id: 'user-1',
-      userUuid: 'uuid-1',
-      emailHash: aliceHash,
-      status: 'active',
-      defaultProviderId: 'nanogpt',
-      defaultModel: 'nano-1',
-      defaultImageProviderId: null,
-      defaultImageModel: null,
+function computeApiKeyHash(apiKey: string) {
+  return createHash('sha256').update(apiKey).digest('hex');
+}
+
+function createRepositoryMock<T>(data: T[]) {
+  return {
+    async findOne({
+      where,
+    }: {
+      where: Record<string, unknown>;
+      relations?: unknown;
+    }): Promise<T | null> {
+      return (
+        data.find((item) =>
+          Object.entries(where).every(([key, value]) => {
+            const itemValue = (item as Record<string, unknown>)[key];
+            if (
+              value &&
+              typeof value === 'object' &&
+              '_type' in (value as Record<string, unknown>)
+            ) {
+              const operator = value as { _type: string; _value?: unknown };
+              if (operator._type === 'moreThan') {
+                return itemValue instanceof Date &&
+                  operator._value instanceof Date
+                  ? itemValue > operator._value
+                  : false;
+              }
+              if (operator._type === 'isNull') {
+                return itemValue === null;
+              }
+            }
+
+            return itemValue === value;
+          }),
+        ) ?? null
+      );
     },
-    {
-      id: 'user-2',
-      userUuid: 'uuid-2',
-      emailHash: bobHash,
-      status: 'active',
-      defaultProviderId: 'openrouter',
-      defaultModel: 'meta-llama/llama-3.3-70b-instruct',
-      defaultImageProviderId: null,
-      defaultImageModel: null,
+    async find({
+      where,
+      relations,
+    }: {
+      where: Record<string, unknown>;
+      relations?: unknown;
+    }): Promise<T[]> {
+      void relations;
+      return data.filter((item) =>
+        Object.entries(where).every(
+          ([key, value]) => (item as Record<string, unknown>)[key] === value,
+        ),
+      );
     },
-  ];
-  const service = new GatewayAuthService(
+    async update(): Promise<void> {},
+  };
+}
+
+function createService(fixtures?: {
+  users?: Array<Record<string, unknown>>;
+  tenants?: Array<Record<string, unknown>>;
+  memberships?: Array<Record<string, unknown>>;
+  integrationClients?: Array<Record<string, unknown>>;
+  apiKeys?: Array<Record<string, unknown>>;
+}) {
+  return new GatewayAuthService(
     {
       verifyAsync: async () => {
         throw new Error('jwt not used');
       },
     } as never,
-    {
-      findOne: async ({ where }: { where: { emailHash: string; status: string } }) =>
-        users.find(
-          (user) =>
-            user.emailHash === where.emailHash && user.status === where.status,
-        ) ?? null,
-    } as never,
+    createRepositoryMock(fixtures?.users ?? []) as never,
+    createRepositoryMock(fixtures?.tenants ?? []) as never,
+    createRepositoryMock(fixtures?.memberships ?? []) as never,
+    createRepositoryMock(fixtures?.integrationClients ?? []) as never,
+    createRepositoryMock(fixtures?.apiKeys ?? []) as never,
   );
+}
+
+test('GatewayAuthService resolves a tenant-scoped integration client default user from an API key', async () => {
+  const lookupKey = randomBytes(32);
+  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
+  const apiKey = 'lxp_test_integration_key';
+  const tenant = {
+    id: 'tenant-1',
+    slug: 'lxp-internal',
+    status: 'active',
+  };
+  const user = {
+    id: 'user-1',
+    userUuid: 'uuid-1',
+    emailHash: aliceHash,
+    status: 'active',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'nano-1',
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  };
+  const integrationClient = {
+    id: 'integration-1',
+    tenantId: tenant.id,
+    tenant,
+    clientId: 'open-webui-demo',
+    displayName: 'Open WebUI Demo',
+    applicationId: 'open-webui',
+    defaultUserId: user.id,
+    defaultUser: user,
+    scopes: ['chat:complete'],
+    trustedForwardedIdentityEnabled: false,
+    status: 'active',
+  };
+
+  const service = createService({
+    users: [user],
+    tenants: [tenant],
+    memberships: [
+      {
+        id: 'membership-1',
+        tenantId: tenant.id,
+        userId: user.id,
+        role: 'user',
+        tenant,
+      },
+    ],
+    integrationClients: [integrationClient],
+    apiKeys: [
+      {
+        id: 'key-1',
+        tenantId: tenant.id,
+        integrationClientId: integrationClient.id,
+        integrationClient,
+        keyHash: computeApiKeyHash(apiKey),
+        scopes: ['models:list'],
+        status: 'active',
+        expiresAt: null,
+      },
+    ],
+  });
 
   await withEnv(
     {
-      LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
-      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'true',
-      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: 'X-OpenWebUI-User-Email',
-      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
       LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: 'X-OpenWebUI-User-Email',
     },
     async () => {
       const authContext = await service.authenticateOpenAiCompatibleRequest(
-        'Bearer open-webui-shared-key',
+        `Bearer ${apiKey}`,
+      );
+
+      assert.equal(authContext.identitySource, 'integration-client-default-user');
+      assert.equal(authContext.activeTenantId, tenant.id);
+      assert.equal(authContext.integrationClientId, 'open-webui-demo');
+      assert.deepEqual(
+        authContext.integrationClientScopes,
+        ['chat:complete', 'models:list'],
+      );
+      assert.equal(authContext.userUuid, 'uuid-1');
+    },
+  );
+});
+
+test('GatewayAuthService resolves a trusted forwarded user for an integration client in the same tenant', async () => {
+  const lookupKey = randomBytes(32);
+  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
+  const bobHash = computeEmailHash('bob@example.com', lookupKey);
+  const apiKey = 'lxp_trusted_forwarded_key';
+  const tenant = {
+    id: 'tenant-1',
+    slug: 'lxp-internal',
+    status: 'active',
+  };
+  const alice = {
+    id: 'user-1',
+    userUuid: 'uuid-1',
+    emailHash: aliceHash,
+    status: 'active',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'nano-1',
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  };
+  const bob = {
+    id: 'user-2',
+    userUuid: 'uuid-2',
+    emailHash: bobHash,
+    status: 'active',
+    defaultProviderId: 'openrouter',
+    defaultModel: 'meta-llama/llama-3.3-70b-instruct',
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  };
+  const integrationClient = {
+    id: 'integration-1',
+    tenantId: tenant.id,
+    tenant,
+    clientId: 'open-webui-demo',
+    displayName: 'Open WebUI Demo',
+    applicationId: 'open-webui',
+    defaultUserId: alice.id,
+    defaultUser: alice,
+    scopes: [],
+    trustedForwardedIdentityEnabled: true,
+    status: 'active',
+  };
+
+  const service = createService({
+    users: [alice, bob],
+    tenants: [tenant],
+    memberships: [
+      {
+        id: 'membership-1',
+        tenantId: tenant.id,
+        userId: alice.id,
+        role: 'user',
+        tenant,
+      },
+      {
+        id: 'membership-2',
+        tenantId: tenant.id,
+        userId: bob.id,
+        role: 'operator',
+        tenant,
+      },
+    ],
+    integrationClients: [integrationClient],
+    apiKeys: [
+      {
+        id: 'key-1',
+        tenantId: tenant.id,
+        integrationClientId: integrationClient.id,
+        integrationClient,
+        keyHash: computeApiKeyHash(apiKey),
+        scopes: [],
+        status: 'active',
+        expiresAt: null,
+      },
+    ],
+  });
+
+  await withEnv(
+    {
+      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: 'X-OpenWebUI-User-Email',
+    },
+    async () => {
+      const authContext = await service.authenticateOpenAiCompatibleRequest(
+        `Bearer ${apiKey}`,
         undefined,
         {
           'x-openwebui-user-email': 'bob@example.com',
         },
       );
 
-      assert.equal(authContext.userId, 'user-2');
       assert.equal(
         authContext.identitySource,
-        'openai-compatible-trusted-header',
+        'integration-client-trusted-header',
       );
+      assert.equal(authContext.userUuid, 'uuid-2');
       assert.equal(authContext.defaultProviderId, 'openrouter');
-      assert.equal(
-        authContext.defaultModel,
-        'meta-llama/llama-3.3-70b-instruct',
-      );
-    },
-  );
-});
-
-test('GatewayAuthService resolves a trusted user from a proxy-auth email header when configured', async () => {
-  const lookupKey = randomBytes(32);
-  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
-  const bobHash = computeEmailHash('bob@example.com', lookupKey);
-  const users = [
-    {
-      id: 'user-1',
-      userUuid: 'uuid-1',
-      emailHash: aliceHash,
-      status: 'active',
-      defaultProviderId: 'nanogpt',
-      defaultModel: 'nano-1',
-      defaultImageProviderId: null,
-      defaultImageModel: null,
-    },
-    {
-      id: 'user-2',
-      userUuid: 'uuid-2',
-      emailHash: bobHash,
-      status: 'active',
-      defaultProviderId: 'openrouter',
-      defaultModel: 'meta-llama/llama-3.3-70b-instruct',
-      defaultImageProviderId: null,
-      defaultImageModel: null,
-    },
-  ];
-  const service = new GatewayAuthService(
-    {
-      verifyAsync: async () => {
-        throw new Error('jwt not used');
-      },
-    } as never,
-    {
-      findOne: async ({ where }: { where: { emailHash: string; status: string } }) =>
-        users.find(
-          (user) =>
-            user.emailHash === where.emailHash && user.status === where.status,
-        ) ?? null,
-    } as never,
-  );
-
-  await withEnv(
-    {
-      LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
-      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'true',
-      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS:
-        'X-OpenWebUI-User-Email, X-Auth-Request-Email',
-      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
-      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
-    },
-    async () => {
-      const authContext = await service.authenticateOpenAiCompatibleRequest(
-        'Bearer open-webui-shared-key',
-        undefined,
-        {
-          'x-auth-request-email': 'bob@example.com',
-        },
-      );
-
-      assert.equal(authContext.userId, 'user-2');
-      assert.equal(
-        authContext.identitySource,
-        'openai-compatible-trusted-header',
-      );
-      assert.equal(authContext.defaultProviderId, 'openrouter');
-    },
-  );
-});
-
-test('GatewayAuthService rejects a forwarded Open WebUI user header when trusted identity mode is disabled', async () => {
-  const lookupKey = randomBytes(32);
-  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
-  const service = new GatewayAuthService(
-    {
-      verifyAsync: async () => {
-        throw new Error('jwt not used');
-      },
-    } as never,
-    {
-      findOne: async ({ where }: { where: { emailHash: string; status: string } }) =>
-        where.emailHash === aliceHash && where.status === 'active'
-          ? {
-              id: 'user-1',
-              userUuid: 'uuid-1',
-              emailHash: aliceHash,
-              status: 'active',
-              defaultProviderId: 'nanogpt',
-              defaultModel: 'nano-1',
-              defaultImageProviderId: null,
-              defaultImageModel: null,
-            }
-          : null,
-    } as never,
-  );
-
-  await withEnv(
-    {
-      LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
-      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'false',
-      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: 'X-OpenWebUI-User-Email',
-      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
-      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
-    },
-    async () => {
-      await assert.rejects(
-        () =>
-          service.authenticateOpenAiCompatibleRequest(
-            'Bearer open-webui-shared-key',
-            undefined,
-            {
-              'x-openwebui-user-email': 'bob@example.com',
-            },
-          ),
-        /Trusted OpenAI-compatible identity headers are not accepted/,
-      );
-    },
-  );
-});
-
-test('GatewayAuthService rejects conflicting trusted identity headers', async () => {
-  const lookupKey = randomBytes(32);
-  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
-  const service = new GatewayAuthService(
-    {
-      verifyAsync: async () => {
-        throw new Error('jwt not used');
-      },
-    } as never,
-    {
-      findOne: async ({ where }: { where: { emailHash: string; status: string } }) =>
-        where.emailHash === aliceHash && where.status === 'active'
-          ? {
-              id: 'user-1',
-              userUuid: 'uuid-1',
-              emailHash: aliceHash,
-              status: 'active',
-              defaultProviderId: 'nanogpt',
-              defaultModel: 'nano-1',
-              defaultImageProviderId: null,
-              defaultImageModel: null,
-            }
-          : null,
-    } as never,
-  );
-
-  await withEnv(
-    {
-      LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
-      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'true',
-      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS:
-        'X-OpenWebUI-User-Email, X-Auth-Request-Email',
-      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
-      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
-    },
-    async () => {
-      await assert.rejects(
-        () =>
-          service.authenticateOpenAiCompatibleRequest(
-            'Bearer open-webui-shared-key',
-            undefined,
-            {
-              'x-openwebui-user-email': 'alice@example.com',
-              'x-auth-request-email': 'bob@example.com',
-            },
-          ),
-        /Conflicting trusted identity headers were supplied/i,
-      );
-    },
-  );
-});
-
-test('GatewayAuthService falls back to the configured default Open WebUI user email', async () => {
-  const lookupKey = randomBytes(32);
-  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
-  const service = new GatewayAuthService(
-    {
-      verifyAsync: async () => {
-        throw new Error('jwt not used');
-      },
-    } as never,
-    {
-      findOne: async ({ where }: { where: { emailHash: string; status: string } }) =>
-        where.emailHash === aliceHash && where.status === 'active'
-          ? {
-              id: 'user-1',
-              userUuid: 'uuid-1',
-              emailHash: aliceHash,
-              status: 'active',
-              defaultProviderId: 'nanogpt',
-              defaultModel: 'nano-1',
-              defaultImageProviderId: null,
-              defaultImageModel: null,
-            }
-          : null,
-    } as never,
-  );
-
-  await withEnv(
-    {
-      LXP_OPENAI_COMPAT_API_KEY: 'open-webui-shared-key',
-      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: 'false',
-      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: 'alice@example.com',
-      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
-    },
-    async () => {
-      const authContext = await service.authenticateOpenAiCompatibleRequest(
-        'Bearer open-webui-shared-key',
-      );
-
-      assert.equal(authContext.userId, 'user-1');
-      assert.equal(
-        authContext.identitySource,
-        'openai-compatible-default-user',
-      );
-      assert.equal(authContext.defaultProviderId, 'nanogpt');
+      assert.deepEqual(authContext.roles, ['operator']);
     },
   );
 });

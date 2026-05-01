@@ -1,12 +1,18 @@
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
+import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
+import { AuditLogEntity } from '../persistence/entities/audit-log.entity';
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
+import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
 import { ProviderEntity } from '../persistence/entities/provider.entity';
+import { TenantEntity } from '../persistence/entities/tenant.entity';
+import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
+import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
 
 function getRequiredString(key: string): string {
   const value = process.env[key];
@@ -67,6 +73,12 @@ function getBaseDataSourceOptions(): DataSourceOptions {
       : false,
     entities: [
       UserEntity,
+      TenantEntity,
+      TenantMembershipEntity,
+      IntegrationClientEntity,
+      ApiKeyEntity,
+      AuditLogEntity,
+      UsageEventEntity,
       ProviderEntity,
       UserProviderCredentialEntity,
       ImageAssetEntity,

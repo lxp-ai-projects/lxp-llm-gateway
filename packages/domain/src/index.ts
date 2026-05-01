@@ -8,6 +8,19 @@ export type ProviderId =
   | 'openai'
   | 'anthropic';
 
+export type TenantRole = 'tenant_admin' | 'operator' | 'user' | 'viewer';
+
+export type GlobalRole = 'super_admin';
+
+export const TENANT_ROLE_VALUES: TenantRole[] = [
+  'tenant_admin',
+  'operator',
+  'user',
+  'viewer',
+];
+
+export const GLOBAL_ROLE_VALUES: GlobalRole[] = ['super_admin'];
+
 export type StreamSupport = 'none' | 'server-sent-events' | 'chunked';
 
 export interface ProviderCapabilities {

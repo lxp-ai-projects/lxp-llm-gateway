@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import type { ProviderId } from '@lxp/domain';
 
+import { TenantMembershipEntity } from './tenant-membership.entity';
 import { UserProviderCredentialEntity } from './user-provider-credential.entity';
 import { UserRoleEntity } from './user-role.entity';
 
@@ -28,6 +29,9 @@ export class UserEntity {
   @Index('ux_users_email_hash', { unique: true })
   @Column({ name: 'email_hash', type: 'varchar', length: 64 })
   emailHash!: string;
+
+  @Column({ name: 'last_active_tenant_id', type: 'uuid', nullable: true })
+  lastActiveTenantId!: string | null;
 
   @Column({ name: 'encrypted_email', type: 'text' })
   encryptedEmail!: string;
@@ -90,6 +94,12 @@ export class UserEntity {
 
   @OneToMany(() => UserRoleEntity, (userRole) => userRole.user)
   roles!: UserRoleEntity[];
+
+  @OneToMany(
+    () => TenantMembershipEntity,
+    (membership) => membership.user,
+  )
+  tenantMemberships!: TenantMembershipEntity[];
 
   @OneToMany(
     () => UserProviderCredentialEntity,

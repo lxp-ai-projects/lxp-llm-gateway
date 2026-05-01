@@ -34,9 +34,11 @@ import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
 import { ProviderEntity } from '../persistence/entities/provider.entity';
+import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { ProviderCredentialService } from '../gateway/provider-credential.service';
 import { ProviderRegistryService } from '../gateway/provider-registry.service';
+import { GatewayTelemetryService } from '../gateway/gateway-telemetry.service';
 
 const GATEWAY_IMAGE_ASSET_MIME_TYPES = new Set([
   'image/png',
@@ -57,6 +59,8 @@ export class ImageApplicationService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(ProviderEntity)
     private readonly providerRepository: Repository<ProviderEntity>,
+    @InjectRepository(TenantMembershipEntity)
+    private readonly tenantMembershipRepository: Repository<TenantMembershipEntity>,
     @InjectRepository(ImageAssetEntity)
     private readonly imageAssetRepository: Repository<ImageAssetEntity>,
     @InjectRepository(ImageJobEntity)
@@ -65,6 +69,7 @@ export class ImageApplicationService {
     private readonly imageJobResultRepository: Repository<ImageJobResultEntity>,
     private readonly providerRegistry: ProviderRegistryService,
     private readonly providerCredentialService: ProviderCredentialService,
+    private readonly gatewayTelemetryService: GatewayTelemetryService,
   ) {}
 
   async getCatalog(
@@ -93,7 +98,7 @@ export class ImageApplicationService {
       try {
         const providerAccess =
           await this.providerCredentialService
-            .resolveProviderAccess(authContext.emailHash, provider.providerId)
+            .resolveProviderAccess(authContext, provider.providerId)
             .catch(() => ({
               headers: {},
             }));
@@ -125,7 +130,10 @@ export class ImageApplicationService {
     request: GatewayImageGenerationRequest,
     authContext: GatewayAuthContext,
   ): Promise<GatewayImageGenerationResponse> {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const providerId = this.resolveProviderId(request.providerId, authContext);
     const model = this.resolveModel(request.model, providerId, authContext);
     const provider = this.providerRegistry.getProvider(providerId);
@@ -136,23 +144,36 @@ export class ImageApplicationService {
       );
     }
 
+    const startedAt = new Date();
     try {
+      const requestId = crypto.randomUUID();
       const providerAccess =
         await this.providerCredentialService.resolveProviderAccess(
-          authContext.emailHash,
+          authContext,
           provider.providerId,
         );
-      const startedAt = new Date();
       const providerResponse = await provider.generateImage(
         { ...request, providerId, model },
         {
-          requestId: crypto.randomUUID(),
+          requestId,
           userId: authContext.userId,
           providerAccess,
         },
       );
-
+      const latencyMs = Date.now() - startedAt.getTime();
+      await this.gatewayTelemetryService.recordImageSuccess({
+        authContext,
+        requestId,
+        providerId: provider.providerId,
+        model,
+        operation: 'image_generation',
+        route: '/api/v1/images/generations',
+        latencyMs,
+        promptLength: request.prompt.length,
+        response: providerResponse,
+      });
       return this.persistImageJob(
+        authContext.activeTenantId,
         user.id,
         providerResponse,
         request.prompt,
@@ -160,6 +181,18 @@ export class ImageApplicationService {
         startedAt,
       );
     } catch (error) {
+      const requestId = crypto.randomUUID();
+      await this.gatewayTelemetryService.recordImageFailure({
+        authContext,
+        requestId,
+        providerId: provider.providerId,
+        model,
+        operation: 'image_generation',
+        route: '/api/v1/images/generations',
+        latencyMs: Date.now() - startedAt.getTime(),
+        promptLength: request.prompt.length,
+        error: error instanceof Error ? error.message : 'Unknown gateway error.',
+      });
       throw new BadGatewayException(
         error instanceof Error ? error.message : 'Unknown gateway error.',
       );
@@ -170,7 +203,10 @@ export class ImageApplicationService {
     request: GatewayImageEditRequest,
     authContext: GatewayAuthContext,
   ): Promise<GatewayImageGenerationResponse> {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const providerId = this.resolveProviderId(request.providerId, authContext);
     const model = this.resolveModel(request.model, providerId, authContext);
     const provider = this.providerRegistry.getProvider(providerId);
@@ -181,28 +217,60 @@ export class ImageApplicationService {
       );
     }
 
+    const startedAt = new Date();
     try {
+      const requestId = crypto.randomUUID();
       const providerAccess =
         await this.providerCredentialService.resolveProviderAccess(
-          authContext.emailHash,
+          authContext,
           provider.providerId,
         );
       const resolvedImages = await this.resolveGatewayReferences(
         request.images,
+        authContext.activeTenantId,
         user.id,
       );
-      const startedAt = new Date();
       const providerResponse = await provider.editImage(
         { ...request, providerId, model, images: resolvedImages },
         {
-          requestId: crypto.randomUUID(),
+          requestId,
           userId: authContext.userId,
           providerAccess,
         },
       );
-
-      return this.persistImageJob(user.id, providerResponse, request.prompt, 'edit', startedAt);
+      const latencyMs = Date.now() - startedAt.getTime();
+      await this.gatewayTelemetryService.recordImageSuccess({
+        authContext,
+        requestId,
+        providerId: provider.providerId,
+        model,
+        operation: 'image_edit',
+        route: '/api/v1/images/edits',
+        latencyMs,
+        promptLength: request.prompt.length,
+        response: providerResponse,
+      });
+      return this.persistImageJob(
+        authContext.activeTenantId,
+        user.id,
+        providerResponse,
+        request.prompt,
+        'edit',
+        startedAt,
+      );
     } catch (error) {
+      const requestId = crypto.randomUUID();
+      await this.gatewayTelemetryService.recordImageFailure({
+        authContext,
+        requestId,
+        providerId: provider.providerId,
+        model,
+        operation: 'image_edit',
+        route: '/api/v1/images/edits',
+        latencyMs: Date.now() - startedAt.getTime(),
+        promptLength: request.prompt.length,
+        error: error instanceof Error ? error.message : 'Unknown gateway error.',
+      });
       throw new BadGatewayException(
         error instanceof Error ? error.message : 'Unknown gateway error.',
       );
@@ -213,7 +281,10 @@ export class ImageApplicationService {
     request: GatewayImageAssetUploadRequest,
     authContext: GatewayAuthContext,
   ): Promise<GatewayImageAssetUploadResponse> {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const parsedDataUrl = parseDataUrlReference(request.dataUrl);
     const dataBytes = Buffer.byteLength(parsedDataUrl.dataBase64, 'base64');
     const contentHash = this.computeImageContentHash(parsedDataUrl.dataBase64);
@@ -233,6 +304,7 @@ export class ImageApplicationService {
     const existingAsset = await this.imageAssetRepository.findOne({
       where: {
         userId: user.id,
+        tenantId: authContext.activeTenantId,
         sourceType: 'upload',
         contentHash,
       },
@@ -245,6 +317,7 @@ export class ImageApplicationService {
     }
 
     const asset = await this.imageAssetRepository.save({
+      tenantId: authContext.activeTenantId,
       userId: user.id,
       sourceType: 'upload',
       label: request.label?.trim() || null,
@@ -263,9 +336,16 @@ export class ImageApplicationService {
   async listAssets(
     authContext: GatewayAuthContext,
   ): Promise<GatewayImageAssetListResponse> {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const assets = await this.imageAssetRepository.find({
-      where: { userId: user.id, sourceType: 'upload' },
+      where: {
+        tenantId: authContext.activeTenantId,
+        userId: user.id,
+        sourceType: 'upload',
+      },
       order: { createdAt: 'DESC' },
     });
 
@@ -278,10 +358,16 @@ export class ImageApplicationService {
     page: number,
     authContext: GatewayAuthContext,
   ): Promise<GatewayImageHistoryResponse> {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const safePage = Number.isFinite(page) && page > 0 ? page : 1;
     const [jobs, totalItems] = await this.imageJobRepository.findAndCount({
-      where: { userId: user.id },
+      where: {
+        tenantId: authContext.activeTenantId,
+        userId: user.id,
+      },
       order: { createdAt: 'DESC' },
       skip: (safePage - 1) * IMAGE_HISTORY_PAGE_SIZE,
       take: IMAGE_HISTORY_PAGE_SIZE,
@@ -297,7 +383,11 @@ export class ImageApplicationService {
     const assetIds = jobResults.map((jobResult) => jobResult.assetId);
     const assets = assetIds.length
       ? await this.imageAssetRepository.find({
-          where: assetIds.map((id) => ({ id, userId: user.id })),
+          where: assetIds.map((id) => ({
+            id,
+            tenantId: authContext.activeTenantId,
+            userId: user.id,
+          })),
         })
       : [];
     const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
@@ -353,9 +443,16 @@ export class ImageApplicationService {
     request: GatewayImageAssetSaveRequest,
     authContext: GatewayAuthContext,
   ) {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const asset = await this.imageAssetRepository.findOne({
-      where: { id: assetId, userId: user.id },
+      where: {
+        id: assetId,
+        tenantId: authContext.activeTenantId,
+        userId: user.id,
+      },
     });
 
     if (!asset) {
@@ -374,9 +471,16 @@ export class ImageApplicationService {
     request: GatewayImageAssetUpdateRequest,
     authContext: GatewayAuthContext,
   ) {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const asset = await this.imageAssetRepository.findOne({
-      where: { id: assetId, userId: user.id },
+      where: {
+        id: assetId,
+        tenantId: authContext.activeTenantId,
+        userId: user.id,
+      },
     });
 
     if (!asset) {
@@ -395,9 +499,16 @@ export class ImageApplicationService {
   }
 
   async deleteAsset(assetId: string, authContext: GatewayAuthContext) {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const asset = await this.imageAssetRepository.findOne({
-      where: { id: assetId, userId: user.id },
+      where: {
+        id: assetId,
+        tenantId: authContext.activeTenantId,
+        userId: user.id,
+      },
     });
 
     if (!asset) {
@@ -408,7 +519,11 @@ export class ImageApplicationService {
       throw new BadRequestException('Only uploaded reference assets can be deleted.');
     }
 
-    await this.imageAssetRepository.delete({ id: asset.id, userId: user.id });
+    await this.imageAssetRepository.delete({
+      id: asset.id,
+      tenantId: authContext.activeTenantId,
+      userId: user.id,
+    });
     return { deleted: true as const };
   }
 
@@ -416,9 +531,16 @@ export class ImageApplicationService {
     assetId: string,
     authContext: GatewayAuthContext,
   ): Promise<{ mimeType: string; data: Buffer }> {
-    const user = await this.resolveUser(authContext.emailHash);
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
     const asset = await this.imageAssetRepository.findOne({
-      where: { id: assetId, userId: user.id },
+      where: {
+        id: assetId,
+        tenantId: authContext.activeTenantId,
+        userId: user.id,
+      },
     });
 
     if (!asset) {
@@ -433,6 +555,7 @@ export class ImageApplicationService {
   }
 
   private async persistImageJob(
+    tenantId: string,
     userId: string,
     providerResponse: GatewayImageGenerationResponse,
     prompt: string,
@@ -440,6 +563,7 @@ export class ImageApplicationService {
     startedAt: Date,
   ): Promise<GatewayImageGenerationResponse> {
     const job = await this.imageJobRepository.save({
+      tenantId,
       userId,
       requestId: providerResponse.requestId,
       providerId: providerResponse.providerId,
@@ -453,8 +577,14 @@ export class ImageApplicationService {
 
     const images: GatewayGeneratedImage[] = [];
     for (const [index, image] of providerResponse.images.entries()) {
-      const storedAsset = await this.persistGeneratedAsset(userId, image, index);
+      const storedAsset = await this.persistGeneratedAsset(
+        tenantId,
+        userId,
+        image,
+        index,
+      );
       await this.imageJobResultRepository.save({
+        tenantId,
         jobId: job.id,
         assetId: storedAsset.id,
         resultIndex: index,
@@ -481,6 +611,7 @@ export class ImageApplicationService {
   }
 
   private async persistGeneratedAsset(
+    tenantId: string,
     userId: string,
     image: GatewayGeneratedImage,
     index: number,
@@ -508,6 +639,7 @@ export class ImageApplicationService {
 
     const parsedDataUrl = parseDataUrlReference(dataUrl, image.mimeType);
     return this.imageAssetRepository.save({
+      tenantId,
       userId,
       sourceType: 'generated',
       label: `Generated image ${index + 1}`,
@@ -521,6 +653,7 @@ export class ImageApplicationService {
 
   private async resolveGatewayReferences(
     images: GatewayImageReference[],
+    tenantId: string,
     userId: string,
   ): Promise<GatewayImageReference[]> {
     return Promise.all(
@@ -530,7 +663,7 @@ export class ImageApplicationService {
         }
 
         const asset = await this.imageAssetRepository.findOne({
-          where: { id: image.assetId, userId },
+          where: { id: image.assetId, tenantId, userId },
         });
         if (!asset) {
           throw new NotFoundException(`Reference asset ${image.assetId} was not found.`);
@@ -545,12 +678,22 @@ export class ImageApplicationService {
     );
   }
 
-  private async resolveUser(emailHash: string) {
+  private async resolveUser(tenantId: string, emailHash: string) {
     const user = await this.userRepository.findOne({
       where: { emailHash, status: 'active' },
     });
 
     if (!user) {
+      throw new NotFoundException('Authenticated gateway user was not found.');
+    }
+
+    const membership = await this.tenantMembershipRepository.findOne({
+      where: {
+        tenantId,
+        userId: user.id,
+      },
+    });
+    if (!membership) {
       throw new NotFoundException('Authenticated gateway user was not found.');
     }
 

@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { RoleEntity } from '../persistence/entities/role.entity';
 
+import { TenantEntity } from '../persistence/entities/tenant.entity';
+import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { UserRoleEntity } from '../persistence/entities/user-role.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { AccessTokenGuard } from './access-token.guard';
@@ -18,7 +21,13 @@ import { RolesGuard } from './roles.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, UserRoleEntity]),
+    TypeOrmModule.forFeature([
+      UserEntity,
+      UserRoleEntity,
+      RoleEntity,
+      TenantEntity,
+      TenantMembershipEntity,
+    ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

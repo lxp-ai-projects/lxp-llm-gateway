@@ -64,7 +64,7 @@ export class OpenAiCompatibleService {
       try {
         const providerAccess =
           await this.providerCredentialService.resolveProviderAccess(
-            authContext.emailHash,
+            authContext,
             provider.providerId,
           );
         const models = await provider.listModels({

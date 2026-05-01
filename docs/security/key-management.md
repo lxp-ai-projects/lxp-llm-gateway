@@ -30,6 +30,8 @@ Examples:
 - roles
 - provider definitions
 - encrypted provider credentials
+- tenant-scoped integration clients
+- tenant-scoped API keys
 
 Provider API tokens that belong to a specific user or provider binding are application data and must be stored encrypted in the database.
 
@@ -110,6 +112,7 @@ Recommended posture:
 Never log:
 
 - raw provider API keys
+- raw integration API keys
 - decrypted credential values
 - master keys
 - full credential payloads
@@ -121,3 +124,9 @@ If a credential event needs observability, log only:
 - credential record identifier
 - success or failure outcome
 - timestamp
+
+The same masking rule applies to tenant-scoped integration API keys:
+
+- store only a one-way hash plus a short masked hint for lookup and operator support
+- never persist the raw key after issuance
+- never rely on forwarded identity headers as the root trust primitive without an authenticated technical client

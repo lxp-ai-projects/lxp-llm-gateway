@@ -11,6 +11,7 @@ import type { GatewayChatResponse } from '@lxp/contracts';
 import type { GatewayAuthContext } from '../auth/auth.types';
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
+import { GatewayTelemetryService } from './gateway-telemetry.service';
 import type { ListModelsQueryDto } from './dto/list-models-query.dto';
 import { ProviderCredentialService } from './provider-credential.service';
 import { ProviderRegistryService } from './provider-registry.service';
@@ -19,6 +20,7 @@ import { ProviderRegistryService } from './provider-registry.service';
 export class GatewayService {
   constructor(
     private readonly gatewayAuditService: GatewayAuditService,
+    private readonly gatewayTelemetryService: GatewayTelemetryService,
     private readonly providerRegistry: ProviderRegistryService,
     private readonly providerCredentialService: ProviderCredentialService,
   ) {}
@@ -38,7 +40,7 @@ export class GatewayService {
     try {
       const providerAccess =
         await this.providerCredentialService.resolveProviderAccess(
-          authContext.emailHash,
+          authContext,
           provider.providerId,
         );
 
@@ -89,6 +91,8 @@ export class GatewayService {
         authContext.emailHash,
       ),
       identitySource: authContext.identitySource,
+      tenantId: authContext.activeTenantId,
+      tenantSlug: authContext.activeTenantSlug,
       stream: false,
       ...messageSummary,
     };
@@ -97,9 +101,9 @@ export class GatewayService {
     try {
       const providerAccess =
         await this.providerCredentialService.resolveProviderAccess(
-        authContext.emailHash,
-        provider.providerId,
-      );
+          authContext,
+          provider.providerId,
+        );
 
       const response = await provider.chat(
         {
@@ -119,15 +123,38 @@ export class GatewayService {
         durationMs: Date.now() - startedAt,
         outcome: 'success',
       });
+      await this.gatewayTelemetryService.recordChatSuccess({
+        authContext,
+        requestId,
+        providerId: provider.providerId,
+        model,
+        route: '/api/v1/chat',
+        latencyMs: Date.now() - startedAt,
+        stream: false,
+        messageSummary,
+        response,
+      });
 
       return response;
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown gateway error.';
       this.gatewayAuditService.logFailed({
         ...auditBase,
         durationMs: Date.now() - startedAt,
         outcome: 'failure',
-        error:
-          error instanceof Error ? error.message : 'Unknown gateway error.',
+        error: errorMessage,
+      });
+      await this.gatewayTelemetryService.recordChatFailure({
+        authContext,
+        requestId,
+        providerId: provider.providerId,
+        model,
+        route: '/api/v1/chat',
+        latencyMs: Date.now() - startedAt,
+        stream: false,
+        messageSummary,
+        error: errorMessage,
       });
       if (error instanceof HttpException) {
         throw error;
@@ -171,6 +198,8 @@ export class GatewayService {
         authContext.emailHash,
       ),
       identitySource: authContext.identitySource,
+      tenantId: authContext.activeTenantId,
+      tenantSlug: authContext.activeTenantSlug,
       stream: true,
       ...messageSummary,
     };
@@ -179,9 +208,9 @@ export class GatewayService {
     try {
       const providerAccess =
         await this.providerCredentialService.resolveProviderAccess(
-        authContext.emailHash,
-        provider.providerId,
-      );
+          authContext,
+          provider.providerId,
+        );
 
       const stream = await provider.chatStream(
         {
@@ -201,18 +230,50 @@ export class GatewayService {
         durationMs: Date.now() - startedAt,
         outcome: 'success',
       });
+      await this.gatewayTelemetryService.recordChatSuccess({
+        authContext,
+        requestId,
+        providerId: provider.providerId,
+        model,
+        route: '/api/v1/chat',
+        latencyMs: Date.now() - startedAt,
+        stream: true,
+        messageSummary,
+        response: {
+          requestId,
+          providerId: provider.providerId,
+          model,
+          message: {
+            role: 'assistant',
+            content: '',
+          },
+          finishReason: null,
+        },
+      });
 
       return {
         requestId,
         stream,
       };
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown gateway error.';
       this.gatewayAuditService.logFailed({
         ...auditBase,
         durationMs: Date.now() - startedAt,
         outcome: 'failure',
-        error:
-          error instanceof Error ? error.message : 'Unknown gateway error.',
+        error: errorMessage,
+      });
+      await this.gatewayTelemetryService.recordChatFailure({
+        authContext,
+        requestId,
+        providerId: provider.providerId,
+        model,
+        route: '/api/v1/chat',
+        latencyMs: Date.now() - startedAt,
+        stream: true,
+        messageSummary,
+        error: errorMessage,
       });
       if (error instanceof HttpException) {
         throw error;

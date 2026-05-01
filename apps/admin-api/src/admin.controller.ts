@@ -33,43 +33,60 @@ export class AdminController {
 
   @Post('admin/users')
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('admin')
-  createUser(@Body() dto: CreateUserDto) {
-    return this.adminService.createUser(dto);
+  @Roles('tenant_admin')
+  createUser(@Req() request: RequestWithAuthUser, @Body() dto: CreateUserDto) {
+    return this.adminService.createUser(request.authUser!, dto);
   }
 
   @Get('admin/users')
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('admin')
-  listUsers() {
-    return this.adminService.listUsers();
+  @Roles('tenant_admin')
+  listUsers(@Req() request: RequestWithAuthUser) {
+    return this.adminService.listUsers(request.authUser!);
   }
 
   @Patch('admin/users/:userUuid')
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('admin')
-  updateUser(@Param('userUuid') userUuid: string, @Body() dto: UpdateUserDto) {
-    return this.adminService.updateUser(userUuid, dto);
+  @Roles('tenant_admin')
+  updateUser(
+    @Req() request: RequestWithAuthUser,
+    @Param('userUuid') userUuid: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.adminService.updateUser(request.authUser!, userUuid, dto);
   }
 
   @Post('admin/provider-credentials')
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('admin', 'operator')
-  storeProviderCredential(@Body() dto: StoreProviderCredentialDto) {
-    return this.adminService.storeProviderCredential(dto);
+  @Roles('tenant_admin', 'operator')
+  storeProviderCredential(
+    @Req() request: RequestWithAuthUser,
+    @Body() dto: StoreProviderCredentialDto,
+  ) {
+    return this.adminService.storeProviderCredentialForActor(
+      request.authUser!,
+      dto,
+    );
   }
 
   @Get('admin/users/:userUuid/provider-credentials')
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('admin')
-  listUserProviderCredentials(@Param('userUuid') userUuid: string) {
-    return this.adminService.listProviderCredentialsForUser(userUuid);
+  @Roles('tenant_admin')
+  listUserProviderCredentials(
+    @Req() request: RequestWithAuthUser,
+    @Param('userUuid') userUuid: string,
+  ) {
+    return this.adminService.listProviderCredentialsForUser(
+      request.authUser!,
+      userUuid,
+    );
   }
 
   @Get('provider-credentials')
   @UseGuards(AccessTokenGuard)
   listOwnProviderCredentials(@Req() request: RequestWithAuthUser) {
     return this.adminService.listProviderCredentialsForUser(
+      request.authUser!,
       request.authUser!.userUuid,
     );
   }
@@ -107,6 +124,7 @@ export class AdminController {
   @UseGuards(AccessTokenGuard)
   getOwnProviderSettings(@Req() request: RequestWithAuthUser) {
     return this.adminService.getProviderSettingsForUser(
+      request.authUser!,
       request.authUser!.userUuid,
     );
   }
@@ -118,6 +136,7 @@ export class AdminController {
     @Body() dto: UpdateProviderSettingsDto,
   ) {
     return this.adminService.updateProviderSettingsForUser(
+      request.authUser!,
       request.authUser!.userUuid,
       dto,
     );

@@ -18,7 +18,7 @@ Open WebUI is supported as a trusted internal client only.
 
 The gateway may accept:
 
-- a shared compatibility API key to authenticate Open WebUI as a client
+- a tenant-scoped API key that belongs to an `integration_client` to authenticate Open WebUI as a technical client
 - a forwarded user identity header such as `X-OpenWebUI-User-Email` only when the request arrives from a trusted deployment boundary
 
 The gateway remains responsible for:
@@ -30,9 +30,11 @@ The gateway remains responsible for:
 
 Open WebUI must not become a parallel security authority or a provider-credential store.
 
+The technical root of trust is the tenant-scoped API key and its linked integration client, not the forwarded user header by itself.
+
 ## Security Posture
 
-Local development may use a direct trusted header flow.
+Local development may still use a direct shared compatibility key flow during transition, but the preferred path is an integration client plus tenant-scoped API key.
 
 Production deployments must:
 
