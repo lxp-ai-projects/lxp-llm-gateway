@@ -17,6 +17,8 @@ import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayService } from './gateway.service';
 import { ImagesController } from '../images.controller';
 import { ModelsController } from '../models.controller';
+import { OpenAiCompatibleController } from '../openai-compatible/openai-compatible.controller';
+import { OpenAiCompatibleService } from '../openai-compatible/openai-compatible.service';
 import { ProviderCredentialService } from './provider-credential.service';
 import { ProviderRegistryService } from './provider-registry.service';
 import { LLM_PROVIDERS } from './provider.tokens';
@@ -46,11 +48,17 @@ import { ImageApplicationService } from '../images/image-application.service';
       }),
     }),
   ],
-  controllers: [GatewayController, ModelsController, ImagesController],
+  controllers: [
+    GatewayController,
+    ModelsController,
+    ImagesController,
+    OpenAiCompatibleController,
+  ],
   providers: [
     GatewayAuthService,
     GatewayAuditService,
     GatewayService,
+    OpenAiCompatibleService,
     ProviderCredentialService,
     ProviderRegistryService,
     ImageApplicationService,

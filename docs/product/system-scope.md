@@ -14,9 +14,11 @@
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude
 - user, role, and provider credential foundations
 - local development infrastructure
+- a first local Open WebUI integration path against `gateway-api`
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
 - Phase 2 provider-seam expansion for image generation, image editing, and provider-owned image catalogs
+- normalized multimodal chat content in the shared seam for text and `image_url` blocks
 
 ## Out of Scope for Phase 1
 
@@ -43,16 +45,21 @@ The repository now contains:
 
 - `admin-api` as the control-plane backend for auth, users, roles, provider credentials, runtime config, and conversation transfer support
 - `gateway-api` as the data-plane backend for model listing, non-stream chat, and SSE chat streaming through the provider seam
+- `gateway-api` as the data-plane backend for a thin OpenAI-compatible facade used by trusted internal clients such as `Open WebUI`
 - `admin-web` as a role-aware SPA with public auth surfaces, user self-service, admin management, and a local chat test surface
 - Postgres-backed durable control-plane persistence with encrypted provider credential storage
 - Redis-backed auth revocation and other operational state where ephemeral behavior is appropriate
 - BYOK provider access through user-managed provider credentials
+- optional user correlation for Open WebUI traffic through a shared compatibility key plus forwarded user email header
 - provider model discovery through provider adapters, including capability-specific model metadata
+- shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`
 - CI quality gates for typecheck, test, and build
 - an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
 - operator-configurable gateway defaults for both chat and image generation/editing, with separate provider/model pairs
+- a local Open WebUI use case that is intentionally trusted and compose-driven
+- a production Open WebUI posture that keeps identity injection inside a trusted proxy boundary
 
 ## Phase 2 Starting Assumptions
 
@@ -74,6 +81,8 @@ The next planned capability expansion is:
 - future providers beyond the current NanoGPT, xAI, Google, OpenAI, and OpenRouter image implementations behind the same seam
 - reference-image workflows that keep uploaded image handling and provider dispatch behind application APIs
 - paginated image job history and reusable saved/generated assets for operators
+- deployment hardening if Open WebUI identity correlation evolves into a full shared-identity story across both UIs
+- broader provider-by-provider multimodal chat support for image attachments behind the existing seam
 
 Current image-provider posture is:
 
@@ -83,4 +92,20 @@ Current image-provider posture is:
 - `OpenAI GPT Image` is exposed for generation and editing through the same seam, with provider-owned capability metadata controlling the UI affordances
 - `OpenRouter` is exposed for image generation and image editing through the same seam, with reused capability metadata where the underlying model family already exists in another provider package
 
+Current multimodal chat posture is:
+
+- the shared gateway chat contract can now carry structured `text` and `image_url` content blocks
+- the OpenAI-compatible facade can preserve those blocks into the gateway seam for trusted internal clients such as Open WebUI
+- provider support remains provider-specific
+- providers that are still text-only in gateway chat should reject image attachments explicitly rather than accepting them partially
+
 Phase 2 should not spend time re-litigating those foundation choices unless a concrete failure mode appears.
+
+Current Open WebUI posture is:
+
+- Open WebUI can talk to `gateway-api` through the OpenAI-compatible facade
+- the gateway can aggregate models across the authenticated user's accessible providers
+- the gateway can optionally resolve the effective user from `X-OpenWebUI-User-Email` when the deployment explicitly trusts that header
+- this is enough to make provider usage follow the mapped gateway user in a trusted deployment, but it is not yet a full SSO/session-sharing implementation between Open WebUI and the admin SPA
+- the gateway remains the BYOK and security authority, not Open WebUI
+- production deployments should strip identity headers at the public proxy boundary and inject them only from trusted infrastructure

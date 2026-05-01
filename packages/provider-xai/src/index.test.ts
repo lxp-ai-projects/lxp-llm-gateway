@@ -471,6 +471,90 @@ test('XaiProviderAdapter sends chat requests to the xAI chat completions endpoin
   }
 });
 
+test('XaiProviderAdapter forwards multimodal chat content blocks unchanged', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: 'hello from grok',
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new XaiProviderAdapterTestDouble();
+    await adapter.chat(
+      {
+        model: 'grok-4-fast',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'What is in this image?',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: 'https://example.com/reference.png',
+                },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        requestId: 'request-multimodal-1',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'xai-token',
+        },
+      },
+    );
+
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      messages?: unknown;
+    };
+    assert.deepEqual(body.messages, [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'What is in this image?',
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: 'https://example.com/reference.png',
+            },
+          },
+        ],
+      },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('XaiProviderAdapter sends image generation requests to the xAI images endpoint', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;

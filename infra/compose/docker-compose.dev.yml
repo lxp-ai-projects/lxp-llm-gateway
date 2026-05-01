@@ -17,5 +17,28 @@ services:
     ports:
       - '6379:6379'
 
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - '3004:8080'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      HOST: 0.0.0.0
+      WEBUI_NAME: LXP Gateway Lab
+      ENABLE_OLLAMA_API: 'false'
+      ENABLE_OPENAI_API: 'true'
+      # Local lab posture only. This lets Open WebUI show the gateway's
+      # returned model list even for non-admin Open WebUI accounts.
+      BYPASS_MODEL_ACCESS_CONTROL: 'true'
+      OPENAI_API_BASE_URL: http://host.docker.internal:3001/api/v1/openai
+      OPENAI_API_KEY: ${LXP_OPENAI_COMPAT_API_KEY:-change-me}
+      # Local trusted correlation. Keep this enabled only in controlled dev.
+      ENABLE_FORWARD_USER_INFO_HEADERS: 'true'
+      AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST: 15
+    volumes:
+      - open_webui_data:/app/backend/data
+
 volumes:
   postgres_data:
+  open_webui_data:

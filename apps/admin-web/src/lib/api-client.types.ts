@@ -288,6 +288,13 @@ export type AdminCreateUserInput = {
   roles?: string[];
 };
 
+export type AdminUpdateUserInput = {
+  displayName?: string;
+  status?: 'active' | 'disabled';
+  roles?: string[];
+  password?: string;
+};
+
 export type ChatTransferConversation = {
   id: string;
   title: string;

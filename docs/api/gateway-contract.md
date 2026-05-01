@@ -3,6 +3,8 @@
 ## Endpoint
 
 - `POST /api/v1/chat`
+- `GET /api/v1/openai/models`
+- `POST /api/v1/openai/chat/completions`
 
 The gateway supports two response modes:
 
@@ -12,8 +14,23 @@ The gateway supports two response modes:
 Authentication uses:
 
 - `Authorization: Bearer <access-token>`
+- or, for trusted OpenAI-compatible internal callers, `Authorization: Bearer <shared-compatibility-api-key>`
 
 The gateway validates the access token, resolves the caller through `emailHash`, finds the active provider credential for that user, decrypts it server-side, and dispatches the provider request.
+
+For trusted OpenAI-compatible callers such as `Open WebUI`, the gateway can also:
+
+- authenticate the caller through `LXP_OPENAI_COMPAT_API_KEY`
+- optionally correlate the effective user from a trusted forwarded email header such as `X-OpenWebUI-User-Email`
+- optionally accept a trusted proxy-auth style email header such as `X-Auth-Request-Email` or `X-Forwarded-Email` when explicitly configured
+- otherwise fall back to `LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL`
+
+Trusted identity headers are configured through:
+
+- `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER` for the legacy single-header mode
+- `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS` for a comma-separated allowlist used by trusted proxy or OIDC-backed deployments
+
+If multiple trusted identity headers are configured and the request supplies conflicting email values, the gateway rejects the request.
 
 ## Request
 
@@ -40,6 +57,14 @@ Fields:
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
 
+`messages[].content` can be either:
+
+- a plain string
+- an array of normalized content blocks, currently:
+  - `{ "type": "text", "text": "..." }`
+  - `{ "type": "image_url", "image_url": { "url": "https://..." } }`
+  - `{ "type": "image_url", "image_url": { "url": "data:image/png;base64,...", "detail": "high" } }`
+
 If `providerId` is omitted, the gateway uses the authenticated user's configured `defaultProviderId`.
 
 If `model` is omitted, the gateway uses the authenticated user's `defaultModel`, but only when it belongs to the resolved default provider.
@@ -47,6 +72,112 @@ If `model` is omitted, the gateway uses the authenticated user's `defaultModel`,
 If neither explicit values nor valid defaults exist, the gateway rejects the request with a `400`.
 
 For image routes, the same fallback rule applies, but with the authenticated user's image-specific defaults: `defaultImageProviderId` and `defaultImageModel`.
+
+## OpenAI-Compatible Endpoints
+
+The OpenAI-compatible facade exists for protocol-oriented internal clients such as `Open WebUI`.
+
+### `GET /api/v1/openai/models`
+
+Returns an OpenAI-compatible model list:
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "nanogpt/z-ai/glm-4.6:thinking",
+      "object": "model",
+      "created": 1777315200,
+      "owned_by": "nanogpt"
+    }
+  ]
+}
+```
+
+Notes:
+
+- model IDs are prefixed as `<providerId>/<providerModelId>` so the gateway can route them back unambiguously
+- only models reachable through the effective user's configured provider credentials are returned
+- providers whose credentials are missing or invalid are skipped rather than failing the entire list
+
+### `POST /api/v1/openai/chat/completions`
+
+Example request:
+
+```json
+{
+  "model": "nanogpt/z-ai/glm-4.6:thinking",
+  "stream": false,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello from Open WebUI"
+    }
+  ]
+}
+```
+
+Multimodal example request:
+
+```json
+{
+  "model": "openrouter/openai/gpt-5-image",
+  "stream": false,
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Describe this image and suggest a caption."
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "https://example.com/photo.png",
+            "detail": "high"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Example response:
+
+```json
+{
+  "id": "5efa2f1b-5c42-4666-ba34-570989c2a758",
+  "object": "chat.completion",
+  "created": 1777315200,
+  "model": "nanogpt/z-ai/glm-4.6:thinking",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hello from the gateway"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 352,
+    "completion_tokens": 395,
+    "total_tokens": 747
+  }
+}
+```
+
+Current compatibility limits:
+
+- the facade supports plain string content plus normalized `text` and `image_url` message blocks
+- provider support for chat image attachments remains provider-specific
+- providers that are still text-only in gateway chat may reject `image_url` blocks explicitly
+- the facade currently covers model listing and chat completions, not image endpoints
+- streaming remains SSE passthrough from the existing gateway chat stream
 
 ## Non-Stream Response
 

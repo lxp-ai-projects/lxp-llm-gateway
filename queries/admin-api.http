@@ -23,3 +23,18 @@ Authorization: Bearer {{accessToken}}
   "displayName": "Patrick",
   "roles": ["admin"]
 }
+
+### List Users
+GET {{adminApiBaseUrl}}/api/v1/admin/users
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+
+### Update User Password
+PATCH {{adminApiBaseUrl}}/api/v1/admin/users/{{userUuid}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "password": "Sup3rS3cret!"
+}

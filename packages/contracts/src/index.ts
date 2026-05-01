@@ -1,11 +1,24 @@
 import type { ProviderId } from '@lxp/domain';
 
+export type GatewayChatContentPart =
+  | {
+      type: 'text';
+      text: string;
+    }
+  | {
+      type: 'image_url';
+      image_url: {
+        url: string;
+        detail?: string;
+      };
+    };
+
 export interface GatewayChatRequest {
   providerId?: ProviderId;
   model?: string;
   messages: Array<{
     role: 'system' | 'user' | 'assistant';
-    content: string;
+    content: string | GatewayChatContentPart[];
   }>;
   stream?: boolean;
 }

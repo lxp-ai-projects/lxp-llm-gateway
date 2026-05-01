@@ -1,4 +1,8 @@
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatContentPart,
+  GatewayChatRequest,
+  GatewayChatResponse,
+} from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
@@ -165,6 +169,11 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
     stream: boolean,
   ): Promise<Response> {
+    const normalizedMessages = request.messages.map((message) => ({
+      ...message,
+      content: this.extractTextOnlyContent(message.content, message.role),
+    }));
+
     return this.fetchWithTimeout(
       `${this.resolveOpenAiBaseUrl(context)}/chat/completions`,
       {
@@ -175,7 +184,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
         },
         body: JSON.stringify({
           model: request.model,
-          messages: request.messages,
+          messages: normalizedMessages,
           stream,
           user: context.userId,
         }),
@@ -260,6 +269,11 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<GatewayChatResponse> {
+    const normalizedMessages = request.messages.map((message) => ({
+      ...message,
+      content: this.extractTextOnlyContent(message.content, message.role),
+    }));
+
     const response = await this.fetchWithTimeout(
       `${this.resolveNativeBaseUrl(context)}/api/chat`,
       {
@@ -270,7 +284,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
         },
         body: JSON.stringify({
           model: request.model,
-          messages: request.messages,
+          messages: normalizedMessages,
           stream: false,
         }),
       },
@@ -326,6 +340,11 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<ReadableStream<Uint8Array>> {
+    const normalizedMessages = request.messages.map((message) => ({
+      ...message,
+      content: this.extractTextOnlyContent(message.content, message.role),
+    }));
+
     const response = await this.fetchWithTimeout(
       `${this.resolveNativeBaseUrl(context)}/api/chat`,
       {
@@ -336,7 +355,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
         },
         body: JSON.stringify({
           model: request.model,
-          messages: request.messages,
+          messages: normalizedMessages,
           stream: true,
         }),
       },
@@ -482,5 +501,28 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  private extractTextOnlyContent(
+    content: string | GatewayChatContentPart[],
+    role: 'system' | 'user' | 'assistant',
+  ): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    const textParts: string[] = [];
+    for (const part of content) {
+      if (part.type === 'text') {
+        textParts.push(part.text);
+        continue;
+      }
+
+      throw new Error(
+        `Ollama gateway chat does not yet support image attachments for ${role} messages.`,
+      );
+    }
+
+    return textParts.join('\n');
   }
 }

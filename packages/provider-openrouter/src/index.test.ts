@@ -68,6 +68,94 @@ test('OpenRouterProviderAdapter sends an OpenAI-compatible chat completions requ
   }
 });
 
+test('OpenRouterProviderAdapter forwards multimodal chat content blocks unchanged', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: 'hello from openrouter',
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'openai/gpt-4.1-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Summarize this image.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: 'https://example.com/reference.png',
+                },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        requestId: 'req-multimodal-1',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'openrouter-secret-token',
+        },
+      },
+    );
+
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      messages?: unknown;
+    };
+    assert.deepEqual(body.messages, [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'Summarize this image.',
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: 'https://example.com/reference.png',
+            },
+          },
+        ],
+      },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('OpenRouterProviderAdapter respects a credential-level baseUrl override', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];

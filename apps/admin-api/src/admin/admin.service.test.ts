@@ -27,14 +27,23 @@ function createRepositoryMock<T extends { id?: string }>(
         ) ?? null
       );
     },
-    async find({ where }: { where: Array<Partial<T>> }): Promise<T[]> {
+    async find(
+      options?: { where?: Array<Partial<T>> },
+    ): Promise<Array<T & { roles?: never[] }>> {
+      if (!options?.where?.length) {
+        return store.map((item) => ({
+          ...item,
+          roles: (item as { roles?: never[] }).roles ?? [],
+        }));
+      }
+
       return store.filter((item) =>
-        where.some((condition) =>
+        options.where!.some((condition) =>
           Object.entries(condition).every(
             ([key, value]) => item[key as keyof T] === value,
           ),
         ),
-      );
+      ) as Array<T & { roles?: never[] }>;
     },
     create(value: T): T {
       return {
@@ -49,7 +58,10 @@ function createRepositoryMock<T extends { id?: string }>(
             (storedEntry) => storedEntry.id === entry.id,
           );
           if (index >= 0) {
-            store[index] = entry;
+            store[index] = {
+              ...store[index],
+              ...entry,
+            };
           } else {
             store.push(entry);
           }
@@ -67,7 +79,10 @@ function createRepositoryMock<T extends { id?: string }>(
         (storedEntry) => storedEntry.id === value.id,
       );
       if (index >= 0) {
-        store[index] = value;
+        store[index] = {
+          ...store[index],
+          ...value,
+        };
       } else {
         store.push(value);
       }
@@ -574,6 +589,36 @@ test('AdminService updates image defaults separately from chat defaults', async 
   assert.equal(settings.defaultModel, 'z-ai/glm-4.6:thinking');
   assert.equal(settings.defaultImageProviderId, 'nanogpt');
   assert.equal(settings.defaultImageModel, 'mistral-medium');
+});
+
+test('AdminService updates a user password', async () => {
+  const { service, repositories } = createAdminService();
+  const createdUser = await service.createUser({
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+  const passwordService = new PasswordService();
+  const storedUser = repositories.userRepository.data[0] as {
+    passwordHash: string;
+    roles?: never[];
+  };
+  const oldHash = storedUser.passwordHash;
+  storedUser.roles = [];
+
+  const updatedUser = await service.updateUser(createdUser.userUuid, {
+    password: 'N3wSup3rS3cret!',
+  });
+
+  assert.equal(updatedUser?.userUuid, createdUser.userUuid);
+  assert.equal(repositories.userRepository.data.length, 1);
+  assert.notEqual(storedUser.passwordHash, oldHash);
+  assert.ok(
+    await passwordService.verifyPassword(
+      'N3wSup3rS3cret!',
+      storedUser.passwordHash,
+    ),
+  );
 });
 
 test('AdminService rejects default provider selection without an active credential', async () => {

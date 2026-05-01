@@ -1,10 +1,10 @@
-import { IsIn, IsString, MinLength } from 'class-validator';
+import { Allow, IsIn } from 'class-validator';
+import type { GatewayChatContentPart } from '@lxp/contracts';
 
 export class ChatMessageDto {
   @IsIn(['system', 'user', 'assistant'])
   role!: 'system' | 'user' | 'assistant';
 
-  @IsString()
-  @MinLength(1)
-  content!: string;
+  @Allow()
+  content!: string | GatewayChatContentPart[];
 }

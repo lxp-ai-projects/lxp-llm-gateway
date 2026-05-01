@@ -1,0 +1,19 @@
+openwebui.example.com {
+  encode gzip
+
+  # Public callers must not be able to preserve or spoof internal identity headers.
+  header {
+    -X-OpenWebUI-User-Email
+    -X-Forwarded-User
+    -X-Forwarded-Email
+    -X-Auth-Request-User
+    -X-Auth-Request-Email
+  }
+
+  reverse_proxy 127.0.0.1:3004 {
+    header_up Host {host}
+    header_up X-Forwarded-Host {host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-For {remote}
+  }
+}

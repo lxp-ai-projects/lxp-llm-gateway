@@ -290,7 +290,7 @@ export class AdminService {
       status: user.status,
       defaultProviderId: user.defaultProviderId,
       defaultModel: user.defaultModel,
-      roles: user.roles
+      roles: (user.roles ?? [])
         .map((userRole) => userRole.role?.name)
         .filter((roleName): roleName is string => Boolean(roleName)),
       createdAt: user.createdAt,
@@ -312,6 +312,12 @@ export class AdminService {
 
     if (dto.status) {
       user.status = dto.status;
+    }
+
+    if (dto.password) {
+      user.passwordHash = await this.passwordService.hashPassword(
+        dto.password,
+      );
     }
 
     await this.userRepository.save(user);
