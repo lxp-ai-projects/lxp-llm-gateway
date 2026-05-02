@@ -20,6 +20,22 @@ interface BaseEntity {
   [key: string]: unknown;
 }
 
+function extractComparable(
+  value: unknown,
+): number | string | Date | null | undefined {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === 'number' ||
+    typeof value === 'string' ||
+    value instanceof Date
+  ) {
+    return value;
+  }
+
+  return String(value);
+}
+
 class InMemoryRepository<T extends BaseEntity> {
   constructor(private readonly items: T[] = []) {}
 
@@ -37,11 +53,11 @@ class InMemoryRepository<T extends BaseEntity> {
       const [orderKey, direction] = Object.entries(options.order)[0] ?? [];
       if (orderKey) {
         results.sort((left, right) =>
-          left[orderKey] === right[orderKey]
-            ? 0
-            : direction === 'ASC'
-              ? (left[orderKey] > right[orderKey] ? 1 : -1)
-              : (left[orderKey] < right[orderKey] ? 1 : -1),
+          compareValues(
+            extractComparable(left[orderKey]),
+            extractComparable(right[orderKey]),
+            direction,
+          ),
         );
       }
     }
@@ -93,6 +109,40 @@ class InMemoryRepository<T extends BaseEntity> {
       this.items.splice(index, 1);
     }
   }
+}
+
+function compareValues(
+  left: number | string | Date | null | undefined,
+  right: number | string | Date | null | undefined,
+  direction: 'ASC' | 'DESC',
+) {
+  if (left === right) {
+    return 0;
+  }
+
+  if (left === null || left === undefined) {
+    return direction === 'ASC' ? -1 : 1;
+  }
+
+  if (right === null || right === undefined) {
+    return direction === 'ASC' ? 1 : -1;
+  }
+
+  if (left instanceof Date && right instanceof Date) {
+    return direction === 'ASC'
+      ? left.getTime() - right.getTime()
+      : right.getTime() - left.getTime();
+  }
+
+  if (typeof left === 'number' && typeof right === 'number') {
+    return direction === 'ASC' ? left - right : right - left;
+  }
+
+  const leftText = left instanceof Date ? left.toISOString() : String(left);
+  const rightText = right instanceof Date ? right.toISOString() : String(right);
+  return direction === 'ASC'
+    ? leftText.localeCompare(rightText)
+    : rightText.localeCompare(leftText);
 }
 
 class FakeImageProvider implements LlmProviderAdapter {
