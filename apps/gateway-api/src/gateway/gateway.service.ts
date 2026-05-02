@@ -16,6 +16,20 @@ import type { ListModelsQueryDto } from './dto/list-models-query.dto';
 import { ProviderCredentialService } from './provider-credential.service';
 import { ProviderRegistryService } from './provider-registry.service';
 
+type MessageSummary = {
+  messageCount?: number;
+  messageCharacters?: number;
+};
+
+export type GatewayChatStreamSession = {
+  requestId: string;
+  providerId: string;
+  model: string;
+  startedAt: number;
+  messageSummary: MessageSummary;
+  stream: ReadableStream<Uint8Array>;
+};
+
 @Injectable()
 export class GatewayService {
   constructor(
@@ -173,7 +187,7 @@ export class GatewayService {
   async chatStream(
     request: GatewayChatRequestDto,
     authContext: GatewayAuthContext,
-  ): Promise<{ requestId: string; stream: ReadableStream<Uint8Array> }> {
+  ): Promise<GatewayChatStreamSession> {
     const providerId = this.resolveProviderId(request.providerId, authContext);
     const model = this.resolveModel(request.model, providerId, authContext);
     const provider = this.providerRegistry.getProvider(providerId);
@@ -229,36 +243,12 @@ export class GatewayService {
         },
       );
 
-      this.gatewayAuditService.logSucceeded({
-        ...auditBase,
-        durationMs: Date.now() - startedAt,
-        outcome: 'success',
-      });
-      await this.recordTelemetrySafely(() =>
-        this.gatewayTelemetryService.recordChatSuccess({
-          authContext,
-          requestId,
-          providerId: provider.providerId,
-          model,
-          route: '/api/v1/chat',
-          latencyMs: Date.now() - startedAt,
-          stream: true,
-          messageSummary,
-          response: {
-            requestId,
-            providerId: provider.providerId,
-            model,
-            message: {
-              role: 'assistant',
-              content: '',
-            },
-            finishReason: null,
-          },
-        }),
-      );
-
       return {
         requestId,
+        providerId: provider.providerId,
+        model,
+        startedAt,
+        messageSummary,
         stream,
       };
     } catch (error) {
@@ -291,6 +281,89 @@ export class GatewayService {
         error instanceof Error ? error.message : 'Unknown gateway error.',
       );
     }
+  }
+
+  async recordChatStreamSuccess(
+    authContext: GatewayAuthContext,
+    session: Pick<
+      GatewayChatStreamSession,
+      'requestId' | 'providerId' | 'model' | 'startedAt' | 'messageSummary'
+    >,
+    response: GatewayChatResponse,
+  ): Promise<void> {
+    this.gatewayAuditService.logSucceeded({
+      requestId: session.requestId,
+      providerId: session.providerId,
+      model: session.model,
+      resolvedUserUuid: authContext.userUuid,
+      userFingerprint: this.gatewayAuditService.fingerprint(
+        authContext.emailHash,
+      ),
+      identitySource: authContext.identitySource,
+      tenantId: authContext.activeTenantId,
+      tenantSlug: authContext.activeTenantSlug,
+      stream: true,
+      messageCount: session.messageSummary.messageCount ?? 0,
+      messageCharacters: session.messageSummary.messageCharacters ?? 0,
+      durationMs: Date.now() - session.startedAt,
+      outcome: 'success',
+    });
+
+    await this.recordTelemetrySafely(() =>
+      this.gatewayTelemetryService.recordChatSuccess({
+        authContext,
+        requestId: session.requestId,
+        providerId: session.providerId,
+        model: session.model,
+        route: '/api/v1/chat',
+        latencyMs: Date.now() - session.startedAt,
+        stream: true,
+        messageSummary: session.messageSummary,
+        response,
+      }),
+    );
+  }
+
+  async recordChatStreamFailure(
+    authContext: GatewayAuthContext,
+    session: Pick<
+      GatewayChatStreamSession,
+      'requestId' | 'providerId' | 'model' | 'startedAt' | 'messageSummary'
+    >,
+    errorMessage: string,
+  ): Promise<void> {
+    this.gatewayAuditService.logFailed({
+      requestId: session.requestId,
+      providerId: session.providerId,
+      model: session.model,
+      resolvedUserUuid: authContext.userUuid,
+      userFingerprint: this.gatewayAuditService.fingerprint(
+        authContext.emailHash,
+      ),
+      identitySource: authContext.identitySource,
+      tenantId: authContext.activeTenantId,
+      tenantSlug: authContext.activeTenantSlug,
+      stream: true,
+      messageCount: session.messageSummary.messageCount ?? 0,
+      messageCharacters: session.messageSummary.messageCharacters ?? 0,
+      durationMs: Date.now() - session.startedAt,
+      outcome: 'failure',
+      error: errorMessage,
+    });
+
+    await this.recordTelemetrySafely(() =>
+      this.gatewayTelemetryService.recordChatFailure({
+        authContext,
+        requestId: session.requestId,
+        providerId: session.providerId,
+        model: session.model,
+        route: '/api/v1/chat',
+        latencyMs: Date.now() - session.startedAt,
+        stream: true,
+        messageSummary: session.messageSummary,
+        error: errorMessage,
+      }),
+    );
   }
 
   private resolveProviderId(

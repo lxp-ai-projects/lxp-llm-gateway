@@ -10,6 +10,8 @@ type GatewayAuditBase = {
   resolvedUserUuid: string;
   userFingerprint: string;
   identitySource: GatewayAuthIdentitySource;
+  tenantId?: string;
+  tenantSlug?: string;
   messageCount: number;
   messageCharacters: number;
   stream: boolean;
