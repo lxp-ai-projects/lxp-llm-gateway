@@ -1,10 +1,12 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 import { ProviderEntity } from './provider.entity';
@@ -55,6 +57,12 @@ export class UserProviderCredentialEntity {
 
   @Column({ name: 'masked_hint', type: 'varchar', length: 20, nullable: true })
   maskedHint!: string | null;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
 
   @ManyToOne(() => UserEntity, {
     nullable: true,

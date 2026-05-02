@@ -330,14 +330,57 @@ export class AuthService {
     const activeMemberships = memberships.filter(
       (membership) => membership.tenant?.status === 'active',
     );
-    if (!activeMemberships.length) {
+    const isSuperAdmin = globalRoles.includes('super_admin');
+    if (!activeMemberships.length && !isSuperAdmin) {
       throw new UnauthorizedException(
         'No active tenant membership is available for this user.',
       );
     }
 
+    const activeMembershipTenantIds = new Set(
+      activeMemberships.map((membership) => membership.tenantId),
+    );
+    const requestedTenant =
+      requestedTenantId && activeMembershipTenantIds.has(requestedTenantId)
+        ? requestedTenantId
+        : requestedTenantId && isSuperAdmin
+          ? (
+              await this.tenantRepository.findOne({
+                where: {
+                  id: requestedTenantId,
+                  status: 'active',
+                },
+              })
+            )?.id
+          : null;
+    const lastActiveTenant =
+      user.lastActiveTenantId &&
+      activeMembershipTenantIds.has(user.lastActiveTenantId)
+        ? user.lastActiveTenantId
+        : null;
+    const fallbackTenantId =
+      activeMemberships[0]?.tenantId ??
+      (
+        isSuperAdmin
+          ? (
+              await this.tenantRepository.findOne({
+                where: {
+                  status: 'active',
+                },
+                order: {
+                  displayName: 'ASC',
+                },
+              })
+            )?.id
+          : null
+      );
     const activeTenantId =
-      requestedTenantId ?? user.lastActiveTenantId ?? activeMemberships[0].tenantId;
+      requestedTenant ?? lastActiveTenant ?? fallbackTenantId;
+
+    if (!activeTenantId) {
+      throw new UnauthorizedException('Active tenant not found for session.');
+    }
+
     const tenant = await this.tenantRepository.findOne({
       where: {
         id: activeTenantId,
@@ -351,7 +394,7 @@ export class AuthService {
     const tenantRoles = activeMemberships
       .filter((membership) => membership.tenantId === tenant.id)
       .map((membership) => membership.role);
-    if (!tenantRoles.length && !globalRoles.includes('super_admin')) {
+    if (!tenantRoles.length && !isSuperAdmin) {
       throw new UnauthorizedException(
         'User is not a member of the active tenant.',
       );

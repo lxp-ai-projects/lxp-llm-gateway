@@ -641,7 +641,17 @@ export class AdminService {
       actor.activeTenantId,
       (credentialRepository) =>
         credentialRepository.find({
-          where: { tenantId: actor.activeTenantId, userId: user.id },
+          where: [
+            {
+              tenantId: actor.activeTenantId,
+              userId: user.id,
+            },
+            {
+              tenantId: actor.activeTenantId,
+              userId: IsNull(),
+              scope: 'tenant',
+            },
+          ],
           relations: {
             provider: true,
           },
@@ -650,12 +660,30 @@ export class AdminService {
           },
         }),
     );
+    const providerIds = new Set(
+      credentials
+        .map((credential) => credential.providerId)
+        .filter((providerId): providerId is string => Boolean(providerId)),
+    );
+    const providerMap = new Map(
+      (
+        await this.providerRepository.find({
+          where: [...providerIds].map((providerId) => ({ id: providerId })),
+        })
+      ).map((provider) => [provider.id, provider]),
+    );
 
     return credentials.map((credential) => ({
       id: credential.id,
       userUuid,
-      providerId: credential.provider.providerId,
-      providerDisplayName: credential.provider.displayName,
+      providerId:
+        credential.provider?.providerId ??
+        providerMap.get(credential.providerId)?.providerId ??
+        credential.providerId,
+      providerDisplayName:
+        credential.provider?.displayName ??
+        providerMap.get(credential.providerId)?.displayName ??
+        'Unknown provider',
       label: credential.label,
       scope: credential.scope,
       maskedHint: credential.maskedHint,
@@ -728,12 +756,20 @@ export class AdminService {
       actor.activeTenantId,
       (credentialRepository) =>
         credentialRepository.findOne({
-          where: {
-            id: credentialId,
-            tenantId: actor.activeTenantId,
-            userId: user.id,
-            scope: 'user',
-          },
+          where: [
+            {
+              id: credentialId,
+              tenantId: actor.activeTenantId,
+              userId: user.id,
+              scope: 'user',
+            },
+            {
+              id: credentialId,
+              tenantId: actor.activeTenantId,
+              userId: IsNull(),
+              scope: 'tenant',
+            },
+          ],
           relations: {
             provider: true,
           },
@@ -741,6 +777,15 @@ export class AdminService {
     );
     if (!credential) {
       throw new NotFoundException('Unable to update the provider credential.');
+    }
+
+    if (
+      credential.scope === 'tenant' &&
+      !actor.roles.some((role) => role === 'tenant_admin' || role === 'operator')
+    ) {
+      throw new ForbiddenException(
+        'Only tenant administrators can manage tenant credentials.',
+      );
     }
 
     const provider =
@@ -754,15 +799,18 @@ export class AdminService {
 
     const nextLabel = dto.label?.trim() ?? credential.label;
     if (nextLabel !== credential.label) {
+      const credentialUserId =
+        credential.scope === 'tenant' ? IsNull() : user.id;
       const duplicateCredential = await this.withCredentialRepository(
         actor.activeTenantId,
         (credentialRepository) =>
           credentialRepository.findOne({
             where: {
               tenantId: actor.activeTenantId,
-              userId: user.id,
+              userId: credentialUserId,
               providerId: credential.providerId,
               label: nextLabel,
+              scope: credential.scope,
             },
           }),
       );
@@ -797,7 +845,7 @@ export class AdminService {
 
     return {
       id: credential.id,
-      userUuid: actor.userUuid,
+      userUuid: credential.scope === 'tenant' ? actor.userUuid : user.userUuid,
       providerId: provider.providerId,
       providerDisplayName: provider.displayName,
       label: credential.label,

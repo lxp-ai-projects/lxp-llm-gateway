@@ -32,6 +32,32 @@ function createRepositoryMock<T>(data: T[]) {
         ) ?? null
       );
     },
+    async find({
+      where,
+    }: {
+      where: Record<string, unknown> | Array<Record<string, unknown>>;
+    }): Promise<T[]> {
+      const clauses = Array.isArray(where) ? where : [where];
+      return data.filter((item) =>
+        clauses.some((clause) =>
+          Object.entries(clause).every(([key, value]) => {
+            const itemValue = (item as Record<string, unknown>)[key];
+            if (
+              value &&
+              typeof value === 'object' &&
+              '_type' in (value as Record<string, unknown>)
+            ) {
+              const operator = value as { _type: string };
+              if (operator._type === 'isNull') {
+                return itemValue === null;
+              }
+            }
+
+            return itemValue === value;
+          }),
+        ),
+      );
+    },
   };
 }
 
@@ -116,6 +142,8 @@ test('ProviderCredentialService resolves a user-scoped credential when tenant ov
         iv: 'iv',
         authTag: 'tag',
         keyVersion: 1,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z'),
       },
       {
         id: 'cred-tenant',
@@ -128,6 +156,8 @@ test('ProviderCredentialService resolves a user-scoped credential when tenant ov
         iv: 'iv',
         authTag: 'tag',
         keyVersion: 1,
+        createdAt: new Date('2024-01-02T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
       },
     ],
     decryptResult: JSON.stringify({
@@ -182,6 +212,8 @@ test('ProviderCredentialService falls back to the tenant credential when user ov
         iv: 'iv',
         authTag: 'tag',
         keyVersion: 1,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z'),
       },
       {
         id: 'cred-tenant',
@@ -194,6 +226,8 @@ test('ProviderCredentialService falls back to the tenant credential when user ov
         iv: 'iv',
         authTag: 'tag',
         keyVersion: 1,
+        createdAt: new Date('2024-01-02T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
       },
     ],
     decryptResult: JSON.stringify({
@@ -248,6 +282,8 @@ test('ProviderCredentialService falls back to legacy raw token payloads', async 
         iv: 'iv',
         authTag: 'tag',
         keyVersion: 1,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z'),
       },
     ],
     decryptResult: 'legacy-token',

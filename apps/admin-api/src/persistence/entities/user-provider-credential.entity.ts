@@ -28,7 +28,7 @@ export class UserProviderCredentialEntity {
   @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId!: string;
 
-  @Column({ name: 'user_id', type: 'uuid' })
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId!: string | null;
 
   @Column({ name: 'provider_id', type: 'uuid' })

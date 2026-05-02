@@ -82,7 +82,7 @@ export class ProviderCredentialService {
         async (manager) => {
           const credentialRepository =
             manager.getRepository(UserProviderCredentialEntity);
-          const userCredential = await credentialRepository.findOne({
+          const userCredentials = await credentialRepository.find({
             where: {
               tenantId: tenant.id,
               userId: user.id,
@@ -90,12 +90,11 @@ export class ProviderCredentialService {
               scope: 'user',
               isActive: true,
             },
-            order: {
-              id: 'DESC',
-            },
           });
+          const userCredential =
+            this.selectMostRecentCredential(userCredentials);
 
-          const tenantCredential = await credentialRepository.findOne({
+          const tenantCredentials = await credentialRepository.find({
             where: {
               tenantId: tenant.id,
               userId: IsNull(),
@@ -103,10 +102,9 @@ export class ProviderCredentialService {
               scope: 'tenant',
               isActive: true,
             },
-            order: {
-              id: 'DESC',
-            },
           });
+          const tenantCredential =
+            this.selectMostRecentCredential(tenantCredentials);
 
           return {
             userCredential,
@@ -177,5 +175,33 @@ export class ProviderCredentialService {
       apiKey: providerAccess.apiKey?.trim() || undefined,
       headers: providerAccess.headers,
     };
+  }
+
+  private selectMostRecentCredential(
+    credentials: UserProviderCredentialEntity[],
+  ): UserProviderCredentialEntity | null {
+    if (credentials.length === 0) {
+      return null;
+    }
+
+    return [...credentials].sort((left, right) => {
+      const rightTimestamp = this.getCredentialTimestamp(right);
+      const leftTimestamp = this.getCredentialTimestamp(left);
+      return rightTimestamp - leftTimestamp;
+    })[0]!;
+  }
+
+  private getCredentialTimestamp(
+    credential: UserProviderCredentialEntity,
+  ): number {
+    if (credential.updatedAt instanceof Date) {
+      return credential.updatedAt.getTime();
+    }
+
+    if (credential.createdAt instanceof Date) {
+      return credential.createdAt.getTime();
+    }
+
+    return 0;
   }
 }

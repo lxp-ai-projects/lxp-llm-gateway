@@ -116,6 +116,31 @@ export class GatewayTelemetryService {
             stream: params.stream,
           },
         } satisfies Partial<AuditLogEntity>);
+
+        await manager.getRepository(UsageEventEntity).save({
+          tenantId: params.authContext.activeTenantId,
+          userId: params.authContext.userId,
+          userUuid: params.authContext.userUuid,
+          requestId: params.requestId,
+          operation: 'chat',
+          providerId: params.providerId,
+          model: params.model,
+          identitySource: params.authContext.identitySource,
+          integrationClientId: params.authContext.integrationClientId ?? null,
+          status: 'failure',
+          promptTokens: null,
+          completionTokens: null,
+          totalTokens: null,
+          reasoningTokens: null,
+          imageCount: null,
+          costEstimateUsd: null,
+          latencyMs: params.latencyMs,
+          metadata: {
+            stream: params.stream,
+            messageCount: params.messageSummary.messageCount ?? null,
+            messageCharacters: params.messageSummary.messageCharacters ?? null,
+          },
+        } satisfies Partial<UsageEventEntity>);
       },
     );
   }
@@ -213,6 +238,29 @@ export class GatewayTelemetryService {
           errorMessage: params.error,
           metadata: null,
         } satisfies Partial<AuditLogEntity>);
+
+        await manager.getRepository(UsageEventEntity).save({
+          tenantId: params.authContext.activeTenantId,
+          userId: params.authContext.userId,
+          userUuid: params.authContext.userUuid,
+          requestId: params.requestId,
+          operation: params.operation,
+          providerId: params.providerId,
+          model: params.model,
+          identitySource: params.authContext.identitySource,
+          integrationClientId: params.authContext.integrationClientId ?? null,
+          status: 'failure',
+          promptTokens: null,
+          completionTokens: null,
+          totalTokens: null,
+          reasoningTokens: null,
+          imageCount: null,
+          costEstimateUsd: null,
+          latencyMs: params.latencyMs,
+          metadata: {
+            promptLength: params.promptLength,
+          },
+        } satisfies Partial<UsageEventEntity>);
       },
     );
   }

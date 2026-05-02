@@ -123,17 +123,19 @@ export class GatewayService {
         durationMs: Date.now() - startedAt,
         outcome: 'success',
       });
-      await this.gatewayTelemetryService.recordChatSuccess({
-        authContext,
-        requestId,
-        providerId: provider.providerId,
-        model,
-        route: '/api/v1/chat',
-        latencyMs: Date.now() - startedAt,
-        stream: false,
-        messageSummary,
-        response,
-      });
+      await this.recordTelemetrySafely(() =>
+        this.gatewayTelemetryService.recordChatSuccess({
+          authContext,
+          requestId,
+          providerId: provider.providerId,
+          model,
+          route: '/api/v1/chat',
+          latencyMs: Date.now() - startedAt,
+          stream: false,
+          messageSummary,
+          response,
+        }),
+      );
 
       return response;
     } catch (error) {
@@ -145,17 +147,19 @@ export class GatewayService {
         outcome: 'failure',
         error: errorMessage,
       });
-      await this.gatewayTelemetryService.recordChatFailure({
-        authContext,
-        requestId,
-        providerId: provider.providerId,
-        model,
-        route: '/api/v1/chat',
-        latencyMs: Date.now() - startedAt,
-        stream: false,
-        messageSummary,
-        error: errorMessage,
-      });
+      await this.recordTelemetrySafely(() =>
+        this.gatewayTelemetryService.recordChatFailure({
+          authContext,
+          requestId,
+          providerId: provider.providerId,
+          model,
+          route: '/api/v1/chat',
+          latencyMs: Date.now() - startedAt,
+          stream: false,
+          messageSummary,
+          error: errorMessage,
+        }),
+      );
       if (error instanceof HttpException) {
         throw error;
       }
@@ -230,26 +234,28 @@ export class GatewayService {
         durationMs: Date.now() - startedAt,
         outcome: 'success',
       });
-      await this.gatewayTelemetryService.recordChatSuccess({
-        authContext,
-        requestId,
-        providerId: provider.providerId,
-        model,
-        route: '/api/v1/chat',
-        latencyMs: Date.now() - startedAt,
-        stream: true,
-        messageSummary,
-        response: {
+      await this.recordTelemetrySafely(() =>
+        this.gatewayTelemetryService.recordChatSuccess({
+          authContext,
           requestId,
           providerId: provider.providerId,
           model,
-          message: {
-            role: 'assistant',
-            content: '',
+          route: '/api/v1/chat',
+          latencyMs: Date.now() - startedAt,
+          stream: true,
+          messageSummary,
+          response: {
+            requestId,
+            providerId: provider.providerId,
+            model,
+            message: {
+              role: 'assistant',
+              content: '',
+            },
+            finishReason: null,
           },
-          finishReason: null,
-        },
-      });
+        }),
+      );
 
       return {
         requestId,
@@ -264,17 +270,19 @@ export class GatewayService {
         outcome: 'failure',
         error: errorMessage,
       });
-      await this.gatewayTelemetryService.recordChatFailure({
-        authContext,
-        requestId,
-        providerId: provider.providerId,
-        model,
-        route: '/api/v1/chat',
-        latencyMs: Date.now() - startedAt,
-        stream: true,
-        messageSummary,
-        error: errorMessage,
-      });
+      await this.recordTelemetrySafely(() =>
+        this.gatewayTelemetryService.recordChatFailure({
+          authContext,
+          requestId,
+          providerId: provider.providerId,
+          model,
+          route: '/api/v1/chat',
+          latencyMs: Date.now() - startedAt,
+          stream: true,
+          messageSummary,
+          error: errorMessage,
+        }),
+      );
       if (error instanceof HttpException) {
         throw error;
       }
@@ -321,5 +329,13 @@ export class GatewayService {
     throw new BadRequestException(
       'No model was supplied and no default model is configured for the selected provider.',
     );
+  }
+
+  private async recordTelemetrySafely(work: () => Promise<void>): Promise<void> {
+    try {
+      await work();
+    } catch (error) {
+      console.warn('Gateway telemetry write failed.', error);
+    }
   }
 }

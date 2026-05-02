@@ -13,17 +13,39 @@ function createRepositoryMock<T extends { id?: string }>(
 ) {
   const store = [...initialData];
 
+  function matchesValue(itemValue: unknown, expectedValue: unknown): boolean {
+    if (
+      expectedValue &&
+      typeof expectedValue === 'object' &&
+      '_type' in expectedValue &&
+      (expectedValue as { _type?: string })._type === 'isNull'
+    ) {
+      return itemValue === null || itemValue === undefined;
+    }
+
+    return itemValue === expectedValue;
+  }
+
+  function matchesWhere(item: T, where: Partial<T>): boolean {
+    return Object.entries(where).every(([key, value]) =>
+      matchesValue(item[key as keyof T], value),
+    );
+  }
+
   return {
     data: store,
     async count(): Promise<number> {
       return store.length;
     },
-    async findOne({ where }: { where: Partial<T> }): Promise<T | null> {
+    async findOne({
+      where,
+    }: {
+      where: Partial<T> | Array<Partial<T>>;
+    }): Promise<T | null> {
+      const conditions = Array.isArray(where) ? where : [where];
       return (
         store.find((item) =>
-          Object.entries(where).every(
-            ([key, value]) => item[key as keyof T] === value,
-          ),
+          conditions.some((condition) => matchesWhere(item, condition)),
         ) ?? null
       );
     },
@@ -38,11 +60,7 @@ function createRepositoryMock<T extends { id?: string }>(
       }
 
       return store.filter((item) =>
-        options.where!.some((condition) =>
-          Object.entries(condition).every(
-            ([key, value]) => item[key as keyof T] === value,
-          ),
-        ),
+        options.where!.some((condition) => matchesWhere(item, condition)),
       ) as Array<T & { roles?: never[] }>;
     },
     create(value: T): T {
@@ -312,6 +330,39 @@ test('AdminService stores an encrypted provider credential and returns only meta
     encryptedSecret: string;
   };
   assert.notEqual(stored.encryptedSecret, 'nano-secret-token');
+});
+
+test('AdminService lists both tenant-scoped and user-scoped provider credentials', async () => {
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await service.storeProviderCredentialForActor(actor, {
+    providerId: 'nanogpt',
+    label: 'tenant-default',
+    apiToken: 'tenant-secret-token',
+    scope: 'tenant',
+  });
+  await service.storeProviderCredentialForActor(actor, {
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'user-default',
+    apiToken: 'user-secret-token',
+  });
+
+  const credentials = await service.listProviderCredentialsForUser(
+    actor,
+    createdUser.userUuid,
+  );
+
+  assert.deepEqual(
+    credentials.map((credential) => credential.scope).sort(),
+    ['tenant', 'user'],
+  );
+  assert.equal(credentials.length, 2);
 });
 
 test('AdminService updates an owned provider credential without exposing the raw token', async () => {

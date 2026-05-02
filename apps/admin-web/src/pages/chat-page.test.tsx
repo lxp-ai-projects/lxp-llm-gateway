@@ -22,7 +22,19 @@ const {
     email: 'patrick@example.com',
     displayName: 'Patrick',
     status: 'active',
-    roles: ['admin'],
+    activeTenantId: 'tenant-1',
+    activeTenantSlug: 'lxp-internal',
+    roles: ['tenant_admin'],
+    globalRoles: [],
+    availableTenants: [
+      {
+        id: 'tenant-1',
+        slug: 'lxp-internal',
+        displayName: 'LXP Internal',
+        roles: ['tenant_admin'],
+        isDirectMember: true,
+      },
+    ],
   })),
   getOwnProviderSettingsMock: vi.fn(async () => ({
     userUuid: 'user-1',
@@ -643,6 +655,10 @@ test('ChatPage imports conversations and surfaces transfer failures', async () =
 
   renderWithProviders(<ChatPage />);
 
+  await screen.findByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+
   const fileInput = document.querySelector(
     'input[type="file"]',
   ) as HTMLInputElement | null;
@@ -661,7 +677,11 @@ test('ChatPage imports conversations and surfaces transfer failures', async () =
     await screen.findByRole('button', { name: 'Imported thread' }),
   ).toBeInTheDocument();
   await waitFor(() =>
-    expect(saveConversationMock).toHaveBeenCalledWith(importedConversation),
+    expect(saveConversationMock).toHaveBeenCalledWith({
+      ...importedConversation,
+      ownerUserUuid: 'user-1',
+      tenantId: 'tenant-1',
+    }),
   );
 
   await user.click(screen.getByLabelText('Export all conversations'));
