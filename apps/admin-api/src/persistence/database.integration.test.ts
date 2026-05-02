@@ -5,6 +5,8 @@ import { DataType, newDb } from 'pg-mem';
 
 import { ProviderEntity } from './entities/provider.entity';
 import { RoleEntity } from './entities/role.entity';
+import { TenantEntity } from './entities/tenant.entity';
+import { TenantMembershipEntity } from './entities/tenant-membership.entity';
 import { UserEntity } from './entities/user.entity';
 import { UserProviderCredentialEntity } from './entities/user-provider-credential.entity';
 import { UserRoleEntity } from './entities/user-role.entity';
@@ -39,6 +41,8 @@ test('database entity graph initializes against a Postgres-compatible in-memory 
       UserEntity,
       RoleEntity,
       UserRoleEntity,
+      TenantEntity,
+      TenantMembershipEntity,
       ProviderEntity,
       UserProviderCredentialEntity,
     ],

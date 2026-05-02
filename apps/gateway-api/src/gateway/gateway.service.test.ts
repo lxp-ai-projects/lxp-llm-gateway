@@ -116,6 +116,12 @@ class FakeProviderCredentialService {
   }
 }
 
+class FakeGatewayTelemetryService {
+  async recordChatSuccess(): Promise<void> {}
+
+  async recordChatFailure(): Promise<void> {}
+}
+
 class FakeGatewayAuditService {
   public startedEvents: Array<Record<string, unknown>> = [];
 
@@ -155,11 +161,14 @@ function buildAuthContext(
     userId: string;
     userUuid: string;
     emailHash: string;
+    activeTenantId: string;
+    activeTenantSlug: string;
     identitySource:
       | 'access-token'
       | 'openai-compatible-default-user'
       | 'openai-compatible-trusted-header';
     roles: string[];
+    globalRoles: string[];
     defaultProviderId: 'nanogpt' | 'xai' | null;
     defaultModel: string | null;
     defaultImageProviderId: 'nanogpt' | 'xai' | null;
@@ -170,8 +179,11 @@ function buildAuthContext(
     userId: 'user-1',
     userUuid: 'user-public-1',
     emailHash: 'hash-1',
+    activeTenantId: 'tenant-1',
+    activeTenantSlug: 'lxp-internal',
     identitySource: 'access-token' as const,
     roles: ['user'],
+    globalRoles: [],
     defaultProviderId: null,
     defaultModel: null,
     defaultImageProviderId: null,
@@ -184,6 +196,7 @@ test('GatewayService routes chat requests through the provider registry', async 
   const auditService = new FakeGatewayAuditService();
   const service = new GatewayService(
     auditService as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -221,6 +234,7 @@ test('GatewayService audit includes compatibility identity attribution', async (
   const auditService = new FakeGatewayAuditService();
   const service = new GatewayService(
     auditService as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -251,6 +265,7 @@ test('GatewayService summarizes multimodal chat messages by their text content o
   const auditService = new FakeGatewayAuditService();
   const service = new GatewayService(
     auditService as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -285,6 +300,7 @@ test('GatewayService summarizes multimodal chat messages by their text content o
 test('GatewayService wraps provider failures in a BadGatewayException', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FailingProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -313,6 +329,7 @@ test('GatewayService wraps provider failures in a BadGatewayException', async ()
 test('GatewayService wraps listModels provider failures in a BadGatewayException', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FailingListModelsRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -342,6 +359,7 @@ test('GatewayService wraps listModels provider failures in a BadGatewayException
 test('GatewayService returns a provider stream when streaming is requested', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -368,6 +386,7 @@ test('GatewayService returns a provider stream when streaming is requested', asy
 test('GatewayService rejects non-stream requests without messages', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -392,6 +411,7 @@ test('GatewayService rejects non-stream requests without messages', async () => 
 test('GatewayService rejects stream requests without messages', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -429,6 +449,7 @@ test('GatewayService rejects streaming when a provider does not support it', asy
 
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new NonStreamingRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -454,6 +475,7 @@ test('GatewayService rejects streaming when a provider does not support it', asy
 test('GatewayService uses authenticated defaults when provider and model are omitted', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -475,6 +497,7 @@ test('GatewayService uses authenticated defaults when provider and model are omi
 test('GatewayService rejects missing provider when no default provider exists', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );
@@ -494,6 +517,7 @@ test('GatewayService rejects missing provider when no default provider exists', 
 test('GatewayService rejects missing model when no default model exists for the selected provider', async () => {
   const service = new GatewayService(
     new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
   );

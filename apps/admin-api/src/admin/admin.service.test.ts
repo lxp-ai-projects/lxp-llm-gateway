@@ -88,6 +88,18 @@ function createRepositoryMock<T extends { id?: string }>(
       }
       return value;
     },
+    async delete(where: Partial<T>): Promise<void> {
+      for (let index = store.length - 1; index >= 0; index -= 1) {
+        const entry = store[index];
+        if (
+          Object.entries(where).every(
+            ([key, value]) => entry[key as keyof T] === value,
+          )
+        ) {
+          store.splice(index, 1);
+        }
+      }
+    },
   };
 }
 
@@ -102,16 +114,26 @@ function createAdminService() {
   const roleRepository = createRepositoryMock([
     {
       id: randomUUID(),
-      name: 'user',
-      description: 'Standard user',
+      name: 'super_admin',
+      description: 'Global administrator',
     },
     {
       id: randomUUID(),
-      name: 'admin',
-      description: 'Admin user',
+      name: 'user',
+      description: 'Standard user',
     },
   ]);
   const userRoleRepository = createRepositoryMock();
+  const tenantRepository = createRepositoryMock([
+    {
+      id: randomUUID(),
+      slug: 'lxp-internal',
+      displayName: 'LXP Internal',
+      allowUserCredentialOverride: true,
+      status: 'active',
+    },
+  ]);
+  const tenantMembershipRepository = createRepositoryMock();
   const providerRepository = createRepositoryMock([
     {
       id: randomUUID(),
@@ -163,19 +185,50 @@ function createAdminService() {
     },
   ]);
   const credentialRepository = createRepositoryMock();
+  const tenantRlsService = {
+    async withTenantContext(
+      _tenantId: string,
+      work: (manager: {
+        getRepository: (_entity: unknown) => typeof credentialRepository;
+      }) => Promise<unknown>,
+    ) {
+      return work({
+        getRepository: () => credentialRepository,
+      });
+    },
+  };
+  const superAdminBootstrapService = {
+    async syncUserIfConfigured() {
+      return;
+    },
+  };
+  const actor = {
+    userUuid: randomUUID(),
+    activeTenantId: tenantRepository.data[0]!.id,
+    activeTenantSlug: tenantRepository.data[0]!.slug,
+    roles: ['tenant_admin'],
+    globalRoles: [],
+  } as const;
 
   return {
     service: new AdminService(
       userRepository as never,
       roleRepository as never,
       userRoleRepository as never,
+      tenantRepository as never,
+      tenantMembershipRepository as never,
       providerRepository as never,
       credentialRepository as never,
       new EmailProtectionService(new EncryptionService()),
       new EncryptionService(),
       new PasswordService(),
+      tenantRlsService as never,
+      superAdminBootstrapService as never,
     ),
+    actor,
     repositories: {
+      tenantRepository,
+      tenantMembershipRepository,
       userRepository,
       userRoleRepository,
       credentialRepository,
@@ -184,68 +237,66 @@ function createAdminService() {
 }
 
 test('AdminService creates a user with protected email and assigned roles', async () => {
-  const { service, repositories } = createAdminService();
+  const { actor, service, repositories } = createAdminService();
 
-  const user = await service.createUser({
+  const user = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
-    roles: ['admin'],
+    roles: ['tenant_admin'],
   });
 
   assert.ok(user.userUuid);
   assert.equal(user.email, 'patrick@example.com');
-  assert.deepEqual(user.roles, ['admin']);
+  assert.deepEqual(user.roles, ['tenant_admin']);
   assert.equal(repositories.userRepository.data.length, 1);
-  assert.equal(repositories.userRoleRepository.data.length, 1);
+  assert.equal(repositories.tenantMembershipRepository.data.length, 1);
+  assert.equal(repositories.userRoleRepository.data.length, 0);
 });
 
 test('AdminService rejects creating a user when the email already exists', async () => {
-  const { service } = createAdminService();
+  const { actor, service } = createAdminService();
 
-  await service.createUser({
+  await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
-    roles: ['admin'],
+    roles: ['tenant_admin'],
   });
 
   await assert.rejects(
     () =>
-      service.createUser({
+      service.createUser(actor, {
         email: 'patrick@example.com',
         password: 'Sup3rS3cret!',
         displayName: 'Patrick Again',
-        roles: ['admin'],
+        roles: ['tenant_admin'],
       }),
     /Unable to create user with the provided data/,
   );
 });
 
-test('AdminService rejects creating a user when a requested role does not exist', async () => {
-  const { service } = createAdminService();
+test('AdminService defaults a new tenant member to the user role', async () => {
+  const { actor, service } = createAdminService();
 
-  await assert.rejects(
-    () =>
-      service.createUser({
-        email: 'patrick@example.com',
-        password: 'Sup3rS3cret!',
-        displayName: 'Patrick',
-        roles: ['ghost-role'],
-      }),
-    /Unable to assign one or more requested roles/,
-  );
-});
-
-test('AdminService stores an encrypted provider credential and returns only metadata', async () => {
-  const { service, repositories } = createAdminService();
-  const createdUser = await service.createUser({
+  const user = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
 
-  const credential = await service.storeProviderCredential({
+  assert.deepEqual(user.roles, ['user']);
+});
+
+test('AdminService stores an encrypted provider credential and returns only metadata', async () => {
+  const { actor, service, repositories } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  const credential = await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'primary',
@@ -264,13 +315,13 @@ test('AdminService stores an encrypted provider credential and returns only meta
 });
 
 test('AdminService updates an owned provider credential without exposing the raw token', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
-  const createdCredential = await service.storeProviderCredential({
+  const createdCredential = await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'primary',
@@ -278,7 +329,12 @@ test('AdminService updates an owned provider credential without exposing the raw
   });
 
   const updatedCredential = await service.updateOwnProviderCredential(
-    { userUuid: createdUser.userUuid },
+    {
+      userUuid: createdUser.userUuid,
+      activeTenantId: actor.activeTenantId,
+      activeTenantSlug: actor.activeTenantSlug,
+      roles: ['user'],
+    },
     createdCredential.id,
     {
       label: 'main',
@@ -291,14 +347,14 @@ test('AdminService updates an owned provider credential without exposing the raw
 });
 
 test('AdminService stores short provider tokens without masking them further', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
 
-  const credential = await service.storeProviderCredential({
+  const credential = await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'short',
@@ -309,14 +365,14 @@ test('AdminService stores short provider tokens without masking them further', a
 });
 
 test('AdminService stores an Ollama endpoint-only credential', async () => {
-  const { service, repositories } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service, repositories } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
 
-  const credential = await service.storeProviderCredential({
+  const credential = await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'ollama',
     label: 'local-ollama',
@@ -336,8 +392,8 @@ test('AdminService stores an Ollama endpoint-only credential', async () => {
 });
 
 test('AdminService rejects Ollama cloud credentials on ollama.com without an API token', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
@@ -345,7 +401,7 @@ test('AdminService rejects Ollama cloud credentials on ollama.com without an API
 
   await assert.rejects(
     () =>
-      service.storeProviderCredential({
+      service.storeProviderCredentialForActor(actor, {
         userUuid: createdUser.userUuid,
         providerId: 'ollama',
         label: 'cloud-without-token',
@@ -356,8 +412,8 @@ test('AdminService rejects Ollama cloud credentials on ollama.com without an API
 });
 
 test('AdminService rejects xAI Grok credentials without an API token', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
@@ -365,7 +421,7 @@ test('AdminService rejects xAI Grok credentials without an API token', async () 
 
   await assert.rejects(
     () =>
-      service.storeProviderCredential({
+      service.storeProviderCredentialForActor(actor, {
         userUuid: createdUser.userUuid,
         providerId: 'xai',
         label: 'grok-without-token',
@@ -376,8 +432,8 @@ test('AdminService rejects xAI Grok credentials without an API token', async () 
 });
 
 test('AdminService rejects Google Gemini credentials without an API token', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
@@ -385,7 +441,7 @@ test('AdminService rejects Google Gemini credentials without an API token', asyn
 
   await assert.rejects(
     () =>
-      service.storeProviderCredential({
+      service.storeProviderCredentialForActor(actor, {
         userUuid: createdUser.userUuid,
         providerId: 'google' as ProviderId,
         label: 'gemini-without-token',
@@ -396,8 +452,8 @@ test('AdminService rejects Google Gemini credentials without an API token', asyn
 });
 
 test('AdminService rejects OpenAI credentials without an API token', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
@@ -405,7 +461,7 @@ test('AdminService rejects OpenAI credentials without an API token', async () =>
 
   await assert.rejects(
     () =>
-      service.storeProviderCredential({
+      service.storeProviderCredentialForActor(actor, {
         userUuid: createdUser.userUuid,
         providerId: 'openai',
         label: 'openai-without-token',
@@ -416,8 +472,8 @@ test('AdminService rejects OpenAI credentials without an API token', async () =>
 });
 
 test('AdminService rejects Anthropic credentials without an API token', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
@@ -425,7 +481,7 @@ test('AdminService rejects Anthropic credentials without an API token', async ()
 
   await assert.rejects(
     () =>
-      service.storeProviderCredential({
+      service.storeProviderCredentialForActor(actor, {
         userUuid: createdUser.userUuid,
         providerId: 'anthropic' as ProviderId,
         label: 'anthropic-without-token',
@@ -436,23 +492,23 @@ test('AdminService rejects Anthropic credentials without an API token', async ()
 });
 
 test('AdminService rejects storing a provider credential when the user does not exist', async () => {
-  const { service } = createAdminService();
+  const { actor, service } = createAdminService();
 
   await assert.rejects(
     () =>
-      service.storeProviderCredential({
+      service.storeProviderCredentialForActor(actor, {
         userUuid: randomUUID(),
         providerId: 'nanogpt',
         label: 'primary',
         apiToken: 'nano-secret-token',
       }),
-    /Unable to store the provider credential/,
+    /User not found/,
   );
 });
 
 test('AdminService rejects storing a provider credential when the provider does not exist', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
@@ -460,7 +516,7 @@ test('AdminService rejects storing a provider credential when the provider does 
 
   await assert.rejects(
     () =>
-      service.storeProviderCredential({
+      service.storeProviderCredentialForActor(actor, {
         userUuid: createdUser.userUuid,
         providerId: 'unknown-provider' as never,
         label: 'primary',
@@ -471,14 +527,14 @@ test('AdminService rejects storing a provider credential when the provider does 
 });
 
 test('AdminService rejects storing a duplicate provider credential label', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
 
-  await service.storeProviderCredential({
+  await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'primary',
@@ -487,7 +543,7 @@ test('AdminService rejects storing a duplicate provider credential label', async
 
   await assert.rejects(
     () =>
-      service.storeProviderCredential({
+      service.storeProviderCredentialForActor(actor, {
         userUuid: createdUser.userUuid,
         providerId: 'nanogpt',
         label: 'primary',
@@ -498,20 +554,20 @@ test('AdminService rejects storing a duplicate provider credential label', async
 });
 
 test('AdminService rejects updating a provider credential when the new label already exists', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
 
-  const primaryCredential = await service.storeProviderCredential({
+  const primaryCredential = await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'primary',
     apiToken: 'nano-secret-token',
   });
-  await service.storeProviderCredential({
+  await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'backup',
@@ -521,7 +577,12 @@ test('AdminService rejects updating a provider credential when the new label alr
   await assert.rejects(
     () =>
       service.updateOwnProviderCredential(
-        { userUuid: createdUser.userUuid },
+        {
+          userUuid: createdUser.userUuid,
+          activeTenantId: actor.activeTenantId,
+          activeTenantSlug: actor.activeTenantSlug,
+          roles: ['user'],
+        },
         primaryCredential.id,
         {
           label: 'backup',
@@ -532,14 +593,14 @@ test('AdminService rejects updating a provider credential when the new label alr
 });
 
 test('AdminService updates provider settings for a user', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
 
-  await service.storeProviderCredential({
+  await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'primary',
@@ -547,6 +608,7 @@ test('AdminService updates provider settings for a user', async () => {
   });
 
   const settings = await service.updateProviderSettingsForUser(
+    actor,
     createdUser.userUuid,
     {
       defaultProviderId: 'nanogpt',
@@ -561,14 +623,14 @@ test('AdminService updates provider settings for a user', async () => {
 });
 
 test('AdminService updates image defaults separately from chat defaults', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
 
-  await service.storeProviderCredential({
+  await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'primary',
@@ -576,6 +638,7 @@ test('AdminService updates image defaults separately from chat defaults', async 
   });
 
   const settings = await service.updateProviderSettingsForUser(
+    actor,
     createdUser.userUuid,
     {
       defaultProviderId: 'nanogpt',
@@ -592,8 +655,8 @@ test('AdminService updates image defaults separately from chat defaults', async 
 });
 
 test('AdminService updates a user password', async () => {
-  const { service, repositories } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service, repositories } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
@@ -606,7 +669,7 @@ test('AdminService updates a user password', async () => {
   const oldHash = storedUser.passwordHash;
   storedUser.roles = [];
 
-  const updatedUser = await service.updateUser(createdUser.userUuid, {
+  const updatedUser = await service.updateUser(actor, createdUser.userUuid, {
     password: 'N3wSup3rS3cret!',
   });
 
@@ -622,8 +685,8 @@ test('AdminService updates a user password', async () => {
 });
 
 test('AdminService rejects default provider selection without an active credential', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
@@ -631,7 +694,7 @@ test('AdminService rejects default provider selection without an active credenti
 
   await assert.rejects(
     () =>
-      service.updateProviderSettingsForUser(createdUser.userUuid, {
+      service.updateProviderSettingsForUser(actor, createdUser.userUuid, {
         defaultProviderId: 'nanogpt',
       }),
     /Unable to update provider settings/,
@@ -639,25 +702,26 @@ test('AdminService rejects default provider selection without an active credenti
 });
 
 test('AdminService clears default model when the default provider is cleared', async () => {
-  const { service } = createAdminService();
-  const createdUser = await service.createUser({
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
     email: 'patrick@example.com',
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
 
-  await service.storeProviderCredential({
+  await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
     label: 'primary',
     apiToken: 'nano-secret-token',
   });
-  await service.updateProviderSettingsForUser(createdUser.userUuid, {
+  await service.updateProviderSettingsForUser(actor, createdUser.userUuid, {
     defaultProviderId: 'nanogpt',
     defaultModel: 'z-ai/glm-4.6:thinking',
   });
 
   const settings = await service.updateProviderSettingsForUser(
+    actor,
     createdUser.userUuid,
     {
       defaultProviderId: null,
