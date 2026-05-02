@@ -35,6 +35,11 @@ const UsersPage = lazy(async () =>
     default: module.UsersPage,
   })),
 );
+const TenantsPage = lazy(async () =>
+  import('../pages/tenants-page').then((module) => ({
+    default: module.TenantsPage,
+  })),
+);
 const AnalyticsPage = lazy(async () =>
   import('../pages/analytics-page').then((module) => ({
     default: module.AnalyticsPage,
@@ -101,15 +106,23 @@ export const router = createBrowserRouter([
       {
         path: 'admin/users',
         element: withSuspense(
-          <RoleGuard allowedRoles={['admin']}>
+          <RoleGuard allowedRoles={['tenant_admin', 'super_admin']}>
             <UsersPage />
+          </RoleGuard>,
+        ),
+      },
+      {
+        path: 'admin/tenants',
+        element: withSuspense(
+          <RoleGuard allowedRoles={['super_admin']}>
+            <TenantsPage />
           </RoleGuard>,
         ),
       },
       {
         path: 'admin/analytics',
         element: withSuspense(
-          <RoleGuard allowedRoles={['admin']}>
+          <RoleGuard allowedRoles={['tenant_admin', 'super_admin']}>
             <AnalyticsPage />
           </RoleGuard>,
         ),
@@ -117,7 +130,7 @@ export const router = createBrowserRouter([
       {
         path: 'admin/health',
         element: withSuspense(
-          <RoleGuard allowedRoles={['admin']}>
+          <RoleGuard allowedRoles={['tenant_admin', 'super_admin']}>
             <HealthPage />
           </RoleGuard>,
         ),

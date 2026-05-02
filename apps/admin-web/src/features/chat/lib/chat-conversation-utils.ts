@@ -1,13 +1,19 @@
 import { createClientId } from '../../../lib/id';
-import type { StoredConversation } from '../../../lib/chat-store';
+import type {
+  ConversationScope,
+  StoredConversation,
+} from '../../../lib/chat-store';
 
 export function createConversation(
+  scope: ConversationScope,
   providerId: string,
   model: string,
   systemPrompt: string,
 ): StoredConversation {
   return {
     id: createClientId(),
+    ownerUserUuid: scope.userUuid,
+    tenantId: scope.tenantId,
     title: 'New conversation',
     model,
     providerId,

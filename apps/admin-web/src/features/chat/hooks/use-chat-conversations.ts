@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { StoredConversation } from '../../../lib/chat-store';
+import type {
+  ConversationScope,
+  StoredConversation,
+} from '../../../lib/chat-store';
 import {
   deleteConversation,
   loadConversations,
@@ -12,6 +15,7 @@ import { createConversation as createLocalConversation } from '../lib/chat-conve
 type UseChatConversationsOptions = {
   providerId: string;
   model: string;
+  scope: ConversationScope;
   onResetComposerState: () => void;
   onSetChatError: (value: string | null) => void;
   onSetActivePanel: (value: 'conversation' | 'system-prompt') => void;
@@ -20,6 +24,7 @@ type UseChatConversationsOptions = {
 export function useChatConversations({
   providerId,
   model,
+  scope,
   onResetComposerState,
   onSetChatError,
   onSetActivePanel,
@@ -33,7 +38,7 @@ export function useChatConversations({
     useState<StoredConversation | null>(null);
 
   useEffect(() => {
-    loadConversations()
+    loadConversations(scope)
       .then((storedConversations) => {
         setConversations(storedConversations);
         setActiveConversationId(storedConversations[0]?.id ?? null);
@@ -41,7 +46,7 @@ export function useChatConversations({
       .catch(() => {
         setConversations([]);
       });
-  }, []);
+  }, [scope]);
 
   const activeConversation =
     conversations.find(
@@ -54,6 +59,7 @@ export function useChatConversations({
 
   const createConversation = useCallback(async (): Promise<void> => {
     const conversation = createLocalConversation(
+      scope,
       providerId,
       model,
       systemPrompt.trim(),
@@ -61,7 +67,7 @@ export function useChatConversations({
     await saveConversation(conversation);
     setConversations((current) => [conversation, ...current]);
     setActiveConversationId(conversation.id);
-  }, [model, providerId, systemPrompt]);
+  }, [model, providerId, scope, systemPrompt]);
 
   const persistConversationProvider = useCallback(async (
     nextProviderId: string,

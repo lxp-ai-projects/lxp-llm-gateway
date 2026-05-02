@@ -52,6 +52,13 @@ The repository now contains:
 - BYOK provider access through user-managed provider credentials
 - optional user correlation for Open WebUI traffic through a shared compatibility key plus forwarded user email header
 - provider model discovery through provider adapters, including capability-specific model metadata
+- tenant-aware control-plane and gateway foundations based on global users, tenant memberships, and an active tenant context
+- tenant-aware technical client foundations based on integration clients and API keys
+- tenant-aware audit and usage telemetry with an initial PostgreSQL RLS slice on telemetry tables
+- tenant-aware technical client auth with an initial PostgreSQL RLS slice on `integration_clients` and `api_keys`
+- tenant-aware image storage and history with an initial PostgreSQL RLS slice on `image_assets`, `image_jobs`, and `image_job_results`
+- tenant-aware BYOK credential management with a PostgreSQL RLS slice on `user_provider_credentials`
+- an initial `super_admin` tenant administration surface for cross-tenant listing, tenant policy editing, and membership visibility
 - shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`
@@ -66,6 +73,7 @@ The repository now contains:
 Phase 2 should assume:
 
 - the provider seam is already the canonical integration boundary
+- tenant isolation is a mandatory boundary, not a best-effort convention
 - cookie-only browser auth is the expected SPA posture
 - the SPA codebase is already organized by feature and can continue to evolve incrementally
 - CI quality gates already cover typecheck, test, and build
@@ -109,3 +117,8 @@ Current Open WebUI posture is:
 - this is enough to make provider usage follow the mapped gateway user in a trusted deployment, but it is not yet a full SSO/session-sharing implementation between Open WebUI and the admin SPA
 - the gateway remains the BYOK and security authority, not Open WebUI
 - production deployments should strip identity headers at the public proxy boundary and inject them only from trusted infrastructure
+- gateway execution should emit tenant-aware audit and usage records for traceability and future quota/billing work
+- the first database-level isolation backstop is now in place for telemetry through transaction-scoped `app.tenant_id` plus PostgreSQL RLS on `audit_logs` and `usage_events`
+- technical-client authentication now also uses a database-level backstop by resolving API keys inside a transaction-scoped `app.api_key_hash` context before switching to `app.tenant_id`
+- image asset access and image job persistence now also run behind a database-level tenant backstop through transaction-scoped `app.tenant_id` plus PostgreSQL RLS
+- BYOK credential reads and writes now also run behind a database-level tenant backstop through transaction-scoped `app.tenant_id` plus PostgreSQL RLS

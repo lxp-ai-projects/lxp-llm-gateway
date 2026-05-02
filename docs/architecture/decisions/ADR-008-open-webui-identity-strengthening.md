@@ -8,7 +8,7 @@ Accepted
 
 The current Open WebUI integration supports:
 
-- a compatibility API key for `Open WebUI` as an internal client
+- a tenant-scoped API key for an `integration_client` that represents `Open WebUI` as an internal client
 - optional trusted user correlation through `X-OpenWebUI-User-Email`
 - explicit trust-boundary controls in `gateway-api`
 - audit attribution to the resolved gateway user
@@ -30,6 +30,7 @@ The preferred long-term production path is:
 In that target posture:
 
 - the public caller never sends effective gateway identity claims directly
+- the technical client is authenticated first through its tenant-scoped API key
 - the trusted deployment path establishes identity first
 - `Open WebUI` forwards only trusted, deployment-owned identity context
 - `gateway-api` resolves the existing gateway user and attributes provider usage to that user

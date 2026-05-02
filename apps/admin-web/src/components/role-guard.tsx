@@ -8,8 +8,12 @@ type RoleGuardProps = PropsWithChildren<{
 }>;
 
 export function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
-  const currentRoles = useSession().data?.roles ?? [];
-  const authorized = allowedRoles.some((role) => currentRoles.includes(role));
+  const session = useSession().data;
+  const currentRoles = session?.roles ?? [];
+  const currentGlobalRoles = session?.globalRoles ?? [];
+  const authorized = allowedRoles.some(
+    (role) => currentRoles.includes(role) || currentGlobalRoles.includes(role),
+  );
 
   if (!authorized) {
     return <RoleGuardDenied />;

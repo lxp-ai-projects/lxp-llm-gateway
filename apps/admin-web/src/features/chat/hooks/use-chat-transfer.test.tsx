@@ -75,6 +75,10 @@ function setup(conversations: StoredConversation[] = [createConversation()]) {
   const hook = renderHook(() =>
     useChatTransfer({
       conversations,
+      scope: {
+        userUuid: 'user-1',
+        tenantId: 'tenant-1',
+      },
       setActiveConversationId,
       setActivePanel,
       setConversations,
@@ -172,7 +176,11 @@ test('useChatTransfer imports, persists, merges conversations, and activates the
   });
 
   expect(saveConversationMock).toHaveBeenCalledWith(
-    expect.objectContaining({ id: 'conversation-2' }),
+    expect.objectContaining({
+      id: 'conversation-2',
+      ownerUserUuid: 'user-1',
+      tenantId: 'tenant-1',
+    }),
   );
   expect(currentConversations()[0]?.id).toBe('conversation-2');
   expect(setActiveConversationId).toHaveBeenCalledWith('conversation-2');

@@ -19,6 +19,7 @@ Examples:
 - cookie signing secrets
 - encryption master keys
 - JWT signing keys
+- optional bootstrap identity configuration such as `LXP_SUPER_ADMIN_EMAILS`
 
 ### Application Data
 
@@ -30,6 +31,8 @@ Examples:
 - roles
 - provider definitions
 - encrypted provider credentials
+- tenant-scoped integration clients
+- tenant-scoped API keys
 
 Provider API tokens that belong to a specific user or provider binding are application data and must be stored encrypted in the database.
 
@@ -42,6 +45,13 @@ The following server-side secrets should exist before credential storage is impl
 - `LXP_EMAIL_LOOKUP_KEY`
 - `LXP_COOKIE_SECRET`
 - `LXP_JWT_PRIVATE_KEY` or equivalent auth secret material
+
+The following server-side bootstrap configuration may also be supplied when global control-plane administrators need to be assigned idempotently:
+
+- `LXP_SUPER_ADMIN_EMAILS`
+
+`LXP_SUPER_ADMIN_EMAILS` should be a comma-separated list of user emails such as `patrick@example.com`.
+`admin-api` resolves those emails through the same `emailHash` protection model used elsewhere and assigns the global `super_admin` role without storing the raw list in application data.
 
 ## Master Key Format
 
@@ -110,6 +120,7 @@ Recommended posture:
 Never log:
 
 - raw provider API keys
+- raw integration API keys
 - decrypted credential values
 - master keys
 - full credential payloads
@@ -121,3 +132,9 @@ If a credential event needs observability, log only:
 - credential record identifier
 - success or failure outcome
 - timestamp
+
+The same masking rule applies to tenant-scoped integration API keys:
+
+- store only a one-way hash plus a short masked hint for lookup and operator support
+- never persist the raw key after issuance
+- never rely on forwarded identity headers as the root trust primitive without an authenticated technical client

@@ -19,6 +19,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SwitchActiveTenantDto } from './dto/switch-active-tenant.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -99,6 +100,31 @@ export class AuthController {
   @UseGuards(AccessTokenGuard)
   me(@Req() request: Request & RequestWithAuthUser) {
     return request.authUser;
+  }
+
+  @Post('active-tenant')
+  @UseGuards(AccessTokenGuard)
+  async switchActiveTenant(
+    @Req() request: Request & RequestWithAuthUser,
+    @Body() dto: SwitchActiveTenantDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.switchActiveTenant(
+      request.authAccessToken!,
+      dto.tenantId,
+    );
+    this.authCookieService.setAccessTokenCookie(
+      response,
+      result.accessToken,
+      this.accessTokenCookieMaxAgeMs,
+    );
+    this.authCookieService.setRefreshTokenCookie(
+      response,
+      result.refreshToken,
+      this.refreshTokenCookieMaxAgeMs,
+    );
+
+    return result.user;
   }
 
   private extractBearerToken(authorizationHeader?: string): string | undefined {

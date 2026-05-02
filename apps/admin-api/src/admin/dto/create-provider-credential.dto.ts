@@ -39,4 +39,8 @@ export class CreateProviderCredentialDto {
   @IsString()
   @MinLength(1)
   baseUrl?: string;
+
+  @IsOptional()
+  @IsIn(['tenant', 'user'])
+  scope?: 'tenant' | 'user';
 }

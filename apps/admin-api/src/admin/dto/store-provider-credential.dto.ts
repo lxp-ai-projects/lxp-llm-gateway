@@ -13,8 +13,9 @@ const SUPPORTED_PROVIDER_IDS = [
 ] as const;
 
 export class StoreProviderCredentialDto {
+  @IsOptional()
   @IsUUID()
-  userUuid!: string;
+  userUuid?: string;
 
   @IsIn(SUPPORTED_PROVIDER_IDS)
   providerId!: ProviderId;
@@ -32,4 +33,8 @@ export class StoreProviderCredentialDto {
   @IsString()
   @MinLength(1)
   baseUrl?: string;
+
+  @IsOptional()
+  @IsIn(['tenant', 'user'])
+  scope?: 'tenant' | 'user';
 }

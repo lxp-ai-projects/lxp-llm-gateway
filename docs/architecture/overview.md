@@ -39,6 +39,7 @@ It must not import provider-specific implementation details directly.
 
 - login, refresh, logout, and session resolution
 - users and role-aware admin workflows
+- super-admin tenant control workflows
 - encrypted provider credential writes and resets
 - runtime config for the SPA
 - conversation import and export support
@@ -93,11 +94,26 @@ Shared image-reference safety rules that apply across providers should live in t
 
 The current architecture uses relational persistence for:
 
+- tenants
+- tenant memberships
 - users
 - roles
 - provider credentials
 
 Postgres is the durable source of truth for control-plane identity and encrypted provider secrets.
+
+The tenant boundary is now modeled explicitly:
+
+- `users` remain global identities
+- `tenants` represent isolation domains
+- `tenant_memberships` attach users to tenants with tenant-scoped roles
+- tenant-owned tables must carry `tenant_id`
+- tenant-aware credential resolution prefers user-scoped credentials only when the tenant allows override, then falls back to tenant defaults
+- technical clients such as `Open WebUI` should authenticate through tenant-scoped `integration_clients` and `api_keys`, with forwarded human identity treated only as an optional bounded enhancement
+- `audit_logs` and `usage_events` now also use PostgreSQL row-level security as a second line of defense, with the gateway setting `app.tenant_id` transactionally before telemetry writes
+- `integration_clients` and `api_keys` now also use PostgreSQL row-level security, with technical-client key lookup bootstrapped through a transaction-scoped `app.api_key_hash` before the gateway narrows the session to `app.tenant_id`
+- `image_assets`, `image_jobs`, and `image_job_results` now also use PostgreSQL row-level security, with image reads and writes executed inside transaction-scoped tenant context
+- `user_provider_credentials` now also uses PostgreSQL row-level security, with both `gateway-api` runtime resolution and `admin-api` credential management executing inside transaction-scoped tenant context
 
 Redis is used for short-lived auth and operational state such as:
 
@@ -115,12 +131,18 @@ The initial architecture assumes:
 - no unsafe browser token storage patterns
 - cookie-only browser session posture for the SPA
 - application-level encryption for stored provider API secrets
+- authenticated tenant resolution from a trusted session, JWT claim, or technical integration context
 - short-lived access tokens with server-side revocation support
 - gateway-side identity resolution from `emailHash`, not a caller-supplied internal user id
 - optional trusted-header correlation for OpenAI-compatible internal callers only when a shared API key and trusted deployment boundary are in place
 - separate local and deployed Open WebUI runtime profiles so that permissive lab settings do not silently become production defaults
 - generalized error handling that avoids overexposing account and token state to callers
 - write-only or masked-only handling for provider secrets in administrative workflows
+- no tenant-owned repository access without tenant scoping in the application layer
+- a first RLS slice is active for tenant-owned telemetry tables, with broader table coverage still treated as follow-on hardening work
+- technical-client authentication now has a database-level backstop for `integration_clients` and `api_keys`
+- image history, asset access, and image-job persistence now also have a database-level tenant isolation backstop
+- BYOK credential resolution and administration now also have a database-level tenant isolation backstop
 
 ## UI Posture
 

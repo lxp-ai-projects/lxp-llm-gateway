@@ -8,12 +8,38 @@ import type {
 } from '@lxp/contracts';
 import type { LlmProviderAdapter, ProviderExecutionContext } from '@lxp/provider-sdk';
 
+import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
+import { ImageJobEntity } from '../persistence/entities/image-job.entity';
+import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
 import { ImageApplicationService } from './image-application.service';
 
-class InMemoryRepository<T extends Record<string, any>> {
+interface BaseEntity {
+  id: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  [key: string]: unknown;
+}
+
+function extractComparable(
+  value: unknown,
+): number | string | Date | null | undefined {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === 'number' ||
+    typeof value === 'string' ||
+    value instanceof Date
+  ) {
+    return value;
+  }
+
+  return String(value);
+}
+
+class InMemoryRepository<T extends BaseEntity> {
   constructor(private readonly items: T[] = []) {}
 
-  async find(options?: { where?: Record<string, any>[] | Record<string, any>; order?: Record<string, 'ASC' | 'DESC'>; skip?: number; take?: number }) {
+  async find(options?: { where?: Record<string, unknown>[] | Record<string, unknown>; order?: Record<string, 'ASC' | 'DESC'>; skip?: number; take?: number }) {
     let results = [...this.items];
     if (options?.where) {
       const whereArray = Array.isArray(options.where) ? options.where : [options.where];
@@ -27,9 +53,11 @@ class InMemoryRepository<T extends Record<string, any>> {
       const [orderKey, direction] = Object.entries(options.order)[0] ?? [];
       if (orderKey) {
         results.sort((left, right) =>
-          direction === 'ASC'
-            ? (left[orderKey] > right[orderKey] ? 1 : -1)
-            : (left[orderKey] < right[orderKey] ? 1 : -1),
+          compareValues(
+            extractComparable(left[orderKey]),
+            extractComparable(right[orderKey]),
+            direction,
+          ),
         );
       }
     }
@@ -39,7 +67,7 @@ class InMemoryRepository<T extends Record<string, any>> {
     return results;
   }
 
-  async findOne(options: { where: Record<string, any> }) {
+  async findOne(options: { where: Record<string, unknown> }) {
     return (
       this.items.find((item) =>
         Object.entries(options.where).every(([key, value]) => item[key] === value),
@@ -47,10 +75,12 @@ class InMemoryRepository<T extends Record<string, any>> {
     );
   }
 
-  async findAndCount(options: { where: Record<string, any>; order: Record<string, 'ASC' | 'DESC'>; skip: number; take: number }) {
+  async findAndCount(options: { where: Record<string, unknown>; order: Record<string, 'ASC' | 'DESC'>; skip: number; take: number }) {
     const results = await this.find(options);
     const total = (
-      await this.find({ where: options.where })
+      await this.find({
+        where: options.where,
+      })
     ).length;
     return [results, total] as const;
   }
@@ -71,7 +101,7 @@ class InMemoryRepository<T extends Record<string, any>> {
     return item;
   }
 
-  async delete(criteria: Record<string, any>) {
+  async delete(criteria: Record<string, unknown>) {
     const index = this.items.findIndex((item) =>
       Object.entries(criteria).every(([key, value]) => item[key] === value),
     );
@@ -79,6 +109,40 @@ class InMemoryRepository<T extends Record<string, any>> {
       this.items.splice(index, 1);
     }
   }
+}
+
+function compareValues(
+  left: number | string | Date | null | undefined,
+  right: number | string | Date | null | undefined,
+  direction: 'ASC' | 'DESC',
+) {
+  if (left === right) {
+    return 0;
+  }
+
+  if (left === null || left === undefined) {
+    return direction === 'ASC' ? -1 : 1;
+  }
+
+  if (right === null || right === undefined) {
+    return direction === 'ASC' ? 1 : -1;
+  }
+
+  if (left instanceof Date && right instanceof Date) {
+    return direction === 'ASC'
+      ? left.getTime() - right.getTime()
+      : right.getTime() - left.getTime();
+  }
+
+  if (typeof left === 'number' && typeof right === 'number') {
+    return direction === 'ASC' ? left - right : right - left;
+  }
+
+  const leftText = left instanceof Date ? left.toISOString() : String(left);
+  const rightText = right instanceof Date ? right.toISOString() : String(right);
+  return direction === 'ASC'
+    ? leftText.localeCompare(rightText)
+    : rightText.localeCompare(leftText);
 }
 
 class FakeImageProvider implements LlmProviderAdapter {
@@ -178,8 +242,11 @@ function buildAuthContext() {
     userId: 'user-1',
     userUuid: 'user-public-1',
     emailHash: 'hash-1',
+    activeTenantId: 'tenant-1',
+    activeTenantSlug: 'lxp-internal',
     identitySource: 'access-token' as const,
     roles: ['user'],
+    globalRoles: [],
     defaultProviderId: null,
     defaultModel: null,
     defaultImageProviderId: null,
@@ -187,22 +254,148 @@ function buildAuthContext() {
   };
 }
 
-test('ImageApplicationService persists generated images and exposes gateway-managed asset URLs', async () => {
+class FakeGatewayTelemetryService {
+  async recordImageSuccess(): Promise<void> {}
+
+  async recordImageFailure(): Promise<void> {}
+}
+
+function createTenantRlsService(
+  repositories: {
+    imageAssets: InMemoryRepository<ImageAssetEntity>;
+    imageJobs: InMemoryRepository<ImageJobEntity>;
+    imageJobResults: InMemoryRepository<ImageJobResultEntity>;
+  },
+) {
+  return {
+    async withTenantContext<T>(
+      tenantId: string,
+      callback: (manager: {
+        getRepository: (entity: unknown) => InMemoryRepository<BaseEntity>;
+      }) => Promise<T>,
+    ): Promise<T> {
+      const createTenantScopedRepository = <E extends BaseEntity>(
+        baseRepository: InMemoryRepository<E>,
+      ): InMemoryRepository<E> => {
+        return {
+          async find(options) {
+            const tenantWhere = { tenantId };
+            const where = options?.where
+              ? Array.isArray(options.where)
+                ? options.where.map((w) => ({ ...w, ...tenantWhere }))
+                : { ...options.where, ...tenantWhere }
+              : tenantWhere;
+            return baseRepository.find({ ...options, where });
+          },
+          async findOne(options) {
+            return baseRepository.findOne({
+              where: { ...options.where, tenantId },
+            });
+          },
+          async findAndCount(options) {
+            const tenantWhere = { tenantId };
+            const where = options?.where
+              ? Array.isArray(options.where)
+                ? options.where.map((w) => ({ ...w, ...tenantWhere }))
+                : { ...options.where, ...tenantWhere }
+              : tenantWhere;
+            return baseRepository.findAndCount({
+              ...options,
+              where,
+            });
+          },
+          async save(input) {
+            return baseRepository.save({ ...input, tenantId });
+          },
+          async delete(criteria) {
+            return baseRepository.delete({ ...criteria, tenantId });
+          },
+        } as InMemoryRepository<E>;
+      };
+
+      return callback({
+        getRepository: (entity) => {
+          if (entity === ImageAssetEntity) {
+            return createTenantScopedRepository(repositories.imageAssets);
+          }
+
+          if (entity === ImageJobEntity) {
+            return createTenantScopedRepository(repositories.imageJobs);
+          }
+
+          if (entity === ImageJobResultEntity) {
+            return createTenantScopedRepository(repositories.imageJobResults);
+          }
+
+          throw new Error(`Unsupported repository request: ${String(entity)}`);
+        },
+      });
+    },
+  };
+}
+
+function createImageService(options?: {
+  users?: Array<Partial<BaseEntity>>;
+  providers?: Array<Partial<BaseEntity>>;
+  memberships?: Array<Partial<BaseEntity>>;
+  assets?: Array<Partial<ImageAssetEntity>>;
+  jobs?: Array<Partial<ImageJobEntity>>;
+  results?: Array<Partial<ImageJobResultEntity>>;
+  providerRegistry?: {
+    getProvider: () => LlmProviderAdapter;
+    listProviders: () => LlmProviderAdapter[];
+  };
+  providerCredentialService?: {
+    resolveProviderAccess: () => Promise<Record<string, unknown>>;
+  };
+}) {
   const provider = new FakeImageProvider();
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    {
-      getProvider: () => provider,
-      listProviders: () => [provider],
-    } as never,
-    {
-      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
-    } as never,
-  );
+  const imageAssets = new InMemoryRepository<ImageAssetEntity>(options?.assets ?? []);
+  const imageJobs = new InMemoryRepository<ImageJobEntity>(options?.jobs ?? []);
+  const imageJobResults = new InMemoryRepository<ImageJobResultEntity>(options?.results ?? []);
+  const providerRegistry = options?.providerRegistry ?? {
+    getProvider: () => provider,
+    listProviders: () => [provider],
+  };
+
+  return {
+    provider,
+    imageAssets,
+    imageJobs,
+    imageJobResults,
+    service: new ImageApplicationService(
+      new InMemoryRepository(
+        options?.users ?? [{ id: 'user-1', emailHash: 'hash-1', status: 'active' }],
+      ) as never,
+      new InMemoryRepository(
+        options?.providers ?? [
+          {
+            id: 'provider-1',
+            providerId: 'xai',
+            displayName: 'xAI Grok',
+            status: 'active',
+          },
+        ],
+      ) as never,
+      new InMemoryRepository(
+        options?.memberships ?? [{ id: 'membership-1', tenantId: 'tenant-1', userId: 'user-1' }],
+      ) as never,
+      providerRegistry as never,
+      (options?.providerCredentialService ?? {
+        resolveProviderAccess: async () => ({ apiKey: 'secret' }),
+      }) as never,
+      new FakeGatewayTelemetryService() as never,
+      createTenantRlsService({
+        imageAssets,
+        imageJobs,
+        imageJobResults,
+      }) as never,
+    ),
+  };
+}
+
+test('ImageApplicationService persists generated images and exposes gateway-managed asset URLs', async () => {
+  const { service } = createImageService();
 
   const response = await service.generateImage(
     {
@@ -220,12 +413,11 @@ test('ImageApplicationService persists generated images and exposes gateway-mana
 
 test('ImageApplicationService resolves asset references before provider edit requests', async () => {
   const provider = new FakeImageProvider();
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    new InMemoryRepository([
+  const { service } = createImageService({
+    assets: [
       {
         id: 'asset-1',
+        tenantId: 'tenant-1',
         userId: 'user-1',
         sourceType: 'upload',
         label: 'Upload',
@@ -237,17 +429,12 @@ test('ImageApplicationService resolves asset references before provider edit req
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-    ]) as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    {
+    ],
+    providerRegistry: {
       getProvider: () => provider,
       listProviders: () => [provider],
-    } as never,
-    {
-      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
-    } as never,
-  );
+    },
+  });
 
   await service.editImage(
     {
@@ -269,10 +456,10 @@ test('ImageApplicationService resolves asset references before provider edit req
 });
 
 test('ImageApplicationService paginates history by 10 items per page', async () => {
-  const provider = new FakeImageProvider();
   const now = new Date();
   const jobs = Array.from({ length: 12 }, (_, index) => ({
     id: `job-${index + 1}`,
+    tenantId: 'tenant-1',
     userId: 'user-1',
     requestId: `request-${index + 1}`,
     providerId: 'xai',
@@ -286,6 +473,7 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
   }));
   const assets = Array.from({ length: 12 }, (_, index) => ({
     id: `asset-${index + 1}`,
+    tenantId: 'tenant-1',
     userId: 'user-1',
     sourceType: 'generated',
     label: `Asset ${index + 1}`,
@@ -299,6 +487,7 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
   }));
   const results = Array.from({ length: 12 }, (_, index) => ({
     id: `result-${index + 1}`,
+    tenantId: 'tenant-1',
     jobId: `job-${index + 1}`,
     assetId: `asset-${index + 1}`,
     resultIndex: 0,
@@ -306,20 +495,11 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
     providerMetadata: { finishReason: 'stop', index },
     createdAt: now,
   }));
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    new InMemoryRepository(assets) as never,
-    new InMemoryRepository(jobs) as never,
-    new InMemoryRepository(results) as never,
-    {
-      getProvider: () => provider,
-      listProviders: () => [provider],
-    } as never,
-    {
-      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
-    } as never,
-  );
+  const { service } = createImageService({
+    assets,
+    jobs,
+    results,
+  });
 
   const page1 = await service.listHistory(1, buildAuthContext());
   const page2 = await service.listHistory(2, buildAuthContext());
@@ -340,22 +520,17 @@ test('ImageApplicationService paginates history by 10 items per page', async () 
 
 test('ImageApplicationService returns image catalog entries even when provider credentials are not yet configured', async () => {
   const provider = new FakeImageProvider();
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    {
+  const { service } = createImageService({
+    providerRegistry: {
       getProvider: () => provider,
       listProviders: () => [provider],
-    } as never,
-    {
+    },
+    providerCredentialService: {
       resolveProviderAccess: async () => {
         throw new Error('missing credential');
       },
-    } as never,
-  );
+    },
+  });
 
   const catalog = await service.getCatalog(buildAuthContext());
 
@@ -384,21 +559,7 @@ test('ImageApplicationService returns image catalog entries even when provider c
 });
 
 test('ImageApplicationService uploads a supported image asset', async () => {
-  const provider = new FakeImageProvider();
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    {
-      getProvider: () => provider,
-      listProviders: () => [provider],
-    } as never,
-    {
-      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
-    } as never,
-  );
+  const { service } = createImageService();
 
   const response = await service.uploadAsset(
     {
@@ -414,10 +575,11 @@ test('ImageApplicationService uploads a supported image asset', async () => {
 });
 
 test('ImageApplicationService reuses an existing uploaded asset when the content matches exactly', async () => {
-  const provider = new FakeImageProvider();
-  const assetRepository = new InMemoryRepository([
+  const { service, imageAssets: assetRepository } = createImageService({
+    assets: [
     {
       id: 'asset-upload-existing',
+      tenantId: 'tenant-1',
       userId: 'user-1',
       sourceType: 'upload',
       label: 'existing.png',
@@ -429,21 +591,8 @@ test('ImageApplicationService reuses an existing uploaded asset when the content
       createdAt: new Date(),
       updatedAt: new Date(),
     },
-  ]);
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    assetRepository as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    {
-      getProvider: () => provider,
-      listProviders: () => [provider],
-    } as never,
-    {
-      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
-    } as never,
-  );
+  ],
+  });
 
   const response = await service.uploadAsset(
     {
@@ -458,10 +607,11 @@ test('ImageApplicationService reuses an existing uploaded asset when the content
 });
 
 test('ImageApplicationService renames uploaded reference assets', async () => {
-  const provider = new FakeImageProvider();
-  const assetRepository = new InMemoryRepository([
+  const { service } = createImageService({
+    assets: [
     {
       id: 'asset-upload-rename',
+      tenantId: 'tenant-1',
       userId: 'user-1',
       sourceType: 'upload',
       label: 'before.png',
@@ -473,21 +623,8 @@ test('ImageApplicationService renames uploaded reference assets', async () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     },
-  ]);
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    assetRepository as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    {
-      getProvider: () => provider,
-      listProviders: () => [provider],
-    } as never,
-    {
-      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
-    } as never,
-  );
+  ],
+  });
 
   const response = await service.updateAsset(
     'asset-upload-rename',
@@ -499,13 +636,11 @@ test('ImageApplicationService renames uploaded reference assets', async () => {
 });
 
 test('ImageApplicationService lists uploaded reference assets in reverse chronological order', async () => {
-  const provider = new FakeImageProvider();
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    new InMemoryRepository([
+  const { service } = createImageService({
+    assets: [
       {
         id: 'asset-generated-1',
+        tenantId: 'tenant-1',
         userId: 'user-1',
         sourceType: 'generated',
         label: 'Generated',
@@ -519,6 +654,7 @@ test('ImageApplicationService lists uploaded reference assets in reverse chronol
       },
       {
         id: 'asset-upload-1',
+        tenantId: 'tenant-1',
         userId: 'user-1',
         sourceType: 'upload',
         label: 'Older upload',
@@ -532,6 +668,7 @@ test('ImageApplicationService lists uploaded reference assets in reverse chronol
       },
       {
         id: 'asset-upload-2',
+        tenantId: 'tenant-1',
         userId: 'user-1',
         sourceType: 'upload',
         label: 'Newest upload',
@@ -543,17 +680,8 @@ test('ImageApplicationService lists uploaded reference assets in reverse chronol
         createdAt: new Date('2026-04-21T12:00:00.000Z'),
         updatedAt: new Date('2026-04-21T12:00:00.000Z'),
       },
-    ]) as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    {
-      getProvider: () => provider,
-      listProviders: () => [provider],
-    } as never,
-    {
-      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
-    } as never,
-  );
+    ],
+  });
 
   const response = await service.listAssets(buildAuthContext());
 
@@ -564,10 +692,11 @@ test('ImageApplicationService lists uploaded reference assets in reverse chronol
 });
 
 test('ImageApplicationService deletes uploaded reference assets', async () => {
-  const provider = new FakeImageProvider();
-  const assetRepository = new InMemoryRepository([
+  const { service, imageAssets: assetRepository } = createImageService({
+    assets: [
     {
       id: 'asset-upload-1',
+      tenantId: 'tenant-1',
       userId: 'user-1',
       sourceType: 'upload',
       label: 'Upload',
@@ -579,21 +708,8 @@ test('ImageApplicationService deletes uploaded reference assets', async () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     },
-  ]);
-  const service = new ImageApplicationService(
-    new InMemoryRepository([{ id: 'user-1', emailHash: 'hash-1', status: 'active' }]) as never,
-    new InMemoryRepository([{ id: 'provider-1', providerId: 'xai', displayName: 'xAI Grok', status: 'active' }]) as never,
-    assetRepository as never,
-    new InMemoryRepository() as never,
-    new InMemoryRepository() as never,
-    {
-      getProvider: () => provider,
-      listProviders: () => [provider],
-    } as never,
-    {
-      resolveProviderAccess: async () => ({ apiKey: 'secret' }),
-    } as never,
-  );
+  ],
+  });
 
   const response = await service.deleteAsset('asset-upload-1', buildAuthContext());
 
@@ -603,5 +719,66 @@ test('ImageApplicationService deletes uploaded reference assets', async () => {
       where: { id: 'asset-upload-1', userId: 'user-1' },
     }),
     null,
+  );
+});
+
+test('ImageApplicationService keeps tenant 2 assets isolated from tenant 1', async () => {
+  const { service } = createImageService({
+    assets: [
+      {
+        id: 'asset-tenant-2',
+        tenantId: 'tenant-2',
+        userId: 'user-2',
+        sourceType: 'upload',
+        label: 'Tenant 2 asset',
+        mimeType: 'image/png',
+        dataUrl: 'data:image/png;base64,tenant2',
+        contentHash: 'hash-tenant-2',
+        originalUrl: null,
+        isSaved: false,
+        createdAt: new Date('2026-04-21T13:00:00.000Z'),
+        updatedAt: new Date('2026-04-21T13:00:00.000Z'),
+      },
+    ],
+    jobs: [
+      {
+        id: 'job-tenant-2',
+        tenantId: 'tenant-2',
+        userId: 'user-2',
+        requestId: 'request-tenant-2',
+        providerId: 'xai',
+        model: 'grok-imagine-image',
+        prompt: 'Tenant 2 prompt',
+        mode: 'generation',
+        startedAt: new Date('2026-04-21T13:00:00.000Z'),
+        completedAt: new Date('2026-04-21T13:00:08.000Z'),
+        providerMetadata: { upstreamRequestId: 'upstream-tenant-2' },
+        createdAt: new Date('2026-04-21T13:00:00.000Z'),
+      },
+    ],
+    results: [
+      {
+        id: 'result-tenant-2',
+        tenantId: 'tenant-2',
+        jobId: 'job-tenant-2',
+        assetId: 'asset-tenant-2',
+        resultIndex: 0,
+        revisedPrompt: null,
+        providerMetadata: { finishReason: 'stop' },
+        createdAt: new Date('2026-04-21T13:00:08.000Z'),
+      },
+    ],
+  });
+
+  const response = await service.listAssets(buildAuthContext());
+
+  assert.equal(
+    response.items.some((asset) => asset.id === 'asset-tenant-2'),
+    false,
+  );
+
+  await assert.rejects(
+    () => service.deleteAsset('asset-tenant-2', buildAuthContext()),
+    /Image asset not found\./,
   );
 });

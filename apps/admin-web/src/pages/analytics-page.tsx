@@ -3,13 +3,18 @@ import { IconChartBarPopular } from '@tabler/icons-react';
 
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
+import { getActiveTenantLabel } from '../lib/tenant-context';
+import { useSession } from '../lib/use-session';
 
 export function AnalyticsPage() {
+  const sessionQuery = useSession();
+
   return (
     <>
       <PageHeader
         title="Gateway Analytics"
         description="Phase 1 analytics focuses on adoption, activity, and gateway availability rather than deep BI."
+        context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
         <Grid.Col span={{ base: 12, md: 6, xl: 4 }}>

@@ -8,19 +8,24 @@ import {
 
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
+import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 import { useSession } from '../lib/use-session';
 
 export function DashboardPage() {
   const sessionQuery = useSession();
   const runtimeConfigQuery = useRuntimeConfig();
-  const isAdmin = sessionQuery.data?.roles.includes('admin') ?? false;
+  const isTenantAdmin =
+    sessionQuery.data?.roles?.includes('tenant_admin') ?? false;
+  const isSuperAdmin =
+    sessionQuery.data?.globalRoles?.includes('super_admin') ?? false;
 
   return (
     <>
       <PageHeader
         title="Overview"
         description="One SPA, role-aware navigation, and a deliberate split between user self-service and administrator controls."
+        context={getActiveTenantLabel(sessionQuery.data)}
       />
 
       <Grid>
@@ -53,7 +58,13 @@ export function DashboardPage() {
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
             label="Role surface"
-            value={isAdmin ? 'Admin + user' : 'User only'}
+            value={
+              isSuperAdmin
+                ? 'Super admin + tenant + user'
+                : isTenantAdmin
+                  ? 'Tenant admin + user'
+                  : 'User only'
+            }
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>

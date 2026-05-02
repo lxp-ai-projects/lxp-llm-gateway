@@ -5,8 +5,11 @@ import { ProviderCredentialsPanel } from '../features/providers/components/provi
 import { ProviderDefaultsForm } from '../features/providers/components/provider-defaults-form';
 import { useProvidersController } from '../features/providers/hooks/use-providers-controller';
 import { PageHeader } from '../components/page-header';
+import { getActiveTenantLabel } from '../lib/tenant-context';
+import { useSession } from '../lib/use-session';
 
 export function ProvidersPage() {
+  const sessionQuery = useSession();
   const {
     apiToken,
     baseUrl,
@@ -56,6 +59,7 @@ export function ProvidersPage() {
       <PageHeader
         title="Provider Credentials"
         description="Manage your write-only provider credentials and choose separate default provider/model pairs for gateway chat and gateway image generation/editing."
+        context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
         <Grid.Col span={{ base: 12, lg: 5 }}>

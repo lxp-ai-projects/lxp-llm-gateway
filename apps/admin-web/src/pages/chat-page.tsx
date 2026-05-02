@@ -1,6 +1,6 @@
 import {Alert, Button, Card, Grid, Group, Modal, Select, Stack, Tabs, Text, Title,} from '@mantine/core';
 import {useQuery} from '@tanstack/react-query';
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 
 import {ChatComposer} from '../features/chat/components/chat-composer';
 import {ChatMessageList} from '../features/chat/components/chat-message-list';
@@ -28,6 +28,13 @@ import {
 export function ChatPage() {
   const runtimeConfigQuery = useRuntimeConfig();
   const sessionQuery = useSession();
+  const conversationScope = useMemo(
+    () => ({
+      userUuid: sessionQuery.data?.userUuid ?? 'anonymous',
+      tenantId: sessionQuery.data?.activeTenantId ?? 'unknown-tenant',
+    }),
+    [sessionQuery.data?.activeTenantId, sessionQuery.data?.userUuid],
+  );
   const [prompt, setPrompt] = useState('');
   const [providerId, setProviderId] = useState('');
   const [model, setModel] = useState('');
@@ -70,6 +77,7 @@ export function ChatPage() {
   } = useChatConversations({
     providerId,
     model,
+    scope: conversationScope,
     onResetComposerState: () => {
       setPrompt('');
       setEditingMessageId(null);
@@ -86,6 +94,7 @@ export function ChatPage() {
     transferError,
   } = useChatTransfer({
     conversations,
+    scope: conversationScope,
     setActiveConversationId,
     setActivePanel,
     setConversations,
@@ -472,6 +481,7 @@ export function ChatPage() {
                           return activeConversation
                             ? withCurrentSelection(activeConversation)
                             : createConversation(
+                                conversationScope,
                                 providerId,
                                 model,
                                 systemPrompt.trim(),

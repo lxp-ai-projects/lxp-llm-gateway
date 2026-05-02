@@ -26,9 +26,17 @@ export class RolesGuard implements CanActivate {
     }
 
     const hasRole = requiredRoles.some((requiredRole) =>
-      authUser.roles.includes(requiredRole),
+      Array.isArray(authUser.roles)
+        ? authUser.roles.some((role) => role === requiredRole)
+        : false,
     );
-    if (!hasRole) {
+    if (
+      !hasRole &&
+      !(
+        Array.isArray(authUser.globalRoles) &&
+        authUser.globalRoles.includes('super_admin')
+      )
+    ) {
       throw new ForbiddenException('Insufficient role for this resource.');
     }
 

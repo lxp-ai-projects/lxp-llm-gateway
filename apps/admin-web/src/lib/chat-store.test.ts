@@ -6,6 +6,11 @@ import {
   saveConversation,
 } from './chat-store';
 
+const sampleScope = {
+  userUuid: 'user-1',
+  tenantId: 'tenant-1',
+};
+
 type FakeRequest<T> = {
   result: T;
   error: Error | null;
@@ -32,6 +37,8 @@ type StoredConversationRecord = {
 
 const sampleConversation: StoredConversationRecord = {
   id: 'conversation-1',
+  ownerUserUuid: sampleScope.userUuid,
+  tenantId: sampleScope.tenantId,
   title: 'First exchange',
   model: 'z-ai/glm-4.6:thinking',
   providerId: 'nanogpt',
@@ -127,11 +134,13 @@ test('chat-store saves and loads conversations sorted by recency', async () => {
   await saveConversation({
     ...sampleConversation,
     id: 'conversation-2',
+    ownerUserUuid: sampleScope.userUuid,
+    tenantId: sampleScope.tenantId,
     title: 'Second exchange',
     updatedAt: '2026-04-18T00:00:00.000Z',
   });
 
-  await expect(loadConversations()).resolves.toEqual([
+  await expect(loadConversations(sampleScope)).resolves.toEqual([
     expect.objectContaining({ id: 'conversation-2', title: 'Second exchange' }),
     expect.objectContaining({ id: 'conversation-1', title: 'First exchange' }),
   ]);
@@ -142,5 +151,30 @@ test('chat-store deletes a saved conversation', async () => {
 
   await deleteConversation(sampleConversation.id);
 
-  await expect(loadConversations()).resolves.toEqual([]);
+  await expect(loadConversations(sampleScope)).resolves.toEqual([]);
+});
+
+test('chat-store isolates conversations by tenant scope', async () => {
+  await saveConversation(sampleConversation);
+  await saveConversation({
+    ...sampleConversation,
+    id: 'conversation-2',
+    ownerUserUuid: 'user-1',
+    tenantId: 'tenant-2',
+    title: 'Tenant 2 conversation',
+  });
+
+  await expect(
+    loadConversations({ userUuid: 'user-1', tenantId: 'tenant-1' }),
+  ).resolves.toEqual([
+    expect.objectContaining({ id: 'conversation-1', title: 'First exchange' }),
+  ]);
+  await expect(
+    loadConversations({ userUuid: 'user-1', tenantId: 'tenant-2' }),
+  ).resolves.toEqual([
+    expect.objectContaining({
+      id: 'conversation-2',
+      title: 'Tenant 2 conversation',
+    }),
+  ]);
 });

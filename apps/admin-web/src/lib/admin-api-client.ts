@@ -6,7 +6,13 @@ import {
   uploadFileWithSessionRefresh,
 } from './api-base';
 import type {
+  AdminCreateTenantInput,
+  AdminCreateTenantMembershipInput,
   AdminCreateUserInput,
+  AdminTenantMembershipSummary,
+  AdminTenantSummary,
+  AdminUpdateGlobalRolesInput,
+  AdminUpdateTenantInput,
   AdminUserSummary,
   AdminUpdateUserInput,
   ChatTransferConversation,
@@ -93,12 +99,93 @@ export const adminApiClient = {
     });
   },
 
+  async switchActiveTenant(tenantId: string): Promise<SessionUser> {
+    return request<SessionUser>(`${adminApiUrl}/api/v1/auth/active-tenant`, {
+      method: 'POST',
+      body: JSON.stringify({ tenantId }),
+    });
+  },
+
   async getHealth(): Promise<{ status: string }> {
     return request<{ status: string }>(`${adminApiUrl}/api/v1/health`);
   },
 
   async getUsers(): Promise<AdminUserSummary[]> {
     return request<AdminUserSummary[]>(`${adminApiUrl}/api/v1/admin/users`);
+  },
+
+  async getTenants(): Promise<AdminTenantSummary[]> {
+    return request<AdminTenantSummary[]>(`${adminApiUrl}/api/v1/admin/tenants`);
+  },
+
+  async createTenant(
+    payload: AdminCreateTenantInput,
+  ): Promise<AdminTenantSummary> {
+    return request<AdminTenantSummary>(`${adminApiUrl}/api/v1/admin/tenants`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateTenant(
+    tenantId: string,
+    payload: AdminUpdateTenantInput,
+  ): Promise<AdminTenantSummary> {
+    return request<AdminTenantSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async getTenantMemberships(
+    tenantId: string,
+  ): Promise<AdminTenantMembershipSummary[]> {
+    return request<AdminTenantMembershipSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/memberships`,
+    );
+  },
+
+  async createTenantUser(
+    tenantId: string,
+    payload: AdminCreateTenantMembershipInput,
+  ): Promise<AdminUserSummary> {
+    return request<AdminUserSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/users`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async updateTenantUser(
+    tenantId: string,
+    userUuid: string,
+    payload: AdminUpdateUserInput,
+  ): Promise<AdminUserSummary> {
+    return request<AdminUserSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/users/${userUuid}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async updateUserGlobalRoles(
+    userUuid: string,
+    payload: AdminUpdateGlobalRolesInput,
+  ): Promise<{ userUuid: string; globalRoles: string[] }> {
+    return request<{ userUuid: string; globalRoles: string[] }>(
+      `${adminApiUrl}/api/v1/admin/users/${userUuid}/global-roles`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   async createUser(payload: AdminCreateUserInput): Promise<AdminUserSummary> {

@@ -11,11 +11,17 @@ import {
 import { HealthController } from './health.controller';
 import { PublicConfigController } from './public-config.controller';
 import { AuthModule } from './auth/auth.module';
+import { SuperAdminBootstrapService } from './auth/super-admin-bootstrap.service';
 import { UserEntity } from './persistence/entities/user.entity';
 import { RoleEntity } from './persistence/entities/role.entity';
 import { UserRoleEntity } from './persistence/entities/user-role.entity';
 import { ProviderEntity } from './persistence/entities/provider.entity';
+import { ApiKeyEntity } from './persistence/entities/api-key.entity';
+import { IntegrationClientEntity } from './persistence/entities/integration-client.entity';
+import { TenantEntity } from './persistence/entities/tenant.entity';
+import { TenantMembershipEntity } from './persistence/entities/tenant-membership.entity';
 import { UserProviderCredentialEntity } from './persistence/entities/user-provider-credential.entity';
+import { TenantRlsService } from './persistence/tenant-rls.service';
 import { EmailProtectionService } from './security/email-protection.service';
 import { EncryptionService } from './security/encryption.service';
 import { PasswordService } from './security/password.service';
@@ -38,6 +44,10 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
       RoleEntity,
       UserRoleEntity,
       ProviderEntity,
+      IntegrationClientEntity,
+      ApiKeyEntity,
+      TenantEntity,
+      TenantMembershipEntity,
       UserProviderCredentialEntity,
     ]),
     AuthModule,
@@ -52,6 +62,8 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
     EncryptionService,
     EmailProtectionService,
     PasswordService,
+    TenantRlsService,
+    SuperAdminBootstrapService,
     AdminService,
     ConversationTransferService,
   ],

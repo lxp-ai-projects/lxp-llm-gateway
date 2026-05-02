@@ -2,6 +2,7 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 
 import { adminApiClient } from '../../../lib/api-client';
 import {
+  type ConversationScope,
   saveConversation,
   type StoredConversation,
 } from '../../../lib/chat-store';
@@ -12,6 +13,7 @@ import {
 
 type UseChatTransferOptions = {
   conversations: StoredConversation[];
+  scope: ConversationScope;
   setActiveConversationId: (value: string | null) => void;
   setActivePanel: (value: 'conversation' | 'system-prompt') => void;
   setConversations: Dispatch<SetStateAction<StoredConversation[]>>;
@@ -19,6 +21,7 @@ type UseChatTransferOptions = {
 
 export function useChatTransfer({
   conversations,
+  scope,
   setActiveConversationId,
   setActivePanel,
   setConversations,
@@ -81,17 +84,22 @@ export function useChatTransfer({
 
     try {
       const imported = await adminApiClient.importConversationFile(file);
-      for (const conversation of imported.conversations) {
+      const scopedConversations = imported.conversations.map((conversation) => ({
+        ...conversation,
+        ownerUserUuid: scope.userUuid,
+        tenantId: scope.tenantId,
+      }));
+      for (const conversation of scopedConversations) {
         await saveConversation(conversation);
       }
 
       const mergedConversations = mergeConversations(
         conversations,
-        imported.conversations,
+        scopedConversations,
       );
       setConversations(mergedConversations);
       setActiveConversationId(
-        imported.conversations[0]?.id ?? mergedConversations[0]?.id ?? null,
+        scopedConversations[0]?.id ?? mergedConversations[0]?.id ?? null,
       );
       setActivePanel('conversation');
     } catch (error) {

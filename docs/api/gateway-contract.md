@@ -18,9 +18,19 @@ Authentication uses:
 
 The gateway validates the access token, resolves the caller through `emailHash`, finds the active provider credential for that user, decrypts it server-side, and dispatches the provider request.
 
+Each successful or failed gateway execution should also produce tenant-aware audit and usage records that capture:
+
+- tenant context
+- effective user
+- provider and model
+- identity source
+- latency and outcome
+- token counts for chat when available
+- generated image count for image workflows
+
 For trusted OpenAI-compatible callers such as `Open WebUI`, the gateway can also:
 
-- authenticate the caller through `LXP_OPENAI_COMPAT_API_KEY`
+- authenticate the caller through a tenant-scoped integration-client API key
 - optionally correlate the effective user from a trusted forwarded email header such as `X-OpenWebUI-User-Email`
 - optionally accept a trusted proxy-auth style email header such as `X-Auth-Request-Email` or `X-Forwarded-Email` when explicitly configured
 - otherwise fall back to `LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL`
@@ -31,6 +41,8 @@ Trusted identity headers are configured through:
 - `LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS` for a comma-separated allowlist used by trusted proxy or OIDC-backed deployments
 
 If multiple trusted identity headers are configured and the request supplies conflicting email values, the gateway rejects the request.
+
+The legacy `LXP_OPENAI_COMPAT_API_KEY` path remains available as a transition mechanism, but the preferred enterprise posture is a database-backed `integration_client` plus `api_key`.
 
 ## Request
 

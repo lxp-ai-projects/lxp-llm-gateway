@@ -6,8 +6,11 @@ import { ProviderCredentialsModal } from '../features/users/components/provider-
 import { UsersDirectoryPanel } from '../features/users/components/users-directory-panel';
 import { useUsersController } from '../features/users/hooks/use-users-controller';
 import { PageHeader } from '../components/page-header';
+import { getActiveTenantLabel } from '../lib/tenant-context';
+import { useSession } from '../lib/use-session';
 
 export function UsersPage() {
+  const sessionQuery = useSession();
   const {
     createDisplayName,
     createEmail,
@@ -38,6 +41,7 @@ export function UsersPage() {
       <PageHeader
         title="User Management"
         description="Administrative user controls for search, lifecycle management, role assignment, and password reset workflows."
+        context={getActiveTenantLabel(sessionQuery.data)}
         aside={
           <Button data-testid="users-create-open" onClick={onOpenCreateUser}>
             Create user

@@ -4,6 +4,8 @@ import test from 'node:test';
 
 import { JwtService } from '@nestjs/jwt';
 
+import { TenantEntity } from '../persistence/entities/tenant.entity';
+import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
@@ -52,6 +54,17 @@ async function buildAuthService() {
   const tokenStore = new InMemoryAuthTokenStore();
   const protectedEmail = emailProtectionService.protect('laurie@example.com');
   const passwordHash = await passwordService.hashPassword('Sup3rS3cret!');
+  const tenant: TenantEntity = {
+    id: randomUUID(),
+    slug: 'lxp-internal',
+    displayName: 'LXP Internal',
+    allowUserCredentialOverride: true,
+    status: 'active',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    memberships: [],
+    providerCredentials: [],
+  };
   const user: UserEntity = {
     id: randomUUID(),
     userUuid: randomUUID(),
@@ -63,6 +76,7 @@ async function buildAuthService() {
     passwordHash,
     displayName: 'Laurie',
     status: 'active',
+    lastActiveTenantId: tenant.id,
     defaultProviderId: null,
     defaultModel: null,
     defaultImageProviderId: null,
@@ -79,15 +93,43 @@ async function buildAuthService() {
       where.userUuid === user.userUuid
         ? user
         : null,
+    save: async (value: UserEntity) => value,
+  };
+  const tenantMembership: TenantMembershipEntity = {
+    id: randomUUID(),
+    tenantId: tenant.id,
+    userId: user.id,
+    role: 'tenant_admin',
+    createdAt: new Date(),
+    tenant,
+    user,
+  };
+  const tenantRepository = {
+    findOne: async ({ where }: { where: Partial<TenantEntity> }) =>
+      (where.id === tenant.id || where.slug === tenant.slug) &&
+      (where.status === undefined || where.status === tenant.status)
+        ? tenant
+        : null,
+    find: async () => [tenant],
+  };
+  const tenantMembershipRepository = {
+    find: async ({ where }: { where: Partial<TenantMembershipEntity> }) =>
+      where.userId === user.id ? [tenantMembership] : [],
+  };
+  const roleRepository = {
+    find: async () => [],
   };
   const userRoleRepository = {
-    find: async () => [{ role: { name: 'admin' } }, { role: { name: 'user' } }],
+    find: async () => [],
   };
   const jwtService = new JwtService({
     secret: 'test-secret',
   });
   const authService = new AuthService(
     userRepository as never,
+    tenantRepository as never,
+    tenantMembershipRepository as never,
+    roleRepository as never,
     userRoleRepository as never,
     emailProtectionService,
     passwordService,
@@ -114,6 +156,17 @@ async function buildAuthServiceWithUser(
   const tokenStore = new InMemoryAuthTokenStore();
   const protectedEmail = emailProtectionService.protect('laurie@example.com');
   const passwordHash = await passwordService.hashPassword('Sup3rS3cret!');
+  const tenant: TenantEntity = {
+    id: randomUUID(),
+    slug: 'lxp-internal',
+    displayName: 'LXP Internal',
+    allowUserCredentialOverride: true,
+    status: 'active',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    memberships: [],
+    providerCredentials: [],
+  };
   const user: UserEntity = {
     id: randomUUID(),
     userUuid: randomUUID(),
@@ -125,6 +178,7 @@ async function buildAuthServiceWithUser(
     passwordHash,
     displayName: 'Laurie',
     status: 'active',
+    lastActiveTenantId: tenant.id,
     createdAt: new Date(),
     updatedAt: new Date(),
     roles: [],
@@ -142,6 +196,31 @@ async function buildAuthServiceWithUser(
       where.userUuid === user.userUuid
         ? user
         : null,
+    save: async (value: UserEntity) => value,
+  };
+  const tenantMembership: TenantMembershipEntity = {
+    id: randomUUID(),
+    tenantId: tenant.id,
+    userId: user.id,
+    role: 'tenant_admin',
+    createdAt: new Date(),
+    tenant,
+    user,
+  };
+  const tenantRepository = {
+    findOne: async ({ where }: { where: Partial<TenantEntity> }) =>
+      (where.id === tenant.id || where.slug === tenant.slug) &&
+      (where.status === undefined || where.status === tenant.status)
+        ? tenant
+        : null,
+    find: async () => [tenant],
+  };
+  const tenantMembershipRepository = {
+    find: async ({ where }: { where: Partial<TenantMembershipEntity> }) =>
+      where.userId === user.id ? [tenantMembership] : [],
+  };
+  const roleRepository = {
+    find: async () => [],
   };
   const userRoleRepository = {
     find: async () => roles.map((role) => ({ role: { name: role } })),
@@ -151,6 +230,9 @@ async function buildAuthServiceWithUser(
   });
   const authService = new AuthService(
     userRepository as never,
+    tenantRepository as never,
+    tenantMembershipRepository as never,
+    roleRepository as never,
     userRoleRepository as never,
     emailProtectionService,
     passwordService,
@@ -177,7 +259,9 @@ test('AuthService login issues access and refresh tokens with user payload', asy
   assert.equal(refreshPayload.type, 'refresh');
   assert.equal(accessPayload.sub, user.emailHash);
   assert.equal(accessPayload.emailHash, user.emailHash);
-  assert.deepEqual(accessPayload.roles, ['admin', 'user']);
+  assert.equal(accessPayload.activeTenantSlug, 'lxp-internal');
+  assert.deepEqual(accessPayload.roles, ['tenant_admin']);
+  assert.deepEqual(accessPayload.globalRoles, []);
   assert.equal(refreshPayload.sessionId, accessPayload.sessionId);
   assert.equal(
     await tokenStore.getRefreshSession(refreshPayload.sessionId),
@@ -266,7 +350,9 @@ test('AuthService returns the authenticated user profile for a valid access toke
   assert.equal(authenticatedUser.email, 'laurie@example.com');
   assert.equal(authenticatedUser.displayName, user.displayName);
   assert.equal(authenticatedUser.status, user.status);
-  assert.deepEqual(authenticatedUser.roles, ['admin', 'user']);
+  assert.deepEqual(authenticatedUser.roles, ['tenant_admin']);
+  assert.equal(authenticatedUser.activeTenantSlug, 'lxp-internal');
+  assert.equal(authenticatedUser.availableTenants.length, 1);
 });
 
 test('AuthService rejects login when the password is wrong', async () => {
@@ -310,9 +396,13 @@ test('AuthService rejects access token lookup when token type is refresh', async
   const { authService, jwtService, user } = await buildAuthService();
   const refreshAsAccess = await jwtService.signAsync({
     sub: user.emailHash,
+    userId: user.id,
     emailHash: user.emailHash,
+    activeTenantId: user.lastActiveTenantId!,
+    activeTenantSlug: 'lxp-internal',
     type: 'refresh',
-    roles: ['admin'],
+    roles: ['tenant_admin'],
+    globalRoles: [],
     sessionId: randomUUID(),
     jti: randomUUID(),
   } satisfies AuthTokenPayload);

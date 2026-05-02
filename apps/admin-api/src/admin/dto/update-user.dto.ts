@@ -5,6 +5,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
+import { TENANT_ROLE_VALUES, type TenantRole } from '@lxp/domain';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -18,8 +19,8 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsArray()
-  @IsIn(['admin', 'user'], { each: true })
-  roles?: string[];
+  @IsIn(TENANT_ROLE_VALUES, { each: true })
+  roles?: TenantRole[];
 
   @IsOptional()
   @IsString()

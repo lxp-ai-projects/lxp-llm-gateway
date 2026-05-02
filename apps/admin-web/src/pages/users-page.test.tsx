@@ -8,6 +8,7 @@ const {
   createUserMock,
   getUserProviderCredentialsMock,
   getUsersMock,
+  useSessionMock,
   updateUserMock,
 } = vi.hoisted(() => ({
   createUserMock: vi.fn(async () => ({
@@ -31,6 +32,7 @@ const {
       updatedAt: '2026-04-17T00:00:00.000Z',
     },
   ]),
+  useSessionMock: vi.fn(),
   updateUserMock: vi.fn(async () => ({
     userUuid: 'user-1',
     displayName: 'Patrick',
@@ -51,16 +53,39 @@ vi.mock('../lib/api-client', () => ({
   },
 }));
 
+vi.mock('../lib/use-session', () => ({
+  useSession: useSessionMock,
+}));
+
 beforeEach(() => {
   createUserMock.mockClear();
   getUserProviderCredentialsMock.mockClear();
   getUsersMock.mockClear();
+  useSessionMock.mockReset();
   updateUserMock.mockClear();
+  useSessionMock.mockReturnValue({
+    data: {
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['tenant_admin'],
+          isDirectMember: true,
+        },
+      ],
+    },
+  });
 });
 
 test('UsersPage creates a new user from the modal', async () => {
   renderWithProviders(<UsersPage />);
 
+  expect(
+    screen.getByText('Active tenant: Tenant One (tenant-one)'),
+  ).toBeInTheDocument();
   fireEvent.click(
     (await screen.findAllByRole('button', { name: 'Create user' }))[0]!,
   );

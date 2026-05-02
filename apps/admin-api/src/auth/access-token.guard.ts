@@ -16,6 +16,7 @@ export class AccessTokenGuard implements CanActivate {
       }
     >();
     const token = this.resolveAccessToken(request);
+    request.authAccessToken = token;
     request.authUser = await this.authService.getAuthenticatedUser(token);
 
     return true;
