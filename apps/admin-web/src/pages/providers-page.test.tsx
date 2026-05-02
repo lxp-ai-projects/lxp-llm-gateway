@@ -11,6 +11,7 @@ const {
   getModelsMock,
   getOwnProviderCredentialsMock,
   getOwnProviderSettingsMock,
+  useSessionMock,
   runtimeConfigData,
   updateOwnProviderCredentialMock,
   updateOwnProviderSettingsMock,
@@ -85,6 +86,7 @@ const {
     defaultImageProviderId: 'nanogpt',
     defaultImageModel: 'mistral-medium',
   })),
+  useSessionMock: vi.fn(),
   updateOwnProviderCredentialMock: vi.fn(async () => ({
     id: 'credential-1',
     userUuid: 'user-1',
@@ -112,6 +114,10 @@ vi.mock('../lib/use-runtime-config', () => ({
   }),
 }));
 
+vi.mock('../lib/use-session', () => ({
+  useSession: useSessionMock,
+}));
+
 vi.mock('../lib/api-client', () => ({
   adminApiClient: {
     createOwnProviderCredential: createOwnProviderCredentialMock,
@@ -134,6 +140,22 @@ beforeEach(() => {
   getOwnProviderSettingsMock.mockClear();
   updateOwnProviderCredentialMock.mockClear();
   updateOwnProviderSettingsMock.mockClear();
+  useSessionMock.mockReset();
+  useSessionMock.mockReturnValue({
+    data: {
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['user'],
+          isDirectMember: true,
+        },
+      ],
+    },
+  });
   runtimeConfigData.supportedProviders = [
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
     { providerId: 'ollama', displayName: 'Ollama' },
@@ -202,6 +224,9 @@ test('ProvidersPage lets the user edit their own credential token', async () => 
 
   renderWithProviders(<ProvidersPage />);
 
+  expect(
+    screen.getByText('Active tenant: Tenant One (tenant-one)'),
+  ).toBeInTheDocument();
   await user.click(await screen.findByRole('button', { name: 'Edit' }));
 
   expect(

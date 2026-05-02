@@ -8,6 +8,8 @@ export type StoredConversationMessage = {
 
 export type StoredConversation = {
   id: string;
+  ownerUserUuid?: string;
+  tenantId?: string;
   title: string;
   model: string;
   providerId: string;
@@ -17,8 +19,13 @@ export type StoredConversation = {
 };
 
 const databaseName = 'lxp-admin-web';
-const databaseVersion = 1;
+const databaseVersion = 2;
 const storeName = 'chat-conversations';
+
+export type ConversationScope = {
+  userUuid: string;
+  tenantId: string;
+};
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -36,7 +43,9 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-export async function loadConversations(): Promise<StoredConversation[]> {
+export async function loadConversations(
+  scope: ConversationScope,
+): Promise<StoredConversation[]> {
   const database = await openDatabase();
 
   return new Promise((resolve, reject) => {
@@ -44,7 +53,13 @@ export async function loadConversations(): Promise<StoredConversation[]> {
     const request = transaction.objectStore(storeName).getAll();
 
     request.onsuccess = () => {
-      const result = (request.result as StoredConversation[]).sort(
+      const result = (request.result as StoredConversation[])
+        .filter(
+          (conversation) =>
+            conversation.ownerUserUuid === scope.userUuid &&
+            conversation.tenantId === scope.tenantId,
+        )
+        .sort(
         (left, right) => right.updatedAt.localeCompare(left.updatedAt),
       );
       resolve(result);

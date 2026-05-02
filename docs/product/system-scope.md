@@ -58,6 +58,7 @@ The repository now contains:
 - tenant-aware technical client auth with an initial PostgreSQL RLS slice on `integration_clients` and `api_keys`
 - tenant-aware image storage and history with an initial PostgreSQL RLS slice on `image_assets`, `image_jobs`, and `image_job_results`
 - tenant-aware BYOK credential management with a PostgreSQL RLS slice on `user_provider_credentials`
+- an initial `super_admin` tenant administration surface for cross-tenant listing, tenant policy editing, and membership visibility
 - shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`

@@ -76,7 +76,9 @@ export function CreateUserModal({
           <MultiSelect
             data={[
               { value: 'user', label: 'User' },
-              { value: 'admin', label: 'Admin' },
+              { value: 'viewer', label: 'Viewer' },
+              { value: 'operator', label: 'Operator' },
+              { value: 'tenant_admin', label: 'Tenant admin' },
             ]}
             data-testid="users-create-roles"
             label="Roles"

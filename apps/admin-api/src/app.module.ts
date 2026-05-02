@@ -11,6 +11,7 @@ import {
 import { HealthController } from './health.controller';
 import { PublicConfigController } from './public-config.controller';
 import { AuthModule } from './auth/auth.module';
+import { SuperAdminBootstrapService } from './auth/super-admin-bootstrap.service';
 import { UserEntity } from './persistence/entities/user.entity';
 import { RoleEntity } from './persistence/entities/role.entity';
 import { UserRoleEntity } from './persistence/entities/user-role.entity';
@@ -62,6 +63,7 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
     EmailProtectionService,
     PasswordService,
     TenantRlsService,
+    SuperAdminBootstrapService,
     AdminService,
     ConversationTransferService,
   ],

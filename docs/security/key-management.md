@@ -19,6 +19,7 @@ Examples:
 - cookie signing secrets
 - encryption master keys
 - JWT signing keys
+- optional bootstrap identity configuration such as `LXP_SUPER_ADMIN_EMAILS`
 
 ### Application Data
 
@@ -44,6 +45,13 @@ The following server-side secrets should exist before credential storage is impl
 - `LXP_EMAIL_LOOKUP_KEY`
 - `LXP_COOKIE_SECRET`
 - `LXP_JWT_PRIVATE_KEY` or equivalent auth secret material
+
+The following server-side bootstrap configuration may also be supplied when global control-plane administrators need to be assigned idempotently:
+
+- `LXP_SUPER_ADMIN_EMAILS`
+
+`LXP_SUPER_ADMIN_EMAILS` should be a comma-separated list of user emails such as `patrick@example.com`.
+`admin-api` resolves those emails through the same `emailHash` protection model used elsewhere and assigns the global `super_admin` role without storing the raw list in application data.
 
 ## Master Key Format
 

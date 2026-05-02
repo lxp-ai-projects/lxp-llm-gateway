@@ -5,12 +5,24 @@ export type RuntimeConfig = {
   supportedProviders: Array<{ providerId: string; displayName: string }>;
 };
 
+export type SessionTenantSummary = {
+  id: string;
+  slug: string;
+  displayName: string;
+  roles: string[];
+  isDirectMember: boolean;
+};
+
 export type SessionUser = {
   userUuid: string;
   email: string;
   displayName: string;
   status: string;
+  activeTenantId: string;
+  activeTenantSlug: string;
   roles: string[];
+  globalRoles: string[];
+  availableTenants?: SessionTenantSummary[];
 };
 
 export type GatewayChatMessage = {
@@ -273,12 +285,48 @@ export type ProviderSettingsSummary = {
 
 export type AdminUserSummary = {
   userUuid: string;
+  tenantId: string;
   displayName: string;
   email: string;
   status: 'active' | 'disabled';
   roles: string[];
+  globalRoles?: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type AdminTenantSummary = {
+  id: string;
+  slug: string;
+  displayName: string;
+  allowUserCredentialOverride: boolean;
+  status: 'active' | 'disabled';
+  membershipCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminTenantMembershipSummary = {
+  tenantId: string;
+  userUuid: string;
+  displayName: string;
+  email: string;
+  status: 'active' | 'disabled';
+  roles: string[];
+  globalRoles: string[];
+  createdAt: string;
+};
+
+export type AdminCreateTenantInput = {
+  slug: string;
+  displayName: string;
+  allowUserCredentialOverride?: boolean;
+};
+
+export type AdminUpdateTenantInput = {
+  displayName?: string;
+  allowUserCredentialOverride?: boolean;
+  status?: 'active' | 'disabled';
 };
 
 export type AdminCreateUserInput = {
@@ -288,11 +336,22 @@ export type AdminCreateUserInput = {
   roles?: string[];
 };
 
+export type AdminCreateTenantMembershipInput = {
+  email: string;
+  password?: string;
+  displayName?: string;
+  roles?: string[];
+};
+
 export type AdminUpdateUserInput = {
   displayName?: string;
   status?: 'active' | 'disabled';
   roles?: string[];
   password?: string;
+};
+
+export type AdminUpdateGlobalRolesInput = {
+  globalRoles: string[];
 };
 
 export type ChatTransferConversation = {

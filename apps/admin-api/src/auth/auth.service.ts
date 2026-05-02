@@ -13,6 +13,7 @@ import { UserEntity } from '../persistence/entities/user.entity';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { PasswordService } from '../security/password.service';
 import {
+  type AccessibleTenant,
   type AuthenticatedUser,
   type AuthTokenPayload,
   type TokenPair,
@@ -136,6 +137,43 @@ export class AuthService {
     return this.mapAuthenticatedUser(user, authContext);
   }
 
+  async switchActiveTenant(
+    accessToken: string,
+    tenantId: string,
+  ): Promise<TokenPair & { user: AuthenticatedUser }> {
+    const payload = await this.verifyToken(accessToken, 'access');
+    const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
+      payload.jti,
+    );
+    if (isBlacklisted) {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { emailHash: payload.emailHash },
+    });
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
+
+    const authContext = await this.resolveActiveTenantAccess(user, tenantId);
+    await this.authTokenStore.blacklistToken(
+      payload.jti,
+      this.accessTokenTtlSeconds,
+    );
+
+    const tokenPair = await this.issueTokenPair(
+      user,
+      authContext,
+      payload.sessionId,
+    );
+
+    return {
+      ...tokenPair,
+      user: this.mapAuthenticatedUser(user, authContext),
+    };
+  }
+
   getRefreshTokenTtlSeconds(): number {
     return this.refreshTokenTtlSeconds;
   }
@@ -147,6 +185,7 @@ export class AuthService {
       activeTenantSlug: string;
       roles: TenantRole[];
       globalRoles: GlobalRole[];
+      availableTenants: AccessibleTenant[];
     },
     sessionId: string = randomUUID(),
   ): Promise<TokenPair> {
@@ -279,6 +318,7 @@ export class AuthService {
     activeTenantSlug: string;
     roles: TenantRole[];
     globalRoles: GlobalRole[];
+    availableTenants: AccessibleTenant[];
   }> {
     const globalRoles = await this.getUserGlobalRoles(user.id);
     const memberships = await this.tenantMembershipRepository.find({
@@ -322,11 +362,17 @@ export class AuthService {
       await this.userRepository.save(user);
     }
 
+    const availableTenants = await this.buildAccessibleTenants(
+      activeMemberships,
+      globalRoles,
+    );
+
     return {
       activeTenantId: tenant.id,
       activeTenantSlug: tenant.slug,
       roles: tenantRoles,
       globalRoles,
+      availableTenants,
     };
   }
 
@@ -337,6 +383,7 @@ export class AuthService {
       activeTenantSlug: string;
       roles: TenantRole[];
       globalRoles: GlobalRole[];
+      availableTenants: AccessibleTenant[];
     },
   ): AuthenticatedUser {
     return {
@@ -355,6 +402,61 @@ export class AuthService {
       activeTenantSlug: authContext.activeTenantSlug,
       roles: authContext.roles,
       globalRoles: authContext.globalRoles,
+      availableTenants: authContext.availableTenants,
     };
+  }
+
+  private async buildAccessibleTenants(
+    memberships: TenantMembershipEntity[],
+    globalRoles: GlobalRole[],
+  ): Promise<AccessibleTenant[]> {
+    const membershipMap = new Map<
+      string,
+      { id: string; slug: string; displayName: string; roles: TenantRole[] }
+    >();
+
+    for (const membership of memberships) {
+      if (!membership.tenant) {
+        continue;
+      }
+
+      const existingTenant = membershipMap.get(membership.tenantId);
+      if (existingTenant) {
+        existingTenant.roles.push(membership.role);
+        continue;
+      }
+
+      membershipMap.set(membership.tenantId, {
+        id: membership.tenant.id,
+        slug: membership.tenant.slug,
+        displayName: membership.tenant.displayName,
+        roles: [membership.role],
+      });
+    }
+
+    if (globalRoles.includes('super_admin')) {
+      const tenants = await this.tenantRepository.find({
+        where: { status: 'active' },
+        order: { displayName: 'ASC' },
+      });
+
+      return tenants.map((tenant) => {
+        const directMembership = membershipMap.get(tenant.id);
+        return {
+          id: tenant.id,
+          slug: tenant.slug,
+          displayName: tenant.displayName,
+          roles: directMembership?.roles ?? [],
+          isDirectMember: Boolean(directMembership),
+        };
+      });
+    }
+
+    return [...membershipMap.values()]
+      .sort((left, right) => left.displayName.localeCompare(right.displayName))
+      .map((tenant) => ({
+        ...tenant,
+        isDirectMember: true,
+      }));
   }
 }

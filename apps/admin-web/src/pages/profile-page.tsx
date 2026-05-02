@@ -3,6 +3,7 @@ import { IconUserCog } from '@tabler/icons-react';
 
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
+import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 
 export function ProfilePage() {
@@ -13,6 +14,7 @@ export function ProfilePage() {
       <PageHeader
         title="Profile"
         description="Self-service account management, with server-owned auth and future analytics stitched into the same surface."
+        context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
         <Grid.Col span={{ base: 12, md: 6 }}>

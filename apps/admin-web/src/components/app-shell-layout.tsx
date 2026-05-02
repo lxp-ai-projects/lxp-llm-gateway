@@ -1,5 +1,4 @@
 import {
-  ActionIcon,
   AppShell,
   Badge,
   Box,
@@ -9,6 +8,7 @@ import {
   Group,
   NavLink,
   ScrollArea,
+  Select,
   Stack,
   Text,
 } from '@mantine/core';
@@ -23,6 +23,7 @@ import {
   IconMessageCircleCog,
   IconPhoto,
   IconShield,
+  IconBuildingEstate,
   IconUserCircle,
   IconUsers,
 } from '@tabler/icons-react';
@@ -35,6 +36,7 @@ import {
 } from 'react-router-dom';
 
 import { adminApiClient, gatewayApiClient } from '../lib/api-client';
+import { getActiveTenantLabel, getTenantOptionLabel } from '../lib/tenant-context';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 import { useSession } from '../lib/use-session';
 import { InstallAppButton } from './install-app-button';
@@ -43,27 +45,69 @@ type NavigationItem = {
   label: string;
   to: string;
   icon: typeof IconBolt;
-  adminOnly?: boolean;
+  requiresTenantAdmin?: boolean;
+  requiresSuperAdmin?: boolean;
+  group: 'workspace' | 'tenant-admin' | 'global-control-plane';
 };
 
 const navigationItems: NavigationItem[] = [
-  { label: 'Overview', to: '/app', icon: IconBolt },
-  { label: 'Provider Tokens', to: '/app/providers', icon: IconKey },
-  { label: 'Profile', to: '/app/profile', icon: IconUserCircle },
-  { label: 'Chat Lab', to: '/app/chat', icon: IconMessageCircleCog },
-  { label: 'Image Lab', to: '/app/images', icon: IconPhoto },
-  { label: 'Users', to: '/app/admin/users', icon: IconUsers, adminOnly: true },
+  {
+    label: 'Overview',
+    to: '/app',
+    icon: IconBolt,
+    group: 'workspace',
+  },
+  {
+    label: 'Provider Tokens',
+    to: '/app/providers',
+    icon: IconKey,
+    group: 'workspace',
+  },
+  {
+    label: 'Profile',
+    to: '/app/profile',
+    icon: IconUserCircle,
+    group: 'workspace',
+  },
+  {
+    label: 'Chat Lab',
+    to: '/app/chat',
+    icon: IconMessageCircleCog,
+    group: 'workspace',
+  },
+  {
+    label: 'Image Lab',
+    to: '/app/images',
+    icon: IconPhoto,
+    group: 'workspace',
+  },
+  {
+    label: 'Users',
+    to: '/app/admin/users',
+    icon: IconUsers,
+    requiresTenantAdmin: true,
+    group: 'tenant-admin',
+  },
+  {
+    label: 'Tenants',
+    to: '/app/admin/tenants',
+    icon: IconBuildingEstate,
+    requiresSuperAdmin: true,
+    group: 'global-control-plane',
+  },
   {
     label: 'Analytics',
     to: '/app/admin/analytics',
     icon: IconChartBar,
-    adminOnly: true,
+    requiresTenantAdmin: true,
+    group: 'tenant-admin',
   },
   {
     label: 'Health',
     to: '/app/admin/health',
     icon: IconActivityHeartbeat,
-    adminOnly: true,
+    requiresTenantAdmin: true,
+    group: 'tenant-admin',
   },
 ];
 
@@ -87,12 +131,41 @@ export function AppShellLayout() {
       navigate('/login');
     },
   });
+  const switchTenantMutation = useMutation({
+    mutationFn: (tenantId: string) => adminApiClient.switchActiveTenant(tenantId),
+    onSuccess: async (nextSession) => {
+      queryClient.setQueryData(['session'], nextSession);
+      await queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] !== 'session',
+      });
+    },
+  });
 
   const currentUser = sessionQuery.data;
-  const isAdmin = currentUser?.roles.includes('admin') ?? false;
+  const isTenantAdmin = currentUser?.roles?.includes('tenant_admin') ?? false;
+  const isSuperAdmin =
+    currentUser?.globalRoles?.includes('super_admin') ?? false;
   const gatewayOnline = gatewayHealthQuery.data?.status === 'ok';
+  const availableTenants = currentUser?.availableTenants ?? [];
+  const activeTenantLabel = getActiveTenantLabel(currentUser);
+  const tenantOptions = availableTenants.map((tenant) => ({
+    value: tenant.id,
+    label: getTenantOptionLabel(tenant.displayName, tenant.slug),
+    description: tenant.slug,
+  }));
   const availableItems = navigationItems.filter(
-    (item) => !item.adminOnly || isAdmin,
+    (item) =>
+      (!item.requiresTenantAdmin || isTenantAdmin || isSuperAdmin) &&
+      (!item.requiresSuperAdmin || isSuperAdmin),
+  );
+  const workspaceItems = availableItems.filter(
+    (item) => item.group === 'workspace',
+  );
+  const tenantAdminItems = availableItems.filter(
+    (item) => item.group === 'tenant-admin',
+  );
+  const globalControlPlaneItems = availableItems.filter(
+    (item) => item.group === 'global-control-plane',
   );
 
   useEffect(() => {
@@ -153,6 +226,9 @@ export function AppShellLayout() {
             </Box>
           </Group>
           <Group className="shell-actions" gap="sm" wrap="nowrap">
+            <Badge variant="outline" color="ink">
+              Active tenant: {activeTenantLabel}
+            </Badge>
             <InstallAppButton />
             <Badge
               color={gatewayOnline ? 'moss' : 'red'}
@@ -161,11 +237,11 @@ export function AppShellLayout() {
               {gatewayOnline ? 'Gateway online' : 'Gateway offline'}
             </Badge>
             <Badge
-              color={isAdmin ? 'ink' : 'teal'}
+              color={isSuperAdmin ? 'grape' : isTenantAdmin ? 'ink' : 'teal'}
               variant="filled"
               visibleFrom="sm"
             >
-              {isAdmin ? 'Admin' : 'User'}
+              {isSuperAdmin ? 'Super admin' : isTenantAdmin ? 'Tenant admin' : 'User'}
             </Badge>
             <Button
               visibleFrom="sm"
@@ -176,15 +252,6 @@ export function AppShellLayout() {
             >
               Logout
             </Button>
-            <ActionIcon
-              aria-label="Logout"
-              hiddenFrom="sm"
-              loading={logoutMutation.isPending}
-              onClick={() => logoutMutation.mutate()}
-              variant="subtle"
-            >
-              <IconLogout size={16} />
-            </ActionIcon>
           </Group>
         </Group>
       </AppShell.Header>
@@ -196,28 +263,90 @@ export function AppShellLayout() {
             <Text size="sm" c="dimmed">
               {currentUser?.email ?? 'Session profile unavailable'}
             </Text>
+            <Text size="sm" c="dimmed">
+              Active tenant: {activeTenantLabel}
+            </Text>
+            {tenantOptions.length > 1 ? (
+              <Select
+                aria-label="Active tenant"
+                data={tenantOptions}
+                disabled={switchTenantMutation.isPending}
+                onChange={(tenantId) => {
+                  if (!tenantId || tenantId === currentUser?.activeTenantId) {
+                    return;
+                  }
+
+                  switchTenantMutation.mutate(tenantId);
+                }}
+                value={currentUser?.activeTenantId ?? null}
+                w="100%"
+              />
+            ) : null}
           </Stack>
         </AppShell.Section>
 
         <Divider my="md" />
 
         <AppShell.Section grow component={ScrollArea}>
-          <Stack gap="xs">
-            {availableItems.map((item) => (
-              <NavLink
-                active={isNavigationItemActive(item.to)}
-                key={item.to}
-                component={RouterNavLink}
-                description={
-                  item.adminOnly ? 'Administrator surface' : 'Workspace surface'
-                }
-                label={item.label}
-                leftSection={<item.icon size={18} stroke={1.8} />}
-                end={item.to === '/app'}
-                onClick={close}
-                to={item.to}
-              />
-            ))}
+          <Stack gap="md">
+            <Stack gap="xs">
+              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                Workspace surface
+              </Text>
+              {workspaceItems.map((item) => (
+                <NavLink
+                  active={isNavigationItemActive(item.to)}
+                  key={item.to}
+                  component={RouterNavLink}
+                  description="Workspace surface"
+                  label={item.label}
+                  leftSection={<item.icon size={18} stroke={1.8} />}
+                  end={item.to === '/app'}
+                  onClick={close}
+                  to={item.to}
+                />
+              ))}
+            </Stack>
+
+            {tenantAdminItems.length ? (
+              <Stack gap="xs">
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                  Tenant administration surface
+                </Text>
+                {tenantAdminItems.map((item) => (
+                  <NavLink
+                    active={isNavigationItemActive(item.to)}
+                    key={item.to}
+                    component={RouterNavLink}
+                    description="Tenant administration surface"
+                    label={item.label}
+                    leftSection={<item.icon size={18} stroke={1.8} />}
+                    onClick={close}
+                    to={item.to}
+                  />
+                ))}
+              </Stack>
+            ) : null}
+
+            {globalControlPlaneItems.length ? (
+              <Stack gap="xs">
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                  Global control-plane surface
+                </Text>
+                {globalControlPlaneItems.map((item) => (
+                  <NavLink
+                    active={isNavigationItemActive(item.to)}
+                    key={item.to}
+                    component={RouterNavLink}
+                    description="Global control-plane surface"
+                    label={item.label}
+                    leftSection={<item.icon size={18} stroke={1.8} />}
+                    onClick={close}
+                    to={item.to}
+                  />
+                ))}
+              </Stack>
+            ) : null}
           </Stack>
         </AppShell.Section>
 

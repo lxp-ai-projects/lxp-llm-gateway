@@ -41,7 +41,19 @@ beforeEach(() => {
 test('DashboardPage renders the expected overview tiles for an admin session', () => {
   useSessionMock.mockReturnValue({
     data: {
-      roles: ['admin'],
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
+      roles: ['tenant_admin'],
+      globalRoles: [],
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['tenant_admin'],
+          isDirectMember: true,
+        },
+      ],
     },
   });
   useRuntimeConfigMock.mockReturnValue({
@@ -60,15 +72,30 @@ test('DashboardPage renders the expected overview tiles for an admin session', (
   expect(screen.getByText('Gateway')).toBeInTheDocument();
   expect(screen.getByText('Online')).toBeInTheDocument();
   expect(screen.getByText('Role surface')).toBeInTheDocument();
-  expect(screen.getByText('Admin + user')).toBeInTheDocument();
+  expect(screen.getByText('Tenant admin + user')).toBeInTheDocument();
   expect(screen.getByText('Registration')).toBeInTheDocument();
   expect(screen.getByText('Enabled')).toBeInTheDocument();
+  expect(
+    screen.getByText('Active tenant: Tenant One (tenant-one)'),
+  ).toBeInTheDocument();
 });
 
 test('DashboardPage shows the gateway warning banner when the circuit breaker is active', () => {
   useSessionMock.mockReturnValue({
     data: {
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
       roles: ['user'],
+      globalRoles: [],
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['user'],
+          isDirectMember: true,
+        },
+      ],
     },
   });
   useRuntimeConfigMock.mockReturnValue({

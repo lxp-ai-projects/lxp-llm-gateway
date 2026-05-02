@@ -68,7 +68,7 @@ export function UsersDirectoryPanel({
   }
 
   function renderMobileUserSummary(user: AdminUserSummary) {
-    const isAdmin = user.roles.includes('admin');
+    const isAdmin = user.roles.includes('tenant_admin');
     const RoleIcon = isAdmin ? IconShieldCheck : IconUserCircle;
 
     return (

@@ -39,6 +39,7 @@ It must not import provider-specific implementation details directly.
 
 - login, refresh, logout, and session resolution
 - users and role-aware admin workflows
+- super-admin tenant control workflows
 - encrypted provider credential writes and resets
 - runtime config for the SPA
 - conversation import and export support

@@ -74,6 +74,7 @@ The repository now treats multi-tenancy as a first-class architectural concern:
 - tenant-aware technical clients now have an initial PostgreSQL RLS slice protecting `integration_clients` and `api_keys`
 - tenant-aware image assets and job history now have a PostgreSQL RLS slice protecting `image_assets`, `image_jobs`, and `image_job_results`
 - tenant-aware BYOK provider credentials now have a PostgreSQL RLS slice protecting `user_provider_credentials`
+- `admin-api` and `admin-web` now expose an initial `super_admin` tenant-control surface for tenant listing, tenant settings, and membership visibility
 
 ## Recommended Stack
 

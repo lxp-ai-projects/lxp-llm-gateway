@@ -8,7 +8,13 @@ export {
 } from './api-base';
 export { gatewayApiClient } from './gateway-api-client';
 export type {
+  AdminCreateTenantInput,
+  AdminCreateTenantMembershipInput,
   AdminCreateUserInput,
+  AdminTenantMembershipSummary,
+  AdminTenantSummary,
+  AdminUpdateGlobalRolesInput,
+  AdminUpdateTenantInput,
   AdminUserSummary,
   ChatTransferConversation,
   GatewayChatMessage,

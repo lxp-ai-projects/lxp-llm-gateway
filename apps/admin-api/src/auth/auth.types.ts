@@ -15,6 +15,14 @@ export type AuthTokenPayload = {
   jti: string;
 };
 
+export type AccessibleTenant = {
+  id: string;
+  slug: string;
+  displayName: string;
+  roles: TenantRole[];
+  isDirectMember: boolean;
+};
+
 export type AuthenticatedUser = {
   userId: string;
   userUuid: string;
@@ -25,6 +33,7 @@ export type AuthenticatedUser = {
   activeTenantSlug: string;
   roles: TenantRole[];
   globalRoles: GlobalRole[];
+  availableTenants: AccessibleTenant[];
 };
 
 export type TokenPair = {

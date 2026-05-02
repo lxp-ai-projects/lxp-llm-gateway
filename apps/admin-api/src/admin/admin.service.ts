@@ -18,9 +18,11 @@ import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 import { UserRoleEntity } from '../persistence/entities/user-role.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
+import { SuperAdminBootstrapService } from '../auth/super-admin-bootstrap.service';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
+import { CreateTenantMembershipDto } from './dto/create-tenant-membership.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { StoreProviderCredentialDto } from './dto/store-provider-credential.dto';
 import { UpdateProviderCredentialDto } from './dto/update-provider-credential.dto';
@@ -64,6 +66,7 @@ export class AdminService {
     private readonly encryptionService: EncryptionService,
     private readonly passwordService: PasswordService,
     private readonly tenantRlsService: TenantRlsService,
+    private readonly superAdminBootstrapService: SuperAdminBootstrapService,
   ) {}
 
   async createUser(
@@ -82,6 +85,29 @@ export class AdminService {
         ? await this.getDefaultTenantActor()
         : await this.resolveActor(actorOrDto as TenantActorLike);
     const dto = maybeDto ?? (actorOrDto as CreateUserDto);
+    return this.createUserInTenant(actor.activeTenantId, dto);
+  }
+
+  async createTenantUser(tenantId: string, dto: CreateTenantMembershipDto) {
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    return this.createUserInTenant(tenantId, dto);
+  }
+
+  private async createUserInTenant(
+    tenantId: string,
+    dto: {
+      email: string;
+      password?: string;
+      displayName?: string;
+      roles?: TenantRole[];
+    },
+  ) {
     const protectedEmail = this.emailProtectionService.protect(dto.email);
     const existingUser = await this.userRepository.findOne({
       where: { emailHash: protectedEmail.emailHash },
@@ -89,6 +115,16 @@ export class AdminService {
 
     let user = existingUser;
     if (!user) {
+      if (!dto.password || dto.password.trim().length < 8) {
+        throw new BadRequestException(
+          'A temporary password is required when provisioning a new global user.',
+        );
+      }
+      if (!dto.displayName?.trim()) {
+        throw new BadRequestException(
+          'A display name is required when provisioning a new global user.',
+        );
+      }
       const passwordHash = await this.passwordService.hashPassword(dto.password);
       user = this.userRepository.create({
         userUuid: randomUUID(),
@@ -98,9 +134,9 @@ export class AdminService {
         emailAuthTag: protectedEmail.emailAuthTag,
         emailKeyVersion: protectedEmail.emailKeyVersion,
         passwordHash,
-        displayName: dto.displayName,
+        displayName: dto.displayName.trim(),
         status: 'active',
-        lastActiveTenantId: actor.activeTenantId,
+        lastActiveTenantId: tenantId,
         defaultProviderId: null,
         defaultModel: null,
         defaultImageProviderId: null,
@@ -108,10 +144,11 @@ export class AdminService {
       });
       await this.userRepository.save(user);
     }
+    await this.superAdminBootstrapService.syncUserIfConfigured(user);
 
     const existingMembership = await this.tenantMembershipRepository.findOne({
       where: {
-        tenantId: actor.activeTenantId,
+        tenantId,
         userId: user.id,
       },
     });
@@ -125,14 +162,16 @@ export class AdminService {
     await this.tenantMembershipRepository.save(
       tenantRoles.map((role) =>
         this.tenantMembershipRepository.create({
-          tenantId: actor.activeTenantId,
+          tenantId,
           userId: user.id,
           role,
         }),
       ),
     );
+    const globalRoles =
+      (await this.getUserGlobalRoleMap([user.id])).get(user.id) ?? [];
 
-    return this.mapUserSummary(user, actor.activeTenantId, tenantRoles);
+    return this.mapUserSummary(user, tenantId, tenantRoles, globalRoles);
   }
 
   async bootstrapAdmin(dto: CreateUserDto) {
@@ -173,6 +212,7 @@ export class AdminService {
       defaultImageModel: null,
     });
     await this.userRepository.save(user);
+    await this.superAdminBootstrapService.syncUserIfConfigured(user);
 
     await this.tenantMembershipRepository.save(
       this.tenantMembershipRepository.create({
@@ -197,6 +237,156 @@ export class AdminService {
     return this.mapUserSummary(user, tenant.id, ['tenant_admin'], [
       'super_admin',
     ]);
+  }
+
+  async listTenants() {
+    const tenants = await this.tenantRepository.find({
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+    const membershipCounts = await this.getTenantMembershipCounts(
+      tenants.map((tenant) => tenant.id),
+    );
+
+    return tenants.map((tenant) => ({
+      id: tenant.id,
+      slug: tenant.slug,
+      displayName: tenant.displayName,
+      allowUserCredentialOverride: tenant.allowUserCredentialOverride,
+      status: tenant.status,
+      membershipCount: membershipCounts.get(tenant.id) ?? 0,
+      createdAt: tenant.createdAt,
+      updatedAt: tenant.updatedAt,
+    }));
+  }
+
+  async createTenant(dto: {
+    slug: string;
+    displayName: string;
+    allowUserCredentialOverride?: boolean;
+  }) {
+    const slug = dto.slug.trim().toLowerCase();
+    const existingTenant = await this.tenantRepository.findOne({
+      where: { slug },
+    });
+    if (existingTenant) {
+      throw new ConflictException('Unable to create tenant with the provided data.');
+    }
+
+    const tenant = this.tenantRepository.create({
+      slug,
+      displayName: dto.displayName.trim(),
+      allowUserCredentialOverride: dto.allowUserCredentialOverride ?? true,
+      status: 'active',
+    });
+    await this.tenantRepository.save(tenant);
+
+    return {
+      id: tenant.id,
+      slug: tenant.slug,
+      displayName: tenant.displayName,
+      allowUserCredentialOverride: tenant.allowUserCredentialOverride,
+      status: tenant.status,
+      membershipCount: 0,
+      createdAt: tenant.createdAt,
+      updatedAt: tenant.updatedAt,
+    };
+  }
+
+  async updateTenant(
+    tenantId: string,
+    dto: {
+      displayName?: string;
+      allowUserCredentialOverride?: boolean;
+      status?: 'active' | 'disabled';
+    },
+  ) {
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    if (dto.displayName !== undefined) {
+      tenant.displayName = dto.displayName.trim();
+    }
+    if (dto.allowUserCredentialOverride !== undefined) {
+      tenant.allowUserCredentialOverride = dto.allowUserCredentialOverride;
+    }
+    if (dto.status !== undefined) {
+      tenant.status = dto.status;
+    }
+
+    await this.tenantRepository.save(tenant);
+    const membershipCounts = await this.getTenantMembershipCounts([tenant.id]);
+
+    return {
+      id: tenant.id,
+      slug: tenant.slug,
+      displayName: tenant.displayName,
+      allowUserCredentialOverride: tenant.allowUserCredentialOverride,
+      status: tenant.status,
+      membershipCount: membershipCounts.get(tenant.id) ?? 0,
+      createdAt: tenant.createdAt,
+      updatedAt: tenant.updatedAt,
+    };
+  }
+
+  async listTenantMemberships(tenantId: string) {
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    const memberships = await this.tenantMembershipRepository.find({
+      where: { tenantId },
+      relations: {
+        user: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+    const roleMap = await this.getTenantRoleMap(
+      tenantId,
+      memberships.map((membership) => membership.userId),
+    );
+    const globalRoleMap = await this.getUserGlobalRoleMap(
+      memberships.map((membership) => membership.userId),
+    );
+    const membershipsByUserId = new Map<
+      string,
+      (typeof memberships)[number]
+    >();
+
+    for (const membership of memberships) {
+      if (!membership.user || membershipsByUserId.has(membership.userId)) {
+        continue;
+      }
+
+      membershipsByUserId.set(membership.userId, membership);
+    }
+
+    return [...membershipsByUserId.values()].map((membership) => ({
+      tenantId,
+      userUuid: membership.user!.userUuid,
+      displayName: membership.user!.displayName,
+      email: this.emailProtectionService.reveal({
+        emailHash: membership.user!.emailHash,
+        encryptedEmail: membership.user!.encryptedEmail,
+        emailIv: membership.user!.emailIv,
+        emailAuthTag: membership.user!.emailAuthTag,
+        emailKeyVersion: membership.user!.emailKeyVersion,
+      }),
+      status: membership.user!.status,
+      roles: roleMap.get(membership.userId) ?? [],
+      globalRoles: globalRoleMap.get(membership.userId) ?? [],
+      createdAt: membership.createdAt,
+    }));
   }
 
   async listUsers(actor?: TenantActorLike) {
@@ -261,7 +451,109 @@ export class AdminService {
         ? (userUuidOrDto as UpdateUserDto)
         : maybeDto!;
 
-    const user = await this.assertTenantScopedUser(actor.activeTenantId, userUuid);
+    return this.updateUserInTenant(actor.activeTenantId, userUuid, dto);
+  }
+
+  async updateTenantUser(
+    tenantId: string,
+    userUuid: string,
+    dto: UpdateUserDto,
+  ) {
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found.');
+    }
+
+    return this.updateUserInTenant(tenantId, userUuid, dto);
+  }
+
+  async updateUserGlobalRoles(
+    actor: TenantActorLike,
+    userUuid: string,
+    dto: {
+      globalRoles: GlobalRole[];
+    },
+  ) {
+    const resolvedActor = await this.resolveActor(actor);
+    const user = await this.userRepository.findOne({
+      where: { userUuid },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const nextGlobalRoles = dto.globalRoles.filter(
+      (role): role is GlobalRole => role === 'super_admin',
+    );
+    const currentGlobalRoles =
+      (await this.getUserGlobalRoleMap([user.id])).get(user.id) ?? [];
+    const currentlySuperAdmin = currentGlobalRoles.includes('super_admin');
+    const nextIsSuperAdmin = nextGlobalRoles.includes('super_admin');
+
+    if (
+      currentlySuperAdmin &&
+      !nextIsSuperAdmin &&
+      resolvedActor.userUuid === userUuid
+    ) {
+      throw new ForbiddenException(
+        'A super-admin cannot remove their own global access.',
+      );
+    }
+
+    const superAdminRole = await this.roleRepository.findOne({
+      where: { name: 'super_admin' },
+    });
+    if (!superAdminRole) {
+      throw new NotFoundException('Global role not found.');
+    }
+
+    const existingUserRole = await this.userRoleRepository.findOne({
+      where: {
+        userId: user.id,
+        roleId: superAdminRole.id,
+      },
+    });
+
+    if (nextIsSuperAdmin && !existingUserRole) {
+      await this.userRoleRepository.save(
+        this.userRoleRepository.create({
+          userId: user.id,
+          roleId: superAdminRole.id,
+        }),
+      );
+    }
+
+    if (!nextIsSuperAdmin && existingUserRole) {
+      await this.userRoleRepository.delete({
+        userId: user.id,
+        roleId: superAdminRole.id,
+      });
+    }
+
+    return {
+      userUuid: user.userUuid,
+      globalRoles: nextGlobalRoles,
+    };
+  }
+
+  private async updateUserInTenant(
+    tenantId: string,
+    userUuid: string,
+    dto: UpdateUserDto,
+  ) {
+    const user = await this.assertTenantScopedUser(tenantId, userUuid);
+    const globalRoles =
+      (await this.getUserGlobalRoleMap([user.id])).get(user.id) ?? [];
+    if (
+      globalRoles.includes('super_admin') &&
+      (dto.roles !== undefined || dto.status !== undefined)
+    ) {
+      throw new ForbiddenException(
+        'Global super-admin users cannot be downgraded or disabled from tenant workflows.',
+      );
+    }
 
     if (dto.displayName) {
       user.displayName = dto.displayName;
@@ -279,13 +571,13 @@ export class AdminService {
 
     if (dto.roles) {
       await this.tenantMembershipRepository.delete({
-        tenantId: actor.activeTenantId,
+        tenantId,
         userId: user.id,
       });
       await this.tenantMembershipRepository.save(
         dto.roles.map((role) =>
           this.tenantMembershipRepository.create({
-            tenantId: actor.activeTenantId,
+            tenantId,
             userId: user.id,
             role,
           }),
@@ -295,8 +587,9 @@ export class AdminService {
 
     return this.mapUserSummary(
       user,
-      actor.activeTenantId,
-      dto.roles ?? (await this.getTenantRoles(actor.activeTenantId, user.id)),
+      tenantId,
+      dto.roles ?? (await this.getTenantRoles(tenantId, user.id)),
+      globalRoles,
     );
   }
 
@@ -776,6 +1069,59 @@ export class AdminService {
     return memberships.map((membership) => membership.role);
   }
 
+  private async getUserGlobalRoleMap(userIds: string[]) {
+    const roleMap = new Map<string, GlobalRole[]>();
+    if (!userIds.length) {
+      return roleMap;
+    }
+
+    const userRoles = await this.userRoleRepository.find({
+      where: userIds.map((userId) => ({ userId })),
+      relations: {
+        role: true,
+      },
+    });
+    for (const userRole of userRoles) {
+      const roleName = userRole.role?.name;
+      if (roleName !== 'super_admin') {
+        continue;
+      }
+
+      const roles = roleMap.get(userRole.userId);
+      if (roles) {
+        roles.push(roleName);
+      } else {
+        roleMap.set(userRole.userId, [roleName]);
+      }
+    }
+
+    return roleMap;
+  }
+
+  private async getTenantMembershipCounts(tenantIds: string[]) {
+    const counts = new Map<string, number>();
+    if (!tenantIds.length) {
+      return counts;
+    }
+
+    const memberships = await this.tenantMembershipRepository.find({
+      where: tenantIds.map((tenantId) => ({ tenantId })),
+    });
+    const distinctMembershipKeys = new Set<string>();
+
+    for (const membership of memberships) {
+      const distinctKey = `${membership.tenantId}:${membership.userId}`;
+      if (distinctMembershipKeys.has(distinctKey)) {
+        continue;
+      }
+
+      distinctMembershipKeys.add(distinctKey);
+      counts.set(membership.tenantId, (counts.get(membership.tenantId) ?? 0) + 1);
+    }
+
+    return counts;
+  }
+
   private async assertActiveCredentialExists(
     tenantId: string,
     userId: string,
@@ -898,7 +1244,7 @@ export class AdminService {
       roles: memberships
         .filter((entry) => entry.tenantId === membership.tenantId)
         .map((entry) => entry.role),
-      globalRoles: [],
+      globalRoles: (await this.getUserGlobalRoleMap([user.id])).get(user.id) ?? [],
     };
   }
 
@@ -926,7 +1272,10 @@ export class AdminService {
       activeTenantId: tenant.id,
       activeTenantSlug: tenant.slug,
       roles,
-      globalRoles: [],
+      globalRoles:
+        (await this.getUserGlobalRoleMap([membership.userId])).get(
+          membership.userId,
+        ) ?? [],
     };
   }
 

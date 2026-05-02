@@ -17,6 +17,11 @@ const {
   saveConversationMock: vi.fn(async () => undefined),
 }));
 
+const sampleScope = {
+  userUuid: 'user-1',
+  tenantId: 'tenant-1',
+};
+
 vi.mock('../../../lib/id', () => ({
   createClientId: createClientIdMock,
 }));
@@ -75,6 +80,7 @@ test('useChatConversations loads stored conversations and syncs the active syste
     useChatConversations({
       providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
+      scope: sampleScope,
       onResetComposerState,
       onSetChatError,
       onSetActivePanel,
@@ -93,6 +99,7 @@ test('useChatConversations creates and persists a new conversation with the curr
     useChatConversations({
       providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
+      scope: sampleScope,
       onResetComposerState: vi.fn(),
       onSetChatError: vi.fn(),
       onSetActivePanel: vi.fn(),
@@ -112,6 +119,8 @@ test('useChatConversations creates and persists a new conversation with the curr
   expect(saveConversationMock).toHaveBeenCalledWith(
     expect.objectContaining({
       id: 'generated-conversation-id',
+      ownerUserUuid: sampleScope.userUuid,
+      tenantId: sampleScope.tenantId,
       model: 'z-ai/glm-4.6:thinking',
       providerId: 'nanogpt',
       systemPrompt: 'Custom system prompt',
@@ -131,6 +140,7 @@ test('useChatConversations persists model and system prompt changes for the acti
     useChatConversations({
       providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
+      scope: sampleScope,
       onResetComposerState: vi.fn(),
       onSetChatError: vi.fn(),
       onSetActivePanel: vi.fn(),
@@ -184,6 +194,7 @@ test('useChatConversations deletes the active conversation and resets dependent 
     useChatConversations({
       providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
+      scope: sampleScope,
       onResetComposerState,
       onSetChatError,
       onSetActivePanel,
@@ -220,6 +231,7 @@ test('useChatConversations falls back cleanly when local loading fails', async (
     useChatConversations({
       providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
+      scope: sampleScope,
       onResetComposerState: vi.fn(),
       onSetChatError: vi.fn(),
       onSetActivePanel: vi.fn(),

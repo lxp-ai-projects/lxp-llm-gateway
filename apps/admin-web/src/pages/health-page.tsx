@@ -4,8 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
 import { adminApiClient, gatewayApiClient } from '../lib/api-client';
+import { getActiveTenantLabel } from '../lib/tenant-context';
+import { useSession } from '../lib/use-session';
 
 export function HealthPage() {
+  const sessionQuery = useSession();
   const adminHealthQuery = useQuery({
     queryKey: ['admin-api-health'],
     queryFn: () => adminApiClient.getHealth(),
@@ -20,6 +23,7 @@ export function HealthPage() {
       <PageHeader
         title="Health"
         description="Operational status view for the two initial planes exposed by the platform."
+        context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
         <Grid.Col span={{ base: 12, md: 6 }}>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
@@ -11,6 +11,7 @@ import { AppShellLayout } from './app-shell-layout';
 const {
   getGatewayHealthMock,
   logoutMock,
+  switchActiveTenantMock,
   invalidateQueriesMock,
   navigateMock,
   useRuntimeConfigMock,
@@ -18,6 +19,7 @@ const {
 } = vi.hoisted(() => ({
   getGatewayHealthMock: vi.fn(),
   logoutMock: vi.fn(async () => undefined),
+  switchActiveTenantMock: vi.fn(),
   invalidateQueriesMock: vi.fn(async () => undefined),
   navigateMock: vi.fn(),
   useRuntimeConfigMock: vi.fn(),
@@ -27,6 +29,7 @@ const {
 vi.mock('../lib/api-client', () => ({
   adminApiClient: {
     logout: logoutMock,
+    switchActiveTenant: switchActiveTenantMock,
   },
   gatewayApiClient: {
     getHealth: getGatewayHealthMock,
@@ -88,6 +91,7 @@ function renderShell(initialEntry = '/app/admin/users') {
 
 beforeEach(() => {
   logoutMock.mockClear();
+  switchActiveTenantMock.mockReset();
   getGatewayHealthMock.mockReset();
   invalidateQueriesMock.mockClear();
   navigateMock.mockClear();
@@ -100,6 +104,25 @@ beforeEach(() => {
     },
   });
   getGatewayHealthMock.mockResolvedValue({ status: 'down' });
+  switchActiveTenantMock.mockResolvedValue({
+    displayName: 'Patrick',
+    email: 'patrick@example.com',
+    userUuid: 'patrick-uuid',
+    status: 'active',
+    activeTenantId: 'tenant-1',
+    activeTenantSlug: 'tenant-one',
+    roles: ['tenant_admin'],
+    globalRoles: [],
+    availableTenants: [
+      {
+        id: 'tenant-1',
+        slug: 'tenant-one',
+        displayName: 'Tenant One',
+        roles: ['tenant_admin'],
+        isDirectMember: true,
+      },
+    ],
+  });
 });
 
 test('AppShellLayout shows admin navigation and offline gateway state', async () => {
@@ -107,7 +130,21 @@ test('AppShellLayout shows admin navigation and offline gateway state', async ()
     data: {
       displayName: 'Patrick',
       email: 'patrick@example.com',
-      roles: ['admin'],
+      userUuid: 'patrick-uuid',
+      status: 'active',
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
+      roles: ['tenant_admin'],
+      globalRoles: [],
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['tenant_admin'],
+          isDirectMember: true,
+        },
+      ],
     },
   });
 
@@ -115,6 +152,11 @@ test('AppShellLayout shows admin navigation and offline gateway state', async ()
 
   expect(screen.getByText('Patrick')).toBeInTheDocument();
   expect(screen.getByText('patrick@example.com')).toBeInTheDocument();
+  expect(
+    within(screen.getByRole('banner')).getByText(
+      'Active tenant: Tenant One (tenant-one)',
+    ),
+  ).toBeInTheDocument();
   expect(await screen.findByText('Gateway offline')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /users/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /analytics/i })).toBeInTheDocument();
@@ -127,7 +169,21 @@ test('AppShellLayout shows online gateway state from the real gateway health che
     data: {
       displayName: 'Patrick',
       email: 'patrick@example.com',
-      roles: ['admin'],
+      userUuid: 'patrick-uuid',
+      status: 'active',
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
+      roles: ['tenant_admin'],
+      globalRoles: [],
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['tenant_admin'],
+          isDirectMember: true,
+        },
+      ],
     },
   });
   getGatewayHealthMock.mockResolvedValue({ status: 'ok' });
@@ -143,7 +199,21 @@ test('AppShellLayout hides admin-only links for regular users and logs out', asy
     data: {
       displayName: 'Emilie',
       email: 'emilie@example.com',
+      userUuid: 'emilie-uuid',
+      status: 'active',
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
       roles: ['user'],
+      globalRoles: [],
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['user'],
+          isDirectMember: true,
+        },
+      ],
     },
   });
 
@@ -177,7 +247,21 @@ test('AppShellLayout scrolls to the top when the route changes', async () => {
     data: {
       displayName: 'Patrick',
       email: 'patrick@example.com',
-      roles: ['admin'],
+      userUuid: 'patrick-uuid',
+      status: 'active',
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
+      roles: ['tenant_admin'],
+      globalRoles: [],
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['tenant_admin'],
+          isDirectMember: true,
+        },
+      ],
     },
   });
 
@@ -205,4 +289,83 @@ test('AppShellLayout scrolls to the top when the route changes', async () => {
   } finally {
     window.scrollTo = originalScrollTo;
   }
+});
+
+test('AppShellLayout lets the user switch active tenants from the shell menu', async () => {
+  const user = userEvent.setup();
+  useSessionMock.mockReturnValue({
+    data: {
+      displayName: 'Patrick',
+      email: 'patrick@example.com',
+      userUuid: 'patrick-uuid',
+      status: 'active',
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'tenant-one',
+      roles: ['tenant_admin'],
+      globalRoles: ['super_admin'],
+      availableTenants: [
+        {
+          id: 'tenant-1',
+          slug: 'tenant-one',
+          displayName: 'Tenant One',
+          roles: ['tenant_admin'],
+          isDirectMember: true,
+        },
+        {
+          id: 'tenant-2',
+          slug: 'tenant-two',
+          displayName: 'Tenant Two',
+          roles: ['user'],
+          isDirectMember: true,
+        },
+      ],
+    },
+  });
+  switchActiveTenantMock.mockResolvedValue({
+    displayName: 'Patrick',
+    email: 'patrick@example.com',
+    userUuid: 'patrick-uuid',
+    status: 'active',
+    activeTenantId: 'tenant-2',
+    activeTenantSlug: 'tenant-two',
+    roles: ['user'],
+    globalRoles: ['super_admin'],
+    availableTenants: [
+      {
+        id: 'tenant-1',
+        slug: 'tenant-one',
+        displayName: 'Tenant One',
+        roles: ['tenant_admin'],
+        isDirectMember: true,
+      },
+      {
+        id: 'tenant-2',
+        slug: 'tenant-two',
+        displayName: 'Tenant Two',
+        roles: ['user'],
+        isDirectMember: true,
+      },
+    ],
+  });
+
+  renderShell('/app/chat');
+
+  expect(
+    screen.getByText('Workspace surface', { selector: 'p' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Tenant administration surface', { selector: 'p' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Global control-plane surface', { selector: 'p' }),
+  ).toBeInTheDocument();
+
+  await user.click(screen.getByRole('textbox', { name: /active tenant/i }));
+  await user.click(
+    screen.getByText('Tenant Two (tenant-two)', { selector: 'span' }),
+  );
+
+  await waitFor(() =>
+    expect(switchActiveTenantMock).toHaveBeenCalledWith('tenant-2'),
+  );
 });
