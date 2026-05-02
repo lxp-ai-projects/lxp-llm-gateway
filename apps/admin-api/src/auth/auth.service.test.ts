@@ -106,7 +106,10 @@ async function buildAuthService() {
   };
   const tenantRepository = {
     findOne: async ({ where }: { where: Partial<TenantEntity> }) =>
-      where.id === tenant.id || where.slug === tenant.slug ? tenant : null,
+      (where.id === tenant.id || where.slug === tenant.slug) &&
+      (where.status === undefined || where.status === tenant.status)
+        ? tenant
+        : null,
     find: async () => [tenant],
   };
   const tenantMembershipRepository = {
@@ -206,7 +209,10 @@ async function buildAuthServiceWithUser(
   };
   const tenantRepository = {
     findOne: async ({ where }: { where: Partial<TenantEntity> }) =>
-      where.id === tenant.id || where.slug === tenant.slug ? tenant : null,
+      (where.id === tenant.id || where.slug === tenant.slug) &&
+      (where.status === undefined || where.status === tenant.status)
+        ? tenant
+        : null,
     find: async () => [tenant],
   };
   const tenantMembershipRepository = {

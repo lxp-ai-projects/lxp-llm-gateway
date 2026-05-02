@@ -13,10 +13,17 @@ import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
 import { ImageApplicationService } from './image-application.service';
 
-class InMemoryRepository<T extends Record<string, any>> {
+interface BaseEntity {
+  id: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  [key: string]: unknown;
+}
+
+class InMemoryRepository<T extends BaseEntity> {
   constructor(private readonly items: T[] = []) {}
 
-  async find(options?: { where?: Record<string, any>[] | Record<string, any>; order?: Record<string, 'ASC' | 'DESC'>; skip?: number; take?: number }) {
+  async find(options?: { where?: Record<string, unknown>[] | Record<string, unknown>; order?: Record<string, 'ASC' | 'DESC'>; skip?: number; take?: number }) {
     let results = [...this.items];
     if (options?.where) {
       const whereArray = Array.isArray(options.where) ? options.where : [options.where];
@@ -42,7 +49,7 @@ class InMemoryRepository<T extends Record<string, any>> {
     return results;
   }
 
-  async findOne(options: { where: Record<string, any> }) {
+  async findOne(options: { where: Record<string, unknown> }) {
     return (
       this.items.find((item) =>
         Object.entries(options.where).every(([key, value]) => item[key] === value),
@@ -50,7 +57,7 @@ class InMemoryRepository<T extends Record<string, any>> {
     );
   }
 
-  async findAndCount(options: { where: Record<string, any>; order: Record<string, 'ASC' | 'DESC'>; skip: number; take: number }) {
+  async findAndCount(options: { where: Record<string, unknown>; order: Record<string, 'ASC' | 'DESC'>; skip: number; take: number }) {
     const results = await this.find(options);
     const total = (
       await this.find({ where: options.where })
@@ -74,7 +81,7 @@ class InMemoryRepository<T extends Record<string, any>> {
     return item;
   }
 
-  async delete(criteria: Record<string, any>) {
+  async delete(criteria: Record<string, unknown>) {
     const index = this.items.findIndex((item) =>
       Object.entries(criteria).every(([key, value]) => item[key] === value),
     );
@@ -201,30 +208,63 @@ class FakeGatewayTelemetryService {
 
 function createTenantRlsService(
   repositories: {
-    imageAssets: InMemoryRepository<Record<string, any>>;
-    imageJobs: InMemoryRepository<Record<string, any>>;
-    imageJobResults: InMemoryRepository<Record<string, any>>;
+    imageAssets: InMemoryRepository<ImageAssetEntity>;
+    imageJobs: InMemoryRepository<ImageJobEntity>;
+    imageJobResults: InMemoryRepository<ImageJobResultEntity>;
   },
 ) {
   return {
     async withTenantContext<T>(
-      _tenantId: string,
+      tenantId: string,
       callback: (manager: {
-        getRepository: (entity: unknown) => InMemoryRepository<Record<string, any>>;
+        getRepository: (entity: unknown) => InMemoryRepository<BaseEntity>;
       }) => Promise<T>,
     ): Promise<T> {
+      const createTenantScopedRepository = <E extends BaseEntity>(
+        baseRepository: InMemoryRepository<E>,
+      ): InMemoryRepository<E> => {
+        return {
+          async find(options) {
+            const tenantWhere = { tenantId };
+            const where = options?.where
+              ? Array.isArray(options.where)
+                ? options.where.map((w) => ({ ...w, ...tenantWhere }))
+                : { ...options.where, ...tenantWhere }
+              : tenantWhere;
+            return baseRepository.find({ ...options, where });
+          },
+          async findOne(options) {
+            return baseRepository.findOne({
+              where: { ...options.where, tenantId },
+            });
+          },
+          async findAndCount(options) {
+            return baseRepository.findAndCount({
+              ...options,
+              where: { ...options.where, tenantId },
+            });
+          },
+          async save(input) {
+            return baseRepository.save({ ...input, tenantId });
+          },
+          async delete(criteria) {
+            return baseRepository.delete({ ...criteria, tenantId });
+          },
+        } as InMemoryRepository<E>;
+      };
+
       return callback({
         getRepository: (entity) => {
           if (entity === ImageAssetEntity) {
-            return repositories.imageAssets;
+            return createTenantScopedRepository(repositories.imageAssets);
           }
 
           if (entity === ImageJobEntity) {
-            return repositories.imageJobs;
+            return createTenantScopedRepository(repositories.imageJobs);
           }
 
           if (entity === ImageJobResultEntity) {
-            return repositories.imageJobResults;
+            return createTenantScopedRepository(repositories.imageJobResults);
           }
 
           throw new Error(`Unsupported repository request: ${String(entity)}`);
@@ -235,12 +275,12 @@ function createTenantRlsService(
 }
 
 function createImageService(options?: {
-  users?: Array<Record<string, any>>;
-  providers?: Array<Record<string, any>>;
-  memberships?: Array<Record<string, any>>;
-  assets?: Array<Record<string, any>>;
-  jobs?: Array<Record<string, any>>;
-  results?: Array<Record<string, any>>;
+  users?: Array<Partial<BaseEntity>>;
+  providers?: Array<Partial<BaseEntity>>;
+  memberships?: Array<Partial<BaseEntity>>;
+  assets?: Array<Partial<ImageAssetEntity>>;
+  jobs?: Array<Partial<ImageJobEntity>>;
+  results?: Array<Partial<ImageJobResultEntity>>;
   providerRegistry?: {
     getProvider: () => LlmProviderAdapter;
     listProviders: () => LlmProviderAdapter[];
@@ -250,9 +290,9 @@ function createImageService(options?: {
   };
 }) {
   const provider = new FakeImageProvider();
-  const imageAssets = new InMemoryRepository(options?.assets ?? []);
-  const imageJobs = new InMemoryRepository(options?.jobs ?? []);
-  const imageJobResults = new InMemoryRepository(options?.results ?? []);
+  const imageAssets = new InMemoryRepository<ImageAssetEntity>(options?.assets ?? []);
+  const imageJobs = new InMemoryRepository<ImageJobEntity>(options?.jobs ?? []);
+  const imageJobResults = new InMemoryRepository<ImageJobResultEntity>(options?.results ?? []);
   const providerRegistry = options?.providerRegistry ?? {
     getProvider: () => provider,
     listProviders: () => [provider],
