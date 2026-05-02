@@ -37,9 +37,11 @@ class InMemoryRepository<T extends BaseEntity> {
       const [orderKey, direction] = Object.entries(options.order)[0] ?? [];
       if (orderKey) {
         results.sort((left, right) =>
-          direction === 'ASC'
-            ? (left[orderKey] > right[orderKey] ? 1 : -1)
-            : (left[orderKey] < right[orderKey] ? 1 : -1),
+          left[orderKey] === right[orderKey]
+            ? 0
+            : direction === 'ASC'
+              ? (left[orderKey] > right[orderKey] ? 1 : -1)
+              : (left[orderKey] < right[orderKey] ? 1 : -1),
         );
       }
     }
@@ -60,7 +62,9 @@ class InMemoryRepository<T extends BaseEntity> {
   async findAndCount(options: { where: Record<string, unknown>; order: Record<string, 'ASC' | 'DESC'>; skip: number; take: number }) {
     const results = await this.find(options);
     const total = (
-      await this.find({ where: options.where })
+      await this.find({
+        where: options.where,
+      })
     ).length;
     return [results, total] as const;
   }
@@ -239,9 +243,15 @@ function createTenantRlsService(
             });
           },
           async findAndCount(options) {
+            const tenantWhere = { tenantId };
+            const where = options?.where
+              ? Array.isArray(options.where)
+                ? options.where.map((w) => ({ ...w, ...tenantWhere }))
+                : { ...options.where, ...tenantWhere }
+              : tenantWhere;
             return baseRepository.findAndCount({
               ...options,
-              where: { ...options.where, tenantId },
+              where,
             });
           },
           async save(input) {
@@ -659,5 +669,66 @@ test('ImageApplicationService deletes uploaded reference assets', async () => {
       where: { id: 'asset-upload-1', userId: 'user-1' },
     }),
     null,
+  );
+});
+
+test('ImageApplicationService keeps tenant 2 assets isolated from tenant 1', async () => {
+  const { service } = createImageService({
+    assets: [
+      {
+        id: 'asset-tenant-2',
+        tenantId: 'tenant-2',
+        userId: 'user-2',
+        sourceType: 'upload',
+        label: 'Tenant 2 asset',
+        mimeType: 'image/png',
+        dataUrl: 'data:image/png;base64,tenant2',
+        contentHash: 'hash-tenant-2',
+        originalUrl: null,
+        isSaved: false,
+        createdAt: new Date('2026-04-21T13:00:00.000Z'),
+        updatedAt: new Date('2026-04-21T13:00:00.000Z'),
+      },
+    ],
+    jobs: [
+      {
+        id: 'job-tenant-2',
+        tenantId: 'tenant-2',
+        userId: 'user-2',
+        requestId: 'request-tenant-2',
+        providerId: 'xai',
+        model: 'grok-imagine-image',
+        prompt: 'Tenant 2 prompt',
+        mode: 'generation',
+        startedAt: new Date('2026-04-21T13:00:00.000Z'),
+        completedAt: new Date('2026-04-21T13:00:08.000Z'),
+        providerMetadata: { upstreamRequestId: 'upstream-tenant-2' },
+        createdAt: new Date('2026-04-21T13:00:00.000Z'),
+      },
+    ],
+    results: [
+      {
+        id: 'result-tenant-2',
+        tenantId: 'tenant-2',
+        jobId: 'job-tenant-2',
+        assetId: 'asset-tenant-2',
+        resultIndex: 0,
+        revisedPrompt: null,
+        providerMetadata: { finishReason: 'stop' },
+        createdAt: new Date('2026-04-21T13:00:08.000Z'),
+      },
+    ],
+  });
+
+  const response = await service.listAssets(buildAuthContext());
+
+  assert.equal(
+    response.items.some((asset) => asset.id === 'asset-tenant-2'),
+    false,
+  );
+
+  await assert.rejects(
+    () => service.deleteAsset('asset-tenant-2', buildAuthContext()),
+    /Image asset not found\./,
   );
 });
