@@ -180,11 +180,26 @@ class FakeTenantProviderConfigurationService {
 }
 
 class FakeGatewayTelemetryService {
+  async reserveChatUsageEvent(): Promise<void> {}
+
   async recordChatSuccess(): Promise<void> {}
 
   async recordChatFailure(): Promise<void> {}
 
   async recordBlockedByQuota(): Promise<void> {}
+}
+
+class FakeTenantRlsService {
+  async withTenantLockContext<T>(
+    _tenantId: string,
+    callback: (manager: {
+      getRepository: (entity: unknown) => unknown;
+    }) => Promise<T>,
+  ): Promise<T> {
+    return callback({
+      getRepository: () => ({}),
+    });
+  }
 }
 
 class FakeTenantModelAccessRuleService {
@@ -333,6 +348,7 @@ test('GatewayService routes chat requests through the provider registry', async 
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const response = await service.chat(
@@ -374,6 +390,7 @@ test('GatewayService audit includes compatibility identity attribution', async (
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await service.chat(
@@ -408,6 +425,7 @@ test('GatewayService summarizes multimodal chat messages by their text content o
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const response = await service.chat(
@@ -446,6 +464,7 @@ test('GatewayService wraps provider failures in a BadGatewayException', async ()
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -478,6 +497,7 @@ test('GatewayService wraps listModels provider failures in a BadGatewayException
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -511,6 +531,7 @@ test('GatewayService returns a provider stream when streaming is requested', asy
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const streamResponse = await service.chatStream(
@@ -541,6 +562,7 @@ test('GatewayService rejects non-stream requests without messages', async () => 
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -569,6 +591,7 @@ test('GatewayService rejects stream requests without messages', async () => {
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -610,6 +633,7 @@ test('GatewayService rejects streaming when a provider does not support it', asy
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -639,6 +663,7 @@ test('GatewayService uses authenticated defaults when provider and model are omi
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const response = await service.chat(
@@ -664,6 +689,7 @@ test('GatewayService rejects missing provider when no default provider exists', 
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -687,6 +713,7 @@ test('GatewayService rejects missing model when no default model exists for the 
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -711,6 +738,7 @@ test('GatewayService falls back to the tenant default text model when the user h
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const response = await service.chat(
@@ -736,6 +764,7 @@ test('GatewayService rejects chat for an integration client without chat:complet
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -763,6 +792,7 @@ test('GatewayService rejects a text model denied by tenant model access rules', 
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -792,6 +822,7 @@ test('GatewayService rejects chat when tenant quota policy blocks the request', 
     new FakeIntegrationClientScopeService() as never,
     new FakeTenantModelAccessRuleService() as never,
     new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
     new FakeTenantPolicyService() as never,
   );
 

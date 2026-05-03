@@ -1,6 +1,12 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Not, In, Repository } from 'typeorm';
+import {
+  EntityManager,
+  In,
+  MoreThanOrEqual,
+  Not,
+  Repository,
+} from 'typeorm';
 
 import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
 import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
@@ -45,8 +51,11 @@ export class TenantPolicyService {
     private readonly usageEventRepository: Repository<UsageEventEntity>,
   ) {}
 
-  async resolvePolicy(tenantId: string): Promise<ResolvedTenantPolicy> {
-    const policy = await this.tenantPolicyRepository.findOne({
+  async resolvePolicy(
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<ResolvedTenantPolicy> {
+    const policy = await this.getTenantPolicyRepository(manager).findOne({
       where: { tenantId },
     });
 
@@ -71,11 +80,11 @@ export class TenantPolicyService {
     tenantId: string;
     providerId: string;
     model: string;
-  }): Promise<ResolvedTenantPolicy> {
-    const policy = await this.resolvePolicy(input.tenantId);
-    await this.assertRequestWindows(policy, input);
-    await this.assertMonthlyBudget(policy, input);
-    await this.assertMonthlyTokenLimit(policy, input);
+  }, manager?: EntityManager): Promise<ResolvedTenantPolicy> {
+    const policy = await this.resolvePolicy(input.tenantId, manager);
+    await this.assertRequestWindows(policy, input, manager);
+    await this.assertMonthlyBudget(policy, input, manager);
+    await this.assertMonthlyTokenLimit(policy, input, manager);
     return policy;
   }
 
@@ -83,19 +92,22 @@ export class TenantPolicyService {
     tenantId: string;
     providerId: string;
     model: string;
-  }): Promise<ResolvedTenantPolicy> {
-    const policy = await this.resolvePolicy(input.tenantId);
-    await this.assertRequestWindows(policy, input);
-    await this.assertMonthlyBudget(policy, input);
-    await this.assertImageRequestLimit(policy, input);
+  }, manager?: EntityManager): Promise<ResolvedTenantPolicy> {
+    const policy = await this.resolvePolicy(input.tenantId, manager);
+    await this.assertRequestWindows(policy, input, manager);
+    await this.assertMonthlyBudget(policy, input, manager);
+    await this.assertImageRequestLimit(policy, input, manager);
     return policy;
   }
 
   private async assertRequestWindows(
     policy: ResolvedTenantPolicy,
     input: { tenantId: string; providerId: string; model: string },
+    manager?: EntityManager,
   ): Promise<void> {
-    const lastMinuteCount = await this.usageEventRepository.count({
+    const usageEventRepository = this.getUsageEventRepository(manager);
+
+    const lastMinuteCount = await usageEventRepository.count({
       where: {
         tenantId: input.tenantId,
         createdAt: MoreThanOrEqual(this.buildLowerBoundDate(60 * 1000)),
@@ -118,6 +130,7 @@ export class TenantPolicyService {
       input.tenantId,
       'totalTokens',
       this.buildLowerBoundDate(60 * 1000),
+      manager,
     );
     if (lastMinuteTokens >= policy.tokensPerMinute) {
       throw new TenantPolicyLimitException(
@@ -132,7 +145,7 @@ export class TenantPolicyService {
     }
 
     if (policy.dailyRequestLimit !== null) {
-      const lastDayCount = await this.usageEventRepository.count({
+      const lastDayCount = await usageEventRepository.count({
         where: {
           tenantId: input.tenantId,
           createdAt: MoreThanOrEqual(
@@ -155,7 +168,7 @@ export class TenantPolicyService {
     }
 
     if (policy.monthlyRequestLimit !== null) {
-      const lastMonthCount = await this.usageEventRepository.count({
+      const lastMonthCount = await usageEventRepository.count({
         where: {
           tenantId: input.tenantId,
           createdAt: MoreThanOrEqual(this.buildStartOfMonthDate()),
@@ -179,6 +192,7 @@ export class TenantPolicyService {
   private async assertMonthlyBudget(
     policy: ResolvedTenantPolicy,
     input: { tenantId: string },
+    manager?: EntityManager,
   ): Promise<void> {
     if (policy.monthlyBudgetUsd === null) {
       return;
@@ -188,6 +202,7 @@ export class TenantPolicyService {
       input.tenantId,
       'costEstimateUsd',
       this.buildStartOfMonthDate(),
+      manager,
     );
     if (current >= Number(policy.monthlyBudgetUsd)) {
       throw new TenantPolicyLimitException(
@@ -205,6 +220,7 @@ export class TenantPolicyService {
   private async assertMonthlyTokenLimit(
     policy: ResolvedTenantPolicy,
     input: { tenantId: string },
+    manager?: EntityManager,
   ): Promise<void> {
     if (policy.monthlyTokenLimit === null) {
       return;
@@ -214,6 +230,7 @@ export class TenantPolicyService {
       input.tenantId,
       'totalTokens',
       this.buildStartOfMonthDate(),
+      manager,
     );
     if (current >= policy.monthlyTokenLimit) {
       throw new TenantPolicyLimitException(
@@ -231,12 +248,13 @@ export class TenantPolicyService {
   private async assertImageRequestLimit(
     policy: ResolvedTenantPolicy,
     input: { tenantId: string },
+    manager?: EntityManager,
   ): Promise<void> {
     if (policy.imageRequestsPerMonth === null) {
       return;
     }
 
-    const current = await this.usageEventRepository.count({
+    const current = await this.getUsageEventRepository(manager).count({
       where: {
         tenantId: input.tenantId,
         capability: 'image',
@@ -265,8 +283,9 @@ export class TenantPolicyService {
     tenantId: string,
     column: 'costEstimateUsd' | 'totalTokens',
     lowerBound: Date,
+    manager?: EntityManager,
   ): Promise<number> {
-    const result = await this.usageEventRepository
+    const result = await this.getUsageEventRepository(manager)
       .createQueryBuilder('usage_event')
       .select(`COALESCE(SUM(usage_event.${column}), 0)`, 'total')
       .where('usage_event.tenant_id = :tenantId', { tenantId })
@@ -284,5 +303,17 @@ export class TenantPolicyService {
     return new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
     );
+  }
+
+  private getTenantPolicyRepository(
+    manager?: EntityManager,
+  ): Repository<TenantPolicyEntity> {
+    return manager?.getRepository(TenantPolicyEntity) ?? this.tenantPolicyRepository;
+  }
+
+  private getUsageEventRepository(
+    manager?: EntityManager,
+  ): Repository<UsageEventEntity> {
+    return manager?.getRepository(UsageEventEntity) ?? this.usageEventRepository;
   }
 }

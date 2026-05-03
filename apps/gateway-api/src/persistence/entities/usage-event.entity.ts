@@ -20,6 +20,7 @@ export type UsageEventCredentialScopeUsed = 'platform' | 'tenant' | 'user';
 export type UsageEventStatus =
   | 'success'
   | 'error'
+  | 'reserved'
   | 'blocked_by_policy'
   | 'blocked_by_quota';
 

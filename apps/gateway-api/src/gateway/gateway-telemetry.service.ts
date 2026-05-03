@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { GatewayChatResponse, GatewayImageGenerationResponse } from '@lxp/contracts';
+import type { EntityManager } from 'typeorm';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
 import { AuditLogEntity } from '../persistence/entities/audit-log.entity';
@@ -21,6 +22,92 @@ export class GatewayTelemetryService {
   constructor(
     private readonly tenantRlsService: TenantRlsService,
   ) {}
+
+  async reserveChatUsageEvent(
+    params: {
+      authContext: GatewayAuthContext;
+      requestId: string;
+      providerId: string;
+      model: string;
+      stream: boolean;
+      messageSummary: MessageSummary;
+    },
+    manager: EntityManager,
+  ): Promise<void> {
+    await this.writeUsageEvent(
+      {
+        tenantId: params.authContext.activeTenantId,
+        userId: params.authContext.userId,
+        userUuid: params.authContext.userUuid,
+        requestId: params.requestId,
+        operation: 'chat',
+        capability: 'text',
+        providerId: params.providerId,
+        model: params.model,
+        identitySource: params.authContext.identitySource,
+        integrationClientId: params.authContext.integrationClientId ?? null,
+        apiKeyId: params.authContext.integrationClientKeyId ?? null,
+        credentialScopeUsed: null,
+        status: 'reserved',
+        errorCode: null,
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        reasoningTokens: null,
+        imageCount: null,
+        costEstimateUsd: null,
+        latencyMs: null,
+        metadata: {
+          stream: params.stream,
+          messageCount: params.messageSummary.messageCount ?? null,
+          messageCharacters: params.messageSummary.messageCharacters ?? null,
+        },
+      },
+      manager,
+    );
+  }
+
+  async reserveImageUsageEvent(
+    params: {
+      authContext: GatewayAuthContext;
+      requestId: string;
+      providerId: string;
+      model: string;
+      operation: 'image_generation' | 'image_edit';
+      promptLength: number;
+    },
+    manager: EntityManager,
+  ): Promise<void> {
+    await this.writeUsageEvent(
+      {
+        tenantId: params.authContext.activeTenantId,
+        userId: params.authContext.userId,
+        userUuid: params.authContext.userUuid,
+        requestId: params.requestId,
+        operation: params.operation,
+        capability: 'image',
+        providerId: params.providerId,
+        model: params.model,
+        identitySource: params.authContext.identitySource,
+        integrationClientId: params.authContext.integrationClientId ?? null,
+        apiKeyId: params.authContext.integrationClientKeyId ?? null,
+        credentialScopeUsed: null,
+        status: 'reserved',
+        errorCode: null,
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        reasoningTokens: null,
+        imageCount: null,
+        costEstimateUsd: null,
+        latencyMs: null,
+        metadata: {
+          promptLength: params.promptLength,
+        },
+      },
+      manager,
+    );
+  }
 
   async recordChatSuccess(params: {
     authContext: GatewayAuthContext;
@@ -60,33 +147,38 @@ export class GatewayTelemetryService {
           },
         } satisfies Partial<AuditLogEntity>);
 
-        await manager.getRepository(UsageEventEntity).save({
-          tenantId: params.authContext.activeTenantId,
-          userId: params.authContext.userId,
-          userUuid: params.authContext.userUuid,
-          requestId: params.requestId,
-          operation: 'chat',
-          capability: 'text',
-          providerId: params.providerId,
-          model: params.model,
-          identitySource: params.authContext.identitySource,
-          integrationClientId: params.authContext.integrationClientId ?? null,
-          apiKeyId: params.authContext.integrationClientKeyId ?? null,
-          credentialScopeUsed: params.credentialScopeUsed,
-          status: 'success',
-          errorCode: null,
-          promptTokens: params.response.usage?.promptTokens ?? null,
-          completionTokens: params.response.usage?.completionTokens ?? null,
-          totalTokens: params.response.usage?.totalTokens ?? null,
-          reasoningTokens: params.response.usage?.reasoningTokens ?? null,
-          imageCount: null,
-          costEstimateUsd: this.extractCostEstimateUsd(params.response.providerMetadata),
-          latencyMs: params.latencyMs,
-          metadata: {
-            finishReason: params.response.finishReason ?? null,
-            stream: params.stream,
+        await this.writeUsageEvent(
+          {
+            tenantId: params.authContext.activeTenantId,
+            userId: params.authContext.userId,
+            userUuid: params.authContext.userUuid,
+            requestId: params.requestId,
+            operation: 'chat',
+            capability: 'text',
+            providerId: params.providerId,
+            model: params.model,
+            identitySource: params.authContext.identitySource,
+            integrationClientId: params.authContext.integrationClientId ?? null,
+            apiKeyId: params.authContext.integrationClientKeyId ?? null,
+            credentialScopeUsed: params.credentialScopeUsed,
+            status: 'success',
+            errorCode: null,
+            promptTokens: params.response.usage?.promptTokens ?? null,
+            completionTokens: params.response.usage?.completionTokens ?? null,
+            totalTokens: params.response.usage?.totalTokens ?? null,
+            reasoningTokens: params.response.usage?.reasoningTokens ?? null,
+            imageCount: null,
+            costEstimateUsd: this.extractCostEstimateUsd(
+              params.response.providerMetadata,
+            ),
+            latencyMs: params.latencyMs,
+            metadata: {
+              finishReason: params.response.finishReason ?? null,
+              stream: params.stream,
+            },
           },
-        } satisfies Partial<UsageEventEntity>);
+          manager,
+        );
       },
     );
   }
@@ -129,34 +221,38 @@ export class GatewayTelemetryService {
           },
         } satisfies Partial<AuditLogEntity>);
 
-        await manager.getRepository(UsageEventEntity).save({
-          tenantId: params.authContext.activeTenantId,
-          userId: params.authContext.userId,
-          userUuid: params.authContext.userUuid,
-          requestId: params.requestId,
-          operation: 'chat',
-          capability: 'text',
-          providerId: params.providerId,
-          model: params.model,
-          identitySource: params.authContext.identitySource,
-          integrationClientId: params.authContext.integrationClientId ?? null,
-          apiKeyId: params.authContext.integrationClientKeyId ?? null,
-          credentialScopeUsed: params.credentialScopeUsed ?? null,
-          status: 'error',
-          errorCode: params.errorCode ?? 'gateway_error',
-          promptTokens: null,
-          completionTokens: null,
-          totalTokens: null,
-          reasoningTokens: null,
-          imageCount: null,
-          costEstimateUsd: null,
-          latencyMs: params.latencyMs,
-          metadata: {
-            stream: params.stream,
-            messageCount: params.messageSummary.messageCount ?? null,
-            messageCharacters: params.messageSummary.messageCharacters ?? null,
+        await this.writeUsageEvent(
+          {
+            tenantId: params.authContext.activeTenantId,
+            userId: params.authContext.userId,
+            userUuid: params.authContext.userUuid,
+            requestId: params.requestId,
+            operation: 'chat',
+            capability: 'text',
+            providerId: params.providerId,
+            model: params.model,
+            identitySource: params.authContext.identitySource,
+            integrationClientId: params.authContext.integrationClientId ?? null,
+            apiKeyId: params.authContext.integrationClientKeyId ?? null,
+            credentialScopeUsed: params.credentialScopeUsed ?? null,
+            status: 'error',
+            errorCode: params.errorCode ?? 'gateway_error',
+            promptTokens: null,
+            completionTokens: null,
+            totalTokens: null,
+            reasoningTokens: null,
+            imageCount: null,
+            costEstimateUsd: null,
+            latencyMs: params.latencyMs,
+            metadata: {
+              stream: params.stream,
+              messageCount: params.messageSummary.messageCount ?? null,
+              messageCharacters:
+                params.messageSummary.messageCharacters ?? null,
+            },
           },
-        } satisfies Partial<UsageEventEntity>);
+          manager,
+        );
       },
     );
   }
@@ -198,30 +294,35 @@ export class GatewayTelemetryService {
           },
         } satisfies Partial<AuditLogEntity>);
 
-        await manager.getRepository(UsageEventEntity).save({
-          tenantId: params.authContext.activeTenantId,
-          userId: params.authContext.userId,
-          userUuid: params.authContext.userUuid,
-          requestId: params.requestId,
-          operation: params.operation,
-          capability: 'image',
-          providerId: params.providerId,
-          model: params.model,
-          identitySource: params.authContext.identitySource,
-          integrationClientId: params.authContext.integrationClientId ?? null,
-          apiKeyId: params.authContext.integrationClientKeyId ?? null,
-          credentialScopeUsed: params.credentialScopeUsed,
-          status: 'success',
-          errorCode: null,
-          promptTokens: null,
-          completionTokens: null,
-          totalTokens: null,
-          reasoningTokens: null,
-          imageCount: params.response.images.length,
-          costEstimateUsd: this.extractCostEstimateUsd(params.response.providerMetadata),
-          latencyMs: params.latencyMs,
-          metadata: params.response.providerMetadata ?? null,
-        } satisfies Partial<UsageEventEntity>);
+        await this.writeUsageEvent(
+          {
+            tenantId: params.authContext.activeTenantId,
+            userId: params.authContext.userId,
+            userUuid: params.authContext.userUuid,
+            requestId: params.requestId,
+            operation: params.operation,
+            capability: 'image',
+            providerId: params.providerId,
+            model: params.model,
+            identitySource: params.authContext.identitySource,
+            integrationClientId: params.authContext.integrationClientId ?? null,
+            apiKeyId: params.authContext.integrationClientKeyId ?? null,
+            credentialScopeUsed: params.credentialScopeUsed,
+            status: 'success',
+            errorCode: null,
+            promptTokens: null,
+            completionTokens: null,
+            totalTokens: null,
+            reasoningTokens: null,
+            imageCount: params.response.images.length,
+            costEstimateUsd: this.extractCostEstimateUsd(
+              params.response.providerMetadata,
+            ),
+            latencyMs: params.latencyMs,
+            metadata: params.response.providerMetadata ?? null,
+          },
+          manager,
+        );
       },
     );
   }
@@ -262,32 +363,35 @@ export class GatewayTelemetryService {
           metadata: null,
         } satisfies Partial<AuditLogEntity>);
 
-        await manager.getRepository(UsageEventEntity).save({
-          tenantId: params.authContext.activeTenantId,
-          userId: params.authContext.userId,
-          userUuid: params.authContext.userUuid,
-          requestId: params.requestId,
-          operation: params.operation,
-          capability: 'image',
-          providerId: params.providerId,
-          model: params.model,
-          identitySource: params.authContext.identitySource,
-          integrationClientId: params.authContext.integrationClientId ?? null,
-          apiKeyId: params.authContext.integrationClientKeyId ?? null,
-          credentialScopeUsed: params.credentialScopeUsed ?? null,
-          status: 'error',
-          errorCode: params.errorCode ?? 'gateway_error',
-          promptTokens: null,
-          completionTokens: null,
-          totalTokens: null,
-          reasoningTokens: null,
-          imageCount: null,
-          costEstimateUsd: null,
-          latencyMs: params.latencyMs,
-          metadata: {
-            promptLength: params.promptLength,
+        await this.writeUsageEvent(
+          {
+            tenantId: params.authContext.activeTenantId,
+            userId: params.authContext.userId,
+            userUuid: params.authContext.userUuid,
+            requestId: params.requestId,
+            operation: params.operation,
+            capability: 'image',
+            providerId: params.providerId,
+            model: params.model,
+            identitySource: params.authContext.identitySource,
+            integrationClientId: params.authContext.integrationClientId ?? null,
+            apiKeyId: params.authContext.integrationClientKeyId ?? null,
+            credentialScopeUsed: params.credentialScopeUsed ?? null,
+            status: 'error',
+            errorCode: params.errorCode ?? 'gateway_error',
+            promptTokens: null,
+            completionTokens: null,
+            totalTokens: null,
+            reasoningTokens: null,
+            imageCount: null,
+            costEstimateUsd: null,
+            latencyMs: params.latencyMs,
+            metadata: {
+              promptLength: params.promptLength,
+            },
           },
-        } satisfies Partial<UsageEventEntity>);
+          manager,
+        );
       },
     );
   }
@@ -387,33 +491,63 @@ export class GatewayTelemetryService {
           metadata: params.metadata,
         } satisfies Partial<AuditLogEntity>);
 
-        await manager.getRepository(UsageEventEntity).save({
-          tenantId: params.authContext.activeTenantId,
-          userId: params.authContext.userId,
-          userUuid: params.authContext.userUuid,
-          requestId: params.requestId,
-          operation: params.operation,
-          capability: params.capability,
-          providerId: params.providerId,
-          model: params.model,
-          identitySource: params.authContext.identitySource,
-          integrationClientId: params.authContext.integrationClientId ?? null,
-          apiKeyId: params.authContext.integrationClientKeyId ?? null,
-          credentialScopeUsed: null,
-          status: params.status,
-          errorCode: params.errorCode,
-          promptTokens: null,
-          completionTokens: null,
-          totalTokens: null,
-          reasoningTokens: null,
-          imageCount: null,
-          costEstimateUsd: null,
-          latencyMs: params.latencyMs,
-          metadata: params.metadata,
-        } satisfies Partial<UsageEventEntity>);
+        await this.writeUsageEvent(
+          {
+            tenantId: params.authContext.activeTenantId,
+            userId: params.authContext.userId,
+            userUuid: params.authContext.userUuid,
+            requestId: params.requestId,
+            operation: params.operation,
+            capability: params.capability,
+            providerId: params.providerId,
+            model: params.model,
+            identitySource: params.authContext.identitySource,
+            integrationClientId: params.authContext.integrationClientId ?? null,
+            apiKeyId: params.authContext.integrationClientKeyId ?? null,
+            credentialScopeUsed: null,
+            status: params.status,
+            errorCode: params.errorCode,
+            promptTokens: null,
+            completionTokens: null,
+            totalTokens: null,
+            reasoningTokens: null,
+            imageCount: null,
+            costEstimateUsd: null,
+            latencyMs: params.latencyMs,
+            metadata: params.metadata,
+          },
+          manager,
+        );
       },
     );
   }
+
+  private async writeUsageEvent(
+    entry: Partial<UsageEventEntity> & { tenantId: string; requestId: string },
+    manager: EntityManager,
+  ): Promise<void> {
+    await this.upsertUsageEvent(manager, entry);
+  }
+
+  private async upsertUsageEvent(
+    manager: EntityManager,
+    entry: Partial<UsageEventEntity> & { tenantId: string; requestId: string },
+  ): Promise<void> {
+    const repository = manager.getRepository(UsageEventEntity);
+    const existing = await repository.findOne({
+      where: {
+        tenantId: entry.tenantId,
+        requestId: entry.requestId,
+      },
+    });
+
+    await repository.save({
+      ...(existing ?? {}),
+      ...entry,
+    });
+  }
+
+
 
   private extractCostEstimateUsd(
     providerMetadata: Record<string, unknown> | null | undefined,

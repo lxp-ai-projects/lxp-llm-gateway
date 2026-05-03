@@ -260,6 +260,8 @@ function buildAuthContext() {
 }
 
 class FakeGatewayTelemetryService {
+  async reserveImageUsageEvent(): Promise<void> {}
+
   async recordImageSuccess(): Promise<void> {}
 
   async recordImageFailure(): Promise<void> {}
@@ -421,6 +423,15 @@ function createTenantRlsService(
   },
 ) {
   return {
+    async withTenantLockContext<T>(
+      tenantId: string,
+      callback: (manager: {
+        getRepository: (entity: unknown) => InMemoryRepository<BaseEntity>;
+      }) => Promise<T>,
+    ): Promise<T> {
+      return this.withTenantContext(tenantId, callback);
+    },
+
     async withTenantContext<T>(
       tenantId: string,
       callback: (manager: {

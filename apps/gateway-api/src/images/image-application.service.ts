@@ -195,18 +195,37 @@ export class ImageApplicationService {
     const startedAt = new Date();
     try {
       const requestId = crypto.randomUUID();
-      await this.tenantModelAccessRuleService.assertImageModelAllowed({
-        tenantId: authContext.activeTenantId,
-        providerId,
-        model,
-        imageCount: request.n,
-        resolution: request.resolution,
-      });
-      await this.tenantPolicyService?.assertImageRequestAllowed({
-        tenantId: authContext.activeTenantId,
-        providerId,
-        model,
-      });
+      await this.tenantRlsService.withTenantLockContext(
+        authContext.activeTenantId,
+        async (manager) => {
+          await this.tenantModelAccessRuleService.assertImageModelAllowed({
+            tenantId: authContext.activeTenantId,
+            providerId,
+            model,
+            imageCount: request.n,
+            resolution: request.resolution,
+          });
+          await this.tenantPolicyService?.assertImageRequestAllowed(
+            {
+              tenantId: authContext.activeTenantId,
+              providerId,
+              model,
+            },
+            manager,
+          );
+          await this.gatewayTelemetryService.reserveImageUsageEvent(
+            {
+              authContext,
+              requestId,
+              providerId: provider.providerId,
+              model,
+              operation: 'image_generation',
+              promptLength: request.prompt.length,
+            },
+            manager,
+          );
+        },
+      );
       const { providerAccess, credentialScopeUsed } =
         await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
@@ -339,18 +358,37 @@ export class ImageApplicationService {
     const startedAt = new Date();
     try {
       const requestId = crypto.randomUUID();
-      await this.tenantModelAccessRuleService.assertImageModelAllowed({
-        tenantId: authContext.activeTenantId,
-        providerId,
-        model,
-        imageCount: request.n,
-        resolution: request.resolution,
-      });
-      await this.tenantPolicyService?.assertImageRequestAllowed({
-        tenantId: authContext.activeTenantId,
-        providerId,
-        model,
-      });
+      await this.tenantRlsService.withTenantLockContext(
+        authContext.activeTenantId,
+        async (manager) => {
+          await this.tenantModelAccessRuleService.assertImageModelAllowed({
+            tenantId: authContext.activeTenantId,
+            providerId,
+            model,
+            imageCount: request.n,
+            resolution: request.resolution,
+          });
+          await this.tenantPolicyService?.assertImageRequestAllowed(
+            {
+              tenantId: authContext.activeTenantId,
+              providerId,
+              model,
+            },
+            manager,
+          );
+          await this.gatewayTelemetryService.reserveImageUsageEvent(
+            {
+              authContext,
+              requestId,
+              providerId: provider.providerId,
+              model,
+              operation: 'image_edit',
+              promptLength: request.prompt.length,
+            },
+            manager,
+          );
+        },
+      );
       const { providerAccess, credentialScopeUsed } =
         await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,

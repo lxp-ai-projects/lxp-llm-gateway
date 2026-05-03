@@ -25,6 +25,7 @@ import {
 } from './tenant-policy.service';
 import { ProviderRegistryService } from './provider-registry.service';
 import { TenantProviderConfigurationService } from './tenant-provider-configuration.service';
+import { TenantRlsService } from '../persistence/tenant-rls.service';
 import type { UsageEventCredentialScopeUsed } from '../persistence/entities/usage-event.entity';
 
 type MessageSummary = {
@@ -52,6 +53,7 @@ export class GatewayService {
     private readonly integrationClientScopeService: IntegrationClientScopeService,
     private readonly tenantModelAccessRuleService: TenantModelAccessRuleService,
     private readonly tenantProviderConfigurationService: TenantProviderConfigurationService,
+    private readonly tenantRlsService: TenantRlsService,
     private readonly tenantPolicyService?: TenantPolicyService,
   ) {}
 
@@ -157,16 +159,35 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
-      await this.tenantModelAccessRuleService.assertTextModelAllowed(
+      await this.tenantRlsService.withTenantLockContext(
         authContext.activeTenantId,
-        providerId,
-        model,
+        async (manager) => {
+          await this.tenantModelAccessRuleService.assertTextModelAllowed(
+            authContext.activeTenantId,
+            providerId,
+            model,
+          );
+          await this.tenantPolicyService?.assertTextRequestAllowed(
+            {
+              tenantId: authContext.activeTenantId,
+              providerId,
+              model,
+            },
+            manager,
+          );
+          await this.gatewayTelemetryService.reserveChatUsageEvent(
+            {
+              authContext,
+              requestId,
+              providerId: provider.providerId,
+              model,
+              stream: false,
+              messageSummary,
+            },
+            manager,
+          );
+        },
       );
-      await this.tenantPolicyService?.assertTextRequestAllowed({
-        tenantId: authContext.activeTenantId,
-        providerId,
-        model,
-      });
       const { providerAccess, credentialScopeUsed } =
         await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
@@ -338,16 +359,35 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
-      await this.tenantModelAccessRuleService.assertTextModelAllowed(
+      await this.tenantRlsService.withTenantLockContext(
         authContext.activeTenantId,
-        providerId,
-        model,
+        async (manager) => {
+          await this.tenantModelAccessRuleService.assertTextModelAllowed(
+            authContext.activeTenantId,
+            providerId,
+            model,
+          );
+          await this.tenantPolicyService?.assertTextRequestAllowed(
+            {
+              tenantId: authContext.activeTenantId,
+              providerId,
+              model,
+            },
+            manager,
+          );
+          await this.gatewayTelemetryService.reserveChatUsageEvent(
+            {
+              authContext,
+              requestId,
+              providerId: provider.providerId,
+              model,
+              stream: true,
+              messageSummary,
+            },
+            manager,
+          );
+        },
       );
-      await this.tenantPolicyService?.assertTextRequestAllowed({
-        tenantId: authContext.activeTenantId,
-        providerId,
-        model,
-      });
       const { providerAccess, credentialScopeUsed } =
         await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
