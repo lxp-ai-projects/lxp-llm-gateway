@@ -5,6 +5,11 @@ import type { GatewayAuthContext } from '../auth/auth.types';
 import { AuditLogEntity } from '../persistence/entities/audit-log.entity';
 import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
+import type {
+  UsageEventCapability,
+  UsageEventCredentialScopeUsed,
+  UsageEventStatus,
+} from '../persistence/entities/usage-event.entity';
 
 type MessageSummary = {
   messageCount?: number;
@@ -26,6 +31,7 @@ export class GatewayTelemetryService {
     latencyMs: number;
     stream: boolean;
     messageSummary: MessageSummary;
+    credentialScopeUsed: UsageEventCredentialScopeUsed;
     response: GatewayChatResponse;
   }): Promise<void> {
     await this.tenantRlsService.withTenantContext(
@@ -60,11 +66,15 @@ export class GatewayTelemetryService {
           userUuid: params.authContext.userUuid,
           requestId: params.requestId,
           operation: 'chat',
+          capability: 'text',
           providerId: params.providerId,
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
+          credentialScopeUsed: params.credentialScopeUsed,
           status: 'success',
+          errorCode: null,
           promptTokens: params.response.usage?.promptTokens ?? null,
           completionTokens: params.response.usage?.completionTokens ?? null,
           totalTokens: params.response.usage?.totalTokens ?? null,
@@ -90,7 +100,9 @@ export class GatewayTelemetryService {
     latencyMs: number;
     stream: boolean;
     messageSummary: MessageSummary;
+    credentialScopeUsed?: UsageEventCredentialScopeUsed;
     error: string;
+    errorCode?: string;
   }): Promise<void> {
     await this.tenantRlsService.withTenantContext(
       params.authContext.activeTenantId,
@@ -110,7 +122,7 @@ export class GatewayTelemetryService {
           messageCount: params.messageSummary.messageCount ?? null,
           messageCharacters: params.messageSummary.messageCharacters ?? null,
           latencyMs: params.latencyMs,
-          errorCode: 'gateway_error',
+          errorCode: params.errorCode ?? 'gateway_error',
           errorMessage: params.error,
           metadata: {
             stream: params.stream,
@@ -123,11 +135,15 @@ export class GatewayTelemetryService {
           userUuid: params.authContext.userUuid,
           requestId: params.requestId,
           operation: 'chat',
+          capability: 'text',
           providerId: params.providerId,
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
-          status: 'failure',
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
+          credentialScopeUsed: params.credentialScopeUsed ?? null,
+          status: 'error',
+          errorCode: params.errorCode ?? 'gateway_error',
           promptTokens: null,
           completionTokens: null,
           totalTokens: null,
@@ -154,6 +170,7 @@ export class GatewayTelemetryService {
     route: string;
     latencyMs: number;
     promptLength: number;
+    credentialScopeUsed: UsageEventCredentialScopeUsed;
     response: GatewayImageGenerationResponse;
   }): Promise<void> {
     await this.tenantRlsService.withTenantContext(
@@ -187,11 +204,15 @@ export class GatewayTelemetryService {
           userUuid: params.authContext.userUuid,
           requestId: params.requestId,
           operation: params.operation,
+          capability: 'image',
           providerId: params.providerId,
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
+          credentialScopeUsed: params.credentialScopeUsed,
           status: 'success',
+          errorCode: null,
           promptTokens: null,
           completionTokens: null,
           totalTokens: null,
@@ -214,7 +235,9 @@ export class GatewayTelemetryService {
     route: string;
     latencyMs: number;
     promptLength: number;
+    credentialScopeUsed?: UsageEventCredentialScopeUsed;
     error: string;
+    errorCode?: string;
   }): Promise<void> {
     await this.tenantRlsService.withTenantContext(
       params.authContext.activeTenantId,
@@ -234,7 +257,7 @@ export class GatewayTelemetryService {
           messageCount: 1,
           messageCharacters: params.promptLength,
           latencyMs: params.latencyMs,
-          errorCode: 'gateway_error',
+          errorCode: params.errorCode ?? 'gateway_error',
           errorMessage: params.error,
           metadata: null,
         } satisfies Partial<AuditLogEntity>);
@@ -245,11 +268,15 @@ export class GatewayTelemetryService {
           userUuid: params.authContext.userUuid,
           requestId: params.requestId,
           operation: params.operation,
+          capability: 'image',
           providerId: params.providerId,
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
-          status: 'failure',
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
+          credentialScopeUsed: params.credentialScopeUsed ?? null,
+          status: 'error',
+          errorCode: params.errorCode ?? 'gateway_error',
           promptTokens: null,
           completionTokens: null,
           totalTokens: null,
@@ -260,6 +287,129 @@ export class GatewayTelemetryService {
           metadata: {
             promptLength: params.promptLength,
           },
+        } satisfies Partial<UsageEventEntity>);
+      },
+    );
+  }
+
+  async recordBlockedByPolicy(params: {
+    authContext: GatewayAuthContext;
+    requestId: string;
+    providerId: string;
+    model: string;
+    operation: 'chat' | 'image_generation' | 'image_edit';
+    capability: UsageEventCapability;
+    route: string;
+    latencyMs: number;
+    error: string;
+    errorCode: string;
+    metadata?: Record<string, unknown> | null;
+  }): Promise<void> {
+    await this.recordUsageEvent({
+      authContext: params.authContext,
+      requestId: params.requestId,
+      operation: params.operation,
+      capability: params.capability,
+      providerId: params.providerId,
+      model: params.model,
+      status: 'blocked_by_policy',
+      errorCode: params.errorCode,
+      latencyMs: params.latencyMs,
+      route: params.route,
+      error: params.error,
+      metadata: params.metadata ?? null,
+    });
+  }
+
+  async recordBlockedByQuota(params: {
+    authContext: GatewayAuthContext;
+    requestId: string;
+    providerId: string;
+    model: string;
+    operation: 'chat' | 'image_generation' | 'image_edit';
+    capability: UsageEventCapability;
+    route: string;
+    latencyMs: number;
+    error: string;
+    errorCode: string;
+    metadata?: Record<string, unknown> | null;
+  }): Promise<void> {
+    await this.recordUsageEvent({
+      authContext: params.authContext,
+      requestId: params.requestId,
+      operation: params.operation,
+      capability: params.capability,
+      providerId: params.providerId,
+      model: params.model,
+      status: 'blocked_by_quota',
+      errorCode: params.errorCode,
+      latencyMs: params.latencyMs,
+      route: params.route,
+      error: params.error,
+      metadata: params.metadata ?? null,
+    });
+  }
+
+  private async recordUsageEvent(params: {
+    authContext: GatewayAuthContext;
+    requestId: string;
+    operation: 'chat' | 'image_generation' | 'image_edit';
+    capability: UsageEventCapability;
+    providerId: string;
+    model: string;
+    status: UsageEventStatus;
+    errorCode: string | null;
+    latencyMs: number;
+    route: string;
+    error: string;
+    metadata: Record<string, unknown> | null;
+  }): Promise<void> {
+    await this.tenantRlsService.withTenantContext(
+      params.authContext.activeTenantId,
+      async (manager) => {
+        await manager.getRepository(AuditLogEntity).save({
+          tenantId: params.authContext.activeTenantId,
+          userId: params.authContext.userId,
+          userUuid: params.authContext.userUuid,
+          requestId: params.requestId,
+          route: params.route,
+          action: params.operation,
+          providerId: params.providerId,
+          model: params.model,
+          identitySource: params.authContext.identitySource,
+          integrationClientId: params.authContext.integrationClientId ?? null,
+          status: 'failure',
+          messageCount: null,
+          messageCharacters: null,
+          latencyMs: params.latencyMs,
+          errorCode: params.errorCode,
+          errorMessage: params.error,
+          metadata: params.metadata,
+        } satisfies Partial<AuditLogEntity>);
+
+        await manager.getRepository(UsageEventEntity).save({
+          tenantId: params.authContext.activeTenantId,
+          userId: params.authContext.userId,
+          userUuid: params.authContext.userUuid,
+          requestId: params.requestId,
+          operation: params.operation,
+          capability: params.capability,
+          providerId: params.providerId,
+          model: params.model,
+          identitySource: params.authContext.identitySource,
+          integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
+          credentialScopeUsed: null,
+          status: params.status,
+          errorCode: params.errorCode,
+          promptTokens: null,
+          completionTokens: null,
+          totalTokens: null,
+          reasoningTokens: null,
+          imageCount: null,
+          costEstimateUsd: null,
+          latencyMs: params.latencyMs,
+          metadata: params.metadata,
         } satisfies Partial<UsageEventEntity>);
       },
     );

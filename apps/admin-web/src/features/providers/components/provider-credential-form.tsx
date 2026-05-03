@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   Alert,
   Button,
   Card,
@@ -8,8 +9,36 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from '@mantine/core';
-import { IconKey, IconRestore } from '@tabler/icons-react';
+import { IconHelpCircle, IconKey, IconRestore } from '@tabler/icons-react';
+
+function HelpLabel({
+  label,
+  help,
+}: {
+  label: string;
+  help: string;
+}) {
+  return (
+    <Group gap={6} wrap="nowrap">
+      <Text component="span" inherit>
+        {label}
+      </Text>
+      <Tooltip label={help} multiline w={280} withArrow>
+        <ActionIcon
+          aria-label={`Help for ${label}`}
+          color="gray"
+          radius="xl"
+          size="sm"
+          variant="subtle"
+        >
+          <IconHelpCircle size={16} stroke={1.8} />
+        </ActionIcon>
+      </Tooltip>
+    </Group>
+  );
+}
 
 type ProviderOption = {
   value: string;
@@ -167,7 +196,12 @@ export function ProviderCredentialForm({
           </label>
           <TextInput
             data-testid="providers-label-input"
-            label="Label"
+            label={
+              <HelpLabel
+                label="Label"
+                help="A human-friendly name for the secret, such as primary, staging, or rotated-2026-05."
+              />
+            }
             onChange={(event) => onLabelChange(event.currentTarget.value)}
             value={label}
           />
@@ -178,7 +212,12 @@ export function ProviderCredentialForm({
                 ? 'Leave blank to keep the current token and update only the label.'
                 : undefined
             }
-            label={isEditing ? 'Replace API token' : 'API token'}
+            label={
+              <HelpLabel
+                label={isEditing ? 'Replace API token' : 'API token'}
+                help="Write-only provider secret. After save, only a masked hint is shown back."
+              />
+            }
             onChange={(event) => onApiTokenChange(event.currentTarget.value)}
             placeholder={
               isEditing
@@ -206,7 +245,12 @@ export function ProviderCredentialForm({
                   ? 'Use http://127.0.0.1:11434 for local Ollama, or https://ollama.com for Ollama Cloud.'
                   : 'Optional override when this credential should use a non-default provider endpoint.'
             }
-            label={isEditing ? 'Replace base URL' : 'Base URL'}
+            label={
+              <HelpLabel
+                label={isEditing ? 'Replace base URL' : 'Base URL'}
+                help="Optional endpoint override when this credential should target a non-default provider URL."
+              />
+            }
             onChange={(event) => onBaseUrlChange(event.currentTarget.value)}
             placeholder={
               usesEndpointAccess

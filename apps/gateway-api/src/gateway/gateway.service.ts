@@ -14,7 +14,18 @@ import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayTelemetryService } from './gateway-telemetry.service';
 import type { ListModelsQueryDto } from './dto/list-models-query.dto';
 import { ProviderCredentialService } from './provider-credential.service';
+import { IntegrationClientScopeService } from './integration-client-scope.service';
+import {
+  ModelAccessPolicyException,
+  TenantModelAccessRuleService,
+} from './tenant-model-access-rule.service';
+import {
+  TenantPolicyLimitException,
+  TenantPolicyService,
+} from './tenant-policy.service';
 import { ProviderRegistryService } from './provider-registry.service';
+import { TenantProviderConfigurationService } from './tenant-provider-configuration.service';
+import type { UsageEventCredentialScopeUsed } from '../persistence/entities/usage-event.entity';
 
 type MessageSummary = {
   messageCount?: number;
@@ -27,6 +38,7 @@ export type GatewayChatStreamSession = {
   model: string;
   startedAt: number;
   messageSummary: MessageSummary;
+  credentialScopeUsed: UsageEventCredentialScopeUsed;
   stream: ReadableStream<Uint8Array>;
 };
 
@@ -37,12 +49,24 @@ export class GatewayService {
     private readonly gatewayTelemetryService: GatewayTelemetryService,
     private readonly providerRegistry: ProviderRegistryService,
     private readonly providerCredentialService: ProviderCredentialService,
+    private readonly integrationClientScopeService: IntegrationClientScopeService,
+    private readonly tenantModelAccessRuleService: TenantModelAccessRuleService,
+    private readonly tenantProviderConfigurationService: TenantProviderConfigurationService,
+    private readonly tenantPolicyService?: TenantPolicyService,
   ) {}
 
   async listModels(query: ListModelsQueryDto, authContext: GatewayAuthContext) {
-    const provider = this.providerRegistry.getProvider(
-      query.providerId ?? authContext.defaultProviderId ?? undefined,
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'models:list',
     );
+    const providerId = this.resolveProviderId(query.providerId, authContext);
+    const configuration =
+      await this.tenantProviderConfigurationService.assertProviderEnabled(
+        authContext.activeTenantId,
+        providerId,
+      );
+    const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
 
     if (!provider.listModels) {
@@ -63,10 +87,16 @@ export class GatewayService {
         userId: authContext.userId,
         providerAccess,
       });
+      const filteredModels =
+        await this.tenantModelAccessRuleService.filterTextModels(
+          authContext.activeTenantId,
+          provider.providerId,
+          models,
+        );
 
       return {
         providerId: provider.providerId,
-        models,
+        models: filteredModels,
       };
     } catch (error) {
       if (error instanceof HttpException) {
@@ -83,8 +113,22 @@ export class GatewayService {
     request: GatewayChatRequestDto,
     authContext: GatewayAuthContext,
   ): Promise<GatewayChatResponse> {
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'chat:completion',
+    );
     const providerId = this.resolveProviderId(request.providerId, authContext);
-    const model = this.resolveModel(request.model, providerId, authContext);
+    const configuration =
+      await this.tenantProviderConfigurationService.assertProviderEnabled(
+        authContext.activeTenantId,
+        providerId,
+      );
+    const model = this.tenantProviderConfigurationService.resolveTextModel(
+      request.model,
+      providerId,
+      authContext,
+      configuration,
+    );
     const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
@@ -113,8 +157,18 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
-      const providerAccess =
-        await this.providerCredentialService.resolveProviderAccess(
+      await this.tenantModelAccessRuleService.assertTextModelAllowed(
+        authContext.activeTenantId,
+        providerId,
+        model,
+      );
+      await this.tenantPolicyService?.assertTextRequestAllowed({
+        tenantId: authContext.activeTenantId,
+        providerId,
+        model,
+      });
+      const { providerAccess, credentialScopeUsed } =
+        await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
           provider.providerId,
         );
@@ -147,6 +201,7 @@ export class GatewayService {
           latencyMs: Date.now() - startedAt,
           stream: false,
           messageSummary,
+          credentialScopeUsed,
           response,
         }),
       );
@@ -155,6 +210,47 @@ export class GatewayService {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown gateway error.';
+      if (error instanceof ModelAccessPolicyException) {
+        await this.recordTelemetrySafely(() =>
+          this.gatewayTelemetryService.recordBlockedByPolicy({
+            authContext,
+            requestId,
+            providerId: provider.providerId,
+            model,
+            operation: 'chat',
+            capability: 'text',
+            route: '/api/v1/chat',
+            latencyMs: Date.now() - startedAt,
+            error: errorMessage,
+            errorCode: 'model_access_denied',
+            metadata: {
+              stream: false,
+            },
+          }),
+        );
+        throw error;
+      }
+      if (error instanceof TenantPolicyLimitException) {
+        await this.recordTelemetrySafely(() =>
+          this.gatewayTelemetryService.recordBlockedByQuota({
+            authContext,
+            requestId,
+            providerId: provider.providerId,
+            model,
+            operation: 'chat',
+            capability: 'text',
+            route: '/api/v1/chat',
+            latencyMs: Date.now() - startedAt,
+            error: errorMessage,
+            errorCode: error.errorCode,
+            metadata: {
+              stream: false,
+              ...(error.metadata ?? {}),
+            },
+          }),
+        );
+        throw error;
+      }
       this.gatewayAuditService.logFailed({
         ...auditBase,
         durationMs: Date.now() - startedAt,
@@ -171,6 +267,10 @@ export class GatewayService {
           latencyMs: Date.now() - startedAt,
           stream: false,
           messageSummary,
+          errorCode:
+            error instanceof ModelAccessPolicyException
+              ? 'model_access_denied'
+              : 'gateway_error',
           error: errorMessage,
         }),
       );
@@ -188,8 +288,22 @@ export class GatewayService {
     request: GatewayChatRequestDto,
     authContext: GatewayAuthContext,
   ): Promise<GatewayChatStreamSession> {
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'chat:completion',
+    );
     const providerId = this.resolveProviderId(request.providerId, authContext);
-    const model = this.resolveModel(request.model, providerId, authContext);
+    const configuration =
+      await this.tenantProviderConfigurationService.assertProviderEnabled(
+        authContext.activeTenantId,
+        providerId,
+      );
+    const model = this.tenantProviderConfigurationService.resolveTextModel(
+      request.model,
+      providerId,
+      authContext,
+      configuration,
+    );
     const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
@@ -224,8 +338,18 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
-      const providerAccess =
-        await this.providerCredentialService.resolveProviderAccess(
+      await this.tenantModelAccessRuleService.assertTextModelAllowed(
+        authContext.activeTenantId,
+        providerId,
+        model,
+      );
+      await this.tenantPolicyService?.assertTextRequestAllowed({
+        tenantId: authContext.activeTenantId,
+        providerId,
+        model,
+      });
+      const { providerAccess, credentialScopeUsed } =
+        await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
           provider.providerId,
         );
@@ -249,11 +373,53 @@ export class GatewayService {
         model,
         startedAt,
         messageSummary,
+        credentialScopeUsed,
         stream,
       };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown gateway error.';
+      if (error instanceof ModelAccessPolicyException) {
+        await this.recordTelemetrySafely(() =>
+          this.gatewayTelemetryService.recordBlockedByPolicy({
+            authContext,
+            requestId,
+            providerId: provider.providerId,
+            model,
+            operation: 'chat',
+            capability: 'text',
+            route: '/api/v1/chat',
+            latencyMs: Date.now() - startedAt,
+            error: errorMessage,
+            errorCode: 'model_access_denied',
+            metadata: {
+              stream: true,
+            },
+          }),
+        );
+        throw error;
+      }
+      if (error instanceof TenantPolicyLimitException) {
+        await this.recordTelemetrySafely(() =>
+          this.gatewayTelemetryService.recordBlockedByQuota({
+            authContext,
+            requestId,
+            providerId: provider.providerId,
+            model,
+            operation: 'chat',
+            capability: 'text',
+            route: '/api/v1/chat',
+            latencyMs: Date.now() - startedAt,
+            error: errorMessage,
+            errorCode: error.errorCode,
+            metadata: {
+              stream: true,
+              ...(error.metadata ?? {}),
+            },
+          }),
+        );
+        throw error;
+      }
       this.gatewayAuditService.logFailed({
         ...auditBase,
         durationMs: Date.now() - startedAt,
@@ -270,6 +436,10 @@ export class GatewayService {
           latencyMs: Date.now() - startedAt,
           stream: true,
           messageSummary,
+          errorCode:
+            error instanceof ModelAccessPolicyException
+              ? 'model_access_denied'
+              : 'gateway_error',
           error: errorMessage,
         }),
       );
@@ -287,7 +457,12 @@ export class GatewayService {
     authContext: GatewayAuthContext,
     session: Pick<
       GatewayChatStreamSession,
-      'requestId' | 'providerId' | 'model' | 'startedAt' | 'messageSummary'
+      | 'requestId'
+      | 'providerId'
+      | 'model'
+      | 'startedAt'
+      | 'messageSummary'
+      | 'credentialScopeUsed'
     >,
     response: GatewayChatResponse,
   ): Promise<void> {
@@ -319,6 +494,7 @@ export class GatewayService {
         latencyMs: Date.now() - session.startedAt,
         stream: true,
         messageSummary: session.messageSummary,
+        credentialScopeUsed: session.credentialScopeUsed,
         response,
       }),
     );
@@ -328,7 +504,12 @@ export class GatewayService {
     authContext: GatewayAuthContext,
     session: Pick<
       GatewayChatStreamSession,
-      'requestId' | 'providerId' | 'model' | 'startedAt' | 'messageSummary'
+      | 'requestId'
+      | 'providerId'
+      | 'model'
+      | 'startedAt'
+      | 'messageSummary'
+      | 'credentialScopeUsed'
     >,
     errorMessage: string,
   ): Promise<void> {
@@ -361,6 +542,7 @@ export class GatewayService {
         latencyMs: Date.now() - session.startedAt,
         stream: true,
         messageSummary: session.messageSummary,
+        credentialScopeUsed: session.credentialScopeUsed,
         error: errorMessage,
       }),
     );
@@ -382,28 +564,6 @@ export class GatewayService {
       'No provider was supplied and no default provider is configured for the authenticated user.',
     );
   }
-
-  private resolveModel(
-    requestedModel: string | undefined,
-    providerId: ProviderId,
-    authContext: GatewayAuthContext,
-  ): string {
-    if (requestedModel) {
-      return requestedModel;
-    }
-
-    if (
-      authContext.defaultProviderId === providerId &&
-      authContext.defaultModel
-    ) {
-      return authContext.defaultModel;
-    }
-
-    throw new BadRequestException(
-      'No model was supplied and no default model is configured for the selected provider.',
-    );
-  }
-
   private async recordTelemetrySafely(work: () => Promise<void>): Promise<void> {
     try {
       await work();

@@ -7,6 +7,10 @@ import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { RoleEntity } from '../persistence/entities/role.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
 import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
+import { TenantModelAccessRuleEntity } from '../persistence/entities/tenant-model-access-rule.entity';
+import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
+import { TenantProviderConfigurationEntity } from '../persistence/entities/tenant-provider-configuration.entity';
+import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 import { UserRoleEntity } from '../persistence/entities/user-role.entity';
@@ -102,6 +106,10 @@ function getBaseDataSourceOptions(): DataSourceOptions {
       ApiKeyEntity,
       TenantEntity,
       TenantMembershipEntity,
+      TenantModelAccessRuleEntity,
+      TenantPolicyEntity,
+      TenantProviderConfigurationEntity,
+      UsageEventEntity,
       UserProviderCredentialEntity,
     ],
     synchronize: false,

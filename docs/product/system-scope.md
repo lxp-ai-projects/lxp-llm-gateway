@@ -54,11 +54,18 @@ The repository now contains:
 - provider model discovery through provider adapters, including capability-specific model metadata
 - tenant-aware control-plane and gateway foundations based on global users, tenant memberships, and an active tenant context
 - tenant-aware technical client foundations based on integration clients and API keys
+- tenant-aware technical client execution on direct gateway chat, model-listing, and image-generation/edit endpoints with minimal scope enforcement
+- tenant-aware technical client administration on the `super_admin` surface, including tenant-bound integration clients, API key creation, key rotation, and key disablement
+- tenant-aware provider configuration foundations based on per-tenant provider enablement, default model selection, and credential-routing policy
+- tenant-aware model access foundations based on per-tenant rules for provider/model-pattern allow-deny control and image-oriented request limits
+- tenant-aware usage ledger foundations based on durable `usage_events`, including capability, credential-scope attribution, and blocked request statuses
+- tenant-aware policy and limit foundations based on `tenant_policies`, with an initial gateway enforcement slice for request windows, monthly budget, monthly token totals, and monthly image request counts
 - tenant-aware audit and usage telemetry with an initial PostgreSQL RLS slice on telemetry tables
 - tenant-aware technical client auth with an initial PostgreSQL RLS slice on `integration_clients` and `api_keys`
 - tenant-aware image storage and history with an initial PostgreSQL RLS slice on `image_assets`, `image_jobs`, and `image_job_results`
 - tenant-aware BYOK credential management with a PostgreSQL RLS slice on `user_provider_credentials`
 - an initial `super_admin` tenant administration surface for cross-tenant listing, tenant policy editing, and membership visibility
+- tenant policy editing is now available in the `super_admin` tenant-control surface, while the current limiter remains intentionally app-level rather than globally distributed
 - shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, and Anthropic Claude behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`
@@ -118,7 +125,11 @@ Current Open WebUI posture is:
 - the gateway remains the BYOK and security authority, not Open WebUI
 - production deployments should strip identity headers at the public proxy boundary and inject them only from trusted infrastructure
 - gateway execution should emit tenant-aware audit and usage records for traceability and future quota/billing work
+- gateway provider execution should now resolve through tenant provider configuration before credential fallback and provider dispatch
+- tenant-scoped analytics can now read directly from the durable usage ledger for summary, provider, and model breakdowns
 - the first database-level isolation backstop is now in place for telemetry through transaction-scoped `app.tenant_id` plus PostgreSQL RLS on `audit_logs` and `usage_events`
 - technical-client authentication now also uses a database-level backstop by resolving API keys inside a transaction-scoped `app.api_key_hash` context before switching to `app.tenant_id`
+- technical-client traffic is now scoped at the application layer by operation, with explicit `chat:completion`, `models:list`, `image:generate`, and `image:edit` checks before provider dispatch
+- provider model listing and image catalog exposure are now filtered through tenant model-access rules before they are returned to callers
 - image asset access and image job persistence now also run behind a database-level tenant backstop through transaction-scoped `app.tenant_id` plus PostgreSQL RLS
 - BYOK credential reads and writes now also run behind a database-level tenant backstop through transaction-scoped `app.tenant_id` plus PostgreSQL RLS

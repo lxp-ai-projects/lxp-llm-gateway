@@ -233,10 +233,10 @@ test('ProvidersPage lets the user edit their own credential token', async () => 
     await screen.findByRole('heading', { name: 'Edit provider credential' }),
   ).toBeInTheDocument();
 
-  await user.clear(screen.getByLabelText('Label'));
-  await user.type(screen.getByLabelText('Label'), 'main');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'main');
   await user.type(
-    screen.getByLabelText('Replace API token'),
+    screen.getByTestId('providers-token-input'),
     'rotated-secret-token',
   );
   await user.click(screen.getByRole('button', { name: 'Update credential' }));
@@ -297,7 +297,7 @@ test('ProvidersPage creates a new credential and ignores empty submit payloads',
   fireEvent.submit(credentialForm!);
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
 
-  await user.type(screen.getByLabelText('API token'), 'fresh-secret-token');
+  await user.type(screen.getByTestId('providers-token-input'), 'fresh-secret-token');
   await user.click(saveCredentialButton);
 
   await waitFor(() =>
@@ -324,8 +324,8 @@ test('ProvidersPage cancels credential edit mode and resets the form', async () 
   expect(
     await screen.findByRole('heading', { name: 'Add provider credential' }),
   ).toBeInTheDocument();
-  expect(screen.getByLabelText('Label')).toHaveValue('primary');
-  expect(screen.getByLabelText('API token')).toHaveValue('');
+  expect(screen.getByTestId('providers-label-input')).toHaveValue('primary');
+  expect(screen.getByTestId('providers-token-input')).toHaveValue('');
 });
 
 test('ProvidersPage clears an invalid default model and saves gateway defaults', async () => {
@@ -482,10 +482,10 @@ test('ProvidersPage creates an Ollama endpoint credential with a base URL', asyn
     screen.getByText('Endpoint-based credential'),
   ).toBeInTheDocument();
 
-  await user.clear(screen.getByLabelText('Label'));
-  await user.type(screen.getByLabelText('Label'), 'local-ollama');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'local-ollama');
   await user.type(
-    screen.getByLabelText('Base URL'),
+    screen.getByTestId('providers-base-url-input'),
     'http://127.0.0.1:11434/v1',
   );
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
@@ -517,9 +517,9 @@ test('ProvidersPage blocks Ollama Cloud credentials without an API token', async
   await screen.findByRole('heading', { name: 'Add provider credential' });
 
   await user.selectOptions(screen.getByLabelText('Provider'), 'ollama');
-  await user.clear(screen.getByLabelText('Label'));
-  await user.type(screen.getByLabelText('Label'), 'ollama-cloud');
-  await user.type(screen.getByLabelText('Base URL'), 'https://ollama.com');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'ollama-cloud');
+  await user.type(screen.getByTestId('providers-base-url-input'), 'https://ollama.com');
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
 
   expect(
@@ -553,9 +553,9 @@ test('ProvidersPage shows the xAI Grok billing warning and blocks missing tokens
     ),
   );
 
-  await user.clear(screen.getByLabelText('Label'));
-  await user.type(screen.getByLabelText('Label'), 'grok-primary');
-  await user.type(screen.getByLabelText('Base URL'), 'https://api.x.ai/v1');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'grok-primary');
+  await user.type(screen.getByTestId('providers-base-url-input'), 'https://api.x.ai/v1');
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
 
   expect(
@@ -587,10 +587,10 @@ test('ProvidersPage shows the Google Gemini billing warning and blocks missing t
     ),
   ).toBeInTheDocument();
 
-  await user.clear(screen.getByLabelText('Label'));
-  await user.type(screen.getByLabelText('Label'), 'gemini-primary');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'gemini-primary');
   await user.type(
-    screen.getByLabelText('Base URL'),
+    screen.getByTestId('providers-base-url-input'),
     'https://generativelanguage.googleapis.com/v1beta/openai',
   );
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
@@ -624,10 +624,10 @@ test('ProvidersPage shows the OpenAI billing warning and blocks missing tokens',
     ),
   ).toBeInTheDocument();
 
-  await user.clear(screen.getByLabelText('Label'));
-  await user.type(screen.getByLabelText('Label'), 'openai-primary');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'openai-primary');
   await user.type(
-    screen.getByLabelText('Base URL'),
+    screen.getByTestId('providers-base-url-input'),
     'https://api.openai.com/v1',
   );
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
@@ -661,10 +661,10 @@ test('ProvidersPage shows the Anthropic billing warning and blocks missing token
     ),
   ).toBeInTheDocument();
 
-  await user.clear(screen.getByLabelText('Label'));
-  await user.type(screen.getByLabelText('Label'), 'anthropic-primary');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'anthropic-primary');
   await user.type(
-    screen.getByLabelText('Base URL'),
+    screen.getByTestId('providers-base-url-input'),
     'https://api.anthropic.com',
   );
   await user.click(screen.getByRole('button', { name: 'Save credential' }));

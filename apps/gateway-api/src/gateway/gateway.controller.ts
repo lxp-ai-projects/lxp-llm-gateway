@@ -24,9 +24,10 @@ export class GatewayController {
     httpRequest: Request & { cookies?: Record<string, string | undefined> },
     @Res() response: StreamableHttpResponse,
   ): Promise<GatewayChatResponse | void> {
-    const authContext = await this.gatewayAuthService.authenticateAccessToken(
+    const authContext = await this.gatewayAuthService.authenticateGatewayRequest(
       authorizationHeader,
       httpRequest.cookies?.lxp_access_token,
+      httpRequest.headers,
     );
 
     if (request.stream) {

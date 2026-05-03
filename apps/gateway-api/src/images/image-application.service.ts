@@ -40,6 +40,17 @@ import { UserEntity } from '../persistence/entities/user.entity';
 import { ProviderCredentialService } from '../gateway/provider-credential.service';
 import { ProviderRegistryService } from '../gateway/provider-registry.service';
 import { GatewayTelemetryService } from '../gateway/gateway-telemetry.service';
+import { IntegrationClientScopeService } from '../gateway/integration-client-scope.service';
+import {
+  ModelAccessLimitException,
+  ModelAccessPolicyException,
+  TenantModelAccessRuleService,
+} from '../gateway/tenant-model-access-rule.service';
+import {
+  TenantPolicyLimitException,
+  TenantPolicyService,
+} from '../gateway/tenant-policy.service';
+import { TenantProviderConfigurationService } from '../gateway/tenant-provider-configuration.service';
 
 const GATEWAY_IMAGE_ASSET_MIME_TYPES = new Set([
   'image/png',
@@ -64,6 +75,10 @@ export class ImageApplicationService {
     private readonly tenantMembershipRepository: Repository<TenantMembershipEntity>,
     private readonly providerRegistry: ProviderRegistryService,
     private readonly providerCredentialService: ProviderCredentialService,
+    private readonly tenantProviderConfigurationService: TenantProviderConfigurationService,
+    private readonly integrationClientScopeService: IntegrationClientScopeService,
+    private readonly tenantModelAccessRuleService: TenantModelAccessRuleService,
+    private readonly tenantPolicyService: TenantPolicyService,
     private readonly gatewayTelemetryService: GatewayTelemetryService,
     private readonly tenantRlsService: TenantRlsService,
   ) {}
@@ -71,6 +86,10 @@ export class ImageApplicationService {
   async getCatalog(
     authContext: GatewayAuthContext,
   ): Promise<GatewayImageCatalogResponse> {
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'models:list',
+    );
     const activeProviders = await this.providerRepository.find({
       where: { status: 'active' },
       order: { displayName: 'ASC' },
@@ -78,6 +97,15 @@ export class ImageApplicationService {
 
     const providers: GatewayImageCatalogResponse['providers'] = [];
     for (const providerEntity of activeProviders) {
+      const configuration =
+        await this.tenantProviderConfigurationService.resolveConfiguration(
+          authContext.activeTenantId,
+          providerEntity.providerId,
+        );
+      if (!configuration.enabled || configuration.providerStatus !== 'active') {
+        continue;
+      }
+
       const provider = this.providerRegistry
         .listProviders()
         .find((entry) => entry.providerId === providerEntity.providerId);
@@ -104,16 +132,26 @@ export class ImageApplicationService {
           providerAccess,
         });
 
-        providers.push({
-          providerId: provider.providerId,
-          displayName: providerEntity.displayName,
-          defaultModelId: catalog.defaultModelId,
-          models: catalog.models.map((model) => ({
-            id: model.id,
-            displayName: model.displayName,
-            capabilities: model.capabilities,
-          })),
-        });
+        const filteredProvider =
+          await this.tenantModelAccessRuleService.filterImageCatalogProvider(
+            authContext.activeTenantId,
+            {
+              providerId: provider.providerId,
+              displayName: providerEntity.displayName,
+              defaultModelId:
+                configuration.defaultImageModel ?? catalog.defaultModelId,
+              models: catalog.models.map((model) => ({
+                id: model.id,
+                displayName: model.displayName,
+                capabilities: model.capabilities,
+              })),
+            },
+          );
+        if (!filteredProvider) {
+          continue;
+        }
+
+        providers.push(filteredProvider);
       } catch {
         continue;
       }
@@ -126,12 +164,26 @@ export class ImageApplicationService {
     request: GatewayImageGenerationRequest,
     authContext: GatewayAuthContext,
   ): Promise<GatewayImageGenerationResponse> {
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'image:generate',
+    );
     const user = await this.resolveUser(
       authContext.activeTenantId,
       authContext.emailHash,
     );
     const providerId = this.resolveProviderId(request.providerId, authContext);
-    const model = this.resolveModel(request.model, providerId, authContext);
+    const configuration =
+      await this.tenantProviderConfigurationService.assertProviderEnabled(
+        authContext.activeTenantId,
+        providerId,
+      );
+    const model = this.tenantProviderConfigurationService.resolveImageModel(
+      request.model,
+      providerId,
+      authContext,
+      configuration,
+    );
     const provider = this.providerRegistry.getProvider(providerId);
 
     if (!provider.capabilities.imageGeneration || !provider.generateImage) {
@@ -143,8 +195,20 @@ export class ImageApplicationService {
     const startedAt = new Date();
     try {
       const requestId = crypto.randomUUID();
-      const providerAccess =
-        await this.providerCredentialService.resolveProviderAccess(
+      await this.tenantModelAccessRuleService.assertImageModelAllowed({
+        tenantId: authContext.activeTenantId,
+        providerId,
+        model,
+        imageCount: request.n,
+        resolution: request.resolution,
+      });
+      await this.tenantPolicyService?.assertImageRequestAllowed({
+        tenantId: authContext.activeTenantId,
+        providerId,
+        model,
+      });
+      const { providerAccess, credentialScopeUsed } =
+        await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
           provider.providerId,
         );
@@ -166,6 +230,7 @@ export class ImageApplicationService {
         route: '/api/v1/images/generations',
         latencyMs,
         promptLength: request.prompt.length,
+        credentialScopeUsed,
         response: providerResponse,
       });
       return this.persistImageJob(
@@ -178,6 +243,49 @@ export class ImageApplicationService {
       );
     } catch (error) {
       const requestId = crypto.randomUUID();
+      if (
+        error instanceof ModelAccessPolicyException ||
+        error instanceof ModelAccessLimitException
+      ) {
+        await this.gatewayTelemetryService.recordBlockedByPolicy({
+          authContext,
+          requestId,
+          providerId: provider.providerId,
+          model,
+          operation: 'image_generation',
+          capability: 'image',
+          route: '/api/v1/images/generations',
+          latencyMs: Date.now() - startedAt.getTime(),
+          error: error instanceof Error ? error.message : 'Policy blocked request.',
+          errorCode:
+            error instanceof ModelAccessPolicyException
+              ? 'model_access_denied'
+              : 'model_access_limit',
+          metadata: {
+            promptLength: request.prompt.length,
+          },
+        });
+        throw error;
+      }
+      if (error instanceof TenantPolicyLimitException) {
+        await this.gatewayTelemetryService.recordBlockedByQuota({
+          authContext,
+          requestId,
+          providerId: provider.providerId,
+          model,
+          operation: 'image_generation',
+          capability: 'image',
+          route: '/api/v1/images/generations',
+          latencyMs: Date.now() - startedAt.getTime(),
+          error: error instanceof Error ? error.message : 'Policy blocked request.',
+          errorCode: error.errorCode,
+          metadata: {
+            promptLength: request.prompt.length,
+            ...(error.metadata ?? {}),
+          },
+        });
+        throw error;
+      }
       await this.gatewayTelemetryService.recordImageFailure({
         authContext,
         requestId,
@@ -187,6 +295,12 @@ export class ImageApplicationService {
         route: '/api/v1/images/generations',
         latencyMs: Date.now() - startedAt.getTime(),
         promptLength: request.prompt.length,
+        errorCode:
+          error instanceof ModelAccessPolicyException
+            ? 'model_access_denied'
+            : error instanceof ModelAccessLimitException
+              ? 'model_access_limit'
+              : 'gateway_error',
         error: error instanceof Error ? error.message : 'Unknown gateway error.',
       });
       throw new BadGatewayException(
@@ -199,12 +313,23 @@ export class ImageApplicationService {
     request: GatewayImageEditRequest,
     authContext: GatewayAuthContext,
   ): Promise<GatewayImageGenerationResponse> {
+    this.integrationClientScopeService.assertScope(authContext, 'image:edit');
     const user = await this.resolveUser(
       authContext.activeTenantId,
       authContext.emailHash,
     );
     const providerId = this.resolveProviderId(request.providerId, authContext);
-    const model = this.resolveModel(request.model, providerId, authContext);
+    const configuration =
+      await this.tenantProviderConfigurationService.assertProviderEnabled(
+        authContext.activeTenantId,
+        providerId,
+      );
+    const model = this.tenantProviderConfigurationService.resolveImageModel(
+      request.model,
+      providerId,
+      authContext,
+      configuration,
+    );
     const provider = this.providerRegistry.getProvider(providerId);
 
     if (!provider.capabilities.imageEditing || !provider.editImage) {
@@ -216,8 +341,20 @@ export class ImageApplicationService {
     const startedAt = new Date();
     try {
       const requestId = crypto.randomUUID();
-      const providerAccess =
-        await this.providerCredentialService.resolveProviderAccess(
+      await this.tenantModelAccessRuleService.assertImageModelAllowed({
+        tenantId: authContext.activeTenantId,
+        providerId,
+        model,
+        imageCount: request.n,
+        resolution: request.resolution,
+      });
+      await this.tenantPolicyService?.assertImageRequestAllowed({
+        tenantId: authContext.activeTenantId,
+        providerId,
+        model,
+      });
+      const { providerAccess, credentialScopeUsed } =
+        await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
           provider.providerId,
         );
@@ -244,6 +381,7 @@ export class ImageApplicationService {
         route: '/api/v1/images/edits',
         latencyMs,
         promptLength: request.prompt.length,
+        credentialScopeUsed,
         response: providerResponse,
       });
       return this.persistImageJob(
@@ -256,6 +394,49 @@ export class ImageApplicationService {
       );
     } catch (error) {
       const requestId = crypto.randomUUID();
+      if (
+        error instanceof ModelAccessPolicyException ||
+        error instanceof ModelAccessLimitException
+      ) {
+        await this.gatewayTelemetryService.recordBlockedByPolicy({
+          authContext,
+          requestId,
+          providerId: provider.providerId,
+          model,
+          operation: 'image_edit',
+          capability: 'image',
+          route: '/api/v1/images/edits',
+          latencyMs: Date.now() - startedAt.getTime(),
+          error: error instanceof Error ? error.message : 'Policy blocked request.',
+          errorCode:
+            error instanceof ModelAccessPolicyException
+              ? 'model_access_denied'
+              : 'model_access_limit',
+          metadata: {
+            promptLength: request.prompt.length,
+          },
+        });
+        throw error;
+      }
+      if (error instanceof TenantPolicyLimitException) {
+        await this.gatewayTelemetryService.recordBlockedByQuota({
+          authContext,
+          requestId,
+          providerId: provider.providerId,
+          model,
+          operation: 'image_edit',
+          capability: 'image',
+          route: '/api/v1/images/edits',
+          latencyMs: Date.now() - startedAt.getTime(),
+          error: error instanceof Error ? error.message : 'Policy blocked request.',
+          errorCode: error.errorCode,
+          metadata: {
+            promptLength: request.prompt.length,
+            ...(error.metadata ?? {}),
+          },
+        });
+        throw error;
+      }
       await this.gatewayTelemetryService.recordImageFailure({
         authContext,
         requestId,
@@ -265,6 +446,12 @@ export class ImageApplicationService {
         route: '/api/v1/images/edits',
         latencyMs: Date.now() - startedAt.getTime(),
         promptLength: request.prompt.length,
+        errorCode:
+          error instanceof ModelAccessPolicyException
+            ? 'model_access_denied'
+            : error instanceof ModelAccessLimitException
+              ? 'model_access_limit'
+              : 'gateway_error',
         error: error instanceof Error ? error.message : 'Unknown gateway error.',
       });
       throw new BadGatewayException(
@@ -774,28 +961,6 @@ export class ImageApplicationService {
       'No provider was supplied and no default image provider is configured for the authenticated user.',
     );
   }
-
-  private resolveModel(
-    requestedModel: string | undefined,
-    providerId: string,
-    authContext: GatewayAuthContext,
-  ) {
-    if (requestedModel) {
-      return requestedModel;
-    }
-
-    if (
-      authContext.defaultImageProviderId === providerId &&
-      authContext.defaultImageModel
-    ) {
-      return authContext.defaultImageModel;
-    }
-
-    throw new BadRequestException(
-      'No model was supplied and no default image model is configured for the selected provider.',
-    );
-  }
-
   private mapAssetSummary(asset: ImageAssetEntity): GatewayImageAssetSummary {
     return {
       id: asset.id,

@@ -6,9 +6,11 @@ import type {
 import type { ProviderId } from '@lxp/domain';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
-import { GatewayService } from '../gateway/gateway.service';
+import { GatewayService, type GatewayChatStreamSession } from '../gateway/gateway.service';
+import { IntegrationClientScopeService } from '../gateway/integration-client-scope.service';
 import { ProviderCredentialService } from '../gateway/provider-credential.service';
 import { ProviderRegistryService } from '../gateway/provider-registry.service';
+import { TenantModelAccessRuleService } from '../gateway/tenant-model-access-rule.service';
 import type { OpenAiCompatibleChatCompletionsRequestDto } from './dto/openai-compatible-chat-completions-request.dto';
 
 type OpenAiCompatibleModelListResponse = {
@@ -47,11 +49,17 @@ export class OpenAiCompatibleService {
     private readonly gatewayService: GatewayService,
     private readonly providerRegistry: ProviderRegistryService,
     private readonly providerCredentialService: ProviderCredentialService,
+    private readonly integrationClientScopeService: IntegrationClientScopeService,
+    private readonly tenantModelAccessRuleService: TenantModelAccessRuleService,
   ) {}
 
   async listModels(
     authContext: GatewayAuthContext,
   ): Promise<OpenAiCompatibleModelListResponse> {
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'models:list',
+    );
     const created = Math.floor(Date.now() / 1000);
     const requestId = crypto.randomUUID();
     const data: OpenAiCompatibleModelListResponse['data'] = [];
@@ -72,8 +80,14 @@ export class OpenAiCompatibleService {
           userId: authContext.userId,
           providerAccess,
         });
+        const filteredModels =
+          await this.tenantModelAccessRuleService.filterTextModels(
+            authContext.activeTenantId,
+            provider.providerId,
+            models,
+          );
 
-        for (const model of models) {
+        for (const model of filteredModels) {
           data.push({
             id: this.composeModelId(provider.providerId, model.id),
             object: 'model',
@@ -114,7 +128,7 @@ export class OpenAiCompatibleService {
   async createChatCompletionStream(
     request: OpenAiCompatibleChatCompletionsRequestDto,
     authContext: GatewayAuthContext,
-  ): Promise<{ requestId: string; stream: ReadableStream<Uint8Array> }> {
+  ): Promise<GatewayChatStreamSession> {
     const modelTarget = this.parseModelTarget(request.model, authContext);
     return this.gatewayService.chatStream(
       {

@@ -219,7 +219,7 @@ test('GatewayAuthService resolves a tenant-scoped integration client default use
       assert.equal(authContext.integrationClientId, 'open-webui-demo');
       assert.deepEqual(
         authContext.integrationClientScopes,
-        ['chat:complete', 'models:list'],
+        ['chat:completion', 'models:list'],
       );
       assert.equal(authContext.userUuid, 'uuid-1');
     },
@@ -325,6 +325,185 @@ test('GatewayAuthService resolves a trusted forwarded user for an integration cl
       assert.equal(authContext.userUuid, 'uuid-2');
       assert.equal(authContext.defaultProviderId, 'openrouter');
       assert.deepEqual(authContext.roles, ['operator']);
+    },
+  );
+});
+
+test('GatewayAuthService rejects a trusted forwarded user from a different tenant', async () => {
+  const lookupKey = randomBytes(32);
+  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
+  const bobHash = computeEmailHash('bob@example.com', lookupKey);
+  const apiKey = 'lxp_cross_tenant_forwarded_key';
+  const tenantOne = {
+    id: 'tenant-1',
+    slug: 'tenant-one',
+    status: 'active',
+  };
+  const tenantTwo = {
+    id: 'tenant-2',
+    slug: 'tenant-two',
+    status: 'active',
+  };
+  const alice = {
+    id: 'user-1',
+    userUuid: 'uuid-1',
+    emailHash: aliceHash,
+    status: 'active',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'nano-1',
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  };
+  const bob = {
+    id: 'user-2',
+    userUuid: 'uuid-2',
+    emailHash: bobHash,
+    status: 'active',
+    defaultProviderId: 'openrouter',
+    defaultModel: 'meta-llama/llama-3.3-70b-instruct',
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  };
+  const integrationClient = {
+    id: 'integration-1',
+    tenantId: tenantOne.id,
+    tenant: tenantOne,
+    clientId: 'open-webui-demo',
+    displayName: 'Open WebUI Demo',
+    applicationId: 'open-webui',
+    defaultUserId: alice.id,
+    defaultUser: alice,
+    scopes: ['chat:completion'],
+    trustedForwardedIdentityEnabled: true,
+    status: 'active',
+  };
+
+  const service = createService({
+    users: [alice, bob],
+    tenants: [tenantOne, tenantTwo],
+    memberships: [
+      {
+        id: 'membership-1',
+        tenantId: tenantOne.id,
+        userId: alice.id,
+        role: 'user',
+        tenant: tenantOne,
+      },
+      {
+        id: 'membership-2',
+        tenantId: tenantTwo.id,
+        userId: bob.id,
+        role: 'operator',
+        tenant: tenantTwo,
+      },
+    ],
+    integrationClients: [integrationClient],
+    apiKeys: [
+      {
+        id: 'key-1',
+        tenantId: tenantOne.id,
+        integrationClientId: integrationClient.id,
+        integrationClient,
+        keyHash: computeApiKeyHash(apiKey),
+        scopes: [],
+        status: 'active',
+        expiresAt: null,
+      },
+    ],
+  });
+
+  await withEnv(
+    {
+      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: 'X-OpenWebUI-User-Email',
+    },
+    async () => {
+      await assert.rejects(
+        () =>
+          service.authenticateOpenAiCompatibleRequest(`Bearer ${apiKey}`, undefined, {
+            'x-openwebui-user-email': 'bob@example.com',
+          }),
+        /not a member of the integration tenant/i,
+      );
+    },
+  );
+});
+
+test('GatewayAuthService rejects an API key whose integration client does not belong to the same tenant', async () => {
+  const lookupKey = randomBytes(32);
+  const aliceHash = computeEmailHash('alice@example.com', lookupKey);
+  const apiKey = 'lxp_mismatched_integration_client_key';
+  const tenantOne = {
+    id: 'tenant-1',
+    slug: 'tenant-one',
+    status: 'active',
+  };
+  const tenantTwo = {
+    id: 'tenant-2',
+    slug: 'tenant-two',
+    status: 'active',
+  };
+  const alice = {
+    id: 'user-1',
+    userUuid: 'uuid-1',
+    emailHash: aliceHash,
+    status: 'active',
+    defaultProviderId: 'nanogpt',
+    defaultModel: 'nano-1',
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  };
+  const foreignIntegrationClient = {
+    id: 'integration-foreign',
+    tenantId: tenantTwo.id,
+    tenant: tenantTwo,
+    clientId: 'foreign-client',
+    displayName: 'Foreign Client',
+    applicationId: 'other-app',
+    defaultUserId: alice.id,
+    defaultUser: alice,
+    scopes: ['chat:completion'],
+    trustedForwardedIdentityEnabled: false,
+    status: 'active',
+  };
+
+  const service = createService({
+    users: [alice],
+    tenants: [tenantOne, tenantTwo],
+    memberships: [
+      {
+        id: 'membership-1',
+        tenantId: tenantOne.id,
+        userId: alice.id,
+        role: 'user',
+        tenant: tenantOne,
+      },
+    ],
+    integrationClients: [foreignIntegrationClient],
+    apiKeys: [
+      {
+        id: 'key-1',
+        tenantId: tenantOne.id,
+        integrationClientId: foreignIntegrationClient.id,
+        integrationClient: foreignIntegrationClient,
+        keyHash: computeApiKeyHash(apiKey),
+        scopes: ['chat:completion'],
+        status: 'active',
+        expiresAt: null,
+      },
+    ],
+  });
+
+  await withEnv(
+    {
+      LXP_EMAIL_LOOKUP_KEY: lookupKey.toString('base64'),
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: 'X-OpenWebUI-User-Email',
+    },
+    async () => {
+      await assert.rejects(
+        () => service.authenticateOpenAiCompatibleRequest(`Bearer ${apiKey}`),
+        /integration client is not active for the supplied api key/i,
+      );
     },
   );
 });

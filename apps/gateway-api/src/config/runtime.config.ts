@@ -10,6 +10,9 @@ import { IntegrationClientEntity } from '../persistence/entities/integration-cli
 import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
 import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
+import { TenantModelAccessRuleEntity } from '../persistence/entities/tenant-model-access-rule.entity';
+import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
+import { TenantProviderConfigurationEntity } from '../persistence/entities/tenant-provider-configuration.entity';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
@@ -75,12 +78,15 @@ function getBaseDataSourceOptions(): DataSourceOptions {
       UserEntity,
       TenantEntity,
       TenantMembershipEntity,
+      TenantModelAccessRuleEntity,
+      TenantPolicyEntity,
       IntegrationClientEntity,
       ApiKeyEntity,
       AuditLogEntity,
       UsageEventEntity,
       ProviderEntity,
       UserProviderCredentialEntity,
+      TenantProviderConfigurationEntity,
       ImageAssetEntity,
       ImageJobEntity,
       ImageJobResultEntity,

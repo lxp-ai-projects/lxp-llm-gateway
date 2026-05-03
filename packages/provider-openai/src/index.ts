@@ -36,7 +36,7 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
     baseUrl = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
     requestTimeoutMs = Number(process.env.OPENAI_REQUEST_TIMEOUT_MS ?? '90000'),
     imageRequestTimeoutMs = Number(
-      process.env.OPENAI_IMAGE_REQUEST_TIMEOUT_MS ?? '300000',
+      process.env.OPENAI_IMAGE_REQUEST_TIMEOUT_MS ?? '360000',
     ),
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
