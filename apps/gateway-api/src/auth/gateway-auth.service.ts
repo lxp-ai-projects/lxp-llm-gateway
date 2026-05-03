@@ -125,6 +125,26 @@ export class GatewayAuthService {
     return authContext;
   }
 
+  async authenticateGatewayRequest(
+    authorizationHeader?: string,
+    accessTokenCookie?: string,
+    requestHeaders?: Record<string, string | string[] | undefined>,
+  ): Promise<GatewayAuthContext> {
+    const bearerToken = this.tryExtractBearerToken(authorizationHeader);
+    if (bearerToken) {
+      const integrationClientContext =
+        await this.tryAuthenticateIntegrationClient(
+          bearerToken,
+          requestHeaders,
+        );
+      if (integrationClientContext) {
+        return integrationClientContext;
+      }
+    }
+
+    return this.authenticateAccessToken(authorizationHeader, accessTokenCookie);
+  }
+
   private async tryAuthenticateIntegrationClient(
     bearerToken: string,
     requestHeaders?: Record<string, string | string[] | undefined>,
@@ -596,7 +616,17 @@ export class GatewayAuthService {
     integrationClientScopes: string[] | null | undefined,
     apiKeyScopes: string[] | null | undefined,
   ): string[] {
-    return [...new Set([...(integrationClientScopes ?? []), ...(apiKeyScopes ?? [])])];
+    const scopeAliases: Record<string, string> = {
+      'chat:complete': 'chat:completion',
+    };
+
+    return [
+      ...new Set(
+        [...(integrationClientScopes ?? []), ...(apiKeyScopes ?? [])].map(
+          (scope) => scopeAliases[scope] ?? scope,
+        ),
+      ),
+    ];
   }
 
   private logCompatibilityRequestAccepted(authContext: GatewayAuthContext): void {

@@ -12,6 +12,19 @@ export class TenantRlsService {
     return this.withContext({ tenantId }, work);
   }
 
+  async withTenantLockContext<T>(
+    tenantId: string,
+    work: (manager: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    return this.withContext({ tenantId }, async (manager) => {
+      await manager.query(
+        'SELECT pg_advisory_xact_lock(hashtext($1)::bigint)',
+        [`tenant:${tenantId}`],
+      );
+      return work(manager);
+    });
+  }
+
   async withApiKeyHashContext<T>(
     apiKeyHash: string,
     work: (manager: EntityManager) => Promise<T>,

@@ -2,6 +2,9 @@
   "name": "lxp-llm-gateway",
   "private": true,
   "version": "0.1.0",
+  "author": {
+    "name": "Laurie and Patrick"
+  },
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "build": "turbo run build",

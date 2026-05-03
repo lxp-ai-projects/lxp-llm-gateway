@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BadGatewayException } from '@nestjs/common';
+import { BadGatewayException, ForbiddenException } from '@nestjs/common';
 import type {
   GatewayChatContentPart,
   GatewayChatRequest,
@@ -14,6 +14,7 @@ import type {
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayService } from './gateway.service';
+import { TenantPolicyLimitException } from './tenant-policy.service';
 
 class FakeProvider implements LlmProviderAdapter {
   readonly providerId = 'nanogpt' as const;
@@ -114,12 +115,153 @@ class FakeProviderCredentialService {
       apiKey: 'nano-secret-token',
     };
   }
+
+  async resolveProviderAccessWithSource(): Promise<{
+    providerAccess: { apiKey: string };
+    credentialScopeUsed: 'user';
+  }> {
+    return {
+      providerAccess: {
+        apiKey: 'nano-secret-token',
+      },
+      credentialScopeUsed: 'user',
+    };
+  }
+}
+
+class FakeTenantProviderConfigurationService {
+  async assertProviderEnabled(
+    tenantId: string,
+    providerId: 'nanogpt' | 'xai' | 'anthropic',
+  ) {
+    if (tenantId === 'tenant-disabled') {
+      throw new Error(`Provider ${providerId} is disabled for tenant ${tenantId}.`);
+    }
+
+    return {
+      tenantId,
+      providerId,
+      providerDisplayName: providerId,
+      providerStatus: 'active' as const,
+      enabled: true,
+      defaultTextModel:
+        providerId === 'nanogpt' ? 'tenant-default-text-model' : null,
+      defaultImageModel: null,
+      credentialMode: 'hybrid' as const,
+      preferUserCredentials: true,
+      allowPlatformFallback: false,
+      allowTenantFallback: true,
+    };
+  }
+
+  resolveTextModel(
+    requestedModel: string | undefined,
+    providerId: 'nanogpt' | 'xai' | 'anthropic',
+    authContext: ReturnType<typeof buildAuthContext>,
+    configuration: { defaultTextModel: string | null },
+  ) {
+    if (requestedModel) {
+      return requestedModel;
+    }
+
+    if (
+      authContext.defaultProviderId === providerId &&
+      authContext.defaultModel
+    ) {
+      return authContext.defaultModel;
+    }
+
+    if (configuration.defaultTextModel) {
+      return configuration.defaultTextModel;
+    }
+
+    throw new Error('No default text model is configured.');
+  }
 }
 
 class FakeGatewayTelemetryService {
+  async reserveChatUsageEvent(): Promise<void> {}
+
   async recordChatSuccess(): Promise<void> {}
 
   async recordChatFailure(): Promise<void> {}
+
+  async recordBlockedByQuota(): Promise<void> {}
+}
+
+class FakeTenantRlsService {
+  async withTenantLockContext<T>(
+    _tenantId: string,
+    callback: (manager: {
+      getRepository: (entity: unknown) => unknown;
+    }) => Promise<T>,
+  ): Promise<T> {
+    return callback({
+      getRepository: () => ({}),
+    });
+  }
+}
+
+class FakeTenantModelAccessRuleService {
+  async assertTextModelAllowed(
+    tenantId: string,
+    providerId: 'nanogpt' | 'xai' | 'anthropic',
+    model: string,
+  ): Promise<void> {
+    if (
+      tenantId === 'tenant-restricted' &&
+      providerId === 'xai' &&
+      model === 'grok-4'
+    ) {
+      throw new ForbiddenException(
+        `Model ${providerId}/${model} is denied for tenant ${tenantId}.`,
+      );
+    }
+  }
+
+  async filterTextModels<
+    T extends Array<{ id: string; displayName: string; capabilities?: unknown }>,
+  >(_tenantId: string, _providerId: string, models: T): Promise<T> {
+    return models;
+  }
+}
+
+class FakeIntegrationClientScopeService {
+  assertScope(
+    authContext: ReturnType<typeof buildAuthContext>,
+    requiredScope: string,
+  ): void {
+    if (!authContext.integrationClientId) {
+      return;
+    }
+
+    const grantedScopes = authContext.integrationClientScopes ?? [];
+    if (grantedScopes.includes(requiredScope)) {
+      return;
+    }
+
+    throw new ForbiddenException(
+      `Integration client "${authContext.integrationClientId}" is missing the required scope "${requiredScope}".`,
+    );
+  }
+}
+
+class FakeTenantPolicyService {
+  async assertTextRequestAllowed(params: {
+    tenantId: string;
+    providerId: string;
+    model: string;
+  }): Promise<void> {
+    if (
+      params.tenantId === 'tenant-quota-blocked' &&
+      params.providerId === 'nanogpt'
+    ) {
+      throw new TenantPolicyLimitException(
+        'tenant_requests_per_minute_exceeded',
+        `Tenant ${params.tenantId} exceeded the requests-per-minute limit.`,
+      );
+    }
+  }
 }
 
 class FakeGatewayAuditService {
@@ -169,6 +311,8 @@ function buildAuthContext(
       | 'openai-compatible-trusted-header';
     roles: string[];
     globalRoles: string[];
+    integrationClientId: string | undefined;
+    integrationClientScopes: string[] | undefined;
     defaultProviderId: 'nanogpt' | 'xai' | null;
     defaultModel: string | null;
     defaultImageProviderId: 'nanogpt' | 'xai' | null;
@@ -184,6 +328,8 @@ function buildAuthContext(
     identitySource: 'access-token' as const,
     roles: ['user'],
     globalRoles: [],
+    integrationClientId: undefined,
+    integrationClientScopes: undefined,
     defaultProviderId: null,
     defaultModel: null,
     defaultImageProviderId: null,
@@ -199,6 +345,10 @@ test('GatewayService routes chat requests through the provider registry', async 
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const response = await service.chat(
@@ -237,6 +387,10 @@ test('GatewayService audit includes compatibility identity attribution', async (
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await service.chat(
@@ -268,6 +422,10 @@ test('GatewayService summarizes multimodal chat messages by their text content o
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const response = await service.chat(
@@ -303,6 +461,10 @@ test('GatewayService wraps provider failures in a BadGatewayException', async ()
     new FakeGatewayTelemetryService() as never,
     new FailingProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -332,6 +494,10 @@ test('GatewayService wraps listModels provider failures in a BadGatewayException
     new FakeGatewayTelemetryService() as never,
     new FailingListModelsRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -362,6 +528,10 @@ test('GatewayService returns a provider stream when streaming is requested', asy
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const streamResponse = await service.chatStream(
@@ -389,6 +559,10 @@ test('GatewayService rejects non-stream requests without messages', async () => 
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -414,6 +588,10 @@ test('GatewayService rejects stream requests without messages', async () => {
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -452,6 +630,10 @@ test('GatewayService rejects streaming when a provider does not support it', asy
     new FakeGatewayTelemetryService() as never,
     new NonStreamingRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -478,6 +660,10 @@ test('GatewayService uses authenticated defaults when provider and model are omi
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   const response = await service.chat(
@@ -500,6 +686,10 @@ test('GatewayService rejects missing provider when no default provider exists', 
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -520,6 +710,61 @@ test('GatewayService rejects missing model when no default model exists for the 
     new FakeGatewayTelemetryService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          providerId: 'xai',
+          messages: [{ role: 'user', content: 'hello' }],
+        } as GatewayChatRequestDto,
+        buildAuthContext(),
+      ),
+    /no default text model is configured/i,
+  );
+});
+
+test('GatewayService falls back to the tenant default text model when the user has no default model', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+
+  const response = await service.chat(
+    {
+      providerId: 'nanogpt',
+      messages: [{ role: 'user', content: 'hello' }],
+    } as GatewayChatRequestDto,
+    buildAuthContext({
+      defaultProviderId: null,
+      defaultModel: null,
+    }),
+  );
+
+  assert.equal(response.model, 'tenant-default-text-model');
+});
+
+test('GatewayService rejects chat for an integration client without chat:completion scope', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
   );
 
   await assert.rejects(
@@ -529,8 +774,71 @@ test('GatewayService rejects missing model when no default model exists for the 
           providerId: 'nanogpt',
           messages: [{ role: 'user', content: 'hello' }],
         } as GatewayChatRequestDto,
-        buildAuthContext(),
+        buildAuthContext({
+          integrationClientId: 'open-webui-demo',
+          integrationClientScopes: ['models:list'],
+        }),
       ),
-    /no default model is configured/i,
+    /missing the required scope "chat:completion"/i,
+  );
+});
+
+test('GatewayService rejects a text model denied by tenant model access rules', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          providerId: 'xai',
+          model: 'grok-4',
+          messages: [{ role: 'user', content: 'hello' }],
+        } as GatewayChatRequestDto,
+        buildAuthContext({
+          activeTenantId: 'tenant-restricted',
+          defaultProviderId: 'xai',
+          defaultModel: 'grok-4',
+        }),
+      ),
+    /is denied for tenant tenant-restricted/i,
+  );
+});
+
+test('GatewayService rejects chat when tenant quota policy blocks the request', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+    new FakeTenantPolicyService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          providerId: 'nanogpt',
+          messages: [{ role: 'user', content: 'hello' }],
+        } as GatewayChatRequestDto,
+        buildAuthContext({
+          activeTenantId: 'tenant-quota-blocked',
+          defaultProviderId: 'nanogpt',
+          defaultModel: 'nano-default',
+        }),
+      ),
+    /requests-per-minute limit/i,
   );
 });

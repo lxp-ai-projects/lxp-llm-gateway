@@ -20,6 +20,10 @@ import { ApiKeyEntity } from './persistence/entities/api-key.entity';
 import { IntegrationClientEntity } from './persistence/entities/integration-client.entity';
 import { TenantEntity } from './persistence/entities/tenant.entity';
 import { TenantMembershipEntity } from './persistence/entities/tenant-membership.entity';
+import { TenantModelAccessRuleEntity } from './persistence/entities/tenant-model-access-rule.entity';
+import { TenantProviderConfigurationEntity } from './persistence/entities/tenant-provider-configuration.entity';
+import { TenantPolicyEntity } from './persistence/entities/tenant-policy.entity';
+import { UsageEventEntity } from './persistence/entities/usage-event.entity';
 import { UserProviderCredentialEntity } from './persistence/entities/user-provider-credential.entity';
 import { TenantRlsService } from './persistence/tenant-rls.service';
 import { EmailProtectionService } from './security/email-protection.service';
@@ -48,6 +52,10 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
       ApiKeyEntity,
       TenantEntity,
       TenantMembershipEntity,
+      TenantModelAccessRuleEntity,
+      TenantProviderConfigurationEntity,
+      TenantPolicyEntity,
+      UsageEventEntity,
       UserProviderCredentialEntity,
     ]),
     AuthModule,

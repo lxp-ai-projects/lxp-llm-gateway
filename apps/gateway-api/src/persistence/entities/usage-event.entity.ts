@@ -8,6 +8,22 @@ import {
 
 import type { GatewayAuthIdentitySource } from '../../auth/auth.types';
 
+export type UsageEventCapability =
+  | 'text'
+  | 'image'
+  | 'stt'
+  | 'tts'
+  | 'embedding';
+
+export type UsageEventCredentialScopeUsed = 'platform' | 'tenant' | 'user';
+
+export type UsageEventStatus =
+  | 'success'
+  | 'error'
+  | 'reserved'
+  | 'blocked_by_policy'
+  | 'blocked_by_quota';
+
 @Entity({ name: 'usage_events' })
 @Index('ix_usage_events_tenant_created_at', ['tenantId', 'createdAt'])
 @Index('ix_usage_events_request_id', ['requestId'])
@@ -30,6 +46,9 @@ export class UsageEventEntity {
   @Column({ name: 'operation', type: 'varchar', length: 50 })
   operation!: 'chat' | 'image_generation' | 'image_edit';
 
+  @Column({ name: 'capability', type: 'varchar', length: 20, nullable: true })
+  capability!: UsageEventCapability | null;
+
   @Column({ name: 'provider_id', type: 'varchar', length: 50 })
   providerId!: string;
 
@@ -42,8 +61,22 @@ export class UsageEventEntity {
   @Column({ name: 'integration_client_id', type: 'varchar', length: 100, nullable: true })
   integrationClientId!: string | null;
 
+  @Column({ name: 'api_key_id', type: 'uuid', nullable: true })
+  apiKeyId!: string | null;
+
+  @Column({
+    name: 'credential_scope_used',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  credentialScopeUsed!: UsageEventCredentialScopeUsed | null;
+
   @Column({ name: 'status', type: 'varchar', length: 30 })
-  status!: 'success' | 'failure';
+  status!: UsageEventStatus;
+
+  @Column({ name: 'error_code', type: 'varchar', length: 60, nullable: true })
+  errorCode!: string | null;
 
   @Column({ name: 'prompt_tokens', type: 'integer', nullable: true })
   promptTokens!: number | null;

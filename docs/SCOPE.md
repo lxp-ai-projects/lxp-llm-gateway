@@ -70,11 +70,20 @@ The repository now treats multi-tenancy as a first-class architectural concern:
 - tenant isolation is enforced through `tenants`, `tenant_memberships`, and an active tenant session context
 - tenant-owned data must carry `tenant_id`
 - provider credential resolution must remain tenant-aware and support tenant-default plus user-override behavior
+- tenant-owned provider behavior is now explicitly modeled through `tenant_provider_configurations` for enablement, default text/image models, and credential routing policy
 - tenant-aware audit and usage telemetry is persisted in Postgres, with an initial PostgreSQL RLS slice protecting those telemetry tables
 - tenant-aware technical clients now have an initial PostgreSQL RLS slice protecting `integration_clients` and `api_keys`
 - tenant-aware image assets and job history now have a PostgreSQL RLS slice protecting `image_assets`, `image_jobs`, and `image_job_results`
 - tenant-aware BYOK provider credentials now have a PostgreSQL RLS slice protecting `user_provider_credentials`
 - `admin-api` and `admin-web` now expose an initial `super_admin` tenant-control surface for tenant listing, tenant settings, and membership visibility
+- the `super_admin` tenant-control surface now also manages provider configurations per tenant, including provider enablement, tenant defaults, and credential-mode fallback policy
+- tenant-aware technical clients can now call direct gateway chat, model-listing, and image-generation/edit endpoints through tenant-scoped API keys, with minimal scope enforcement on `chat:completion`, `models:list`, `image:generate`, and `image:edit`
+- tenant-aware usage telemetry now attributes technical traffic down to both `integrationClientId` and `apiKeyId`
+- `admin-api` and `admin-web` now expose a super-admin tenant-control surface for tenant-scoped `integration_clients` and `api_keys`, including create, disable, and rotate workflows
+- tenant-owned model access is now explicitly modeled through `tenant_model_access_rules`, with an initial super-admin UI for allow/deny rules, provider/model-pattern scoping, and image-oriented request limits
+- `usage_events` is now being used as the durable tenant usage ledger, including capability, credential-scope attribution, and blocked-by-policy or blocked-by-quota statuses
+- `admin-api` and `admin-web` now expose a first tenant-scoped analytics surface backed directly by that usage ledger
+- tenant-owned policies and limits are now explicitly modeled through `tenant_policies`, with an initial app-level enforcement slice for request windows, monthly budget, monthly token totals, and monthly image request counts
 
 ## Recommended Stack
 
@@ -435,6 +444,13 @@ Phase 1 now ends with:
 - CI enforcement for typecheck, build, and test
 
 Phase 2 should build on this state rather than re-open foundational architecture decisions.
+
+The current policy and limit posture is intentionally incremental:
+
+- `tenant_policies` persists both immediately enforced and future-facing fields
+- the gateway currently enforces request-per-minute, daily/monthly request count, monthly budget, monthly token total, and monthly image request count from the usage ledger
+- prompt/response logging flags, retention, and max token fields are now modeled and editable but are not yet fully enforced everywhere in runtime behavior
+- the current limiter is app-level and database-backed, not a distributed multi-instance rate limiter yet
 
 The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection, output format, transparency/background handling, input fidelity, and compression controls.
 

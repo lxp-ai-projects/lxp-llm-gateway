@@ -19,9 +19,10 @@ export class ModelsController {
     @Req()
     httpRequest: Request & { cookies?: Record<string, string | undefined> },
   ) {
-    const authContext = await this.gatewayAuthService.authenticateAccessToken(
+    const authContext = await this.gatewayAuthService.authenticateGatewayRequest(
       authorizationHeader,
       httpRequest.cookies?.lxp_access_token,
+      httpRequest.headers,
     );
 
     return this.gatewayService.listModels(query, authContext);

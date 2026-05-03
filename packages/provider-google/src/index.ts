@@ -27,7 +27,7 @@ const GOOGLE_NATIVE_BASE_URL =
   process.env.GOOGLE_NATIVE_BASE_URL ??
   'https://generativelanguage.googleapis.com/v1beta';
 const GOOGLE_REQUEST_TIMEOUT_MS = Number(
-  process.env.GOOGLE_REQUEST_TIMEOUT_MS ?? '180000',
+  process.env.GOOGLE_REQUEST_TIMEOUT_MS ?? '360000',
 );
 const GOOGLE_MAX_INLINE_REFERENCE_BYTES = Number(
   process.env.GOOGLE_MAX_INLINE_REFERENCE_BYTES ?? String(15 * 1024 * 1024),

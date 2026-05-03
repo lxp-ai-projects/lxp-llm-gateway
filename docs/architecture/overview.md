@@ -108,8 +108,14 @@ The tenant boundary is now modeled explicitly:
 - `tenants` represent isolation domains
 - `tenant_memberships` attach users to tenants with tenant-scoped roles
 - tenant-owned tables must carry `tenant_id`
+- `tenant_provider_configurations` now define per-tenant provider enablement, default text/image models, and credential-routing policy
+- `tenant_model_access_rules` now define per-tenant provider/model-pattern allow-deny behavior and a first slice of capability-specific limits for image requests
+- `usage_events` now acts as the durable tenant usage ledger, carrying capability, credential-scope attribution, and blocked request statuses for later quota and billing work
+- `tenant_policies` now define per-tenant operational guardrails such as request windows, monthly budget, monthly token totals, image request volume, logging posture, and retention defaults
 - tenant-aware credential resolution prefers user-scoped credentials only when the tenant allows override, then falls back to tenant defaults
 - technical clients such as `Open WebUI` should authenticate through tenant-scoped `integration_clients` and `api_keys`, with forwarded human identity treated only as an optional bounded enhancement
+- tenant-scoped technical clients can now authenticate against the direct gateway chat, model-listing, and image-generation/edit endpoints, with operation scopes enforced before provider dispatch
+- control-plane operators can now manage those tenant-scoped technical clients through the `super_admin` tenant-control surface, including API key creation, rotation, and disablement
 - `audit_logs` and `usage_events` now also use PostgreSQL row-level security as a second line of defense, with the gateway setting `app.tenant_id` transactionally before telemetry writes
 - `integration_clients` and `api_keys` now also use PostgreSQL row-level security, with technical-client key lookup bootstrapped through a transaction-scoped `app.api_key_hash` before the gateway narrows the session to `app.tenant_id`
 - `image_assets`, `image_jobs`, and `image_job_results` now also use PostgreSQL row-level security, with image reads and writes executed inside transaction-scoped tenant context
@@ -143,6 +149,12 @@ The initial architecture assumes:
 - technical-client authentication now has a database-level backstop for `integration_clients` and `api_keys`
 - image history, asset access, and image-job persistence now also have a database-level tenant isolation backstop
 - BYOK credential resolution and administration now also have a database-level tenant isolation backstop
+- tenant provider enablement and default model selection are now part of the runtime resolution path before provider dispatch
+- tenant-aware usage telemetry now records both `integrationClientId` and `apiKeyId` when technical-client traffic is involved
+- tenant-scoped analytics in `admin-api` and `admin-web` now aggregate directly from `usage_events` rather than maintaining a second usage table
+- tenant model-access enforcement now sits between tenant provider resolution and provider dispatch, and also filters provider model/catalog listings before they are returned to callers
+- tenant policy enforcement now sits between tenant model-access evaluation and credential resolution, and currently blocks on app-level request windows plus usage-ledger-derived budget, token, and image thresholds
+- `blocked_by_quota` usage events are now emitted when those policy thresholds reject a request before provider dispatch
 
 ## UI Posture
 

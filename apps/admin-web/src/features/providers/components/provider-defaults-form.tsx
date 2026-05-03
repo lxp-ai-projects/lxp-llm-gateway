@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   Accordion,
   Alert,
   Button,
@@ -7,13 +8,41 @@ import {
   Stack,
   Text,
   Title,
+  Tooltip,
 } from '@mantine/core';
-import { IconAlertCircle, IconSettings } from '@tabler/icons-react';
+import { IconAlertCircle, IconHelpCircle, IconSettings } from '@tabler/icons-react';
 
 import {
   getProviderCatalogPricingNote,
   getProviderModelLoadingNote,
 } from '../lib/provider-utils';
+
+function HelpLabel({
+  label,
+  help,
+}: {
+  label: string;
+  help: string;
+}) {
+  return (
+    <Group gap={6} wrap="nowrap">
+      <Text component="span" inherit>
+        {label}
+      </Text>
+      <Tooltip label={help} multiline w={280} withArrow>
+        <ActionIcon
+          aria-label={`Help for ${label}`}
+          color="gray"
+          radius="xl"
+          size="sm"
+          variant="subtle"
+        >
+          <IconHelpCircle size={16} stroke={1.8} />
+        </ActionIcon>
+      </Tooltip>
+    </Group>
+  );
+}
 
 type Option = {
   value: string;
@@ -88,9 +117,10 @@ export function ProviderDefaultsForm({
                     These values are used when `/api/v1/chat` is called without an explicit `providerId` and `model`.
                   </Text>
                   <label className="form-native-field">
-                    <Text component="span" size="sm" fw={500}>
-                      Default provider
-                    </Text>
+                    <HelpLabel
+                      label="Default provider"
+                      help="Provider used when chat requests do not specify one explicitly."
+                    />
                     <select
                       aria-label="Default provider"
                       className="form-native-select"
@@ -113,9 +143,10 @@ export function ProviderDefaultsForm({
                     </select>
                   </label>
                   <label className="form-native-field">
-                    <Text component="span" size="sm" fw={500}>
-                      Default model
-                    </Text>
+                    <HelpLabel
+                      label="Default model"
+                      help="Model used for chat requests when the caller omits an explicit model."
+                    />
                     <select
                       aria-label="Default model"
                       className="form-native-select"
@@ -176,9 +207,10 @@ export function ProviderDefaultsForm({
                     Anthropic, Groq, and Ollama do not currently expose image generation or image editing through the gateway, so they are intentionally excluded from image defaults.
                   </Alert>
                   <label className="form-native-field">
-                    <Text component="span" size="sm" fw={500}>
-                      Default image provider
-                    </Text>
+                    <HelpLabel
+                      label="Default image provider"
+                      help="Provider used for image generation or editing when the caller does not specify one."
+                    />
                     <select
                       aria-label="Default image provider"
                       className="form-native-select"
@@ -201,9 +233,10 @@ export function ProviderDefaultsForm({
                     </select>
                   </label>
                   <label className="form-native-field">
-                    <Text component="span" size="sm" fw={500}>
-                      Default image model
-                    </Text>
+                    <HelpLabel
+                      label="Default image model"
+                      help="Model used for image generation or editing when the caller omits an explicit model."
+                    />
                     <select
                       aria-label="Default image model"
                       className="form-native-select"

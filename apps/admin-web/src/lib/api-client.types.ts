@@ -317,6 +317,157 @@ export type AdminTenantMembershipSummary = {
   createdAt: string;
 };
 
+export type AdminTenantProviderConfigurationSummary = {
+  id: string | null;
+  tenantId: string;
+  providerId: string;
+  providerDisplayName: string;
+  providerStatus: 'active' | 'disabled';
+  enabled: boolean;
+  defaultTextModel: string | null;
+  defaultImageModel: string | null;
+  credentialMode: 'platform_default' | 'tenant_byok' | 'user_byok' | 'hybrid';
+  preferUserCredentials: boolean;
+  allowPlatformFallback: boolean;
+  allowTenantFallback: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type AdminTenantProviderConfigurationTestResult = {
+  tenantId: string;
+  providerId: string;
+  providerDisplayName: string;
+  configuration: AdminTenantProviderConfigurationSummary;
+  testedUserUuid: string | null;
+  userCredentialAvailable: boolean;
+  tenantCredentialAvailable: boolean;
+  platformCredentialAvailable: boolean;
+  canResolve: boolean;
+  resolvedCredentialScope: 'user' | 'tenant' | 'platform' | null;
+  message: string;
+};
+
+export type AdminTenantModelAccessRuleSummary = {
+  id: string;
+  tenantId: string;
+  providerId: string;
+  modelPattern: string;
+  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding';
+  effect: 'allow' | 'deny';
+  maxInputTokens: number | null;
+  maxOutputTokens: number | null;
+  maxImagesPerRequest: number | null;
+  maxResolution: string | null;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminTenantPolicySummary = {
+  tenantId: string;
+  monthlyBudgetUsd: string | null;
+  dailyRequestLimit: number | null;
+  monthlyRequestLimit: number | null;
+  requestsPerMinute: number;
+  tokensPerMinute: number;
+  monthlyTokenLimit: number | null;
+  imageRequestsPerMonth: number | null;
+  maxInputTokens: number | null;
+  maxOutputTokens: number | null;
+  allowPromptLogging: boolean;
+  allowResponseLogging: boolean;
+  retentionDays: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type AdminTenantIntegrationClientSummary = {
+  id: string;
+  tenantId: string;
+  clientId: string;
+  displayName: string;
+  applicationId: string;
+  defaultUserUuid: string | null;
+  defaultUserDisplayName: string | null;
+  scopes: string[];
+  trustedForwardedIdentityEnabled: boolean;
+  status: 'active' | 'disabled';
+  apiKeyCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminTenantIntegrationApiKeySummary = {
+  id: string;
+  tenantId: string;
+  integrationClientId: string;
+  integrationClientClientId: string;
+  label: string;
+  keyHint: string | null;
+  scopes: string[];
+  status: 'active' | 'disabled';
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminTenantIntegrationApiKeySecretSummary = {
+  apiKey: string;
+  summary: AdminTenantIntegrationApiKeySummary;
+};
+
+export type AdminTenantUsageEventSummary = {
+  id: string;
+  requestId: string;
+  userUuid: string;
+  operation: 'chat' | 'image_generation' | 'image_edit';
+  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding' | null;
+  providerId: string;
+  model: string;
+  identitySource: string;
+  integrationClientId: string | null;
+  apiKeyId: string | null;
+  credentialScopeUsed: 'platform' | 'tenant' | 'user' | null;
+  status: 'success' | 'error' | 'blocked_by_policy' | 'blocked_by_quota';
+  errorCode: string | null;
+  totalTokens: number | null;
+  imageCount: number | null;
+  costEstimateUsd: string | null;
+  latencyMs: number | null;
+  createdAt: string;
+};
+
+export type AdminTenantUsageSummary = {
+  tenantId: string;
+  requests24h: number;
+  requests7d: number;
+  requests30d: number;
+  distinctUsers24h: number;
+  activeUsers30d: number;
+  blockedRequests7d: number;
+  estimatedCostUsd30d: string;
+};
+
+export type AdminTenantUsageByProviderSummary = {
+  providerId: string;
+  requests30d: number;
+  blockedRequests30d: number;
+  estimatedCostUsd30d: string;
+  lastRequestAt: string | null;
+};
+
+export type AdminTenantUsageByModelSummary = {
+  providerId: string;
+  model: string;
+  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding' | null;
+  requests30d: number;
+  blockedRequests30d: number;
+  estimatedCostUsd30d: string;
+  lastRequestAt: string | null;
+};
+
 export type AdminCreateTenantInput = {
   slug: string;
   displayName: string;
@@ -352,6 +503,81 @@ export type AdminUpdateUserInput = {
 
 export type AdminUpdateGlobalRolesInput = {
   globalRoles: string[];
+};
+
+export type AdminUpdateTenantProviderConfigurationInput = {
+  enabled: boolean;
+  defaultTextModel?: string;
+  defaultImageModel?: string;
+  credentialMode: 'platform_default' | 'tenant_byok' | 'user_byok' | 'hybrid';
+  preferUserCredentials: boolean;
+  allowPlatformFallback: boolean;
+  allowTenantFallback: boolean;
+};
+
+export type AdminUpdateTenantPolicyInput = {
+  monthlyBudgetUsd?: string;
+  dailyRequestLimit?: number;
+  monthlyRequestLimit?: number;
+  requestsPerMinute?: number;
+  tokensPerMinute?: number;
+  monthlyTokenLimit?: number;
+  imageRequestsPerMonth?: number;
+  maxInputTokens?: number;
+  maxOutputTokens?: number;
+  allowPromptLogging?: boolean;
+  allowResponseLogging?: boolean;
+  retentionDays?: number;
+};
+
+export type AdminTestTenantProviderConfigurationInput = {
+  userUuid?: string;
+};
+
+export type AdminCreateTenantModelAccessRuleInput = {
+  providerId: string;
+  modelPattern: string;
+  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding';
+  effect: 'allow' | 'deny';
+  maxInputTokens?: number;
+  maxOutputTokens?: number;
+  maxImagesPerRequest?: number;
+  maxResolution?: string;
+  priority?: number;
+};
+
+export type AdminUpdateTenantModelAccessRuleInput =
+  Partial<AdminCreateTenantModelAccessRuleInput>;
+
+export type AdminCreateIntegrationClientInput = {
+  clientId: string;
+  displayName: string;
+  applicationId: string;
+  defaultUserUuid?: string;
+  scopes: Array<'chat:completion' | 'image:generate' | 'image:edit' | 'models:list'>;
+  trustedForwardedIdentityEnabled: boolean;
+};
+
+export type AdminUpdateIntegrationClientInput = {
+  displayName?: string;
+  applicationId?: string;
+  defaultUserUuid?: string;
+  scopes?: Array<'chat:completion' | 'image:generate' | 'image:edit' | 'models:list'>;
+  trustedForwardedIdentityEnabled?: boolean;
+  status?: 'active' | 'disabled';
+};
+
+export type AdminCreateIntegrationApiKeyInput = {
+  label: string;
+  scopes?: Array<'chat:completion' | 'image:generate' | 'image:edit' | 'models:list'>;
+  expiresAt?: string;
+};
+
+export type AdminUpdateIntegrationApiKeyInput = {
+  label?: string;
+  scopes?: Array<'chat:completion' | 'image:generate' | 'image:edit' | 'models:list'>;
+  status?: 'active' | 'disabled';
+  expiresAt?: string;
 };
 
 export type ChatTransferConversation = {

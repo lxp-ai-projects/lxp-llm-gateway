@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { ForbiddenException } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
 import type { GatewayChatContentPart } from '@lxp/contracts';
 import type { LlmProviderAdapter, ProviderExecutionContext } from '@lxp/provider-sdk';
@@ -109,13 +110,56 @@ class FakeGatewayService {
   }
 }
 
+class FakeIntegrationClientScopeService {
+  assertScope(
+    authContext: ReturnType<typeof buildAuthContext>,
+    requiredScope: string,
+  ): void {
+    if (!authContext.integrationClientId) {
+      return;
+    }
+
+    const grantedScopes = authContext.integrationClientScopes ?? [];
+    if (grantedScopes.includes(requiredScope)) {
+      return;
+    }
+
+    throw new ForbiddenException(
+      `Integration client "${authContext.integrationClientId}" is missing the required scope "${requiredScope}".`,
+    );
+  }
+}
+
+class FakeTenantModelAccessRuleService {
+  async filterTextModels(
+    tenantId: string,
+    _providerId: ProviderId,
+    models: Array<{
+      id: string;
+      displayName: string;
+      capabilities?: unknown;
+    }>,
+  ) {
+    if (tenantId === 'tenant-restricted') {
+      return models.filter((model) => !model.id.includes('llama-3.3'));
+    }
+
+    return models;
+  }
+}
+
 function buildAuthContext() {
   return {
     userId: 'user-1',
     userUuid: 'uuid-1',
     emailHash: 'hash-1',
+    activeTenantId: 'tenant-1',
+    activeTenantSlug: 'lxp-internal',
     identitySource: 'access-token' as const,
     roles: ['user'],
+    globalRoles: [],
+    integrationClientId: undefined,
+    integrationClientScopes: undefined,
     defaultProviderId: null,
     defaultModel: null,
     defaultImageProviderId: null,
@@ -128,6 +172,8 @@ test('OpenAiCompatibleService lists only models reachable for the authenticated 
     new FakeGatewayService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
   );
 
   const response = await service.listModels(buildAuthContext());
@@ -150,6 +196,8 @@ test('OpenAiCompatibleService maps chat completions to the OpenAI response shape
     new FakeGatewayService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
   );
 
   const response = await service.createChatCompletion(
@@ -172,6 +220,8 @@ test('OpenAiCompatibleService rejects unsupported non-text message content paylo
     new FakeGatewayService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
   );
 
   await assert.rejects(
@@ -192,6 +242,8 @@ test('OpenAiCompatibleService preserves text-only content blocks for the gateway
     new FakeGatewayService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
   );
 
   const response = await service.createChatCompletion(
@@ -218,6 +270,8 @@ test('OpenAiCompatibleService preserves multimodal image attachments for the gat
     new FakeGatewayService() as never,
     new FakeProviderRegistryService() as never,
     new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
   );
 
   const response = await service.createChatCompletion(
@@ -243,4 +297,43 @@ test('OpenAiCompatibleService preserves multimodal image attachments for the gat
     response.choices[0]?.message.content,
     'Echo: Describe this image\n[image:https://example.com/cat.png]',
   );
+});
+
+test('OpenAiCompatibleService rejects model listing for an integration client without models:list scope', async () => {
+  const service = new OpenAiCompatibleService(
+    new FakeGatewayService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.listModels({
+        ...buildAuthContext(),
+        integrationClientId: 'open-webui-demo',
+        integrationClientScopes: ['chat:completion'],
+      }),
+    /missing the required scope "models:list"/i,
+  );
+});
+
+test('OpenAiCompatibleService filters denied models for the active tenant', async () => {
+  const service = new OpenAiCompatibleService(
+    new FakeGatewayService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+  );
+
+  const response = await service.listModels({
+    ...buildAuthContext(),
+    activeTenantId: 'tenant-restricted',
+  });
+
+  assert.deepEqual(response.data.map((entry) => entry.id), [
+    'nanogpt/z-ai/glm-4.6:thinking',
+  ]);
 });

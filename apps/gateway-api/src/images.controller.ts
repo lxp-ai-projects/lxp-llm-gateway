@@ -37,9 +37,10 @@ export class ImagesController {
     @Req()
     httpRequest: Request & { cookies?: Record<string, string | undefined> },
   ) {
-    const authContext = await this.gatewayAuthService.authenticateAccessToken(
+    const authContext = await this.gatewayAuthService.authenticateGatewayRequest(
       authorizationHeader,
       httpRequest.cookies?.lxp_access_token,
+      httpRequest.headers,
     );
 
     return this.imageApplicationService.getCatalog(authContext);
@@ -52,9 +53,10 @@ export class ImagesController {
     @Req()
     httpRequest: Request & { cookies?: Record<string, string | undefined> },
   ) {
-    const authContext = await this.gatewayAuthService.authenticateAccessToken(
+    const authContext = await this.gatewayAuthService.authenticateGatewayRequest(
       authorizationHeader,
       httpRequest.cookies?.lxp_access_token,
+      httpRequest.headers,
     );
 
     return this.imageApplicationService.generateImage(request, authContext);
@@ -67,9 +69,10 @@ export class ImagesController {
     @Req()
     httpRequest: Request & { cookies?: Record<string, string | undefined> },
   ) {
-    const authContext = await this.gatewayAuthService.authenticateAccessToken(
+    const authContext = await this.gatewayAuthService.authenticateGatewayRequest(
       authorizationHeader,
       httpRequest.cookies?.lxp_access_token,
+      httpRequest.headers,
     );
 
     return this.imageApplicationService.editImage(

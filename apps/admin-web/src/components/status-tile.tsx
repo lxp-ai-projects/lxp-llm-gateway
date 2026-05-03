@@ -6,6 +6,7 @@ type StatusTileProps = {
   value: string;
   tone?: 'neutral' | 'good' | 'warning';
   icon?: ReactNode;
+  description?: string;
 };
 
 export function StatusTile({
@@ -13,6 +14,7 @@ export function StatusTile({
   value,
   tone = 'neutral',
   icon,
+  description,
 }: StatusTileProps) {
   const badgeColor =
     tone === 'good' ? 'moss' : tone === 'warning' ? 'yellow' : 'ink';
@@ -27,6 +29,11 @@ export function StatusTile({
           <Text fw={700} size="xl">
             {value}
           </Text>
+          {description ? (
+            <Text size="xs" c="dimmed">
+              {description}
+            </Text>
+          ) : null}
         </Stack>
         <Badge color={badgeColor} variant="light">
           {icon ?? 'live'}

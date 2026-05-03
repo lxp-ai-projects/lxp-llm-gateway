@@ -15,10 +15,19 @@ import { UserEntity } from './user.entity';
 
 @Entity({ name: 'user_provider_credentials' })
 @Index(
-  'ux_user_provider_credentials_active',
+  'ux_user_provider_credentials_user_scope',
   ['tenantId', 'userId', 'providerId', 'label'],
   {
     unique: true,
+    where: `"scope" = 'user' AND "user_id" IS NOT NULL`,
+  },
+)
+@Index(
+  'ux_user_provider_credentials_tenant_scope',
+  ['tenantId', 'providerId', 'label'],
+  {
+    unique: true,
+    where: `"scope" = 'tenant' AND "user_id" IS NULL`,
   },
 )
 export class UserProviderCredentialEntity {

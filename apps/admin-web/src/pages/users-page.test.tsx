@@ -95,13 +95,13 @@ test('UsersPage creates a new user from the modal', async () => {
   ).toBeInTheDocument();
   const dialog = await screen.findByRole('dialog');
 
-  fireEvent.change(within(dialog).getByLabelText('Display name'), {
+  fireEvent.change(within(dialog).getByTestId('users-create-display-name'), {
     target: { value: 'Emilie Joli' },
   });
-  fireEvent.change(within(dialog).getByLabelText('Email'), {
+  fireEvent.change(within(dialog).getByTestId('users-create-email'), {
     target: { value: 'emilie@example.com' },
   });
-  fireEvent.change(within(dialog).getByLabelText('Temporary password'), {
+  fireEvent.change(within(dialog).getByTestId('users-create-password'), {
     target: { value: 'temporary-pass' },
   });
   fireEvent.click(
@@ -191,19 +191,19 @@ test('UsersPage keeps create user disabled until minimum credentials are valid a
 
   expect(createButton).toBeDisabled();
 
-  fireEvent.change(within(dialog).getByLabelText('Display name'), {
+  fireEvent.change(within(dialog).getByTestId('users-create-display-name'), {
     target: { value: 'Emilie Joli' },
   });
-  fireEvent.change(within(dialog).getByLabelText('Email'), {
+  fireEvent.change(within(dialog).getByTestId('users-create-email'), {
     target: { value: 'emilie@example.com' },
   });
-  fireEvent.change(within(dialog).getByLabelText('Temporary password'), {
+  fireEvent.change(within(dialog).getByTestId('users-create-password'), {
     target: { value: 'short' },
   });
 
   expect(createButton).toBeDisabled();
 
-  fireEvent.change(within(dialog).getByLabelText('Temporary password'), {
+  fireEvent.change(within(dialog).getByTestId('users-create-password'), {
     target: { value: 'temporary-pass' },
   });
 
@@ -215,9 +215,9 @@ test('UsersPage keeps create user disabled until minimum credentials are valid a
   );
 
   const reopenedDialog = await screen.findByRole('dialog');
-  expect(within(reopenedDialog).getByLabelText('Display name')).toHaveValue('');
-  expect(within(reopenedDialog).getByLabelText('Email')).toHaveValue('');
+  expect(within(reopenedDialog).getByTestId('users-create-display-name')).toHaveValue('');
+  expect(within(reopenedDialog).getByTestId('users-create-email')).toHaveValue('');
   expect(
-    within(reopenedDialog).getByLabelText('Temporary password'),
+    within(reopenedDialog).getByTestId('users-create-password'),
   ).toHaveValue('');
 }, 15_000);

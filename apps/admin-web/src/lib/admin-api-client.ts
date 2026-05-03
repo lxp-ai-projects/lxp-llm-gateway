@@ -7,12 +7,32 @@ import {
 } from './api-base';
 import type {
   AdminCreateTenantInput,
+  AdminCreateIntegrationApiKeyInput,
+  AdminCreateIntegrationClientInput,
+  AdminCreateTenantModelAccessRuleInput,
   AdminCreateTenantMembershipInput,
   AdminCreateUserInput,
+  AdminTenantIntegrationApiKeySecretSummary,
+  AdminTenantIntegrationApiKeySummary,
+  AdminTenantIntegrationClientSummary,
   AdminTenantMembershipSummary,
+  AdminTenantModelAccessRuleSummary,
+  AdminTenantPolicySummary,
+  AdminTenantProviderConfigurationSummary,
+  AdminTenantProviderConfigurationTestResult,
   AdminTenantSummary,
+  AdminTenantUsageByModelSummary,
+  AdminTenantUsageByProviderSummary,
+  AdminTenantUsageEventSummary,
+  AdminTenantUsageSummary,
+  AdminTestTenantProviderConfigurationInput,
   AdminUpdateGlobalRolesInput,
   AdminUpdateTenantInput,
+  AdminUpdateIntegrationApiKeyInput,
+  AdminUpdateIntegrationClientInput,
+  AdminUpdateTenantModelAccessRuleInput,
+  AdminUpdateTenantPolicyInput,
+  AdminUpdateTenantProviderConfigurationInput,
   AdminUserSummary,
   AdminUpdateUserInput,
   ChatTransferConversation,
@@ -145,6 +165,226 @@ export const adminApiClient = {
   ): Promise<AdminTenantMembershipSummary[]> {
     return request<AdminTenantMembershipSummary[]>(
       `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/memberships`,
+    );
+  },
+
+  async getTenantUsage(
+    tenantId: string,
+  ): Promise<AdminTenantUsageEventSummary[]> {
+    return request<AdminTenantUsageEventSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/usage`,
+    );
+  },
+
+  async getTenantUsageSummary(
+    tenantId: string,
+  ): Promise<AdminTenantUsageSummary> {
+    return request<AdminTenantUsageSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/usage/summary`,
+    );
+  },
+
+  async getTenantUsageByProvider(
+    tenantId: string,
+  ): Promise<AdminTenantUsageByProviderSummary[]> {
+    return request<AdminTenantUsageByProviderSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/usage/by-provider`,
+    );
+  },
+
+  async getTenantUsageByModel(
+    tenantId: string,
+  ): Promise<AdminTenantUsageByModelSummary[]> {
+    return request<AdminTenantUsageByModelSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/usage/by-model`,
+    );
+  },
+
+  async getTenantProviderConfigurations(
+    tenantId: string,
+  ): Promise<AdminTenantProviderConfigurationSummary[]> {
+    return request<AdminTenantProviderConfigurationSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-configurations`,
+    );
+  },
+
+  async getTenantPolicy(tenantId: string): Promise<AdminTenantPolicySummary> {
+    return request<AdminTenantPolicySummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/policies`,
+    );
+  },
+
+  async updateTenantPolicy(
+    tenantId: string,
+    payload: AdminUpdateTenantPolicyInput,
+  ): Promise<AdminTenantPolicySummary> {
+    return request<AdminTenantPolicySummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/policies`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async getTenantIntegrationClients(
+    tenantId: string,
+  ): Promise<AdminTenantIntegrationClientSummary[]> {
+    return request<AdminTenantIntegrationClientSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients`,
+    );
+  },
+
+  async createTenantIntegrationClient(
+    tenantId: string,
+    payload: AdminCreateIntegrationClientInput,
+  ): Promise<AdminTenantIntegrationClientSummary> {
+    return request<AdminTenantIntegrationClientSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async updateTenantIntegrationClient(
+    tenantId: string,
+    integrationClientId: string,
+    payload: AdminUpdateIntegrationClientInput,
+  ): Promise<AdminTenantIntegrationClientSummary> {
+    return request<AdminTenantIntegrationClientSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async getTenantIntegrationApiKeys(
+    tenantId: string,
+    integrationClientId: string,
+  ): Promise<AdminTenantIntegrationApiKeySummary[]> {
+    return request<AdminTenantIntegrationApiKeySummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}/api-keys`,
+    );
+  },
+
+  async createTenantIntegrationApiKey(
+    tenantId: string,
+    integrationClientId: string,
+    payload: AdminCreateIntegrationApiKeyInput,
+  ): Promise<AdminTenantIntegrationApiKeySecretSummary> {
+    return request<AdminTenantIntegrationApiKeySecretSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}/api-keys`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async rotateTenantIntegrationApiKey(
+    tenantId: string,
+    integrationClientId: string,
+    apiKeyId: string,
+  ): Promise<AdminTenantIntegrationApiKeySecretSummary> {
+    return request<AdminTenantIntegrationApiKeySecretSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}/api-keys/${apiKeyId}/rotate`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async updateTenantIntegrationApiKey(
+    tenantId: string,
+    integrationClientId: string,
+    apiKeyId: string,
+    payload: AdminUpdateIntegrationApiKeyInput,
+  ): Promise<AdminTenantIntegrationApiKeySummary> {
+    return request<AdminTenantIntegrationApiKeySummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}/api-keys/${apiKeyId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async updateTenantProviderConfiguration(
+    tenantId: string,
+    providerId: string,
+    payload: AdminUpdateTenantProviderConfigurationInput,
+  ): Promise<AdminTenantProviderConfigurationSummary> {
+    return request<AdminTenantProviderConfigurationSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-configurations/${providerId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async testTenantProviderConfiguration(
+    tenantId: string,
+    providerId: string,
+    payload: AdminTestTenantProviderConfigurationInput = {},
+  ): Promise<AdminTenantProviderConfigurationTestResult> {
+    return request<AdminTenantProviderConfigurationTestResult>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-configurations/${providerId}/test`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async getTenantModelAccessRules(
+    tenantId: string,
+  ): Promise<AdminTenantModelAccessRuleSummary[]> {
+    return request<AdminTenantModelAccessRuleSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/model-access-rules`,
+    );
+  },
+
+  async createTenantModelAccessRule(
+    tenantId: string,
+    payload: AdminCreateTenantModelAccessRuleInput,
+  ): Promise<AdminTenantModelAccessRuleSummary> {
+    return request<AdminTenantModelAccessRuleSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/model-access-rules`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async updateTenantModelAccessRule(
+    tenantId: string,
+    ruleId: string,
+    payload: AdminUpdateTenantModelAccessRuleInput,
+  ): Promise<AdminTenantModelAccessRuleSummary> {
+    return request<AdminTenantModelAccessRuleSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/model-access-rules/${ruleId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async deleteTenantModelAccessRule(
+    tenantId: string,
+    ruleId: string,
+  ): Promise<{ deleted: true }> {
+    return request<{ deleted: true }>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/model-access-rules/${ruleId}`,
+      {
+        method: 'DELETE',
+      },
     );
   },
 

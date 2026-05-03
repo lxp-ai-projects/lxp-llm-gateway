@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
@@ -12,6 +13,7 @@ import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
 import { ImageApplicationService } from './image-application.service';
+import { TenantPolicyLimitException } from '../gateway/tenant-policy.service';
 
 interface BaseEntity {
   id: string;
@@ -247,6 +249,9 @@ function buildAuthContext() {
     identitySource: 'access-token' as const,
     roles: ['user'],
     globalRoles: [],
+    integrationClientId: undefined,
+    integrationClientKeyId: undefined,
+    integrationClientScopes: undefined,
     defaultProviderId: null,
     defaultModel: null,
     defaultImageProviderId: null,
@@ -255,9 +260,159 @@ function buildAuthContext() {
 }
 
 class FakeGatewayTelemetryService {
+  async reserveImageUsageEvent(): Promise<void> {}
+
   async recordImageSuccess(): Promise<void> {}
 
   async recordImageFailure(): Promise<void> {}
+
+  async recordBlockedByQuota(): Promise<void> {}
+}
+
+class FakeIntegrationClientScopeService {
+  assertScope(
+    authContext: ReturnType<typeof buildAuthContext>,
+    requiredScope: string,
+  ): void {
+    if (!authContext.integrationClientId) {
+      return;
+    }
+
+    const grantedScopes = authContext.integrationClientScopes ?? [];
+    if (grantedScopes.includes(requiredScope)) {
+      return;
+    }
+
+    throw new ForbiddenException(
+      `Integration client "${authContext.integrationClientId}" is missing the required scope "${requiredScope}".`,
+    );
+  }
+}
+
+class FakeTenantModelAccessRuleService {
+  async filterImageCatalogProvider(
+    tenantId: string,
+    provider: {
+      providerId: string;
+      displayName: string;
+      defaultModelId: string | null;
+      models: Array<{
+        id: string;
+        displayName: string;
+        capabilities: unknown;
+      }>;
+    },
+  ) {
+    if (tenantId !== 'tenant-restricted') {
+      return provider;
+    }
+
+    const models = provider.models.filter(
+      (model) => model.id !== 'grok-imagine-image',
+    );
+    return models.length
+      ? {
+          ...provider,
+          defaultModelId: models[0]?.id ?? null,
+          models,
+        }
+      : null;
+  }
+
+  async assertImageModelAllowed(params: {
+    tenantId: string;
+    providerId: string;
+    model: string;
+    imageCount?: number;
+    resolution?: string;
+  }): Promise<void> {
+    if (
+      params.tenantId === 'tenant-restricted' &&
+      params.providerId === 'xai' &&
+      params.model === 'grok-imagine-image'
+    ) {
+      throw new ForbiddenException(
+        `Model ${params.providerId}/${params.model} is denied for tenant ${params.tenantId}.`,
+      );
+    }
+
+    if ((params.imageCount ?? 1) > 2) {
+      throw new Error('too many images');
+    }
+
+    if (params.resolution === '2048x2048') {
+      throw new Error('resolution too large');
+    }
+  }
+}
+
+class FakeTenantProviderConfigurationService {
+  async resolveConfiguration(tenantId: string, providerId: 'xai') {
+    return {
+      tenantId,
+      providerId,
+      providerDisplayName: 'xAI Grok',
+      providerStatus: 'active' as const,
+      enabled: tenantId !== 'tenant-disabled',
+      defaultTextModel: null,
+      defaultImageModel: 'tenant-image-default',
+      credentialMode: 'hybrid' as const,
+      preferUserCredentials: true,
+      allowPlatformFallback: false,
+      allowTenantFallback: true,
+    };
+  }
+
+  async assertProviderEnabled(tenantId: string, providerId: 'xai') {
+    const configuration = await this.resolveConfiguration(tenantId, providerId);
+    if (!configuration.enabled) {
+      throw new Error(`Provider ${providerId} is disabled for tenant ${tenantId}.`);
+    }
+
+    return configuration;
+  }
+
+  resolveImageModel(
+    requestedModel: string | undefined,
+    providerId: 'xai',
+    authContext: ReturnType<typeof buildAuthContext>,
+    configuration: { defaultImageModel: string | null },
+  ) {
+    if (requestedModel) {
+      return requestedModel;
+    }
+
+    if (
+      authContext.defaultImageProviderId === providerId &&
+      authContext.defaultImageModel
+    ) {
+      return authContext.defaultImageModel;
+    }
+
+    if (configuration.defaultImageModel) {
+      return configuration.defaultImageModel;
+    }
+
+    throw new Error('No default image model is configured.');
+  }
+}
+
+class FakeTenantPolicyService {
+  async assertImageRequestAllowed(params: {
+    tenantId: string;
+    providerId: string;
+    model: string;
+  }): Promise<void> {
+    if (
+      params.tenantId === 'tenant-quota-blocked' &&
+      params.providerId === 'xai'
+    ) {
+      throw new TenantPolicyLimitException(
+        'tenant_monthly_image_request_limit_exceeded',
+        `Tenant ${params.tenantId} exceeded the monthly image request limit.`,
+      );
+    }
+  }
 }
 
 function createTenantRlsService(
@@ -268,6 +423,15 @@ function createTenantRlsService(
   },
 ) {
   return {
+    async withTenantLockContext<T>(
+      tenantId: string,
+      callback: (manager: {
+        getRepository: (entity: unknown) => InMemoryRepository<BaseEntity>;
+      }) => Promise<T>,
+    ): Promise<T> {
+      return this.withTenantContext(tenantId, callback);
+    },
+
     async withTenantContext<T>(
       tenantId: string,
       callback: (manager: {
@@ -347,6 +511,17 @@ function createImageService(options?: {
   };
   providerCredentialService?: {
     resolveProviderAccess: () => Promise<Record<string, unknown>>;
+    resolveProviderAccessWithSource?: () => Promise<{
+      providerAccess: Record<string, unknown>;
+      credentialScopeUsed: 'platform' | 'tenant' | 'user';
+    }>;
+  };
+  tenantPolicyService?: {
+    assertImageRequestAllowed: (params: {
+      tenantId: string;
+      providerId: string;
+      model: string;
+    }) => Promise<void>;
   };
 }) {
   const provider = new FakeImageProvider();
@@ -383,7 +558,15 @@ function createImageService(options?: {
       providerRegistry as never,
       (options?.providerCredentialService ?? {
         resolveProviderAccess: async () => ({ apiKey: 'secret' }),
+        resolveProviderAccessWithSource: async () => ({
+          providerAccess: { apiKey: 'secret' },
+          credentialScopeUsed: 'user',
+        }),
       }) as never,
+      new FakeTenantProviderConfigurationService() as never,
+      new FakeIntegrationClientScopeService() as never,
+      new FakeTenantModelAccessRuleService() as never,
+      (options?.tenantPolicyService ?? new FakeTenantPolicyService()) as never,
       new FakeGatewayTelemetryService() as never,
       createTenantRlsService({
         imageAssets,
@@ -409,6 +592,20 @@ test('ImageApplicationService persists generated images and exposes gateway-mana
   assert.ok(response.jobId);
   assert.equal(response.images[0]?.assetId !== undefined, true);
   assert.match(response.images[0]?.contentUrl ?? '', /\/api\/v1\/images\/assets\//);
+});
+
+test('ImageApplicationService uses the tenant default image model when the user has no image default', async () => {
+  const { service } = createImageService();
+
+  const response = await service.generateImage(
+    {
+      providerId: 'xai',
+      prompt: 'A moonlit forest',
+    },
+    buildAuthContext(),
+  );
+
+  assert.equal(response.model, 'tenant-image-default');
 });
 
 test('ImageApplicationService resolves asset references before provider edit requests', async () => {
@@ -529,6 +726,9 @@ test('ImageApplicationService returns image catalog entries even when provider c
       resolveProviderAccess: async () => {
         throw new Error('missing credential');
       },
+      resolveProviderAccessWithSource: async () => {
+        throw new Error('missing credential');
+      },
     },
   });
 
@@ -538,7 +738,7 @@ test('ImageApplicationService returns image catalog entries even when provider c
     {
       providerId: 'xai',
       displayName: 'xAI Grok',
-      defaultModelId: 'grok-imagine-image',
+      defaultModelId: 'tenant-image-default',
       models: [
         {
           id: 'grok-imagine-image',
@@ -556,6 +756,23 @@ test('ImageApplicationService returns image catalog entries even when provider c
       ],
     },
   ]);
+});
+
+test('ImageApplicationService filters image catalog models denied for the active tenant', async () => {
+  const provider = new FakeImageProvider();
+  const { service } = createImageService({
+    providerRegistry: {
+      getProvider: () => provider,
+      listProviders: () => [provider],
+    },
+  });
+
+  const catalog = await service.getCatalog({
+    ...buildAuthContext(),
+    activeTenantId: 'tenant-restricted',
+  });
+
+  assert.equal(catalog.providers.length, 0);
 });
 
 test('ImageApplicationService uploads a supported image asset', async () => {
@@ -780,5 +997,110 @@ test('ImageApplicationService keeps tenant 2 assets isolated from tenant 1', asy
   await assert.rejects(
     () => service.deleteAsset('asset-tenant-2', buildAuthContext()),
     /Image asset not found\./,
+  );
+});
+
+test('ImageApplicationService rejects image models denied by tenant model access rules', async () => {
+  const { service } = createImageService({
+    memberships: [
+      { id: 'membership-1', tenantId: 'tenant-restricted', userId: 'user-1' },
+    ],
+  });
+
+  await assert.rejects(
+    () =>
+      service.generateImage(
+        {
+          providerId: 'xai',
+          model: 'grok-imagine-image',
+          prompt: 'A moonlit forest',
+        },
+        {
+          ...buildAuthContext(),
+          activeTenantId: 'tenant-restricted',
+        },
+      ),
+    /is denied for tenant tenant-restricted/i,
+  );
+});
+
+test('ImageApplicationService rejects image generation for an integration client without image:generate scope', async () => {
+  const { service } = createImageService();
+
+  await assert.rejects(
+    () =>
+      service.generateImage(
+        {
+          providerId: 'xai',
+          prompt: 'A moonlit forest',
+        },
+        {
+          ...buildAuthContext(),
+          integrationClientId: 'open-webui-demo',
+          integrationClientScopes: ['chat:completion'],
+        },
+      ),
+    /missing the required scope "image:generate"/i,
+  );
+});
+
+test('ImageApplicationService rejects image editing for an integration client without image:edit scope', async () => {
+  const { service } = createImageService({
+    assets: [
+      {
+        id: 'asset-1',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        sourceType: 'upload',
+        label: 'Upload',
+        mimeType: 'image/png',
+        dataUrl: 'data:image/png;base64,abc123',
+        contentHash: 'hash-upload-asset-1',
+        originalUrl: null,
+        isSaved: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+  });
+
+  await assert.rejects(
+    () =>
+      service.editImage(
+        {
+          providerId: 'xai',
+          prompt: 'Edit this',
+          images: [{ type: 'asset', assetId: 'asset-1' }],
+        },
+        {
+          ...buildAuthContext(),
+          integrationClientId: 'open-webui-demo',
+          integrationClientScopes: ['chat:completion', 'image:generate'],
+        },
+      ),
+    /missing the required scope "image:edit"/i,
+  );
+});
+
+test('ImageApplicationService rejects image generation when tenant quota policy blocks the request', async () => {
+  const { service } = createImageService({
+    memberships: [
+      { id: 'membership-1', tenantId: 'tenant-quota-blocked', userId: 'user-1' },
+    ],
+  });
+
+  await assert.rejects(
+    () =>
+      service.generateImage(
+        {
+          providerId: 'xai',
+          prompt: 'A moonlit forest',
+        },
+        {
+          ...buildAuthContext(),
+          activeTenantId: 'tenant-quota-blocked',
+        },
+      ),
+    /monthly image request limit/i,
   );
 });
