@@ -72,6 +72,13 @@ export class OpenAiCompatibleController {
       );
       let finalized = false;
 
+      const cancelStreamBranches = (error: unknown) => {
+        const cancellationReason =
+          error instanceof Error ? error : new Error('Stream cancelled.');
+        void telemetryStream.cancel(cancellationReason).catch(() => undefined);
+        nodeStream.destroy(cancellationReason);
+      };
+
       const finalizeSuccess = () => {
         if (finalized) {
           return;
@@ -111,6 +118,8 @@ export class OpenAiCompatibleController {
         }
 
         finalized = true;
+        cancelStreamBranches(error);
+        void telemetryCompletion.catch(() => undefined);
         void this.gatewayService
           .recordChatStreamFailure(
             authContext,
@@ -158,9 +167,9 @@ export class OpenAiCompatibleController {
     let usage: GatewayChatResponse['usage'] | undefined;
     let providerMetadata: Record<string, unknown> | undefined;
 
-    const processEvent = (eventText: string) => {
+      const processEvent = (eventText: string) => {
       const data = eventText
-        .split('\n')
+        .split(/\r?\n/)
         .filter((line) => line.startsWith('data:'))
         .map((line) => line.slice('data:'.length).trimStart())
         .join('\n');
@@ -252,14 +261,16 @@ export class OpenAiCompatibleController {
         }
 
         buffer += decoder.decode(value, { stream: true });
-        let boundaryIndex = buffer.indexOf('\n\n');
+        let boundaryIndex = buffer.search(/\r?\n\r?\n/);
         while (boundaryIndex !== -1) {
+          const delimiter = buffer.match(/\r?\n\r?\n/);
+          const delimiterLength = delimiter?.[0].length ?? 2;
           const eventText = buffer.slice(0, boundaryIndex).trim();
-          buffer = buffer.slice(boundaryIndex + 2);
+          buffer = buffer.slice(boundaryIndex + delimiterLength);
           if (eventText) {
             processEvent(eventText);
           }
-          boundaryIndex = buffer.indexOf('\n\n');
+          boundaryIndex = buffer.search(/\r?\n\r?\n/);
         }
       }
 

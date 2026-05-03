@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { MoreThanOrEqual, Not, In, Repository } from 'typeorm';
 
 import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
 import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
@@ -33,6 +33,11 @@ type ResolvedTenantPolicy = {
 
 @Injectable()
 export class TenantPolicyService {
+  private static readonly blockedUsageStatuses = [
+    'blocked_by_policy',
+    'blocked_by_quota',
+  ] as const;
+
   constructor(
     @InjectRepository(TenantPolicyEntity)
     private readonly tenantPolicyRepository: Repository<TenantPolicyEntity>,
@@ -94,6 +99,7 @@ export class TenantPolicyService {
       where: {
         tenantId: input.tenantId,
         createdAt: MoreThanOrEqual(this.buildLowerBoundDate(60 * 1000)),
+        status: Not(In(TenantPolicyService.blockedUsageStatuses)),
       },
     });
     if (lastMinuteCount >= policy.requestsPerMinute) {
@@ -132,6 +138,7 @@ export class TenantPolicyService {
           createdAt: MoreThanOrEqual(
             this.buildLowerBoundDate(24 * 60 * 60 * 1000),
           ),
+          status: Not(In(TenantPolicyService.blockedUsageStatuses)),
         },
       });
       if (lastDayCount >= policy.dailyRequestLimit) {
@@ -152,6 +159,7 @@ export class TenantPolicyService {
         where: {
           tenantId: input.tenantId,
           createdAt: MoreThanOrEqual(this.buildStartOfMonthDate()),
+          status: Not(In(TenantPolicyService.blockedUsageStatuses)),
         },
       });
       if (lastMonthCount >= policy.monthlyRequestLimit) {
@@ -233,6 +241,7 @@ export class TenantPolicyService {
         tenantId: input.tenantId,
         capability: 'image',
         createdAt: MoreThanOrEqual(this.buildStartOfMonthDate()),
+        status: Not(In(TenantPolicyService.blockedUsageStatuses)),
       },
     });
     if (current >= policy.imageRequestsPerMonth) {
@@ -262,6 +271,9 @@ export class TenantPolicyService {
       .select(`COALESCE(SUM(usage_event.${column}), 0)`, 'total')
       .where('usage_event.tenant_id = :tenantId', { tenantId })
       .andWhere('usage_event.created_at >= :lowerBound', { lowerBound })
+      .andWhere('usage_event.status NOT IN (:...blockedStatuses)', {
+        blockedStatuses: TenantPolicyService.blockedUsageStatuses,
+      })
       .getRawOne<{ total: string | number | null }>();
 
     return Number(result?.total ?? 0);
