@@ -61,6 +61,7 @@ class FakeGatewayService {
   async chat(request: {
     providerId?: ProviderId;
     model?: string;
+    maxOutputTokens?: number;
     messages: Array<{
       role: string;
       content: string | GatewayChatContentPart[];
@@ -213,6 +214,48 @@ test('OpenAiCompatibleService maps chat completions to the OpenAI response shape
   assert.equal(response.model, 'nanogpt/z-ai/glm-4.6:thinking');
   assert.equal(response.choices[0]?.message.content, 'Echo: hello');
   assert.equal(response.usage?.total_tokens, 18);
+});
+
+test('OpenAiCompatibleService forwards max completion tokens to the gateway chat contract', async () => {
+  let capturedRequest:
+    | {
+        maxOutputTokens?: number;
+      }
+    | undefined;
+
+  class CapturingGatewayService extends FakeGatewayService {
+    override async chat(request: {
+      providerId?: ProviderId;
+      model?: string;
+      maxOutputTokens?: number;
+      messages: Array<{
+        role: string;
+        content: string | GatewayChatContentPart[];
+      }>;
+    }) {
+      capturedRequest = request;
+      return super.chat(request);
+    }
+  }
+
+  const service = new OpenAiCompatibleService(
+    new CapturingGatewayService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+  );
+
+  await service.createChatCompletion(
+    {
+      model: 'nanogpt/z-ai/glm-4.6:thinking',
+      max_completion_tokens: 321,
+      messages: [{ role: 'user', content: 'hello' }],
+    },
+    buildAuthContext(),
+  );
+
+  assert.equal(capturedRequest?.maxOutputTokens, 321);
 });
 
 test('OpenAiCompatibleService rejects unsupported non-text message content payloads', async () => {

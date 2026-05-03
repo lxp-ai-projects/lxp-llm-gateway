@@ -117,6 +117,7 @@ export class OpenAiCompatibleService {
       {
         providerId: modelTarget.providerId,
         model: modelTarget.model,
+        maxOutputTokens: this.resolveMaxOutputTokens(request),
         messages: this.normalizeMessages(request.messages),
       },
       authContext,
@@ -134,6 +135,7 @@ export class OpenAiCompatibleService {
       {
         providerId: modelTarget.providerId,
         model: modelTarget.model,
+        maxOutputTokens: this.resolveMaxOutputTokens(request),
         messages: this.normalizeMessages(request.messages),
         stream: true,
       },
@@ -247,6 +249,27 @@ export class OpenAiCompatibleService {
 
   private composeModelId(providerId: string, modelId: string): string {
     return `${providerId}/${modelId}`;
+  }
+
+  private resolveMaxOutputTokens(
+    request: OpenAiCompatibleChatCompletionsRequestDto,
+  ): number | undefined {
+    const candidates = [
+      request.max_completion_tokens,
+      request.max_tokens,
+    ] as const;
+
+    for (const candidate of candidates) {
+      if (
+        typeof candidate === 'number' &&
+        Number.isInteger(candidate) &&
+        candidate > 0
+      ) {
+        return candidate;
+      }
+    }
+
+    return undefined;
   }
 
   private mapChatResponse(

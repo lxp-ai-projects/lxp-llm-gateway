@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
 import type { GatewayChatResponse } from '@lxp/contracts';
+import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
@@ -16,6 +17,7 @@ import type { ListModelsQueryDto } from './dto/list-models-query.dto';
 import { ProviderCredentialService } from './provider-credential.service';
 import { IntegrationClientScopeService } from './integration-client-scope.service';
 import {
+  ModelAccessLimitException,
   ModelAccessPolicyException,
   TenantModelAccessRuleService,
 } from './tenant-model-access-rule.service';
@@ -63,11 +65,10 @@ export class GatewayService {
       'models:list',
     );
     const providerId = this.resolveProviderId(query.providerId, authContext);
-    const configuration =
-      await this.tenantProviderConfigurationService.assertProviderEnabled(
-        authContext.activeTenantId,
-        providerId,
-      );
+    await this.tenantProviderConfigurationService.assertProviderEnabled(
+      authContext.activeTenantId,
+      providerId,
+    );
     const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
 
@@ -159,22 +160,54 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
+      const { modelAccessRule, tenantPolicy } =
+        await this.tenantRlsService.withTenantLockContext(
+        authContext.activeTenantId,
+        async (manager) => {
+          const resolvedModelAccessRule =
+            await this.tenantModelAccessRuleService.assertTextModelAllowed(
+              authContext.activeTenantId,
+              providerId,
+              model,
+            );
+          const resolvedTenantPolicy =
+            await this.tenantPolicyService?.assertTextRequestAllowed(
+              {
+                tenantId: authContext.activeTenantId,
+                providerId,
+                model,
+              },
+              manager,
+            );
+
+          return {
+            modelAccessRule: resolvedModelAccessRule,
+            tenantPolicy: resolvedTenantPolicy,
+          };
+        },
+      );
+      const { providerAccess, credentialScopeUsed } =
+        await this.providerCredentialService.resolveProviderAccessWithSource(
+          authContext,
+          provider.providerId,
+        );
+      await this.assertMaxInputTokensIfSupported({
+        request: {
+          ...request,
+          providerId,
+          model,
+        },
+        authContext,
+        provider,
+        providerAccess,
+        providerId,
+        model,
+        tenantPolicyMaxInputTokens: tenantPolicy?.maxInputTokens ?? null,
+        ruleMaxInputTokens: modelAccessRule?.maxInputTokens ?? null,
+      });
       await this.tenantRlsService.withTenantLockContext(
         authContext.activeTenantId,
         async (manager) => {
-          await this.tenantModelAccessRuleService.assertTextModelAllowed(
-            authContext.activeTenantId,
-            providerId,
-            model,
-          );
-          await this.tenantPolicyService?.assertTextRequestAllowed(
-            {
-              tenantId: authContext.activeTenantId,
-              providerId,
-              model,
-            },
-            manager,
-          );
           await this.gatewayTelemetryService.reserveChatUsageEvent(
             {
               authContext,
@@ -188,11 +221,6 @@ export class GatewayService {
           );
         },
       );
-      const { providerAccess, credentialScopeUsed } =
-        await this.providerCredentialService.resolveProviderAccessWithSource(
-          authContext,
-          provider.providerId,
-        );
 
       const response = await provider.chat(
         {
@@ -288,10 +316,7 @@ export class GatewayService {
           latencyMs: Date.now() - startedAt,
           stream: false,
           messageSummary,
-          errorCode:
-            error instanceof ModelAccessPolicyException
-              ? 'model_access_denied'
-              : 'gateway_error',
+          errorCode: 'gateway_error',
           error: errorMessage,
         }),
       );
@@ -359,22 +384,54 @@ export class GatewayService {
     this.gatewayAuditService.logStarted(auditBase);
 
     try {
+      const { modelAccessRule, tenantPolicy } =
+        await this.tenantRlsService.withTenantLockContext(
+        authContext.activeTenantId,
+        async (manager) => {
+          const resolvedModelAccessRule =
+            await this.tenantModelAccessRuleService.assertTextModelAllowed(
+              authContext.activeTenantId,
+              providerId,
+              model,
+            );
+          const resolvedTenantPolicy =
+            await this.tenantPolicyService?.assertTextRequestAllowed(
+              {
+                tenantId: authContext.activeTenantId,
+                providerId,
+                model,
+              },
+              manager,
+            );
+
+          return {
+            modelAccessRule: resolvedModelAccessRule,
+            tenantPolicy: resolvedTenantPolicy,
+          };
+        },
+      );
+      const { providerAccess, credentialScopeUsed } =
+        await this.providerCredentialService.resolveProviderAccessWithSource(
+          authContext,
+          provider.providerId,
+        );
+      await this.assertMaxInputTokensIfSupported({
+        request: {
+          ...request,
+          providerId,
+          model,
+        },
+        authContext,
+        provider,
+        providerAccess,
+        providerId,
+        model,
+        tenantPolicyMaxInputTokens: tenantPolicy?.maxInputTokens ?? null,
+        ruleMaxInputTokens: modelAccessRule?.maxInputTokens ?? null,
+      });
       await this.tenantRlsService.withTenantLockContext(
         authContext.activeTenantId,
         async (manager) => {
-          await this.tenantModelAccessRuleService.assertTextModelAllowed(
-            authContext.activeTenantId,
-            providerId,
-            model,
-          );
-          await this.tenantPolicyService?.assertTextRequestAllowed(
-            {
-              tenantId: authContext.activeTenantId,
-              providerId,
-              model,
-            },
-            manager,
-          );
           await this.gatewayTelemetryService.reserveChatUsageEvent(
             {
               authContext,
@@ -388,11 +445,6 @@ export class GatewayService {
           );
         },
       );
-      const { providerAccess, credentialScopeUsed } =
-        await this.providerCredentialService.resolveProviderAccessWithSource(
-          authContext,
-          provider.providerId,
-        );
 
       const stream = await provider.chatStream(
         {
@@ -476,10 +528,7 @@ export class GatewayService {
           latencyMs: Date.now() - startedAt,
           stream: true,
           messageSummary,
-          errorCode:
-            error instanceof ModelAccessPolicyException
-              ? 'model_access_denied'
-              : 'gateway_error',
+          errorCode: 'gateway_error',
           error: errorMessage,
         }),
       );
@@ -604,6 +653,65 @@ export class GatewayService {
       'No provider was supplied and no default provider is configured for the authenticated user.',
     );
   }
+
+  private async assertMaxInputTokensIfSupported(params: {
+    request: GatewayChatRequestDto;
+    authContext: GatewayAuthContext;
+    provider: ReturnType<ProviderRegistryService['getProvider']>;
+    providerAccess: ProviderExecutionContext['providerAccess'];
+    providerId: ProviderId;
+    model: string;
+    tenantPolicyMaxInputTokens: number | null;
+    ruleMaxInputTokens: number | null;
+  }): Promise<void> {
+    const maxInputTokens = this.resolveEffectiveMaxInputTokens([
+      params.tenantPolicyMaxInputTokens,
+      params.ruleMaxInputTokens,
+    ]);
+
+    if (
+      maxInputTokens === null ||
+      maxInputTokens === undefined ||
+      !params.provider.countTextTokens
+    ) {
+      return;
+    }
+
+    const tokenCount = await params.provider.countTextTokens(
+      {
+        ...params.request,
+        providerId: params.providerId,
+        model: params.model,
+      },
+      {
+        requestId: crypto.randomUUID(),
+        userId: params.authContext.userId,
+        providerAccess: params.providerAccess,
+      },
+    );
+
+    if (tokenCount.inputTokens > maxInputTokens) {
+      throw new ModelAccessLimitException(
+        `Text requests for ${params.providerId}/${params.model} cannot exceed ${maxInputTokens} input token(s) for this tenant.`,
+      );
+    }
+  }
+
+  private resolveEffectiveMaxInputTokens(
+    candidates: Array<number | null | undefined>,
+  ): number | null {
+    const numericCandidates = candidates.filter(
+      (candidate): candidate is number =>
+        typeof candidate === 'number' && Number.isFinite(candidate),
+    );
+
+    if (!numericCandidates.length) {
+      return null;
+    }
+
+    return Math.min(...numericCandidates);
+  }
+
   private async recordTelemetrySafely(work: () => Promise<void>): Promise<void> {
     try {
       await work();

@@ -1,5 +1,6 @@
 import type {
   GatewayChatContentPart,
+  GatewayChatProviderOptions,
   GatewayChatRequest,
   GatewayChatResponse,
 } from '@lxp/contracts';
@@ -13,6 +14,23 @@ type AnthropicMessage = {
   role: 'user' | 'assistant';
   content: string;
 };
+
+type AnthropicThinkingConfig =
+  | {
+      type: 'disabled';
+    }
+  | {
+      type: 'adaptive';
+      display: 'summarized';
+    }
+  | {
+      type: 'enabled';
+      budget_tokens: number;
+    };
+
+const DEFAULT_ANTHROPIC_MAX_OUTPUT_TOKENS = Number(
+  process.env.ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS ?? '4096',
+);
 
 export class AnthropicProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -162,12 +180,57 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     return this.transformStreamToGatewaySse(response.body);
   }
 
+  async countTextTokens(
+    request: GatewayChatRequest,
+    context: ProviderExecutionContext,
+  ): Promise<{ inputTokens: number }> {
+    const { system, messages } = this.buildAnthropicPayload(request);
+    const thinking = this.resolveThinkingConfig(request.providerOptions);
+
+    const response = await this.fetchWithTimeout(
+      `${this.resolveBaseUrl(context)}/v1/messages/count_tokens`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...this.resolveHeaders(context),
+        },
+        body: JSON.stringify({
+          model: request.model,
+          system,
+          messages,
+          ...(thinking !== undefined ? { thinking } : {}),
+        }),
+      },
+      this.requestTimeoutMs,
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await this.formatErrorMessage(
+          response,
+          'Anthropic token counting request failed',
+        ),
+      );
+    }
+
+    const payload = (await response.json()) as {
+      input_tokens?: number;
+    };
+
+    return {
+      inputTokens: payload.input_tokens ?? 0,
+    };
+  }
+
   private dispatchMessagesRequest(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
     stream: boolean,
   ): Promise<Response> {
     const { system, messages } = this.buildAnthropicPayload(request);
+    const thinking = this.resolveThinkingConfig(request.providerOptions);
+    const maxTokens = this.resolveMaxTokens(request, thinking);
 
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}/v1/messages`,
@@ -181,12 +244,67 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
           model: request.model,
           system,
           messages,
-          max_tokens: 4096,
+          max_tokens: maxTokens,
+          ...(thinking !== undefined ? { thinking } : {}),
           stream,
         }),
       },
       stream ? null : this.requestTimeoutMs,
     );
+  }
+
+  private resolveMaxTokens(
+    request: GatewayChatRequest,
+    thinking: AnthropicThinkingConfig | undefined,
+  ): number {
+    const configuredMaxTokens =
+      request.maxOutputTokens ?? DEFAULT_ANTHROPIC_MAX_OUTPUT_TOKENS;
+
+    if (thinking?.type !== 'enabled') {
+      return configuredMaxTokens;
+    }
+
+    return Math.max(configuredMaxTokens, thinking.budget_tokens + 1);
+  }
+
+  private resolveThinkingConfig(
+    providerOptions: GatewayChatProviderOptions | undefined,
+  ): AnthropicThinkingConfig | undefined {
+    const extendedThinking =
+      providerOptions?.anthropic?.extendedThinking;
+
+    if (!extendedThinking) {
+      return undefined;
+    }
+
+    if (extendedThinking.mode === 'disabled') {
+      return {
+        type: 'disabled',
+      };
+    }
+
+    if (extendedThinking.mode === 'adaptive') {
+      return {
+        type: 'adaptive',
+        display: 'summarized',
+      };
+    }
+
+    if (
+      !Number.isInteger(extendedThinking.budgetTokens) ||
+      (extendedThinking.budgetTokens ?? 0) < 1024
+    ) {
+      throw new Error(
+        'Anthropic extended thinking budgets must be integers of at least 1024 tokens.',
+      );
+    }
+
+    const budgetTokens = extendedThinking.budgetTokens;
+
+    return {
+      type: 'enabled',
+      budget_tokens: budgetTokens,
+    };
   }
 
   private buildAnthropicPayload(request: GatewayChatRequest): {

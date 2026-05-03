@@ -9,10 +9,32 @@ export function providerCatalogHasMixedPricing(providerId: string | null) {
   return providerId === 'openrouter' || providerId === 'ollama';
 }
 
+export function getProviderCredentialResponsibilityNote(
+  providerId: string | null,
+) {
+  if (providerId === 'google') {
+    return "Google Gemini support is validated. The free tier is subject to Google's rate limits. Usage is billed through your Google AI account. Protect this API key, do not share it, and only use keys your organization is authorized to spend with. LXP is not responsible for authorized or unauthorized charges made with this key.";
+  }
+
+  if (providerId === 'xai') {
+    return 'xAI Grok support is certified. Usage is billed through your xAI account. Protect this API key, do not share it, and only use keys your organization is authorized to spend with. LXP is not responsible for authorized or unauthorized charges made with this key.';
+  }
+
+  if (providerId === 'openai') {
+    return 'OpenAI support is certified. Usage is billed through your OpenAI account. Protect this API key, do not share it, and only use keys your organization is authorized to spend with. LXP is not responsible for authorized or unauthorized charges made with this key.';
+  }
+
+  if (providerId === 'anthropic') {
+    return 'Anthropic Claude support is native to the gateway and certified for the current chat contract. Model catalog certification coverage is still being expanded, so verify pricing and defaults before sending prompts. Usage is billed through your Anthropic account. Protect this API key, do not share it, and only use keys your organization is authorized to spend with. LXP is not responsible for authorized or unauthorized charges made with this key.';
+  }
+
+  return null;
+}
+
 export function getProviderCatalogPricingNote(providerId: string | null) {
   if (!providerCatalogHasMixedPricing(providerId)) {
     if (providerId === 'anthropic') {
-      return 'Anthropic support is experimental and requires additional certification tests before it can be considered stable. Usage is billed through your Anthropic account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
+      return 'Anthropic Claude support is native to the gateway and certified for the current chat contract. Model catalog certification coverage is still being expanded, so verify pricing and defaults before choosing models or sending prompts. Usage is billed through your Anthropic account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
     }
 
     if (providerId === 'google') {
@@ -130,7 +152,9 @@ export function validateProviderCredentialInput(input: {
     (input.providerId === 'google' ||
       input.providerId === 'xai' ||
       input.providerId === 'openai' ||
-      input.providerId === 'anthropic') &&
+      input.providerId === 'anthropic' ||
+      input.providerId === 'mistral' ||
+      input.providerId === 'deepseek') &&
     !input.apiToken.trim()
   ) {
     return input.providerId === 'google'
@@ -139,7 +163,11 @@ export function validateProviderCredentialInput(input: {
       ? 'xAI Grok credentials require an API token.'
       : input.providerId === 'openai'
         ? 'OpenAI credentials require an API token.'
-        : 'Anthropic credentials require an API token.';
+        : input.providerId === 'anthropic'
+          ? 'Anthropic credentials require an API token.'
+          : input.providerId === 'mistral'
+            ? 'Mistral credentials require an API token.'
+            : 'DeepSeek credentials require an API token.';
   }
 
   if (input.providerId !== 'ollama' || !input.baseUrl.trim()) {

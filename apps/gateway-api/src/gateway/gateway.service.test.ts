@@ -14,6 +14,7 @@ import type {
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayService } from './gateway.service';
+import { ModelAccessLimitException } from './tenant-model-access-rule.service';
 import { TenantPolicyLimitException } from './tenant-policy.service';
 
 class FakeProvider implements LlmProviderAdapter {
@@ -67,6 +68,12 @@ class FakeProvider implements LlmProviderAdapter {
         controller.close();
       },
     });
+  }
+
+  async countTextTokens(): Promise<{ inputTokens: number }> {
+    return {
+      inputTokens: 12,
+    };
   }
 
 }
@@ -187,6 +194,8 @@ class FakeGatewayTelemetryService {
   async recordChatFailure(): Promise<void> {}
 
   async recordBlockedByQuota(): Promise<void> {}
+
+  async recordBlockedByPolicy(): Promise<void> {}
 }
 
 class FakeTenantRlsService {
@@ -207,7 +216,13 @@ class FakeTenantModelAccessRuleService {
     tenantId: string,
     providerId: 'nanogpt' | 'xai' | 'anthropic',
     model: string,
-  ): Promise<void> {
+  ): Promise<{
+    effect: 'allow' | 'deny';
+    maxInputTokens: number | null;
+    maxOutputTokens: number | null;
+    maxImagesPerRequest: number | null;
+    maxResolution: string | null;
+  } | null> {
     if (
       tenantId === 'tenant-restricted' &&
       providerId === 'xai' &&
@@ -217,6 +232,22 @@ class FakeTenantModelAccessRuleService {
         `Model ${providerId}/${model} is denied for tenant ${tenantId}.`,
       );
     }
+
+    if (
+      tenantId === 'tenant-input-limited' &&
+      providerId === 'nanogpt' &&
+      model === 'nano-1'
+    ) {
+      return {
+        effect: 'allow',
+        maxInputTokens: 10,
+        maxOutputTokens: null,
+        maxImagesPerRequest: null,
+        maxResolution: null,
+      };
+    }
+
+    return null;
   }
 
   async filterTextModels<
@@ -251,7 +282,7 @@ class FakeTenantPolicyService {
     tenantId: string;
     providerId: string;
     model: string;
-  }): Promise<void> {
+  }): Promise<{ maxInputTokens: number | null } | void> {
     if (
       params.tenantId === 'tenant-quota-blocked' &&
       params.providerId === 'nanogpt'
@@ -840,5 +871,40 @@ test('GatewayService rejects chat when tenant quota policy blocks the request', 
         }),
       ),
     /requests-per-minute limit/i,
+  );
+});
+
+test('GatewayService rejects chat when counted input tokens exceed the tenant model limit', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+    new FakeTenantPolicyService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          providerId: 'nanogpt',
+          model: 'nano-1',
+          messages: [{ role: 'user', content: 'hello' }],
+        } as GatewayChatRequestDto,
+        buildAuthContext({
+          activeTenantId: 'tenant-input-limited',
+          defaultProviderId: 'nanogpt',
+          defaultModel: 'nano-1',
+        }),
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof ModelAccessLimitException);
+      assert.match(String(error), /cannot exceed 10 input token/);
+      return true;
+    },
   );
 });

@@ -83,6 +83,8 @@ vi.mock('../lib/api-client', () => ({
           { providerId: 'ollama', displayName: 'Ollama' },
           { providerId: 'groq', displayName: 'Groq' },
           { providerId: 'google', displayName: 'Google Gemini' },
+          { providerId: 'mistral', displayName: 'Mistral' },
+          { providerId: 'deepseek', displayName: 'DeepSeek' },
           { providerId: 'openai', displayName: 'OpenAI' },
           { providerId: 'anthropic', displayName: 'Anthropic Claude' },
           { providerId: 'xai', displayName: 'xAI Grok' },
@@ -171,6 +173,10 @@ beforeEach(() => {
         providerId: 'anthropic',
         models: [
           {
+            id: 'claude-haiku-4-5-20251001',
+            displayName: 'Claude Haiku 4.5',
+          },
+          {
             id: 'claude-sonnet-4-20250514',
             displayName: 'Claude Sonnet 4',
           },
@@ -222,7 +228,7 @@ test('ChatPage submits on Enter from the composer', async () => {
     }),
     expect.any(Object),
   );
-});
+}, 10_000);
 
 test('ChatPage lets the user switch provider and shows the catalog pricing note', async () => {
   const user = userEvent.setup();
@@ -292,6 +298,153 @@ test('ChatPage shows an xAI model access note when model loading fails', async (
     ),
   ).toBeInTheDocument();
   expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
+}, 10_000);
+
+test('ChatPage shows the Anthropic catalog note with native and certified status', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const anthropicOption = document.querySelector(
+    '[role="option"][value="anthropic"]',
+  ) as HTMLElement | null;
+  expect(anthropicOption).not.toBeNull();
+  await user.click(anthropicOption!);
+
+  expect(
+    await screen.findByText(
+      /Anthropic Claude support is native to the gateway and certified for the current chat contract/i,
+    ),
+  ).toBeInTheDocument();
+}, 10_000);
+
+test('ChatPage sends Anthropic extended thinking settings with the chat request', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const anthropicOption = document.querySelector(
+    '[role="option"][value="anthropic"]',
+  ) as HTMLElement | null;
+  expect(anthropicOption).not.toBeNull();
+  await user.click(anthropicOption!);
+
+  await user.click(screen.getByTestId('chat-model-select'));
+  const sonnetOption = document.querySelector(
+    '[role="option"][value="claude-sonnet-4-20250514"]',
+  ) as HTMLElement | null;
+  expect(sonnetOption).not.toBeNull();
+  await user.click(sonnetOption!);
+
+  await user.click(screen.getByTestId('chat-anthropic-thinking-mode-select'));
+  const budgetOption = document.querySelector(
+    '[role="option"][value="budget"]',
+  ) as HTMLElement | null;
+  expect(budgetOption).not.toBeNull();
+  await user.click(budgetOption!);
+
+  const budgetInput = await screen.findByLabelText('Thinking budget tokens');
+  await user.clear(budgetInput);
+  await user.type(budgetInput, '8192');
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use Anthropic thinking{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'anthropic',
+      model: 'claude-sonnet-4-20250514',
+      providerOptions: {
+        anthropic: {
+          extendedThinking: {
+            mode: 'budget',
+            budgetTokens: 8192,
+          },
+        },
+      },
+    }),
+    expect.any(Object),
+  );
+}, 10_000);
+
+test('ChatPage disables Anthropic thinking for Haiku models and forces none', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const anthropicOption = document.querySelector(
+    '[role="option"][value="anthropic"]',
+  ) as HTMLElement | null;
+  expect(anthropicOption).not.toBeNull();
+  await user.click(anthropicOption!);
+
+  await user.click(screen.getByTestId('chat-model-select'));
+  const haikuOption = document.querySelector(
+    '[role="option"][value="claude-haiku-4-5-20251001"]',
+  ) as HTMLElement | null;
+  expect(haikuOption).not.toBeNull();
+  await user.click(haikuOption!);
+
+  expect(
+    await screen.findByText(/extended thinking is unavailable for claude haiku models/i),
+  ).toBeInTheDocument();
+  expect(screen.queryByLabelText('Thinking budget tokens')).not.toBeInTheDocument();
+  expect(screen.getByTestId('chat-anthropic-thinking-mode-select')).toBeDisabled();
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use Anthropic haiku{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'anthropic',
+      model: 'claude-haiku-4-5-20251001',
+      providerOptions: {
+        anthropic: {
+          extendedThinking: {
+            mode: 'disabled',
+          },
+        },
+      },
+    }),
+    expect.any(Object),
+  );
+}, 10_000);
+
+test('ChatPage sends max output tokens with the chat request when configured', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  const maxOutputTokensInput = await screen.findByLabelText('Max output tokens');
+  await user.clear(maxOutputTokensInput);
+  await user.type(maxOutputTokensInput, '2048');
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Limit the output{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'nanogpt',
+      model: 'z-ai/glm-4.6:thinking',
+      maxOutputTokens: 2048,
+    }),
+    expect.any(Object),
+  );
 }, 10_000);
 
 test('ChatPage keeps Shift+Enter for multiline drafting', async () => {

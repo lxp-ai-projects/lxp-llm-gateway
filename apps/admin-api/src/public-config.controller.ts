@@ -30,6 +30,14 @@ export class PublicConfigController {
           displayName: 'Google Gemini',
         },
         {
+          providerId: 'mistral',
+          displayName: 'Mistral',
+        },
+        {
+          providerId: 'deepseek',
+          displayName: 'DeepSeek',
+        },
+        {
           providerId: 'xai',
           displayName: 'xAI Grok',
         },

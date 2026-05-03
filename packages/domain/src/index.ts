@@ -1,12 +1,27 @@
-export type ProviderId =
-  | 'nanogpt'
-  | 'openrouter'
-  | 'ollama'
-  | 'groq'
-  | 'google'
-  | 'xai'
-  | 'openai'
-  | 'anthropic';
+export const PROVIDER_IDS = [
+  'nanogpt',
+  'openrouter',
+  'ollama',
+  'groq',
+  'google',
+  'xai',
+  'openai',
+  'anthropic',
+  'mistral',
+  'deepseek',
+] as const;
+
+export type ProviderId = (typeof PROVIDER_IDS)[number];
+
+export const IMAGE_PROVIDER_IDS = [
+  'nanogpt',
+  'openrouter',
+  'google',
+  'xai',
+  'openai',
+] as const satisfies readonly ProviderId[];
+
+export type ImageProviderId = (typeof IMAGE_PROVIDER_IDS)[number];
 
 export type TenantRole = 'tenant_admin' | 'operator' | 'user' | 'viewer';
 

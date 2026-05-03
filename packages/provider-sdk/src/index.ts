@@ -50,6 +50,13 @@ export interface LlmProviderAdapter {
     context: ProviderExecutionContext,
   ): Promise<ImageProviderCatalog>;
 
+  countTextTokens?(
+    request: GatewayChatRequest,
+    context: ProviderExecutionContext,
+  ): Promise<{
+    inputTokens: number;
+  }>;
+
   chat(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -95,7 +102,15 @@ export {
   formatOpenAiRateLimitError,
   formatXAiImageClientError,
 } from './provider-error-utils.js';
+export { OpenAiCompatibleTextProviderAdapter } from './openai-compatible-text-provider.js';
 export type {
   PublicImageReferencePolicy,
   ResolvedGatewayImageReference,
 } from './image-reference-utils.js';
+export type { OpenAiCompatibleTextProviderOptions } from './openai-compatible-text-provider.js';
+export {
+  assertBasicChatResponseContract,
+  assertProviderModelIds,
+  createJsonResponse,
+  readStreamAsText,
+} from './provider-testkit.js';
