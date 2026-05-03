@@ -78,22 +78,31 @@ export class OpenAiCompatibleController {
         }
 
         finalized = true;
-        void telemetryCompletion.then(
-          async (chatResponse) => {
-            await this.gatewayService.recordChatStreamSuccess(
-              authContext,
-              streamResponse,
-              chatResponse,
-            );
-          },
-          async (error: unknown) => {
-            await this.gatewayService.recordChatStreamFailure(
-              authContext,
-              streamResponse,
-              error instanceof Error ? error.message : 'Unknown gateway error.',
-            );
-          },
-        );
+        void telemetryCompletion
+          .then(async (chatResponse) => {
+            try {
+              await this.gatewayService.recordChatStreamSuccess(
+                authContext,
+                streamResponse,
+                chatResponse,
+              );
+            } catch (error) {
+              console.warn('Failed to record successful chat telemetry.', error);
+            }
+          })
+          .catch(async (error: unknown) => {
+            try {
+              await this.gatewayService.recordChatStreamFailure(
+                authContext,
+                streamResponse,
+                error instanceof Error
+                  ? error.message
+                  : 'Unknown gateway error.',
+              );
+            } catch (recordError) {
+              console.warn('Failed to record failed chat telemetry.', recordError);
+            }
+          });
       };
 
       const finalizeFailure = (error: unknown) => {
@@ -102,11 +111,15 @@ export class OpenAiCompatibleController {
         }
 
         finalized = true;
-        void this.gatewayService.recordChatStreamFailure(
-          authContext,
-          streamResponse,
-          error instanceof Error ? error.message : 'Unknown gateway error.',
-        );
+        void this.gatewayService
+          .recordChatStreamFailure(
+            authContext,
+            streamResponse,
+            error instanceof Error ? error.message : 'Unknown gateway error.',
+          )
+          .catch((recordError: unknown) => {
+            console.warn('Failed to record failed chat telemetry.', recordError);
+          });
       };
 
       nodeStream.once('error', finalizeFailure);

@@ -296,11 +296,9 @@ export class ImageApplicationService {
         latencyMs: Date.now() - startedAt.getTime(),
         promptLength: request.prompt.length,
         errorCode:
-          error instanceof ModelAccessPolicyException
-            ? 'model_access_denied'
-            : error instanceof ModelAccessLimitException
-              ? 'model_access_limit'
-              : 'gateway_error',
+          error instanceof ModelAccessLimitException
+            ? 'model_access_limit'
+            : 'gateway_error',
         error: error instanceof Error ? error.message : 'Unknown gateway error.',
       });
       throw new BadGatewayException(
@@ -447,11 +445,9 @@ export class ImageApplicationService {
         latencyMs: Date.now() - startedAt.getTime(),
         promptLength: request.prompt.length,
         errorCode:
-          error instanceof ModelAccessPolicyException
-            ? 'model_access_denied'
-            : error instanceof ModelAccessLimitException
-              ? 'model_access_limit'
-              : 'gateway_error',
+          error instanceof ModelAccessLimitException
+            ? 'model_access_limit'
+            : 'gateway_error',
         error: error instanceof Error ? error.message : 'Unknown gateway error.',
       });
       throw new BadGatewayException(

@@ -111,7 +111,7 @@ export class TenantPolicyService {
     const lastMinuteTokens = await this.sumNumericColumn(
       input.tenantId,
       'totalTokens',
-      60 * 1000,
+      this.buildLowerBoundDate(60 * 1000),
     );
     if (lastMinuteTokens >= policy.tokensPerMinute) {
       throw new TenantPolicyLimitException(
@@ -151,9 +151,7 @@ export class TenantPolicyService {
       const lastMonthCount = await this.usageEventRepository.count({
         where: {
           tenantId: input.tenantId,
-          createdAt: MoreThanOrEqual(
-            this.buildLowerBoundDate(30 * 24 * 60 * 60 * 1000),
-          ),
+          createdAt: MoreThanOrEqual(this.buildStartOfMonthDate()),
         },
       });
       if (lastMonthCount >= policy.monthlyRequestLimit) {
@@ -181,7 +179,7 @@ export class TenantPolicyService {
     const current = await this.sumNumericColumn(
       input.tenantId,
       'costEstimateUsd',
-      30 * 24 * 60 * 60 * 1000,
+      this.buildStartOfMonthDate(),
     );
     if (current >= Number(policy.monthlyBudgetUsd)) {
       throw new TenantPolicyLimitException(
@@ -207,7 +205,7 @@ export class TenantPolicyService {
     const current = await this.sumNumericColumn(
       input.tenantId,
       'totalTokens',
-      30 * 24 * 60 * 60 * 1000,
+      this.buildStartOfMonthDate(),
     );
     if (current >= policy.monthlyTokenLimit) {
       throw new TenantPolicyLimitException(
@@ -234,9 +232,7 @@ export class TenantPolicyService {
       where: {
         tenantId: input.tenantId,
         capability: 'image',
-        createdAt: MoreThanOrEqual(
-          this.buildLowerBoundDate(30 * 24 * 60 * 60 * 1000),
-        ),
+        createdAt: MoreThanOrEqual(this.buildStartOfMonthDate()),
       },
     });
     if (current >= policy.imageRequestsPerMonth) {
@@ -259,9 +255,8 @@ export class TenantPolicyService {
   private async sumNumericColumn(
     tenantId: string,
     column: 'costEstimateUsd' | 'totalTokens',
-    windowMs: number,
+    lowerBound: Date,
   ): Promise<number> {
-    const lowerBound = this.buildLowerBoundDate(windowMs);
     const result = await this.usageEventRepository
       .createQueryBuilder('usage_event')
       .select(`COALESCE(SUM(usage_event.${column}), 0)`, 'total')
@@ -270,5 +265,12 @@ export class TenantPolicyService {
       .getRawOne<{ total: string | number | null }>();
 
     return Number(result?.total ?? 0);
+  }
+
+  private buildStartOfMonthDate(): Date {
+    const now = new Date();
+    return new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+    );
   }
 }
