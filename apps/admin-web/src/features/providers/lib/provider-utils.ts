@@ -133,7 +133,15 @@ export function buildDefaultImageProviderOptions(
 export function buildDefaultModelOptions(
   models: Array<{ id: string; displayName: string }>,
 ) {
-  return [...models]
+  const uniqueModels = new Map<string, { id: string; displayName: string }>();
+
+  for (const model of models) {
+    if (!uniqueModels.has(model.id)) {
+      uniqueModels.set(model.id, model);
+    }
+  }
+
+  return [...uniqueModels.values()]
     .sort((left, right) =>
       alphabeticalCollator.compare(left.displayName, right.displayName),
     )

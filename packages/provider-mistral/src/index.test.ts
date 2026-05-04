@@ -91,8 +91,10 @@ test('MistralProviderAdapter sends chat requests to the Mistral chat completions
     assert.equal(calls[0]?.url, 'https://api.mistral.ai/v1/chat/completions');
     const body = JSON.parse(String(calls[0]?.init?.body)) as {
       max_tokens?: number;
+      user?: string;
     };
     assert.equal(body.max_tokens, 256);
+    assert.equal(body.user, undefined);
     assertBasicChatResponseContract({
       response,
       providerId: 'mistral',
@@ -103,6 +105,56 @@ test('MistralProviderAdapter sends chat requests to the Mistral chat completions
       completionTokens: 12,
       totalTokens: 22,
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('MistralProviderAdapter omits the unsupported user field from streaming requests', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+
+    return new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'data: {"choices":[{"delta":{"content":"hello"}}]}\n\n',
+            ),
+          );
+          controller.close();
+        },
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new MistralProviderAdapter();
+    await adapter.chatStream(
+      {
+        model: 'mistral-large-latest',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      {
+        requestId: 'request-1',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'mistral-token' },
+      },
+    );
+
+    const body = JSON.parse(String(calls[0]?.init?.body)) as {
+      user?: string;
+      stream?: boolean;
+    };
+    assert.equal(body.user, undefined);
+    assert.equal(body.stream, true);
   } finally {
     globalThis.fetch = originalFetch;
   }
