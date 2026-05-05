@@ -315,7 +315,7 @@ export class OpenAiCompatibleTextProviderAdapter
     const message =
       this.extractErrorMessage(parsedBody) ?? rawBody.trim() ?? 'Unknown error.';
     const requestId = this.extractRequestId(parsedBody);
-    const baseMessage = `${this.options.displayName} ${operation} failed with status ${response.status}: ${message || 'Unknown error.'}`;
+    const baseMessage = `${this.options.displayName} ${operation} failed with status ${response.status}: ${message}`;
 
     void context;
     return requestId ? `${baseMessage} (request_id: ${requestId})` : baseMessage;

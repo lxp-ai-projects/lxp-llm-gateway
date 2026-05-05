@@ -3,6 +3,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsDefined,
   IsIn,
   IsInt,
   IsObject,
@@ -11,6 +12,7 @@ import {
   IsString,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import type { GatewayChatRequest } from '@lxp/contracts';
@@ -22,7 +24,8 @@ class GatewayAnthropicExtendedThinkingDto {
   @IsIn(['disabled', 'adaptive', 'budget'])
   mode!: 'disabled' | 'adaptive' | 'budget';
 
-  @IsOptional()
+  @ValidateIf((value) => value.mode === 'budget')
+  @IsDefined()
   @Type(() => Number)
   @IsInt()
   @Min(1024)
