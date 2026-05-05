@@ -43,7 +43,11 @@ function mapMistralModels(
   context: ProviderExecutionContext,
 ): ProviderModel[] {
   void context;
-  const data = Array.isArray(payload) ? payload : payload.data ?? [];
+  const data = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.data)
+        ? payload.data
+        : [];
   return data.map((model) => ({
     id: model.id,
     displayName: model.name ?? model.id,
