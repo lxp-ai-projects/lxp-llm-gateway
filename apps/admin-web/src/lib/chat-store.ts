@@ -1,3 +1,5 @@
+import type { GatewayChatProviderOptions } from './api-client.types';
+
 export type StoredConversationMessage = {
   id: string;
   role: 'user' | 'assistant';
@@ -13,6 +15,8 @@ export type StoredConversation = {
   title: string;
   model: string;
   providerId: string;
+  maxOutputTokens?: number;
+  providerOptions?: GatewayChatProviderOptions;
   systemPrompt?: string;
   messages: StoredConversationMessage[];
   updatedAt: string;

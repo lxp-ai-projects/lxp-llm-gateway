@@ -13,6 +13,8 @@
     "@lxp/provider-xai": "workspace:*",
     "@lxp/provider-openai": "workspace:*",
     "@lxp/provider-anthropic": "workspace:*",
+    "@lxp/provider-mistral": "workspace:*",
+    "@lxp/provider-deepseek": "workspace:*",
     "@lxp/provider-sdk": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",

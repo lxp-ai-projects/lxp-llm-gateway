@@ -9,25 +9,14 @@ import {
   MinLength,
 } from 'class-validator';
 import type { GatewayImageGenerationRequest } from '@lxp/contracts';
-import type { ProviderId } from '@lxp/domain';
-
-const SUPPORTED_PROVIDER_IDS = [
-  'nanogpt',
-  'openrouter',
-  'ollama',
-  'groq',
-  'google',
-  'xai',
-  'openai',
-  'anthropic',
-] as const;
+import { IMAGE_PROVIDER_IDS, type ImageProviderId } from '@lxp/domain';
 
 export class GatewayImageGenerationRequestDto
   implements GatewayImageGenerationRequest
 {
   @IsOptional()
-  @IsIn(SUPPORTED_PROVIDER_IDS)
-  providerId?: ProviderId;
+  @IsIn(IMAGE_PROVIDER_IDS)
+  providerId?: ImageProviderId;
 
   @IsOptional()
   @IsString()

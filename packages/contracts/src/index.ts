@@ -13,9 +13,34 @@ export type GatewayChatContentPart =
       };
     };
 
+export type GatewayAnthropicExtendedThinkingMode =
+  | 'disabled'
+  | 'adaptive'
+  | 'budget';
+
+export type GatewayAnthropicExtendedThinking =
+  | {
+      mode: 'disabled';
+    }
+  | {
+      mode: 'adaptive';
+    }
+  | {
+      mode: 'budget';
+      budgetTokens: number;
+    };
+
+export interface GatewayChatProviderOptions {
+  anthropic?: {
+    extendedThinking?: GatewayAnthropicExtendedThinking;
+  };
+}
+
 export interface GatewayChatRequest {
   providerId?: ProviderId;
   model?: string;
+  maxOutputTokens?: number;
+  providerOptions?: GatewayChatProviderOptions;
   messages: Array<{
     role: 'system' | 'user' | 'assistant';
     content: string | GatewayChatContentPart[];

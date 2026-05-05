@@ -4,6 +4,7 @@ import {
   request,
 } from './api-base';
 import type {
+  GatewayChatProviderOptions,
   GatewayChatMessage,
   GatewayChatResponse,
   GatewayChatStreamChunk,
@@ -45,6 +46,8 @@ export const gatewayApiClient = {
   async chat(payload: {
     providerId?: string;
     model?: string;
+    maxOutputTokens?: number;
+    providerOptions?: GatewayChatProviderOptions;
     stream: false;
     messages: GatewayChatMessage[];
   }): Promise<GatewayChatResponse> {
@@ -59,6 +62,8 @@ export const gatewayApiClient = {
     payload: {
       providerId?: string;
       model?: string;
+      maxOutputTokens?: number;
+      providerOptions?: GatewayChatProviderOptions;
       stream: true;
       messages: GatewayChatMessage[];
     },

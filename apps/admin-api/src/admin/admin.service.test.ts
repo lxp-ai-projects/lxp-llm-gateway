@@ -237,6 +237,18 @@ function createAdminService() {
       displayName: 'Anthropic Claude',
       status: 'active',
     },
+    {
+      id: randomUUID(),
+      providerId: 'mistral',
+      displayName: 'Mistral',
+      status: 'active',
+    },
+    {
+      id: randomUUID(),
+      providerId: 'deepseek',
+      displayName: 'DeepSeek',
+      status: 'active',
+    },
   ]);
   const tenantProviderConfigurationRepository = createRepositoryMock([
     {
@@ -1008,6 +1020,46 @@ test('AdminService rejects Anthropic credentials without an API token', async ()
         baseUrl: 'https://api.anthropic.com',
       }),
     /Anthropic credentials require an API token/,
+  );
+});
+
+test('AdminService rejects Mistral credentials without an API token', async () => {
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredentialForActor(actor, {
+        userUuid: createdUser.userUuid,
+        providerId: 'mistral' as ProviderId,
+        label: 'mistral-without-token',
+        baseUrl: 'https://api.mistral.ai/v1',
+      }),
+    /Mistral credentials require an API token/,
+  );
+});
+
+test('AdminService rejects DeepSeek credentials without an API token', async () => {
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredentialForActor(actor, {
+        userUuid: createdUser.userUuid,
+        providerId: 'deepseek' as ProviderId,
+        label: 'deepseek-without-token',
+        baseUrl: 'https://api.deepseek.com',
+      }),
+    /DeepSeek credentials require an API token/,
   );
 });
 

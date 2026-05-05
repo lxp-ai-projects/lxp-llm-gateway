@@ -337,6 +337,14 @@ export class ProviderCredentialService {
         apiKey: process.env.OPENROUTER_API_KEY,
         baseUrl: process.env.OPENROUTER_BASE_URL,
       },
+      mistral: {
+        apiKey: process.env.MISTRAL_API_KEY,
+        baseUrl: process.env.MISTRAL_BASE_URL,
+      },
+      deepseek: {
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        baseUrl: process.env.DEEPSEEK_BASE_URL,
+      },
       xai: {
         apiKey: process.env.XAI_API_KEY,
         baseUrl: process.env.XAI_BASE_URL,

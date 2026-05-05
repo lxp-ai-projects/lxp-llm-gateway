@@ -1,4 +1,4 @@
-import {Alert, Button, Card, Grid, Group, Modal, Select, Stack, Tabs, Text, Title,} from '@mantine/core';
+import {Alert, Button, Card, Grid, Group, Modal, NumberInput, Select, Stack, Tabs, Text, Title,} from '@mantine/core';
 import {useQuery} from '@tanstack/react-query';
 import {useEffect, useMemo, useRef, useState} from 'react';
 
@@ -17,6 +17,7 @@ import {PageHeader} from '../components/page-header';
 import {adminApiClient, gatewayApiClient} from '../lib/api-client';
 import {DEFAULT_SYSTEM_PROMPT} from '../lib/chat-thread';
 import {type StoredConversation} from '../lib/chat-store';
+import type { GatewayChatProviderOptions } from '../lib/api-client.types';
 import {useRuntimeConfig} from '../lib/use-runtime-config';
 import {useSession} from '../lib/use-session';
 import {
@@ -24,6 +25,106 @@ import {
   buildProviderOptions,
   getProviderCatalogPricingNote,
 } from '../features/providers/lib/provider-utils';
+
+type AnthropicExtendedThinkingUiMode = 'none' | 'auto' | 'budget';
+
+function buildAnthropicProviderOptions(
+  providerId: string,
+  mode: AnthropicExtendedThinkingUiMode,
+  budgetTokens: number | '',
+): GatewayChatProviderOptions | undefined {
+  if (providerId !== 'anthropic') {
+    return undefined;
+  }
+
+  if (mode === 'none') {
+    return {
+      anthropic: {
+        extendedThinking: {
+          mode: 'disabled',
+        },
+      },
+    };
+  }
+
+  if (mode === 'auto') {
+    return {
+      anthropic: {
+        extendedThinking: {
+          mode: 'adaptive',
+        },
+      },
+    };
+  }
+
+  if (typeof budgetTokens !== 'number' || !Number.isInteger(budgetTokens)) {
+    return {
+      anthropic: {
+        extendedThinking: {
+          mode: 'disabled',
+        },
+      },
+    };
+  }
+
+  return {
+    anthropic: {
+      extendedThinking: {
+        mode: 'budget',
+        budgetTokens,
+      },
+    },
+  };
+}
+
+function readAnthropicThinkingSelection(
+  conversation: StoredConversation | null,
+): {
+  mode: AnthropicExtendedThinkingUiMode;
+  budgetTokens: number;
+} {
+  const extendedThinking =
+    conversation?.providerOptions?.anthropic?.extendedThinking;
+
+  if (!extendedThinking) {
+    return {
+      mode: 'none',
+      budgetTokens: 4096,
+    };
+  }
+
+  if (extendedThinking.mode === 'adaptive') {
+    return {
+      mode: 'auto',
+      budgetTokens: 4096,
+    };
+  }
+
+  if (extendedThinking.mode === 'budget') {
+    return {
+      mode: 'budget',
+      budgetTokens: extendedThinking.budgetTokens ?? 4096,
+    };
+  }
+
+  return {
+    mode: 'none',
+    budgetTokens: 4096,
+  };
+}
+
+function supportsAnthropicAdaptiveThinking(modelId: string): boolean {
+  return (
+    modelId.includes('claude-opus-4-6') ||
+    modelId.includes('claude-opus-4-7') ||
+    modelId.includes('claude-sonnet-4-6') ||
+    modelId.includes('claude-mythos-preview')
+  );
+}
+
+function supportsAnthropicExtendedThinking(modelId: string): boolean {
+  return !modelId.includes('claude-haiku');
+}
 
 export function ChatPage() {
   const runtimeConfigQuery = useRuntimeConfig();
@@ -38,6 +139,11 @@ export function ChatPage() {
   const [prompt, setPrompt] = useState('');
   const [providerId, setProviderId] = useState('');
   const [model, setModel] = useState('');
+  const [maxOutputTokens, setMaxOutputTokens] = useState<number | ''>('');
+  const [anthropicThinkingMode, setAnthropicThinkingMode] =
+    useState<AnthropicExtendedThinkingUiMode>('none');
+  const [anthropicThinkingBudgetTokens, setAnthropicThinkingBudgetTokens] =
+    useState<number | ''>(4096);
   const [chatError, setChatError] = useState<string | null>(null);
   const [streamingSignal, setStreamingSignal] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -67,7 +173,10 @@ export function ChatPage() {
     conversationPendingDeletion,
     conversations,
     createConversation: createStoredConversation,
+    persistConversationMaxOutputTokens,
+    persistConversationModel,
     persistConversationProvider,
+    persistConversationProviderOptions,
     persistConversationSystemPrompt,
     setActiveConversationId,
     setConversationPendingDeletion,
@@ -77,6 +186,8 @@ export function ChatPage() {
   } = useChatConversations({
     providerId,
     model,
+    maxOutputTokens:
+      typeof maxOutputTokens === 'number' ? maxOutputTokens : undefined,
     scope: conversationScope,
     onResetComposerState: () => {
       setPrompt('');
@@ -179,6 +290,16 @@ export function ChatPage() {
   }, [activeConversation?.id]);
 
   useEffect(() => {
+    const selection = readAnthropicThinkingSelection(activeConversation);
+    setAnthropicThinkingMode(selection.mode);
+    setAnthropicThinkingBudgetTokens(selection.budgetTokens);
+  }, [activeConversation?.id, activeConversation?.providerOptions]);
+
+  useEffect(() => {
+    setMaxOutputTokens(activeConversation?.maxOutputTokens ?? '');
+  }, [activeConversation?.id, activeConversation?.maxOutputTokens]);
+
+  useEffect(() => {
     if (!providerId || !modelsQuery.data?.models.length) {
       return;
     }
@@ -212,10 +333,20 @@ export function ChatPage() {
       nextModel
     ) {
       pendingConversationProviderSyncRef.current = false;
-      void persistConversationProvider(providerId, nextModel);
+      void persistConversationProvider(
+        providerId,
+        nextModel,
+        buildAnthropicProviderOptions(
+          providerId,
+          anthropicThinkingMode,
+          anthropicThinkingBudgetTokens,
+        ),
+      );
     }
   }, [
     activeConversation,
+    anthropicThinkingBudgetTokens,
+    anthropicThinkingMode,
     model,
     modelsQuery.data,
     persistConversationProvider,
@@ -229,6 +360,17 @@ export function ChatPage() {
     activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
   const systemPromptDirty =
     systemPrompt.trim() !== persistedSystemPrompt.trim();
+  const normalizedMaxOutputTokens =
+    typeof maxOutputTokens === 'number' && Number.isInteger(maxOutputTokens)
+      ? maxOutputTokens
+      : undefined;
+  const anthropicThinkingDisabledForModel =
+    providerId === 'anthropic' &&
+    model.length > 0 &&
+    !supportsAnthropicExtendedThinking(model);
+  const effectiveAnthropicThinkingMode = anthropicThinkingDisabledForModel
+    ? 'none'
+    : anthropicThinkingMode;
 
   function withCurrentSelection(
     conversation: StoredConversation,
@@ -237,6 +379,12 @@ export function ChatPage() {
       ...conversation,
       providerId,
       model,
+      maxOutputTokens: normalizedMaxOutputTokens,
+      providerOptions: buildAnthropicProviderOptions(
+        providerId,
+        effectiveAnthropicThinkingMode,
+        anthropicThinkingBudgetTokens,
+      ),
       systemPrompt: systemPrompt.trim(),
     };
   }
@@ -245,6 +393,33 @@ export function ChatPage() {
   const selectedProviderDisplayName =
     providerOptions.find((option) => option.value === providerId)?.label ??
     providerId;
+  const anthropicProviderOptions = buildAnthropicProviderOptions(
+    providerId,
+    effectiveAnthropicThinkingMode,
+    anthropicThinkingBudgetTokens,
+  );
+  const anthropicAdaptiveThinkingSupported =
+    providerId === 'anthropic' && supportsAnthropicAdaptiveThinking(model);
+
+  useEffect(() => {
+    if (!anthropicThinkingDisabledForModel || anthropicThinkingMode === 'none') {
+      return;
+    }
+
+    setAnthropicThinkingMode('none');
+    if (activeConversation) {
+      void persistConversationProviderOptions(
+        buildAnthropicProviderOptions(providerId, 'none', anthropicThinkingBudgetTokens),
+      );
+    }
+  }, [
+    activeConversation,
+    anthropicThinkingBudgetTokens,
+    anthropicThinkingDisabledForModel,
+    effectiveAnthropicThinkingMode,
+    persistConversationProviderOptions,
+    providerId,
+  ]);
 
   return (
     <>
@@ -310,7 +485,7 @@ export function ChatPage() {
             transferError={transferError}
             onCreateConversation={() => {
               setAutoScrollEnabled(true);
-              void createStoredConversation();
+              void createStoredConversation(anthropicProviderOptions);
             }}
             onDeleteConversation={(conversation) =>
               setConversationPendingDeletion(conversation)
@@ -349,9 +524,17 @@ export function ChatPage() {
                   onChange={(value) => {
                     const nextProviderId =
                       value ?? providerOptions[0]?.value ?? 'nanogpt';
+                    const defaultThinkingSelection =
+                      nextProviderId === 'anthropic'
+                        ? readAnthropicThinkingSelection(activeConversation)
+                        : { mode: 'none' as const, budgetTokens: 4096 };
                     pendingConversationProviderSyncRef.current =
                       Boolean(activeConversation);
                     setProviderId(nextProviderId);
+                    setAnthropicThinkingMode(defaultThinkingSelection.mode);
+                    setAnthropicThinkingBudgetTokens(
+                      defaultThinkingSelection.budgetTokens,
+                    );
                     setModel('');
                   }}
                   value={providerId}
@@ -365,18 +548,114 @@ export function ChatPage() {
                     pendingConversationProviderSyncRef.current = false;
                     setModel(nextModel);
                     if (activeConversation && nextModel) {
-                      void persistConversationProvider(providerId, nextModel);
+                      void persistConversationModel(
+                        nextModel,
+                        anthropicProviderOptions,
+                      );
                     }
                   }}
                   value={model}
                   className="chat-model-select"
                   disabled={!providerId || modelsQuery.isPending || modelsQuery.isError}
                 />
+                <NumberInput
+                  data-testid="chat-max-output-tokens-input"
+                  label="Max output tokens"
+                  min={1}
+                  onChange={(value) => {
+                    const nextMaxOutputTokens =
+                      typeof value === 'number' ? value : '';
+                    setMaxOutputTokens(nextMaxOutputTokens);
+                    if (activeConversation) {
+                      void persistConversationMaxOutputTokens(
+                        typeof nextMaxOutputTokens === 'number'
+                          ? nextMaxOutputTokens
+                          : undefined,
+                      );
+                    }
+                  }}
+                  placeholder="Provider default"
+                  value={maxOutputTokens}
+                />
+                {providerId === 'anthropic' ? (
+                  <>
+                    <Select
+                      data={[
+                        { value: 'none', label: 'Extended thinking: none' },
+                        { value: 'auto', label: 'Extended thinking: auto' },
+                        { value: 'budget', label: 'Extended thinking: budget' },
+                      ]}
+                      data-testid="chat-anthropic-thinking-mode-select"
+                      disabled={anthropicThinkingDisabledForModel}
+                      label="Thinking"
+                      onChange={(value) => {
+                        const nextMode =
+                          (value as AnthropicExtendedThinkingUiMode | null) ??
+                          'none';
+                        setAnthropicThinkingMode(nextMode);
+                        const nextProviderOptions = buildAnthropicProviderOptions(
+                          providerId,
+                          nextMode,
+                          anthropicThinkingBudgetTokens,
+                        );
+                        if (activeConversation) {
+                          void persistConversationProviderOptions(
+                            nextProviderOptions,
+                          );
+                        }
+                      }}
+                      value={effectiveAnthropicThinkingMode}
+                    />
+                    {effectiveAnthropicThinkingMode === 'budget' ? (
+                      <NumberInput
+                        data-testid="chat-anthropic-thinking-budget-input"
+                        label="Thinking budget tokens"
+                        min={1024}
+                        step={256}
+                        onChange={(value) => {
+                          const nextBudget =
+                            typeof value === 'number' ? value : '';
+                          setAnthropicThinkingBudgetTokens(nextBudget);
+                          if (activeConversation) {
+                            void persistConversationProviderOptions(
+                              buildAnthropicProviderOptions(
+                                providerId,
+                                anthropicThinkingMode,
+                                nextBudget,
+                              ),
+                            );
+                          }
+                        }}
+                        value={anthropicThinkingBudgetTokens}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
               </Stack>
             </Group>
             {providerCatalogPricingNote ? (
               <Alert color="blue" mb="md" title="Model catalog note">
                 {providerCatalogPricingNote}
+              </Alert>
+            ) : null}
+            {providerId === 'anthropic' ? (
+              <Alert color="blue" mb="md" title="Anthropic thinking">
+                {anthropicThinkingDisabledForModel
+                  ? 'Extended thinking is unavailable for Claude Haiku models in this chat surface, so the setting is forced to none.'
+                  : anthropicThinkingMode === 'auto'
+                  ? 'Auto uses Anthropic adaptive thinking with summarized reasoning when the selected model supports it.'
+                  : anthropicThinkingMode === 'budget'
+                    ? 'Budget mode sends a fixed Anthropic thinking budget. The gateway keeps max output tokens above the requested budget for compatibility.'
+                    : 'None explicitly disables Anthropic extended thinking for this conversation.'}
+              </Alert>
+            ) : null}
+            {providerId === 'anthropic' &&
+            effectiveAnthropicThinkingMode === 'auto' &&
+            model &&
+            !anthropicAdaptiveThinkingSupported ? (
+              <Alert color="yellow" mb="md" title="Adaptive thinking compatibility">
+                This model may reject adaptive thinking. If Anthropic returns a
+                400 error, switch to `budget` for older Claude models.
               </Alert>
             ) : null}
 
@@ -484,6 +763,8 @@ export function ChatPage() {
                                 conversationScope,
                                 providerId,
                                 model,
+                                normalizedMaxOutputTokens,
+                                anthropicProviderOptions,
                                 systemPrompt.trim(),
                               );
                         }, nextPrompt);

@@ -61,3 +61,35 @@ test('MarkdownText renders level 4 headings', () => {
   ).toBeInTheDocument();
   expect(screen.queryByText(/^####/)).not.toBeInTheDocument();
 });
+
+test('MarkdownText renders GitHub-style tables', () => {
+  renderWithProviders(
+    <MarkdownText
+      value={`| Provider | Status |
+| --- | --- |
+| Anthropic | Native |
+| Mistral | Compatible |`}
+    />,
+  );
+
+  expect(screen.getByRole('table')).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Provider' })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument();
+  expect(screen.getByRole('cell', { name: 'Anthropic' })).toBeInTheDocument();
+  expect(screen.getByRole('cell', { name: 'Compatible' })).toBeInTheDocument();
+});
+
+test('MarkdownText keeps a standalone separator as a divider instead of a table', () => {
+  renderWithProviders(
+    <MarkdownText
+      value={`Intro paragraph
+
+---
+
+### Next section`}
+    />,
+  );
+
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getByText('Next section')).toBeInTheDocument();
+});

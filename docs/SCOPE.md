@@ -49,6 +49,8 @@ Phase 1 includes:
   - `xAI Grok`
   - `OpenAI`
   - `Anthropic Claude`
+  - `Mistral`
+  - `DeepSeek`
 - local development infrastructure with Redis or Valkey
 - a first local integration use case with Open WebUI against the host-run gateway
 - an initial OpenAPI placeholder
@@ -57,7 +59,7 @@ Phase 1 includes:
 
 Phase 1 does not include:
 
-- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, and `Anthropic Claude`
+- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, `Anthropic Claude`, `Mistral`, and `DeepSeek`
 - quota engines
 - policy engines
 - advanced billing or cost governance
@@ -256,6 +258,8 @@ Concrete provider implementations currently shipped in Phase 1:
 - `packages/provider-xai`
 - `packages/provider-openai`
 - `packages/provider-anthropic`
+- `packages/provider-mistral`
+- `packages/provider-deepseek`
 
 Each package owns:
 

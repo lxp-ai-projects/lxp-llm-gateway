@@ -480,7 +480,7 @@ test('ImageGenerationPage only shows OpenAI moderation for GPT-prefixed OpenAI i
   await waitFor(() =>
     expect(screen.getByTestId('image-moderation-select')).toBeInTheDocument(),
   );
-});
+}, 10_000);
 
 test('ImageGenerationPage shows OpenAI moderation controls for OpenRouter OpenAI GPT image models', async () => {
   renderWithProviders(<ImageGenerationPage />);

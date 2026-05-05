@@ -159,8 +159,10 @@ beforeEach(() => {
   updateOwnProviderSettingsMock.mockClear();
   runtimeConfigData.supportedProviders = [
     { providerId: 'anthropic', displayName: 'Anthropic Claude' },
+    { providerId: 'deepseek', displayName: 'DeepSeek' },
     { providerId: 'google', displayName: 'Google Gemini' },
     { providerId: 'groq', displayName: 'Groq' },
+    { providerId: 'mistral', displayName: 'Mistral' },
     { providerId: 'nanogpt', displayName: 'NanoGPT' },
     { providerId: 'openai', displayName: 'OpenAI' },
     { providerId: 'xai', displayName: 'xAI Grok' },
@@ -282,8 +284,10 @@ test('useProvidersController creates and updates credentials with proper form re
   expect(result.current.label).toBe('primary');
   expect(result.current.providerOptions).toEqual([
     { label: 'Anthropic Claude', value: 'anthropic' },
+    { label: 'DeepSeek', value: 'deepseek' },
     { label: 'Google Gemini', value: 'google' },
     { label: 'Groq', value: 'groq' },
+    { label: 'Mistral', value: 'mistral' },
     { label: 'NanoGPT', value: 'nanogpt' },
     { label: 'OpenAI', value: 'openai' },
     { label: 'xAI Grok', value: 'xai' },
@@ -545,5 +549,77 @@ test('useProvidersController blocks Anthropic credentials without an API token',
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
     'Anthropic credentials require an API token.',
+  );
+});
+
+test('useProvidersController blocks Mistral credentials without an API token', async () => {
+  const wrapper = createWrapper();
+
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'mistral', displayName: 'Mistral' },
+  ];
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  const { result } = renderHook(() => useProvidersController(), { wrapper });
+
+  await waitFor(() => expect(result.current.providerOptions).toHaveLength(2));
+
+  await act(async () => {
+    result.current.onProviderChange('mistral');
+    result.current.onLabelChange('mistral-primary');
+    result.current.onBaseUrlChange('https://api.mistral.ai/v1');
+  });
+
+  await act(async () => {
+    result.current.handleCredentialSubmit({
+      preventDefault() {},
+    } as never);
+  });
+
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+  expect(result.current.credentialValidationError).toBe(
+    'Mistral credentials require an API token.',
+  );
+});
+
+test('useProvidersController blocks DeepSeek credentials without an API token', async () => {
+  const wrapper = createWrapper();
+
+  runtimeConfigData.supportedProviders = [
+    { providerId: 'nanogpt', displayName: 'NanoGPT' },
+    { providerId: 'deepseek', displayName: 'DeepSeek' },
+  ];
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+  });
+
+  const { result } = renderHook(() => useProvidersController(), { wrapper });
+
+  await waitFor(() => expect(result.current.providerOptions).toHaveLength(2));
+
+  await act(async () => {
+    result.current.onProviderChange('deepseek');
+    result.current.onLabelChange('deepseek-primary');
+    result.current.onBaseUrlChange('https://api.deepseek.com/v1');
+  });
+
+  await act(async () => {
+    result.current.handleCredentialSubmit({
+      preventDefault() {},
+    } as never);
+  });
+
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+  expect(result.current.credentialValidationError).toBe(
+    'DeepSeek credentials require an API token.',
   );
 });

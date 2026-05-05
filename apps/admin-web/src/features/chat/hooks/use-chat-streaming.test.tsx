@@ -131,11 +131,64 @@ test('useChatStreaming sends a prompt and persists the completed assistant respo
   expect(onStreamingChange).toHaveBeenNthCalledWith(1, true);
   expect(onStreamingChange).toHaveBeenLastCalledWith(false);
   expect(saveConversationMock).toHaveBeenCalledTimes(1);
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerOptions: undefined,
+    }),
+    expect.any(Object),
+  );
   expect(currentConversations()[0]?.messages.at(-1)).toMatchObject({
     role: 'assistant',
     content: 'Hello back',
     reasoning: 'Thinking...',
   });
+});
+
+test('useChatStreaming forwards provider-specific chat options and max output tokens from the conversation', async () => {
+  const anthropicConversation: StoredConversation = {
+    ...createConversation(),
+    providerId: 'anthropic',
+    model: 'claude-opus-4-1-20250805',
+    maxOutputTokens: 12000,
+    providerOptions: {
+      anthropic: {
+        extendedThinking: {
+          mode: 'budget',
+          budgetTokens: 4096,
+        },
+      },
+    },
+  };
+
+  chatStreamMock.mockResolvedValue({
+    requestId: 'request-anthropic',
+    receivedReasoning: true,
+    receivedContent: true,
+    finishReason: 'stop',
+  });
+
+  const { hook } = setup(anthropicConversation);
+
+  await act(async () => {
+    await hook.result.current.sendMessage(() => anthropicConversation, 'Hello');
+  });
+
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'anthropic',
+      model: 'claude-opus-4-1-20250805',
+      maxOutputTokens: 12000,
+      providerOptions: {
+        anthropic: {
+          extendedThinking: {
+            mode: 'budget',
+            budgetTokens: 4096,
+          },
+        },
+      },
+    }),
+    expect.any(Object),
+  );
 });
 
 test('useChatStreaming surfaces missing assistant content when the stream ends empty', async () => {

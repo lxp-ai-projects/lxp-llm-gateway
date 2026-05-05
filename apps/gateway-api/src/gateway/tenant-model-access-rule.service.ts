@@ -32,7 +32,7 @@ export class TenantModelAccessRuleService {
     tenantId: string,
     providerId: ProviderId,
     model: string,
-  ): Promise<void> {
+  ): Promise<EffectiveRule | null> {
     const rule = await this.resolveEffectiveRule(
       tenantId,
       providerId,
@@ -44,6 +44,8 @@ export class TenantModelAccessRuleService {
         `Model ${providerId}/${model} is denied for tenant ${tenantId}.`,
       );
     }
+
+    return rule;
   }
 
   async assertImageModelAllowed(params: {

@@ -8,16 +8,30 @@ type MarkdownTextProps = {
   dimmed?: boolean;
 };
 
+type ParsedMarkdownTable = {
+  headers: string[];
+  rows: string[][];
+};
+
 function normalizeMarkdownSource(value: string): string {
   return value
     .replace(/\r\n/g, '\n')
-    .replace(/\s+(---+)\s+(#{1,6}\s+)/g, '\n\n$1\n\n$2')
-    .replace(/([.!?:"')])\s+(#{1,6}\s+)/g, '$1\n\n$2')
-    .replace(/\s+(#{1,6}\s+)/g, '\n\n$1')
-    .replace(/([.!?:"')])\s+(---+)\s+/g, '$1\n\n$2\n\n')
-    .replace(/\s+(---+)\s+/g, '\n\n$1\n\n')
-    .replace(/([.!?:"')])\s+(\d+\.\s+)/g, '$1\n$2')
-    .replace(/([.!?:"')])\s+([*-]\s+)/g, '$1\n$2');
+    .split('\n')
+    .map((line) => {
+      if (line.includes('|')) {
+        return line;
+      }
+
+      return line
+        .replace(/\s+(---+)\s+(#{1,6}\s+)/g, '\n\n$1\n\n$2')
+        .replace(/([.!?:"')])\s+(#{1,6}\s+)/g, '$1\n\n$2')
+        .replace(/\s+(#{1,6}\s+)/g, '\n\n$1')
+        .replace(/([.!?:"')])\s+(---+)\s+/g, '$1\n\n$2\n\n')
+        .replace(/\s+(---+)\s+/g, '\n\n$1\n\n')
+        .replace(/([.!?:"')])\s+(\d+\.\s+)/g, '$1\n$2')
+        .replace(/([.!?:"')])\s+([*-]\s+)/g, '$1\n$2');
+    })
+    .join('\n');
 }
 
 function renderInlineMarkdown(value: string): ReactNode[] {
@@ -40,6 +54,62 @@ function renderInlineMarkdown(value: string): ReactNode[] {
 
     return <Fragment key={`${token}-${index}`}>{token}</Fragment>;
   });
+}
+
+function isMarkdownTableSeparator(line: string): boolean {
+  const cells = parseMarkdownTableRow(line);
+  return (
+    line.includes('|') &&
+    cells.length >= 2 &&
+    cells.every((cell) => /^:?-{3,}:?$/.test(cell))
+  );
+}
+
+function parseMarkdownTableRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim());
+}
+
+function tryParseMarkdownTable(lines: string[], startIndex: number): {
+  table: ParsedMarkdownTable;
+  nextIndex: number;
+} | null {
+  const headerLine = lines[startIndex]?.trim() ?? '';
+  const separatorLine = lines[startIndex + 1]?.trim() ?? '';
+
+  if (!headerLine.includes('|') || !isMarkdownTableSeparator(separatorLine)) {
+    return null;
+  }
+
+  const headers = parseMarkdownTableRow(headerLine);
+  if (!headers.length) {
+    return null;
+  }
+
+  const rows: string[][] = [];
+  let nextIndex = startIndex + 2;
+
+  while (nextIndex < lines.length) {
+    const candidate = lines[nextIndex]?.trim() ?? '';
+    if (!candidate || !candidate.includes('|')) {
+      break;
+    }
+
+    rows.push(parseMarkdownTableRow(candidate));
+    nextIndex += 1;
+  }
+
+  return {
+    table: {
+      headers,
+      rows,
+    },
+    nextIndex,
+  };
 }
 
 function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
@@ -84,7 +154,8 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
     listItems = [];
   };
 
-  for (const line of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex] ?? '';
     const trimmed = line.trim();
 
     if (!trimmed) {
@@ -110,6 +181,40 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
           {renderInlineMarkdown(headingMatch[2])}
         </Title>,
       );
+      continue;
+    }
+
+    const parsedTable = tryParseMarkdownTable(lines, lineIndex);
+    if (parsedTable) {
+      flushParagraph();
+      flushList();
+      blocks.push(
+        <div className="markdown-table-scroll" key={`table-${blocks.length}`}>
+          <table className="markdown-table">
+            <thead>
+              <tr>
+                {parsedTable.table.headers.map((header, index) => (
+                  <th key={`header-${index}`}>
+                    {renderInlineMarkdown(header)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {parsedTable.table.rows.map((row, rowIndex) => (
+                <tr key={`row-${rowIndex}`}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={`cell-${rowIndex}-${cellIndex}`}>
+                      {renderInlineMarkdown(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      lineIndex = parsedTable.nextIndex - 1;
       continue;
     }
 

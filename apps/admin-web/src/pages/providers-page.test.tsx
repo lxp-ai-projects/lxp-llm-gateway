@@ -161,6 +161,8 @@ beforeEach(() => {
     { providerId: 'ollama', displayName: 'Ollama' },
     { providerId: 'groq', displayName: 'Groq' },
     { providerId: 'google', displayName: 'Google Gemini' },
+    { providerId: 'mistral', displayName: 'Mistral' },
+    { providerId: 'deepseek', displayName: 'DeepSeek' },
     { providerId: 'xai', displayName: 'xAI Grok' },
     { providerId: 'openai', displayName: 'OpenAI' },
     { providerId: 'anthropic', displayName: 'Anthropic Claude' },
@@ -307,6 +309,16 @@ test('ProvidersPage creates a new credential and ignores empty submit payloads',
       apiToken: 'fresh-secret-token',
     }),
   );
+});
+
+test('ProvidersPage lists Mistral and DeepSeek in the provider selector', async () => {
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  const providerSelect = screen.getByLabelText('Provider');
+  expect(providerSelect).toHaveTextContent('Mistral');
+  expect(providerSelect).toHaveTextContent('DeepSeek');
 });
 
 test('ProvidersPage cancels credential edit mode and resets the form', async () => {
@@ -657,7 +669,7 @@ test('ProvidersPage shows the Anthropic billing warning and blocks missing token
   await user.selectOptions(screen.getByLabelText('Provider'), 'anthropic');
   expect(
     screen.getByText(
-      /Anthropic support is experimental.*usage is billed through your Anthropic account/i,
+      /Anthropic Claude support is native to the gateway and certified for the current chat contract.*usage is billed through your Anthropic account/i,
     ),
   ).toBeInTheDocument();
 
@@ -671,6 +683,68 @@ test('ProvidersPage shows the Anthropic billing warning and blocks missing token
 
   expect(
     await screen.findByText('Anthropic credentials require an API token.'),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage blocks Mistral credentials without an API token', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'mistral');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'mistral-primary');
+  await user.type(
+    screen.getByTestId('providers-base-url-input'),
+    'https://api.mistral.ai/v1',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText('Mistral credentials require an API token.'),
+  ).toBeInTheDocument();
+  expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage blocks DeepSeek credentials without an API token', async () => {
+  const user = userEvent.setup();
+
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  });
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'Add provider credential' });
+
+  await user.selectOptions(screen.getByLabelText('Provider'), 'deepseek');
+  await user.clear(screen.getByTestId('providers-label-input'));
+  await user.type(screen.getByTestId('providers-label-input'), 'deepseek-primary');
+  await user.type(
+    screen.getByTestId('providers-base-url-input'),
+    'https://api.deepseek.com/v1',
+  );
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByText('DeepSeek credentials require an API token.'),
   ).toBeInTheDocument();
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
 });

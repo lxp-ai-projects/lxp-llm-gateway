@@ -12,25 +12,14 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import type { ProviderId } from '@lxp/domain';
+import { IMAGE_PROVIDER_IDS, type ImageProviderId } from '@lxp/domain';
 
 import { GatewayImageReferenceDto } from './gateway-image-reference.dto';
 
-const SUPPORTED_PROVIDER_IDS = [
-  'nanogpt',
-  'openrouter',
-  'ollama',
-  'groq',
-  'google',
-  'xai',
-  'openai',
-  'anthropic',
-] as const;
-
 export class GatewayImageEditRequestDto {
   @IsOptional()
-  @IsIn(SUPPORTED_PROVIDER_IDS)
-  providerId?: ProviderId;
+  @IsIn(IMAGE_PROVIDER_IDS)
+  providerId?: ImageProviderId;
 
   @IsOptional()
   @IsString()

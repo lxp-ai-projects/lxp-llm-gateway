@@ -207,7 +207,7 @@ export function ChatMessageList({
                 </Stack>
               ) : (
                 <>
-                  {message.reasoning && model.includes('thinking') ? (
+                  {message.reasoning ? (
                     <Card className="reasoning-card" mb="sm" p="sm">
                       <Text size="xs" fw={700} tt="uppercase">
                         Reasoning

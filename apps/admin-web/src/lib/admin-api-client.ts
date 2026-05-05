@@ -59,6 +59,8 @@ export const adminApiClient = {
           { providerId: 'ollama', displayName: 'Ollama' },
           { providerId: 'groq', displayName: 'Groq' },
           { providerId: 'google', displayName: 'Google Gemini' },
+          { providerId: 'mistral', displayName: 'Mistral' },
+          { providerId: 'deepseek', displayName: 'DeepSeek' },
           { providerId: 'xai', displayName: 'xAI Grok' },
           { providerId: 'openai', displayName: 'OpenAI' },
           { providerId: 'anthropic', displayName: 'Anthropic Claude' },

@@ -80,6 +80,8 @@ export function useChatStreaming({
         {
           providerId: baseConversation.providerId,
           model: baseConversation.model,
+          maxOutputTokens: baseConversation.maxOutputTokens,
+          providerOptions: baseConversation.providerOptions,
           stream: true,
           messages: buildGatewayMessages(baseConversation),
         },

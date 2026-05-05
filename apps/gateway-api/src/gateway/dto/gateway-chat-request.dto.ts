@@ -3,37 +3,70 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsDefined,
   IsIn,
+  IsInt,
+  IsObject,
+  IsPositive,
   IsOptional,
   IsString,
+  Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import type { GatewayChatRequest } from '@lxp/contracts';
-import type { ProviderId } from '@lxp/domain';
+import { PROVIDER_IDS, type ProviderId } from '@lxp/domain';
 
 import { ChatMessageDto } from './chat-message.dto';
 
-const SUPPORTED_PROVIDER_IDS = [
-  'nanogpt',
-  'openrouter',
-  'ollama',
-  'groq',
-  'google',
-  'xai',
-  'openai',
-  'anthropic',
-] as const;
+class GatewayAnthropicExtendedThinkingDto {
+  @IsIn(['disabled', 'adaptive', 'budget'])
+  mode!: 'disabled' | 'adaptive' | 'budget';
+
+  @ValidateIf((value) => value.mode === 'budget')
+  @IsDefined()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1024)
+  budgetTokens?: number;
+}
+
+class GatewayAnthropicProviderOptionsDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GatewayAnthropicExtendedThinkingDto)
+  extendedThinking?: GatewayAnthropicExtendedThinkingDto;
+}
+
+class GatewayChatProviderOptionsDto {
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => GatewayAnthropicProviderOptionsDto)
+  anthropic?: GatewayAnthropicProviderOptionsDto;
+}
 
 export class GatewayChatRequestDto implements GatewayChatRequest {
   @IsOptional()
-  @IsIn(SUPPORTED_PROVIDER_IDS)
+  @IsIn(PROVIDER_IDS)
   providerId?: ProviderId;
 
   @IsOptional()
   @IsString()
   @MinLength(1)
   model?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  maxOutputTokens?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GatewayChatProviderOptionsDto)
+  providerOptions?: GatewayChatRequest['providerOptions'];
 
   @IsArray()
   @ArrayMinSize(1)

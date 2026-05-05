@@ -30,6 +30,29 @@ export type GatewayChatMessage = {
   content: string;
 };
 
+export type GatewayAnthropicExtendedThinkingMode =
+  | 'disabled'
+  | 'adaptive'
+  | 'budget';
+
+export type GatewayAnthropicExtendedThinking =
+  | {
+      mode: 'disabled';
+    }
+  | {
+      mode: 'adaptive';
+    }
+  | {
+      mode: 'budget';
+      budgetTokens: number;
+    };
+
+export type GatewayChatProviderOptions = {
+  anthropic?: {
+    extendedThinking?: GatewayAnthropicExtendedThinking;
+  };
+};
+
 export type GatewayChatResponse = {
   requestId: string;
   providerId: string;
@@ -585,6 +608,8 @@ export type ChatTransferConversation = {
   title: string;
   model: string;
   providerId: string;
+  maxOutputTokens?: number;
+  providerOptions?: GatewayChatProviderOptions;
   systemPrompt?: string;
   messages: Array<{
     id: string;

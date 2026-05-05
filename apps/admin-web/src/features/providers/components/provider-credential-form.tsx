@@ -13,6 +13,8 @@ import {
 } from '@mantine/core';
 import { IconHelpCircle, IconKey, IconRestore } from '@tabler/icons-react';
 
+import { getProviderCredentialResponsibilityNote } from '../lib/provider-utils';
+
 function HelpLabel({
   label,
   help,
@@ -82,9 +84,7 @@ export function ProviderCredentialForm({
   const usesEndpointAccess = providerId === 'ollama';
   const isGroq = providerId === 'groq';
   const isGoogle = providerId === 'google';
-  const isXai = providerId === 'xai';
-  const isOpenAi = providerId === 'openai';
-  const isAnthropic = providerId === 'anthropic';
+  const responsibilityNote = getProviderCredentialResponsibilityNote(providerId);
   const isSubmitDisabled =
     !label.trim() || (!isEditing && !apiToken.trim() && !baseUrl.trim());
 
@@ -116,58 +116,13 @@ export function ProviderCredentialForm({
               Groq is Groq's inference API, not Grok from xAI.
             </Alert>
           ) : null}
-          {isGoogle ? (
+          {responsibilityNote ? (
             <Alert
               color="orange"
               variant="light"
               title="Billing and key responsibility"
             >
-              Google Gemini support is validated. The free tier is subject to
-              Google's rate limits. Usage is billed through your Google AI
-              account. Protect this API key, do not share it, and only use
-              keys your organization is authorized to spend with. LXP is not
-              responsible for authorized or unauthorized charges made with
-              this key.
-            </Alert>
-          ) : null}
-          {isXai ? (
-            <Alert
-              color="orange"
-              variant="light"
-              title="Billing and key responsibility"
-            >
-              xAI Grok support is certified. Usage is billed through your xAI
-              account. Protect this API key, do not share it, and only use
-              keys your organization is authorized to spend with. LXP is not
-              responsible for authorized or unauthorized charges made with this
-              key.
-            </Alert>
-          ) : null}
-          {isOpenAi ? (
-            <Alert
-              color="orange"
-              variant="light"
-              title="Billing and key responsibility"
-            >
-              OpenAI support is certified. Usage is billed through your OpenAI
-              account. Protect this API key, do not share it, and only use
-              keys your organization is authorized to spend with. LXP is not
-              responsible for authorized or unauthorized charges made with this
-              key.
-            </Alert>
-          ) : null}
-          {isAnthropic ? (
-            <Alert
-              color="orange"
-              variant="light"
-              title="Billing and key responsibility"
-            >
-              Anthropic support is experimental and requires additional
-              certification tests before it can be considered stable. Usage is
-              billed through your Anthropic account. Protect this API key, do
-              not share it, and only use keys your organization is authorized
-              to spend with. LXP is not responsible for authorized or
-              unauthorized charges made with this key.
+              {responsibilityNote}
             </Alert>
           ) : null}
           {credentialValidationError ? (
@@ -226,12 +181,16 @@ export function ProviderCredentialForm({
                   ? 'Optional for local Ollama; required for protected or cloud endpoints'
                 : isGoogle
                   ? 'Required for Google Gemini'
-                : isXai
+                : providerId === 'xai'
                   ? 'Required for xAI Grok'
-                : isOpenAi
+                : providerId === 'openai'
                   ? 'Required for OpenAI'
-                : isAnthropic
+                : providerId === 'anthropic'
                   ? 'Required for Anthropic'
+                : providerId === 'mistral'
+                  ? 'Required for Mistral'
+                : providerId === 'deepseek'
+                  ? 'Required for DeepSeek'
                 : undefined
             }
             value={apiToken}

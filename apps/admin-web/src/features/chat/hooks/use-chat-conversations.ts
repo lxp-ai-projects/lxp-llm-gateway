@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import type { GatewayChatProviderOptions } from '../../../lib/api-client.types';
 import type {
   ConversationScope,
   StoredConversation,
@@ -15,6 +16,7 @@ import { createConversation as createLocalConversation } from '../lib/chat-conve
 type UseChatConversationsOptions = {
   providerId: string;
   model: string;
+  maxOutputTokens?: number;
   scope: ConversationScope;
   onResetComposerState: () => void;
   onSetChatError: (value: string | null) => void;
@@ -24,6 +26,7 @@ type UseChatConversationsOptions = {
 export function useChatConversations({
   providerId,
   model,
+  maxOutputTokens,
   scope,
   onResetComposerState,
   onSetChatError,
@@ -57,21 +60,26 @@ export function useChatConversations({
     setSystemPrompt(activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT);
   }, [activeConversation?.id, activeConversation?.systemPrompt]);
 
-  const createConversation = useCallback(async (): Promise<void> => {
+  const createConversation = useCallback(async (
+    providerOptions?: GatewayChatProviderOptions,
+  ): Promise<void> => {
     const conversation = createLocalConversation(
       scope,
       providerId,
       model,
+      maxOutputTokens,
+      providerOptions,
       systemPrompt.trim(),
     );
     await saveConversation(conversation);
     setConversations((current) => [conversation, ...current]);
     setActiveConversationId(conversation.id);
-  }, [model, providerId, scope, systemPrompt]);
+  }, [maxOutputTokens, model, providerId, scope, systemPrompt]);
 
   const persistConversationProvider = useCallback(async (
     nextProviderId: string,
     nextModel: string,
+    nextProviderOptions?: StoredConversation['providerOptions'],
   ): Promise<void> => {
     if (!activeConversation) {
       return;
@@ -81,6 +89,8 @@ export function useChatConversations({
       ...activeConversation,
       providerId: nextProviderId,
       model: nextModel,
+      maxOutputTokens: activeConversation.maxOutputTokens,
+      providerOptions: nextProviderOptions,
       updatedAt: new Date().toISOString(),
     };
 
@@ -96,6 +106,7 @@ export function useChatConversations({
 
   const persistConversationModel = useCallback(async (
     nextModel: string,
+    nextProviderOptions?: StoredConversation['providerOptions'],
   ): Promise<void> => {
     if (!activeConversation) {
       return;
@@ -104,6 +115,32 @@ export function useChatConversations({
     const updatedConversation: StoredConversation = {
       ...activeConversation,
       model: nextModel,
+      maxOutputTokens: activeConversation.maxOutputTokens,
+      providerOptions: nextProviderOptions,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === updatedConversation.id
+          ? updatedConversation
+          : conversation,
+      ),
+    );
+    await saveConversation(updatedConversation);
+  }, [activeConversation]);
+
+  const persistConversationProviderOptions = useCallback(async (
+    nextProviderOptions?: StoredConversation['providerOptions'],
+  ): Promise<void> => {
+    if (!activeConversation) {
+      return;
+    }
+
+    const updatedConversation: StoredConversation = {
+      ...activeConversation,
+      maxOutputTokens: activeConversation.maxOutputTokens,
+      providerOptions: nextProviderOptions,
       updatedAt: new Date().toISOString(),
     };
 
@@ -129,6 +166,29 @@ export function useChatConversations({
     const updatedConversation: StoredConversation = {
       ...activeConversation,
       systemPrompt: nextSystemPrompt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === updatedConversation.id
+          ? updatedConversation
+          : conversation,
+      ),
+    );
+    await saveConversation(updatedConversation);
+  }, [activeConversation]);
+
+  const persistConversationMaxOutputTokens = useCallback(async (
+    nextMaxOutputTokens?: number,
+  ): Promise<void> => {
+    if (!activeConversation) {
+      return;
+    }
+
+    const updatedConversation: StoredConversation = {
+      ...activeConversation,
+      maxOutputTokens: nextMaxOutputTokens,
       updatedAt: new Date().toISOString(),
     };
 
@@ -179,7 +239,9 @@ export function useChatConversations({
     conversations,
     createConversation,
     persistConversationModel,
+    persistConversationMaxOutputTokens,
     persistConversationProvider,
+    persistConversationProviderOptions,
     persistConversationSystemPrompt,
     setActiveConversationId,
     setConversationPendingDeletion,

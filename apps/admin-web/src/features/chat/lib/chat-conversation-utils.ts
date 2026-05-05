@@ -1,4 +1,5 @@
 import { createClientId } from '../../../lib/id';
+import type { GatewayChatProviderOptions } from '../../../lib/api-client.types';
 import type {
   ConversationScope,
   StoredConversation,
@@ -8,6 +9,8 @@ export function createConversation(
   scope: ConversationScope,
   providerId: string,
   model: string,
+  maxOutputTokens: number | undefined,
+  providerOptions: GatewayChatProviderOptions | undefined,
   systemPrompt: string,
 ): StoredConversation {
   return {
@@ -17,6 +20,8 @@ export function createConversation(
     title: 'New conversation',
     model,
     providerId,
+    maxOutputTokens,
+    providerOptions,
     systemPrompt,
     messages: [],
     updatedAt: new Date().toISOString(),
