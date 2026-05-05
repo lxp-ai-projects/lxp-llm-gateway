@@ -59,7 +59,8 @@ function renderInlineMarkdown(value: string): ReactNode[] {
 function isMarkdownTableSeparator(line: string): boolean {
   const cells = parseMarkdownTableRow(line);
   return (
-    cells.length > 0 &&
+    line.includes('|') &&
+    cells.length >= 2 &&
     cells.every((cell) => /^:?-{3,}:?$/.test(cell))
   );
 }

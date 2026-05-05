@@ -1,6 +1,6 @@
 import { ValidateIf, IsIn, IsString, MinLength } from 'class-validator';
-import { PROVIDER_IDS } from '@lxp/domain';
-import type { ProviderId } from '@lxp/domain';
+import { IMAGE_PROVIDER_IDS, PROVIDER_IDS } from '@lxp/domain';
+import type { ImageProviderId, ProviderId } from '@lxp/domain';
 
 export class UpdateProviderSettingsDto {
   @ValidateIf((_, value) => value !== undefined && value !== null)
@@ -13,8 +13,8 @@ export class UpdateProviderSettingsDto {
   defaultModel?: string | null;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
-  @IsIn(PROVIDER_IDS)
-  defaultImageProviderId?: ProviderId | null;
+  @IsIn(IMAGE_PROVIDER_IDS)
+  defaultImageProviderId?: ImageProviderId | null;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()

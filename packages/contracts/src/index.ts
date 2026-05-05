@@ -18,12 +18,21 @@ export type GatewayAnthropicExtendedThinkingMode =
   | 'adaptive'
   | 'budget';
 
+export type GatewayAnthropicExtendedThinking =
+  | {
+      mode: 'disabled';
+    }
+  | {
+      mode: 'adaptive';
+    }
+  | {
+      mode: 'budget';
+      budgetTokens: number;
+    };
+
 export interface GatewayChatProviderOptions {
   anthropic?: {
-    extendedThinking?: {
-      mode: GatewayAnthropicExtendedThinkingMode;
-      budgetTokens?: number;
-    };
+    extendedThinking?: GatewayAnthropicExtendedThinking;
   };
 }
 

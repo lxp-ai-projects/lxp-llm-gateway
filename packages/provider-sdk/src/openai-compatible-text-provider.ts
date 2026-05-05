@@ -106,11 +106,12 @@ export class OpenAiCompatibleTextProviderAdapter
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(
+    const response = await this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}${this.modelListPath}`,
       {
         headers: this.resolveHeaders(context),
       },
+      this.options.requestTimeoutMs,
     );
 
     if (!response.ok) {
@@ -199,8 +200,11 @@ export class OpenAiCompatibleTextProviderAdapter
     const headers = {
       ...providerAccess.headers,
     };
+    const hasAuthorizationHeader = Object.keys(headers).some(
+      (headerName) => headerName.toLowerCase() === 'authorization',
+    );
 
-    if (providerAccess.apiKey && !headers.authorization) {
+    if (providerAccess.apiKey && !hasAuthorizationHeader) {
       headers.authorization = `Bearer ${providerAccess.apiKey}`;
     }
 

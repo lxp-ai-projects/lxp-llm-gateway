@@ -63,7 +63,7 @@ export class GatewayChatRequestDto implements GatewayChatRequest {
   @IsOptional()
   @ValidateNested()
   @Type(() => GatewayChatProviderOptionsDto)
-  providerOptions?: GatewayChatProviderOptionsDto;
+  providerOptions?: GatewayChatRequest['providerOptions'];
 
   @IsArray()
   @ArrayMinSize(1)

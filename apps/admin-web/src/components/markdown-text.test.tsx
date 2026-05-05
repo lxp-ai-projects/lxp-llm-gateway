@@ -78,3 +78,18 @@ test('MarkdownText renders GitHub-style tables', () => {
   expect(screen.getByRole('cell', { name: 'Anthropic' })).toBeInTheDocument();
   expect(screen.getByRole('cell', { name: 'Compatible' })).toBeInTheDocument();
 });
+
+test('MarkdownText keeps a standalone separator as a divider instead of a table', () => {
+  renderWithProviders(
+    <MarkdownText
+      value={`Intro paragraph
+
+---
+
+### Next section`}
+    />,
+  );
+
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getByText('Next section')).toBeInTheDocument();
+});
