@@ -8,6 +8,7 @@ import {
   Checkbox,
   Group,
   Image,
+  LoadingOverlay,
   Modal,
   NumberInput,
   Pagination,
@@ -32,7 +33,7 @@ import {
   IconUpload,
   IconX,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type {
   ImageAspectRatioOption,
@@ -59,6 +60,7 @@ export function ImageRequestForm({
     'all',
   );
   const [referenceCatalogPage, setReferenceCatalogPage] = useState(1);
+  const [showCatalogLoadingOverlay, setShowCatalogLoadingOverlay] = useState(false);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
   const capabilities = imageLab.selectedCapabilities;
   const aspectRatios = capabilities?.supportedImageAspectRatios ?? [];
@@ -135,6 +137,19 @@ export function ImageRequestForm({
   );
   const referenceLimitReached =
     imageLab.references.length >= imageLab.maxReferenceImages;
+
+  useEffect(() => {
+    if (!imageLab.catalogQuery.isPending) {
+      setShowCatalogLoadingOverlay(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowCatalogLoadingOverlay(true);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [imageLab.catalogQuery.isPending]);
 
   function openReferenceCatalog() {
     setReferenceCatalogOpened(true);
@@ -374,58 +389,71 @@ export function ImageRequestForm({
         <Stack gap="md">
           <Title order={3}>Image request</Title>
 
-        <Select
-          data={imageLab.providers.map((provider) => ({
-            value: provider.providerId,
-            label: provider.displayName,
-          }))}
-          data-testid="image-provider-select"
-          label="Provider"
-          onChange={(value) => {
-            imageLab.setProviderId(value ?? '');
-            imageLab.setModelId('');
-            imageLab.setPrompt('');
-          }}
-          value={imageLab.providerId}
-        />
+          <div
+            className="image-provider-loading-shell"
+            data-testid="image-provider-loading-shell"
+          >
+            <LoadingOverlay
+              loaderProps={{ type: 'bars' }}
+              overlayProps={{ blur: 1, radius: 'md' }}
+              visible={showCatalogLoadingOverlay}
+              zIndex={2}
+            />
+            <Stack gap="md">
+              <Select
+                data={imageLab.providers.map((provider) => ({
+                  value: provider.providerId,
+                  label: provider.displayName,
+                }))}
+                data-testid="image-provider-select"
+                label="Provider"
+                onChange={(value) => {
+                  imageLab.setProviderId(value ?? '');
+                  imageLab.setModelId('');
+                  imageLab.setPrompt('');
+                }}
+                value={imageLab.providerId}
+              />
 
-        <Select
-          data={imageLab.models.map((model: ProviderModelSummary) => ({
-            value: model.id,
-            label: model.displayName,
-          }))}
-          data-testid="image-model-select"
-          label="Model"
-          onChange={(value) => imageLab.setModelId(value ?? '')}
-          value={imageLab.modelId}
-        />
+              <Select
+                data={imageLab.models.map((model: ProviderModelSummary) => ({
+                  value: model.id,
+                  label: model.displayName,
+                }))}
+                data-testid="image-model-select"
+                label="Model"
+                onChange={(value) => imageLab.setModelId(value ?? '')}
+                value={imageLab.modelId}
+              />
 
-        {imageLab.hasNanoGptPaidModels ? (
-          <Checkbox
-            checked={imageLab.showNanoGptPaidModels}
-            data-testid="nanogpt-paid-models-toggle"
-            label="Show NanoGPT paid-only models"
-            onChange={(event) =>
-              imageLab.setShowNanoGptPaidModels(event.currentTarget.checked)
-            }
-          />
-        ) : null}
-
-        <Accordion chevronPosition="right" defaultValue="prompt-and-options" variant="separated">
-          <Accordion.Item value="prompt-and-options">
-            <Accordion.Control data-testid="prompt-options-accordion">
-              Prompt and options
-            </Accordion.Control>
-            <Accordion.Panel>
-              <Stack gap="md">
-                <Textarea
-                  autosize
-                  data-testid="image-prompt-input"
-                  label="Prompt"
-                  minRows={5}
-                  onChange={(event) => imageLab.setPrompt(event.currentTarget.value)}
-                  value={imageLab.prompt}
+              {imageLab.hasNanoGptPaidModels ? (
+                <Checkbox
+                  checked={imageLab.showNanoGptPaidModels}
+                  data-testid="nanogpt-paid-models-toggle"
+                  label="Show NanoGPT paid-only models"
+                  onChange={(event) =>
+                    imageLab.setShowNanoGptPaidModels(event.currentTarget.checked)
+                  }
                 />
+              ) : null}
+            </Stack>
+          </div>
+
+          <Accordion chevronPosition="right" defaultValue="prompt-and-options" variant="separated">
+            <Accordion.Item value="prompt-and-options">
+              <Accordion.Control data-testid="prompt-options-accordion">
+                Prompt and options
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="md">
+                  <Textarea
+                    autosize
+                    data-testid="image-prompt-input"
+                    label="Prompt"
+                    minRows={5}
+                    onChange={(event) => imageLab.setPrompt(event.currentTarget.value)}
+                    value={imageLab.prompt}
+                  />
 
                 <Group grow align="start">
                   {aspectRatios.length ? (
@@ -543,42 +571,42 @@ export function ImageRequestForm({
                     />
                   ) : null}
                 </Group>
-              </Stack>
-            </Accordion.Panel>
-          </Accordion.Item>
-        </Accordion>
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
 
-        <Alert color="blue" title="Reference assets">
-          Upload through the gateway, paste a public image URL, or reuse images
-          from history. Uploaded references stay reusable in the catalog below,
-          while generated results remain in the history panel. One or more
-          references switches the request into edit mode when the selected model
-          supports editing.
-        </Alert>
-
-        {!imageLab.supportsImageEditing ? (
-          <Alert color="yellow" title="Editing unavailable">
-            This model currently supports generation only.
+          <Alert color="blue" title="Reference assets">
+            Upload through the gateway, paste a public image URL, or reuse images
+            from history. Uploaded references stay reusable in the catalog below,
+            while generated results remain in the history panel. One or more
+            references switches the request into edit mode when the selected model
+            supports editing.
           </Alert>
-        ) : null}
 
-        {showNanoGptOpenAiAlignedNotice ? (
-          <Alert color="blue" title="OpenAI-aligned GPT Image options">
-            This NanoGPT model follows the OpenAI GPT image option set for
-            resolution, background, quality, moderation, output format, and
-            compression.
-          </Alert>
-        ) : null}
+          {!imageLab.supportsImageEditing ? (
+            <Alert color="yellow" title="Editing unavailable">
+              This model currently supports generation only.
+            </Alert>
+          ) : null}
 
-        {showGptImageModerationControl ? (
-          <Alert color="blue" title="OpenAI moderation">
-            Choosing <strong>Low</strong> makes filtering less restrictive, but it
-            does not disable moderation. OpenAI can still reject prompts or images
-            when safety checks are flagged.
-          </Alert>
-        ) : null}
+          {showNanoGptOpenAiAlignedNotice ? (
+            <Alert color="blue" title="OpenAI-aligned GPT Image options">
+              This NanoGPT model follows the OpenAI GPT image option set for
+              resolution, background, quality, moderation, output format, and
+              compression.
+            </Alert>
+          ) : null}
 
-        <Group align="end">
+          {showGptImageModerationControl ? (
+            <Alert color="blue" title="OpenAI moderation">
+              Choosing <strong>Low</strong> makes filtering less restrictive, but it
+              does not disable moderation. OpenAI can still reject prompts or images
+              when safety checks are flagged.
+            </Alert>
+          ) : null}
+
+          <Group align="end">
           <TextInput
             className="image-reference-url"
             data-testid="image-reference-url-input"
@@ -595,9 +623,9 @@ export function ImageRequestForm({
           >
             Add URL
           </Button>
-        </Group>
+          </Group>
 
-        <Group>
+          <Group>
           <Button
             component="label"
             data-testid="image-upload-reference"
@@ -611,9 +639,9 @@ export function ImageRequestForm({
           <Text c="dimmed" size="sm">
             Uploaded files become gateway-managed reference assets.
           </Text>
-        </Group>
+          </Group>
 
-        <Accordion chevronPosition="right" defaultValue={null} variant="separated">
+          <Accordion chevronPosition="right" defaultValue={null} variant="separated">
           <Accordion.Item value="selected-references">
             <Accordion.Control data-testid="selected-references-accordion">
               {selectedReferencesLabel}
@@ -662,9 +690,9 @@ export function ImageRequestForm({
               )}
             </Accordion.Panel>
           </Accordion.Item>
-        </Accordion>
+          </Accordion>
 
-        <Stack gap="xs">
+          <Stack gap="xs">
           <Group justify="space-between" wrap="wrap">
             <div>
               <Text fw={600} size="sm">
@@ -699,22 +727,22 @@ export function ImageRequestForm({
               Open the catalog to search, filter, rename, select, and paginate uploaded references.
             </Text>
           )}
-        </Stack>
+          </Stack>
 
-        {imageLab.requestError ? (
-          <Alert color="red" title="Image request failed">
-            {imageLab.requestError}
-          </Alert>
-        ) : null}
+          {imageLab.requestError ? (
+            <Alert color="red" title="Image request failed">
+              {imageLab.requestError}
+            </Alert>
+          ) : null}
 
-        <Button
-          data-testid="image-submit"
-          leftSection={<IconSparkles size={16} />}
-          loading={imageLab.generateMutation.isPending}
-          onClick={() => imageLab.generateMutation.mutate()}
-        >
-          {imageLab.canEdit ? 'Edit image' : 'Generate image'}
-        </Button>
+          <Button
+            data-testid="image-submit"
+            leftSection={<IconSparkles size={16} />}
+            loading={imageLab.generateMutation.isPending}
+            onClick={() => imageLab.generateMutation.mutate()}
+          >
+            {imageLab.canEdit ? 'Edit image' : 'Generate image'}
+          </Button>
         </Stack>
       </Card>
     </>

@@ -488,6 +488,11 @@ a {
   flex: 1;
 }
 
+.image-provider-loading-shell {
+  position: relative;
+  min-height: 156px;
+}
+
 .image-reference-row {
   padding: 10px 12px;
   border: 1px solid rgba(18, 34, 44, 0.08);
