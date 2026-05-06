@@ -68,6 +68,76 @@ test('OpenRouterProviderAdapter sends an OpenAI-compatible chat completions requ
   }
 });
 
+test('OpenRouterProviderAdapter forwards GLM thinking controls through reasoning', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: 'hello from openrouter glm',
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'z-ai/glm-4.5',
+        maxOutputTokens: 4096,
+        providerOptions: {
+          openrouter: {
+            reasoning: {
+              enabled: true,
+            },
+          },
+        },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-openrouter-glm',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'openrouter-secret-token',
+        },
+      },
+    );
+
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      max_tokens?: number;
+      reasoning?: {
+        enabled?: boolean;
+      };
+    };
+    assert.equal(body.max_tokens, 4096);
+    assert.deepEqual(body.reasoning, {
+      enabled: true,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('OpenRouterProviderAdapter forwards multimodal chat content blocks unchanged', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];

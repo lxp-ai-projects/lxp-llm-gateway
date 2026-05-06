@@ -156,15 +156,17 @@ export function validateProviderCredentialInput(input: {
   apiToken: string;
   baseUrl: string;
 }): string | null {
-  if (
-    (input.providerId === 'google' ||
-      input.providerId === 'xai' ||
-      input.providerId === 'openai' ||
-      input.providerId === 'anthropic' ||
-      input.providerId === 'mistral' ||
-      input.providerId === 'deepseek') &&
-    !input.apiToken.trim()
-  ) {
+  const requiresApiToken =
+    input.providerId === 'google' ||
+    input.providerId === 'xai' ||
+    input.providerId === 'openai' ||
+    input.providerId === 'anthropic' ||
+    input.providerId === 'mistral' ||
+    input.providerId === 'deepseek' ||
+    input.providerId === 'moonshot' ||
+    input.providerId === 'zai';
+
+  if (requiresApiToken && !input.apiToken.trim()) {
     return input.providerId === 'google'
       ? 'Google Gemini credentials require an API token.'
       : input.providerId === 'xai'
@@ -175,7 +177,11 @@ export function validateProviderCredentialInput(input: {
           ? 'Anthropic credentials require an API token.'
           : input.providerId === 'mistral'
             ? 'Mistral credentials require an API token.'
-            : 'DeepSeek credentials require an API token.';
+            : input.providerId === 'deepseek'
+              ? 'DeepSeek credentials require an API token.'
+              : input.providerId === 'moonshot'
+                ? 'Moonshot / Kimi credentials require an API token.'
+                : 'Z.ai credentials require an API token.';
   }
 
   if (input.providerId !== 'ollama' || !input.baseUrl.trim()) {

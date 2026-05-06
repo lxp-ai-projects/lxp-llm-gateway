@@ -345,9 +345,17 @@ export class ProviderCredentialService {
         apiKey: process.env.DEEPSEEK_API_KEY,
         baseUrl: process.env.DEEPSEEK_BASE_URL,
       },
+      moonshot: {
+        apiKey: process.env.MOONSHOT_API_KEY,
+        baseUrl: process.env.MOONSHOT_BASE_URL,
+      },
       xai: {
         apiKey: process.env.XAI_API_KEY,
         baseUrl: process.env.XAI_BASE_URL,
+      },
+      zai: {
+        apiKey: process.env.ZAI_API_KEY,
+        baseUrl: process.env.ZAI_BASE_URL,
       },
     };
     const platformAccess = envByProvider[providerId];

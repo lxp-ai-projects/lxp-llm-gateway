@@ -205,6 +205,8 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
     stream: boolean,
   ): Promise<Response> {
+    const openRouterReasoning = request.providerOptions?.openrouter?.reasoning;
+
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}/chat/completions`,
       {
@@ -218,6 +220,15 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
+          ...(typeof request.maxOutputTokens === 'number'
+            ? { max_tokens: request.maxOutputTokens }
+            : {}),
+          ...(supportsOpenRouterGlmThinking(request.model) &&
+          openRouterReasoning
+            ? {
+                reasoning: openRouterReasoning,
+              }
+            : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,
@@ -271,4 +282,14 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       clearTimeout(timeoutId);
     }
   }
+}
+
+function supportsOpenRouterGlmThinking(model: string | undefined): boolean {
+  if (!model) {
+    return false;
+  }
+
+  return /(^|[/:])glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i.test(
+    model,
+  );
 }

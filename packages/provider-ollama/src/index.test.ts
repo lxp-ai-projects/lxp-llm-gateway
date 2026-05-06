@@ -256,6 +256,68 @@ test('OllamaProviderAdapter routes cloud chat through the native /api/chat endpo
   }
 });
 
+test('OllamaProviderAdapter routes local GLM thinking requests through the native chat endpoint', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    return new Response(
+      JSON.stringify({
+        message: {
+          role: 'assistant',
+          content: 'hello from local glm',
+          thinking: 'reasoning trace',
+        },
+        done_reason: 'stop',
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OllamaProviderAdapter();
+    const response = await adapter.chat(
+      {
+        model: 'glm-4.5',
+        providerOptions: {
+          ollama: {
+            thinking: {
+              enabled: true,
+            },
+          },
+        },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-ollama-local-glm',
+        userId: 'user-1',
+        providerAccess: {
+          baseUrl: 'http://127.0.0.1:11434/v1',
+        },
+      },
+    );
+
+    assert.equal(calls[0]?.url, 'http://127.0.0.1:11434/api/chat');
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      think?: boolean;
+    };
+    assert.equal(body.think, true);
+    assert.equal(response.message.reasoning, 'reasoning trace');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('OllamaProviderAdapter requires an API key for ollama.com cloud access', async () => {
   const adapter = new OllamaProviderAdapter();
 

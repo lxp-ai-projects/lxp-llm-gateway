@@ -51,6 +51,8 @@ Phase 1 includes:
   - `Anthropic Claude`
   - `Mistral`
   - `DeepSeek`
+  - `Moonshot / Kimi`
+  - `Z.ai`
 - local development infrastructure with Redis or Valkey
 - a first local integration use case with Open WebUI against the host-run gateway
 - an initial OpenAPI placeholder
@@ -59,7 +61,7 @@ Phase 1 includes:
 
 Phase 1 does not include:
 
-- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, `Anthropic Claude`, `Mistral`, and `DeepSeek`
+- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, `Anthropic Claude`, `Mistral`, `DeepSeek`, `Moonshot / Kimi`, and `Z.ai`
 - quota engines
 - policy engines
 - advanced billing or cost governance
@@ -246,6 +248,12 @@ Provider abstraction seam:
 
 The seam should evolve by adding new capability contracts, not by teaching `gateway-api` provider-specific image endpoints or payload formats.
 
+Current provider posture for the newest additions is intentionally mixed by capability:
+
+- `Moonshot / Kimi` is integrated as an OpenAI-compatible text provider behind the shared text adapter seam
+- `Z.ai` uses the shared OpenAI-compatible text path for chat, plus a provider-owned native image-generation path behind `packages/provider-zai`
+- `Z.ai` model listing currently attempts `GET /models` even though that endpoint is not explicitly documented in the official API reference; the local image catalog therefore keeps a static fallback for known image models
+
 ### Provider Packages
 
 Concrete provider implementations currently shipped in Phase 1:
@@ -260,6 +268,8 @@ Concrete provider implementations currently shipped in Phase 1:
 - `packages/provider-anthropic`
 - `packages/provider-mistral`
 - `packages/provider-deepseek`
+- `packages/provider-moonshot`
+- `packages/provider-zai`
 
 Each package owns:
 

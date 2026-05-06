@@ -45,11 +45,13 @@ test('adminApiClient.getRuntimeConfig falls back to safe defaults when the reque
       { providerId: 'ollama', displayName: 'Ollama' },
       { providerId: 'groq', displayName: 'Groq' },
       { providerId: 'google', displayName: 'Google Gemini' },
-      { providerId: 'mistral', displayName: 'Mistral' },
-      { providerId: 'deepseek', displayName: 'DeepSeek' },
       { providerId: 'xai', displayName: 'xAI Grok' },
       { providerId: 'openai', displayName: 'OpenAI' },
       { providerId: 'anthropic', displayName: 'Anthropic Claude' },
+      { providerId: 'mistral', displayName: 'Mistral' },
+      { providerId: 'deepseek', displayName: 'DeepSeek' },
+      { providerId: 'moonshot', displayName: 'Moonshot / Kimi' },
+      { providerId: 'zai', displayName: 'Z.ai' },
     ],
   });
 });

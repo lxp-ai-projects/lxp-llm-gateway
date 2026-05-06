@@ -1,7 +1,12 @@
-import { Loader } from '@mantine/core';
+import { Alert, Anchor, Loader, Stack, Text, Title } from '@mantine/core';
 import { Suspense, lazy } from 'react';
 import type { ReactNode } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import {
+  createBrowserRouter,
+  isRouteErrorResponse,
+  Navigate,
+  useRouteError,
+} from 'react-router-dom';
 
 import { AppShellLayout } from '../components/app-shell-layout';
 import { AuthGuard } from '../components/auth-guard';
@@ -80,16 +85,66 @@ function withSuspense(node: ReactNode) {
   return <Suspense fallback={<Loader color="teal" mt="xl" />}>{node}</Suspense>;
 }
 
+function RouteErrorPage() {
+  const error = useRouteError();
+  const message = isRouteErrorResponse(error)
+    ? `${error.status} ${error.statusText}`
+    : error instanceof Error
+      ? error.message
+      : 'An unexpected application error occurred.';
+
+  return (
+    <Stack gap="md" maw={640} mx="auto" mt="xl" p="lg">
+      <Title order={2}>Application Error</Title>
+      <Text c="dimmed">
+        The page could not finish loading. This often happens when the local
+        dev servers are down or running on unexpected ports.
+      </Text>
+      <Alert color="red" title="Details">
+        {message}
+      </Alert>
+      <Text size="sm">
+        Check that `gateway-api` is on `3001`, `admin-api` is on `3002`, and
+        `admin-web` is on `3003`, then reload the page.
+      </Text>
+      <Anchor href="/" underline="hover">
+        Return to the app entrypoint
+      </Anchor>
+    </Stack>
+  );
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <Navigate to="/app" replace />,
+    errorElement: <RouteErrorPage />,
   },
-  { path: '/login', element: withSuspense(<LoginPage />) },
-  { path: '/terms', element: withSuspense(<TermsPage />) },
-  { path: '/privacy', element: withSuspense(<PrivacyPage />) },
-  { path: '/register', element: withSuspense(<RegistrationPage />) },
-  { path: '/forgot-password', element: withSuspense(<ForgotPasswordPage />) },
+  {
+    path: '/login',
+    element: withSuspense(<LoginPage />),
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: '/terms',
+    element: withSuspense(<TermsPage />),
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: '/privacy',
+    element: withSuspense(<PrivacyPage />),
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: '/register',
+    element: withSuspense(<RegistrationPage />),
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: '/forgot-password',
+    element: withSuspense(<ForgotPasswordPage />),
+    errorElement: <RouteErrorPage />,
+  },
   {
     path: '/app',
     element: (
@@ -97,6 +152,7 @@ export const router = createBrowserRouter([
         <AppShellLayout />
       </AuthGuard>
     ),
+    errorElement: <RouteErrorPage />,
     children: [
       { index: true, element: withSuspense(<DashboardPage />) },
       { path: 'providers', element: withSuspense(<ProvidersPage />) },

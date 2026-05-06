@@ -133,6 +133,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
           role?: 'assistant';
           content?: string;
           reasoning?: string;
+          reasoning_content?: string;
           reasoning_details?: unknown;
         };
       }>;
@@ -166,7 +167,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       message: {
         role: message?.role ?? 'assistant',
         content: message?.content ?? '',
-        reasoning: message?.reasoning,
+        reasoning: message?.reasoning ?? message?.reasoning_content,
         reasoningDetails: message?.reasoning_details,
       },
       finishReason: payload.choices?.[0]?.finish_reason ?? null,
@@ -259,6 +260,8 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
     stream: boolean,
   ): Promise<Response> {
+    const zaiThinking = request.providerOptions?.zai?.thinking;
+
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}/chat/completions`,
       {
@@ -269,9 +272,33 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
         },
         body: JSON.stringify({
           model: request.model,
-          messages: request.messages,
+          messages: request.messages.map((message) => ({
+            role: message.role,
+            content: message.content,
+            ...(typeof message.reasoningContent === 'string' &&
+            message.reasoningContent.trim()
+              ? {
+                  reasoning_content: message.reasoningContent,
+                }
+              : {}),
+          })),
           stream,
           user: context.userId,
+          ...(typeof request.maxOutputTokens === 'number'
+            ? { max_tokens: request.maxOutputTokens }
+            : {}),
+          ...(isNanoGptZaiThinkingModel(request.model) && zaiThinking
+            ? {
+                thinking: {
+                  type: zaiThinking.type,
+                  ...(typeof zaiThinking.clearThinking === 'boolean'
+                    ? {
+                        clear_thinking: zaiThinking.clearThinking,
+                      }
+                    : {}),
+                },
+              }
+            : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,
@@ -325,4 +352,14 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       clearTimeout(timeoutId);
     }
   }
+}
+
+function isNanoGptZaiThinkingModel(model: string | undefined): boolean {
+  if (!model) {
+    return false;
+  }
+
+  return /^z-ai\/glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i.test(
+    model,
+  );
 }

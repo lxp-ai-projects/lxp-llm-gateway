@@ -28,6 +28,7 @@ export type SessionUser = {
 export type GatewayChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  reasoningContent?: string;
 };
 
 export type GatewayAnthropicExtendedThinkingMode =
@@ -47,9 +48,37 @@ export type GatewayAnthropicExtendedThinking =
       budgetTokens: number;
     };
 
+export type GatewayZaiThinking =
+  | {
+      type: 'enabled';
+      clearThinking?: boolean;
+    }
+  | {
+      type: 'disabled';
+      clearThinking?: boolean;
+    };
+
+export type GatewayOpenRouterReasoning = {
+  enabled?: boolean;
+  exclude?: boolean;
+};
+
+export type GatewayOllamaThinking = {
+  enabled?: boolean;
+};
+
 export type GatewayChatProviderOptions = {
   anthropic?: {
     extendedThinking?: GatewayAnthropicExtendedThinking;
+  };
+  zai?: {
+    thinking?: GatewayZaiThinking;
+  };
+  openrouter?: {
+    reasoning?: GatewayOpenRouterReasoning;
+  };
+  ollama?: {
+    thinking?: GatewayOllamaThinking;
   };
 };
 

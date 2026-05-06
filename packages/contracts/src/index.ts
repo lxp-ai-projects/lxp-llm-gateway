@@ -30,9 +30,37 @@ export type GatewayAnthropicExtendedThinking =
       budgetTokens: number;
     };
 
+export type GatewayZaiThinking =
+  | {
+      type: 'enabled';
+      clearThinking?: boolean;
+    }
+  | {
+      type: 'disabled';
+      clearThinking?: boolean;
+    };
+
+export interface GatewayOpenRouterReasoning {
+  enabled?: boolean;
+  exclude?: boolean;
+}
+
+export interface GatewayOllamaThinking {
+  enabled?: boolean;
+}
+
 export interface GatewayChatProviderOptions {
   anthropic?: {
     extendedThinking?: GatewayAnthropicExtendedThinking;
+  };
+  zai?: {
+    thinking?: GatewayZaiThinking;
+  };
+  openrouter?: {
+    reasoning?: GatewayOpenRouterReasoning;
+  };
+  ollama?: {
+    thinking?: GatewayOllamaThinking;
   };
 }
 
@@ -44,6 +72,7 @@ export interface GatewayChatRequest {
   messages: Array<{
     role: 'system' | 'user' | 'assistant';
     content: string | GatewayChatContentPart[];
+    reasoningContent?: string;
   }>;
   stream?: boolean;
 }

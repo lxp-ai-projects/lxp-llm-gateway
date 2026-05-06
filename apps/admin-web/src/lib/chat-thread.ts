@@ -9,6 +9,9 @@ export const DEFAULT_SYSTEM_PROMPT =
 
 export function buildGatewayMessages(
   conversation: StoredConversation,
+  options?: {
+    includeAssistantReasoning?: boolean;
+  },
 ): GatewayChatMessage[] {
   const systemPrompt = conversation.systemPrompt?.trim();
   const systemMessage = systemPrompt
@@ -20,6 +23,12 @@ export function buildGatewayMessages(
     ...conversation.messages.map((message) => ({
       role: message.role,
       content: message.content,
+      ...(options?.includeAssistantReasoning &&
+      message.role === 'assistant' &&
+      typeof message.reasoning === 'string' &&
+      message.reasoning.trim()
+        ? { reasoningContent: message.reasoning }
+        : {}),
     })),
   ];
 }

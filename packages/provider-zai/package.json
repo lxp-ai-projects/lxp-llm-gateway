@@ -1,0 +1,28 @@
+{
+  "name": "@lxp/provider-zai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "pretest": "pnpm --filter @lxp/domain build && pnpm --filter @lxp/contracts build && pnpm --filter @lxp/provider-sdk build",
+    "test": "tsx --test src/index.test.ts src/image/api-client.test.ts src/image/generation-service.test.ts src/image/model-policy.test.ts src/image/request-mapper.test.ts src/image/response-mapper.test.ts"
+  },
+  "dependencies": {
+    "@lxp/contracts": "workspace:*",
+    "@lxp/provider-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.9.2"
+  }
+}

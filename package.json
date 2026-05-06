@@ -8,7 +8,9 @@
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --parallel",
+    "dev": "node ./scripts/check-dev-ports.mjs && turbo run dev --parallel",
+    "dev:reset": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/reset-dev-ports.ps1",
+    "dev:restart": "pnpm.cmd run dev:reset && pnpm.cmd run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

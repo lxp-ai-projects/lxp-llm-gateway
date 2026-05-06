@@ -9,7 +9,7 @@ The platform separates the data plane from the control plane.
 - clients or trusted internal callers talk to `gateway-api`
 - trusted internal callers such as `Open WebUI` can use a thin OpenAI-compatible facade exposed by `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
-- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-google`, `provider-xai`, `provider-openai`, `provider-anthropic`, `provider-mistral`, and `provider-deepseek` are concrete provider implementations behind the same seam
+- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-google`, `provider-xai`, `provider-openai`, `provider-anthropic`, `provider-mistral`, `provider-deepseek`, `provider-moonshot`, and `provider-zai` are concrete provider implementations behind the same seam
 
 The seam is evolving from a chat-only adapter into a capability-oriented provider surface.
 
@@ -64,6 +64,8 @@ It must not import provider-specific implementation details directly.
 - `provider-anthropic` implements Anthropic Claude behind the seam
 - `provider-mistral` implements Mistral behind the seam
 - `provider-deepseek` implements DeepSeek behind the seam
+- `provider-moonshot` implements Moonshot / Kimi behind the seam
+- `provider-zai` implements Z.ai behind the seam
 
 `provider-sdk` should remain capability-oriented rather than provider-shaped.
 
@@ -211,6 +213,8 @@ This allows:
 - `Anthropic Claude` to use `x-api-key` auth plus Anthropic-specific message and model endpoints
 - `Mistral` to use bearer-token auth through its chat completions and models endpoints
 - `DeepSeek` to use bearer-token auth through its OpenAI-compatible models and chat completions endpoints
+- `Moonshot / Kimi` to use bearer-token auth through its OpenAI-compatible models and chat completions endpoints
+- `Z.ai` to use bearer-token auth through an OpenAI-compatible chat endpoint plus a native image-generation endpoint
 - `Ollama` to use either a local/runtime endpoint or Ollama Cloud with bearer auth
 
 `gateway-api` resolves and decrypts provider access data, but it does not interpret provider-specific transport rules.
@@ -274,6 +278,12 @@ At the moment, the gateway exposes OpenAI GPT Image as generation and editing th
 
 OpenRouter now supports image generation and image editing behind the same seam through `/api/v1/chat/completions`, with image-capable model discovery, provider-owned option mapping, reference-image message construction, and normalized image-response parsing inside `packages/provider-openrouter`.
 
+Z.ai now follows the same boundary rule with a split implementation:
+
+- chat goes through the shared OpenAI-compatible text adapter
+- image generation stays in a provider-owned native client targeting `/images/generations`
+- model listing currently attempts `GET /models` as a best-effort compatibility path, but the architecture treats that endpoint as uncertain because it is not explicitly documented in the official API reference
+
 The seam itself should only know about normalized image-generation and image-editing requests and responses, provider image catalogs, and shared image-reference utilities.
 
 The application layer now owns:
@@ -292,7 +302,7 @@ Provider adapters remain responsible only for:
 - provider-specific validation and payload mapping
 - provider-specific response normalization
 
-The current image-provider implementation pattern is now explicit across `provider-openai`, `provider-xai`, `provider-google`, `provider-nanogpt`, and `provider-openrouter`:
+The current image-provider implementation pattern is now explicit across `provider-openai`, `provider-xai`, `provider-google`, `provider-nanogpt`, `provider-openrouter`, and `provider-zai`:
 
 - a provider-owned image catalog/registry for model descriptors and defaults
 - a provider model-policy module for capability checks and request validation
@@ -311,7 +321,7 @@ The intent is:
 - model capability decisions stay centralized in provider-owned policy modules
 - request normalization, endpoint choice, HTTP transport, and response parsing must not collapse back into a single class
 - `gateway-api` continues to see only the shared provider seam, not provider-specific image endpoint rules
-- new image-capable providers should follow the same pattern now used by NanoGPT, OpenAI, xAI, Google, and OpenRouter
+- new image-capable providers should follow the same pattern now used by NanoGPT, OpenAI, xAI, Google, OpenRouter, and Z.ai
 
 ## OpenAI-Compatible Internal Clients
 

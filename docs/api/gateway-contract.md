@@ -64,7 +64,7 @@ Example:
 
 Fields:
 
-- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, `groq`, `google`, `xai`, `openai`, or `anthropic`
+- `providerId?`: provider identifier, currently `nanogpt`, `openrouter`, `ollama`, `groq`, `google`, `xai`, `openai`, `anthropic`, `mistral`, `deepseek`, `moonshot`, or `zai`
 - `model?`: provider model name
 - `messages`: OpenAI-style chat messages
 - `stream?`: when `true`, the gateway returns SSE
