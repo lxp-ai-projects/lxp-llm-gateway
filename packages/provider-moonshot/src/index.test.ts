@@ -87,6 +87,10 @@ test('MoonshotProviderAdapter sends chat requests to the Moonshot chat completio
       calls[0]?.url,
       'https://api.moonshot.ai/v1/chat/completions',
     );
+    assert.equal(
+      (calls[0]?.init?.headers as Record<string, string>).authorization,
+      'Bearer moonshot-token',
+    );
     assertBasicChatResponseContract({
       response,
       providerId: 'moonshot',

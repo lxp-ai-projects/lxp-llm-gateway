@@ -7,7 +7,7 @@ import {
 
 import { ZaiProviderAdapter } from './index.js';
 
-test('ZaiProviderAdapter attempts model listing through /models and enriches known model metadata', async () => {
+test('ZaiProviderAdapter uses the live /models list as the source of truth', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
@@ -27,11 +27,8 @@ test('ZaiProviderAdapter attempts model listing through /models and enriches kno
     });
 
     assert.equal(calls[0]?.url, 'https://api.z.ai/api/paas/v4/models');
-    assert.deepEqual(
-      models.slice(0, 3).map((model) => model.id),
-      ['glm-5.1', 'glm-5', 'glm-5-turbo'],
-    );
-    assert.ok(models.some((model) => model.id === 'glm-image'));
+    assert.deepEqual(models.map((model) => model.id), ['glm-5.1']);
+    assert.ok(!models.some((model) => model.id === 'glm-image'));
     assert.equal(models[0]?.displayName, 'GLM-5.1');
   } finally {
     globalThis.fetch = originalFetch;

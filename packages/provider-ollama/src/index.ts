@@ -8,6 +8,7 @@ import type {
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
+import { isGlmThinkingModel } from '@lxp/domain';
 
 export class OllamaProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -558,11 +559,5 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
 }
 
 function supportsOllamaGlmThinking(model: string | undefined): boolean {
-  if (!model) {
-    return false;
-  }
-
-  return /(^|[/:])glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i.test(
-    model,
-  );
+  return isGlmThinkingModel(model);
 }

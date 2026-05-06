@@ -20,7 +20,10 @@ export function mapZaiImageResponse(
     requestId: context.requestId,
     providerId: 'zai',
     model: requestedModel,
-    images: (payload.data ?? []).map(mapZaiGeneratedImage),
+    images: (payload.data ?? []).flatMap((image) => {
+      const mappedImage = mapZaiGeneratedImage(image);
+      return mappedImage ? [mappedImage] : [];
+    }),
     providerMetadata: {
       created: payload.created,
       ...(Array.isArray(payload.content_filter)
@@ -30,8 +33,14 @@ export function mapZaiImageResponse(
   };
 }
 
-function mapZaiGeneratedImage(image: ZaiGeneratedImage): CanonicalImageResult {
+function mapZaiGeneratedImage(
+  image: ZaiGeneratedImage,
+): CanonicalImageResult | null {
+  if (!image.url) {
+    return null;
+  }
+
   return {
-    ...(image.url ? { url: image.url } : {}),
+    url: image.url,
   };
 }

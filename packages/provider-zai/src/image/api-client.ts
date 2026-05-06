@@ -59,8 +59,11 @@ export class ZaiImageApiClient {
     const headers = {
       ...providerAccess.headers,
     };
+    const hasAuthorizationHeader = Object.keys(headers).some(
+      (headerName) => headerName.toLowerCase() === 'authorization',
+    );
 
-    if (providerAccess.apiKey && !headers.authorization) {
+    if (providerAccess.apiKey && !hasAuthorizationHeader) {
       headers.authorization = `Bearer ${providerAccess.apiKey}`;
     }
 

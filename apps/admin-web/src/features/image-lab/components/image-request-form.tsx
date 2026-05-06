@@ -137,8 +137,18 @@ export function ImageRequestForm({
   );
   const referenceLimitReached =
     imageLab.references.length >= imageLab.maxReferenceImages;
+  const hasCatalogError = Boolean(imageLab.catalogQuery.error);
+  const catalogErrorMessage =
+    imageLab.catalogQuery.error instanceof Error
+      ? imageLab.catalogQuery.error.message
+      : 'Unable to load providers and models.';
 
   useEffect(() => {
+    if (hasCatalogError) {
+      setShowCatalogLoadingOverlay(true);
+      return;
+    }
+
     if (!imageLab.catalogQuery.isPending) {
       setShowCatalogLoadingOverlay(false);
       return;
@@ -149,7 +159,7 @@ export function ImageRequestForm({
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [imageLab.catalogQuery.isPending]);
+  }, [hasCatalogError, imageLab.catalogQuery.isPending]);
 
   function openReferenceCatalog() {
     setReferenceCatalogOpened(true);
@@ -400,12 +410,18 @@ export function ImageRequestForm({
               zIndex={2}
             />
             <Stack gap="md">
+              {hasCatalogError ? (
+                <Alert color="red" title="Catalog unavailable">
+                  {catalogErrorMessage}
+                </Alert>
+              ) : null}
               <Select
                 data={imageLab.providers.map((provider) => ({
                   value: provider.providerId,
                   label: provider.displayName,
                 }))}
                 data-testid="image-provider-select"
+                disabled={imageLab.catalogQuery.isPending || hasCatalogError}
                 label="Provider"
                 onChange={(value) => {
                   imageLab.setProviderId(value ?? '');
@@ -421,6 +437,7 @@ export function ImageRequestForm({
                   label: model.displayName,
                 }))}
                 data-testid="image-model-select"
+                disabled={imageLab.catalogQuery.isPending || hasCatalogError}
                 label="Model"
                 onChange={(value) => imageLab.setModelId(value ?? '')}
                 value={imageLab.modelId}

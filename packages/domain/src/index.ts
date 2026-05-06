@@ -185,18 +185,21 @@ export interface GatewayRequestContext {
 
 export type ReasoningModelFamily = 'zai-glm';
 
+export const GLM_THINKING_MODEL_PATTERN =
+  /(^|[/:])glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i;
+
+export function isGlmThinkingModel(modelId: string | undefined): boolean {
+  if (!modelId) {
+    return false;
+  }
+
+  return GLM_THINKING_MODEL_PATTERN.test(modelId);
+}
+
 export function detectReasoningModelFamily(
   modelId: string | undefined,
 ): ReasoningModelFamily | null {
-  if (!modelId) {
-    return null;
-  }
-
-  return /(^|[/:])glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i.test(
-    modelId,
-  )
-    ? 'zai-glm'
-    : null;
+  return isGlmThinkingModel(modelId) ? 'zai-glm' : null;
 }
 
 export function supportsThinkingModelFamily(

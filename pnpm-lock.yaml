@@ -401,6 +401,9 @@ importers:
       '@lxp/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@lxp/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@lxp/provider-sdk':
         specifier: workspace:*
         version: link:../provider-sdk
@@ -430,6 +433,9 @@ importers:
       '@lxp/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@lxp/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@lxp/provider-sdk':
         specifier: workspace:*
         version: link:../provider-sdk

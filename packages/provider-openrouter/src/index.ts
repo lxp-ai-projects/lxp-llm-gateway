@@ -9,6 +9,7 @@ import type {
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
+import { isGlmThinkingModel } from '@lxp/domain';
 import {
   buildOpenRouterImageCatalog,
   buildKnownOpenRouterImageCatalog,
@@ -285,11 +286,5 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
 }
 
 function supportsOpenRouterGlmThinking(model: string | undefined): boolean {
-  if (!model) {
-    return false;
-  }
-
-  return /(^|[/:])glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i.test(
-    model,
-  );
+  return isGlmThinkingModel(model);
 }

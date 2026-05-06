@@ -250,6 +250,62 @@ export function useImageLab() {
     selectedProvider?.providerId,
     selectedModel,
   );
+
+  useEffect(() => {
+    if (!catalogQuery.data?.providers.length) {
+      return;
+    }
+
+    const nextProvider =
+      providers.find((provider) => provider.providerId === providerId) ??
+      providers[0];
+    const nextProviderId = nextProvider?.providerId ?? '';
+    const nextModels = resolveProviderModels(
+      nextProvider,
+      showNanoGptPaidModels,
+    );
+    const nextModelId = nextModels.some((model) => model.id === modelId)
+      ? modelId
+      : nextProvider?.defaultModelId &&
+          nextModels.some((model) => model.id === nextProvider.defaultModelId)
+        ? nextProvider.defaultModelId
+        : nextModels[0]?.id ?? '';
+    const nextModel = nextModels.find((model) => model.id === nextModelId);
+    const nextMaxReferenceImages = resolveMaxReferenceImages(
+      nextProvider?.providerId,
+      nextModel,
+    );
+    const sanitizedReferenceUrl = referenceUrl.trim();
+    const nextReferences = sanitizeRestoredReferences(
+      references,
+      nextMaxReferenceImages,
+    );
+
+    if (nextProviderId !== providerId) {
+      setProviderId(nextProviderId);
+    }
+
+    if (nextModelId !== modelId) {
+      setModelId(nextModelId);
+    }
+
+    if (sanitizedReferenceUrl !== referenceUrl) {
+      setReferenceUrl(sanitizedReferenceUrl);
+    }
+
+    if (!areReferencesEqual(nextReferences, references)) {
+      setReferences(nextReferences);
+    }
+  }, [
+    catalogQuery.data?.providers,
+    modelId,
+    providerId,
+    providers,
+    referenceUrl,
+    references,
+    showNanoGptPaidModels,
+  ]);
+
   const canEdit = supportsImageEditing && references.length > 0;
   const pendingResultCount = Math.max(1, Number.parseInt(imageCount, 10) || 1);
   const renderStats = resolveRenderStats(
@@ -701,6 +757,66 @@ function mapAssetReference(asset: GatewayImageAssetSummary): ImageReferenceDraft
     previewUrl: resolveGatewayMediaUrl(asset.contentUrl),
     sourceType: asset.sourceType,
   };
+}
+
+function resolveProviderModels(
+  provider: { providerId: string; models: ProviderModelSummary[] } | undefined,
+  showNanoGptPaidModels: boolean,
+): ProviderModelSummary[] {
+  if (!provider) {
+    return [];
+  }
+
+  const visibleModels =
+    provider.providerId === 'nanogpt' && !showNanoGptPaidModels
+      ? provider.models.filter(
+          (model) => model.capabilities?.requiresPaidAccess !== true,
+        )
+      : provider.models;
+
+  return visibleModels
+    .slice()
+    .sort((left, right) =>
+      (left.displayName || left.id).localeCompare(right.displayName || right.id),
+    );
+}
+
+function sanitizeRestoredReferences(
+  references: ImageReferenceDraft[],
+  maxReferenceImages: number,
+): ImageReferenceDraft[] {
+  return references
+    .filter((reference) => {
+      if (reference.kind === 'asset') {
+        return Boolean(
+          reference.id.trim() &&
+            reference.assetId.trim() &&
+            reference.label.trim() &&
+            reference.previewUrl.trim(),
+        );
+      }
+
+      return Boolean(
+        reference.id.trim() &&
+          reference.url.trim() &&
+          reference.label.trim() &&
+          reference.previewUrl.trim(),
+      );
+    })
+    .slice(0, maxReferenceImages);
+}
+
+function areReferencesEqual(
+  left: ImageReferenceDraft[],
+  right: ImageReferenceDraft[],
+): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((reference, index) =>
+    JSON.stringify(reference) === JSON.stringify(right[index]),
+  );
 }
 
 function resolveGatewayMediaUrl(value: string) {

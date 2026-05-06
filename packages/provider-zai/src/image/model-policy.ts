@@ -60,6 +60,14 @@ export function validateZaiImageGenerationRequest(
     }
   }
 
+  if (request.n !== undefined) {
+    if (!Number.isInteger(request.n) || request.n <= 0) {
+      throw new Error(
+        `Z.ai image model ${model.id} requires a positive integer image count.`,
+      );
+    }
+  }
+
   const maxImages = model.capabilities.maxGeneratedImagesPerRequest;
   if (
     maxImages !== undefined &&

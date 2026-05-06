@@ -123,14 +123,15 @@ export function resolveZaiModelCapabilities(modelId: string) {
 }
 
 export function buildZaiModelCatalog(listedModelIds: string[]): ProviderModel[] {
-  const knownModelIds = new Set<string>([
-    ...ZAI_TEXT_MODEL_METADATA.keys(),
-    ...ZAI_IMAGE_MODEL_MAP.keys(),
-  ]);
-  const orderedModelIds = [
-    ...listedModelIds,
-    ...Array.from(knownModelIds).filter((modelId) => !listedModelIds.includes(modelId)),
-  ];
+  const orderedModelIds =
+    listedModelIds.length > 0
+      ? listedModelIds
+      : Array.from(
+          new Set([
+            ...ZAI_TEXT_MODEL_METADATA.keys(),
+            ...ZAI_IMAGE_MODEL_MAP.keys(),
+          ]),
+        );
 
   return orderedModelIds.map((modelId) => ({
     id: modelId,

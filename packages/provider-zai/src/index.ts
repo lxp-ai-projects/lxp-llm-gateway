@@ -67,9 +67,14 @@ export class ZaiProviderAdapter implements LlmProviderAdapter {
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
-    const listedModelIds = await this.imageApiClient
-      .listModelIds(context)
-      .catch(() => []);
+    let listedModelIds: string[] = [];
+    try {
+      listedModelIds = await this.imageApiClient.listModelIds(context);
+    } catch (error) {
+      if (!isModelListingNotSupportedError(error)) {
+        throw error;
+      }
+    }
 
     return buildZaiImageCatalog(buildZaiModelCatalog(listedModelIds));
   }
@@ -153,4 +158,15 @@ function buildZaiChatProviderMetadata(payload: {
   }
 
   return Object.keys(providerMetadata).length ? providerMetadata : undefined;
+}
+
+function isModelListingNotSupportedError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    /not supported/i.test(error.message) ||
+    /status (404|405|501)\b/i.test(error.message)
+  );
 }

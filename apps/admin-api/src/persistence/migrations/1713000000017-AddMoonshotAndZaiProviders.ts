@@ -15,10 +15,9 @@ export class AddMoonshotAndZaiProviders1713000000017
     `);
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      DELETE FROM "providers"
-      WHERE "provider_id" IN ('moonshot', 'zai')
-    `);
+  public async down(): Promise<void> {
+    // `up()` is non-destructive (`ON CONFLICT DO NOTHING`), so `down()` must not
+    // remove pre-existing provider rows.
+    return;
   }
 }
