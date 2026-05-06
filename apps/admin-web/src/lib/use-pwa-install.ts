@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -42,12 +42,9 @@ export function usePwaInstall() {
     };
   }, []);
 
-  const canInstall = useMemo(
-    () => Boolean(deferredPrompt) && !isInstalled,
-    [deferredPrompt, isInstalled],
-  );
+  const canInstall = Boolean(deferredPrompt) && !isInstalled;
 
-  const promptInstall = useCallback(async () => {
+  async function promptInstall() {
     if (!deferredPrompt) {
       return false;
     }
@@ -56,7 +53,7 @@ export function usePwaInstall() {
     const choice = await deferredPrompt.userChoice;
     setDeferredPrompt(null);
     return choice.outcome === 'accepted';
-  }, [deferredPrompt]);
+  }
 
   return { canInstall, isInstalled, promptInstall };
 }

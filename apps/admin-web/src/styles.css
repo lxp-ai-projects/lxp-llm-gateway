@@ -199,8 +199,15 @@ a {
 }
 
 .shell-header-inner,
-.shell-actions {
+.shell-actions,
+.shell-brand-group,
+.shell-status-stack,
+.shell-status-meta {
   min-width: 0;
+}
+
+.shell-brand-group {
+  flex: 1;
 }
 
 .shell-brand-copy {
@@ -211,6 +218,24 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shell-actions {
+  flex-shrink: 0;
+}
+
+.shell-status-stack {
+  align-items: flex-end;
+}
+
+.shell-status-badge,
+.shell-tenant-badge,
+.shell-role-badge {
+  max-width: 100%;
+}
+
+.shell-tenant-badge {
+  min-width: 0;
 }
 
 .status-tile,
@@ -688,6 +713,31 @@ a {
 
   .shell-actions {
     gap: 6px;
+    align-items: flex-start;
+  }
+
+  .shell-status-stack {
+    align-items: flex-end;
+  }
+
+  .shell-status-meta {
+    justify-content: flex-end;
+  }
+
+  .shell-tenant-badge,
+  .shell-role-badge {
+    font-size: 0.68rem;
+  }
+
+  .shell-tenant-badge {
+    max-width: 150px;
+  }
+
+  .shell-tenant-badge .mantine-Badge-label {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .shell-navbar {
@@ -841,5 +891,17 @@ a {
 
   .image-results-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 48em) {
+  .shell-status-stack {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .shell-status-meta {
+    gap: 8px;
   }
 }

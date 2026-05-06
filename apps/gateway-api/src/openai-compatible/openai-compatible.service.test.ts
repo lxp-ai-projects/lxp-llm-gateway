@@ -3,7 +3,7 @@ import test from 'node:test';
 import { ForbiddenException } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
 import type { GatewayChatContentPart } from '@lxp/contracts';
-import type { LlmProviderAdapter, ProviderExecutionContext } from '@lxp/provider-sdk';
+import type { LlmProviderAdapter } from '@lxp/provider-sdk';
 
 import { OpenAiCompatibleService } from './openai-compatible.service';
 
@@ -24,7 +24,7 @@ class FakeProvider implements LlmProviderAdapter {
     return true;
   }
 
-  async listModels(_context: ProviderExecutionContext) {
+  async listModels() {
     return this.modelIds.map((modelId) => ({
       id: modelId,
       displayName: modelId,

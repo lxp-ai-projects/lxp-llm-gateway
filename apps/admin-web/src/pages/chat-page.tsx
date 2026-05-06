@@ -1,6 +1,6 @@
 import {Alert, Button, Card, Grid, Group, Modal, NumberInput, Select, Stack, Tabs, Text, Title,} from '@mantine/core';
 import {useQuery} from '@tanstack/react-query';
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useEffect, useEffectEvent, useMemo, useRef, useState} from 'react';
 import {
   supportsPreservedThinking,
   supportsThinkingModelFamily,
@@ -138,7 +138,7 @@ function buildThinkingProviderOptions(
       zai: {
         thinking: {
           type: 'enabled',
-          clearThinking: mode === 'enabled' ? true : false,
+          clearThinking: mode === 'enabled',
         },
       },
     };
@@ -467,6 +467,34 @@ export function ChatPage() {
     sortedModelOptions.find((option) => option.value === model)?.label ?? model;
   const anthropicAdaptiveThinkingSupported =
     providerId === 'anthropic' && supportsAnthropicAdaptiveThinking(model);
+  const persistConversationProviderFromEffect = useEffectEvent(
+    (nextProviderId: string, nextModel: string) => {
+      if (!activeConversation) {
+        return;
+      }
+
+      void persistConversationProvider(
+        nextProviderId,
+        nextModel,
+        buildChatProviderOptions({
+          providerId: nextProviderId,
+          model: nextModel,
+          anthropicThinkingMode,
+          anthropicThinkingBudgetTokens,
+          thinkingMode,
+        }),
+      );
+    },
+  );
+  const persistConversationProviderOptionsFromEffect = useEffectEvent(
+    (nextProviderOptions?: GatewayChatProviderOptions) => {
+      if (!activeConversation) {
+        return;
+      }
+
+      void persistConversationProviderOptions(nextProviderOptions);
+    },
+  );
 
   useEffect(() => {
     if (!providerId || !modelsQuery.data?.models.length) {
@@ -502,29 +530,15 @@ export function ChatPage() {
         nextModel
     ) {
       pendingConversationProviderSyncRef.current = false;
-      void persistConversationProvider(
-        providerId,
-        nextModel,
-        buildChatProviderOptions({
-          providerId,
-          model: nextModel,
-          anthropicThinkingMode,
-          anthropicThinkingBudgetTokens,
-          thinkingMode,
-        }),
-      );
+      persistConversationProviderFromEffect(providerId, nextModel);
     }
   }, [
     activeConversation,
-    anthropicThinkingBudgetTokens,
-    anthropicThinkingMode,
     model,
     modelsQuery.data,
-    persistConversationProvider,
     providerId,
     providerSettingsQuery.data?.defaultModel,
     providerSettingsQuery.data?.defaultProviderId,
-    thinkingMode,
   ]);
 
   useEffect(() => {
@@ -539,14 +553,13 @@ export function ChatPage() {
     forcedThinkingDisabledRef.current = true;
     setThinkingMode('disabled');
     if (activeConversation) {
-      void persistConversationProviderOptions(
+      persistConversationProviderOptionsFromEffect(
         buildThinkingProviderOptions(providerId, 'disabled'),
       );
     }
   }, [
     activeConversation,
     model,
-    persistConversationProviderOptions,
     providerId,
     thinkingControlVisible,
     thinkingMode,
@@ -567,14 +580,13 @@ export function ChatPage() {
     forcedThinkingDisabledRef.current = false;
     setThinkingMode('enabled');
     if (activeConversation) {
-      void persistConversationProviderOptions(
+      persistConversationProviderOptionsFromEffect(
         buildThinkingProviderOptions(providerId, 'enabled'),
       );
     }
   }, [
     activeConversation,
     model,
-    persistConversationProviderOptions,
     providerId,
     thinkingControlVisible,
     thinkingMode,
@@ -592,14 +604,13 @@ export function ChatPage() {
 
     setThinkingMode('enabled');
     if (activeConversation) {
-      void persistConversationProviderOptions(
+      persistConversationProviderOptionsFromEffect(
         buildThinkingProviderOptions(providerId, 'enabled'),
       );
     }
   }, [
     activeConversation,
     model,
-    persistConversationProviderOptions,
     preserveThinkingSupported,
     providerId,
     thinkingControlVisible,
@@ -632,7 +643,7 @@ export function ChatPage() {
 
     setAnthropicThinkingMode('none');
     if (activeConversation) {
-      void persistConversationProviderOptions(
+      persistConversationProviderOptionsFromEffect(
         buildAnthropicProviderOptions(providerId, 'none', anthropicThinkingBudgetTokens),
       );
     }
@@ -640,7 +651,6 @@ export function ChatPage() {
     activeConversation,
     anthropicThinkingBudgetTokens,
     anthropicThinkingDisabledForModel,
-    persistConversationProviderOptions,
     providerId,
     anthropicThinkingMode,
   ]);
@@ -1003,7 +1013,6 @@ export function ChatPage() {
                       hiddenMessageCountBelow={hiddenMessageCountBelow}
                       isLoadingModels={modelsQuery.isPending}
                       isStreaming={isStreaming}
-                      model={model}
                       providerId={providerId}
                       modelsErrorMessage={
                         modelsQuery.isError

@@ -36,7 +36,6 @@ type ChatMessageListProps = {
   hiddenMessageCountBelow: number;
   isLoadingModels: boolean;
   isStreaming: boolean;
-  model: string;
   providerId: string;
   modelsErrorMessage: string | null;
   onCancelEdit: () => void;
@@ -63,7 +62,6 @@ export function ChatMessageList({
   hiddenMessageCountBelow,
   isLoadingModels,
   isStreaming,
-  model,
   providerId,
   modelsErrorMessage,
   onCancelEdit,

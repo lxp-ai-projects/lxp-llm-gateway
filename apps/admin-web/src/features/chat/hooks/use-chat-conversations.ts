@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { GatewayChatProviderOptions } from '../../../lib/api-client.types';
 import type {
@@ -60,9 +60,9 @@ export function useChatConversations({
     setSystemPrompt(activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT);
   }, [activeConversation?.id, activeConversation?.systemPrompt]);
 
-  const createConversation = useCallback(async (
+  async function createConversation(
     providerOptions?: GatewayChatProviderOptions,
-  ): Promise<void> => {
+  ): Promise<void> {
     const conversation = createLocalConversation(
       scope,
       providerId,
@@ -74,13 +74,13 @@ export function useChatConversations({
     await saveConversation(conversation);
     setConversations((current) => [conversation, ...current]);
     setActiveConversationId(conversation.id);
-  }, [maxOutputTokens, model, providerId, scope, systemPrompt]);
+  }
 
-  const persistConversationProvider = useCallback(async (
+  async function persistConversationProvider(
     nextProviderId: string,
     nextModel: string,
     nextProviderOptions?: StoredConversation['providerOptions'],
-  ): Promise<void> => {
+  ): Promise<void> {
     if (!activeConversation) {
       return;
     }
@@ -102,12 +102,12 @@ export function useChatConversations({
       ),
     );
     await saveConversation(updatedConversation);
-  }, [activeConversation]);
+  }
 
-  const persistConversationModel = useCallback(async (
+  async function persistConversationModel(
     nextModel: string,
     nextProviderOptions?: StoredConversation['providerOptions'],
-  ): Promise<void> => {
+  ): Promise<void> {
     if (!activeConversation) {
       return;
     }
@@ -128,11 +128,11 @@ export function useChatConversations({
       ),
     );
     await saveConversation(updatedConversation);
-  }, [activeConversation]);
+  }
 
-  const persistConversationProviderOptions = useCallback(async (
+  async function persistConversationProviderOptions(
     nextProviderOptions?: StoredConversation['providerOptions'],
-  ): Promise<void> => {
+  ): Promise<void> {
     if (!activeConversation) {
       return;
     }
@@ -152,11 +152,11 @@ export function useChatConversations({
       ),
     );
     await saveConversation(updatedConversation);
-  }, [activeConversation]);
+  }
 
-  const persistConversationSystemPrompt = useCallback(async (
+  async function persistConversationSystemPrompt(
     nextSystemPrompt: string,
-  ): Promise<void> => {
+  ): Promise<void> {
     setSystemPrompt(nextSystemPrompt);
 
     if (!activeConversation) {
@@ -177,11 +177,11 @@ export function useChatConversations({
       ),
     );
     await saveConversation(updatedConversation);
-  }, [activeConversation]);
+  }
 
-  const persistConversationMaxOutputTokens = useCallback(async (
+  async function persistConversationMaxOutputTokens(
     nextMaxOutputTokens?: number,
-  ): Promise<void> => {
+  ): Promise<void> {
     if (!activeConversation) {
       return;
     }
@@ -200,9 +200,9 @@ export function useChatConversations({
       ),
     );
     await saveConversation(updatedConversation);
-  }, [activeConversation]);
+  }
 
-  const confirmConversationDeletion = useCallback(async (): Promise<void> => {
+  async function confirmConversationDeletion(): Promise<void> {
     const targetConversation = conversationPendingDeletion;
     if (!targetConversation) {
       return;
@@ -222,14 +222,7 @@ export function useChatConversations({
       onSetChatError(null);
       onResetComposerState();
     }
-  }, [
-    activeConversationId,
-    conversationPendingDeletion,
-    conversations,
-    onResetComposerState,
-    onSetActivePanel,
-    onSetChatError,
-  ]);
+  }
 
   return {
     activeConversation,
