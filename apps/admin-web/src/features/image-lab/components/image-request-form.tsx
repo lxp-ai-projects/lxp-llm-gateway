@@ -8,7 +8,6 @@ import {
   Checkbox,
   Group,
   Image,
-  LoadingOverlay,
   Modal,
   NumberInput,
   Pagination,
@@ -33,7 +32,7 @@ import {
   IconUpload,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type {
   ImageAspectRatioOption,
@@ -44,8 +43,8 @@ import type {
 import type { ReturnTypeUseImageLab } from '../use-image-lab.types';
 
 export function ImageRequestForm({
-  imageLab,
-}: {
+                                   imageLab,
+                                 }: {
   imageLab: ReturnTypeUseImageLab;
 }) {
   const REFERENCE_CATALOG_PAGE_SIZE = 6;
@@ -60,7 +59,6 @@ export function ImageRequestForm({
     'all',
   );
   const [referenceCatalogPage, setReferenceCatalogPage] = useState(1);
-  const [showCatalogLoadingOverlay, setShowCatalogLoadingOverlay] = useState(false);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
   const capabilities = imageLab.selectedCapabilities;
   const aspectRatios = capabilities?.supportedImageAspectRatios ?? [];
@@ -137,29 +135,6 @@ export function ImageRequestForm({
   );
   const referenceLimitReached =
     imageLab.references.length >= imageLab.maxReferenceImages;
-  const hasCatalogError = Boolean(imageLab.catalogQuery.error);
-  const catalogErrorMessage =
-    imageLab.catalogQuery.error instanceof Error
-      ? imageLab.catalogQuery.error.message
-      : 'Unable to load providers and models.';
-
-  useEffect(() => {
-    if (hasCatalogError) {
-      setShowCatalogLoadingOverlay(true);
-      return;
-    }
-
-    if (!imageLab.catalogQuery.isPending) {
-      setShowCatalogLoadingOverlay(false);
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setShowCatalogLoadingOverlay(true);
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [hasCatalogError, imageLab.catalogQuery.isPending]);
 
   function openReferenceCatalog() {
     setReferenceCatalogOpened(true);
@@ -306,7 +281,7 @@ export function ImageRequestForm({
                             disabled={
                               (renameDrafts[asset.id] ?? asset.label ?? '').trim().length === 0 ||
                               (renameDrafts[asset.id] ?? asset.label ?? '').trim() ===
-                                (asset.label ?? '')
+                              (asset.label ?? '')
                             }
                             loading={
                               imageLab.updateAssetMutation.isPending &&
@@ -399,62 +374,42 @@ export function ImageRequestForm({
         <Stack gap="md">
           <Title order={3}>Image request</Title>
 
-          <div
-            className="image-provider-loading-shell"
-            data-testid="image-provider-loading-shell"
-          >
-            <LoadingOverlay
-              loaderProps={{ type: 'bars' }}
-              overlayProps={{ blur: 1, radius: 'md' }}
-              visible={showCatalogLoadingOverlay}
-              zIndex={2}
+          <Select
+            data={imageLab.providers.map((provider) => ({
+              value: provider.providerId,
+              label: provider.displayName,
+            }))}
+            data-testid="image-provider-select"
+            label="Provider"
+            onChange={(value) => {
+              imageLab.setProviderId(value ?? '');
+              imageLab.setModelId('');
+              imageLab.setPrompt('');
+            }}
+            value={imageLab.providerId}
+          />
+
+          <Select
+            data={imageLab.models.map((model: ProviderModelSummary) => ({
+              value: model.id,
+              label: model.displayName,
+            }))}
+            data-testid="image-model-select"
+            label="Model"
+            onChange={(value) => imageLab.setModelId(value ?? '')}
+            value={imageLab.modelId}
+          />
+
+          {imageLab.hasNanoGptPaidModels ? (
+            <Checkbox
+              checked={imageLab.showNanoGptPaidModels}
+              data-testid="nanogpt-paid-models-toggle"
+              label="Show NanoGPT paid-only models"
+              onChange={(event) =>
+                imageLab.setShowNanoGptPaidModels(event.currentTarget.checked)
+              }
             />
-            <Stack gap="md">
-              {hasCatalogError ? (
-                <Alert color="red" title="Catalog unavailable">
-                  {catalogErrorMessage}
-                </Alert>
-              ) : null}
-              <Select
-                data={imageLab.providers.map((provider) => ({
-                  value: provider.providerId,
-                  label: provider.displayName,
-                }))}
-                data-testid="image-provider-select"
-                disabled={imageLab.catalogQuery.isPending || hasCatalogError}
-                label="Provider"
-                onChange={(value) => {
-                  imageLab.setProviderId(value ?? '');
-                  imageLab.setModelId('');
-                  imageLab.setPrompt('');
-                }}
-                value={imageLab.providerId}
-              />
-
-              <Select
-                data={imageLab.models.map((model: ProviderModelSummary) => ({
-                  value: model.id,
-                  label: model.displayName,
-                }))}
-                data-testid="image-model-select"
-                disabled={imageLab.catalogQuery.isPending || hasCatalogError}
-                label="Model"
-                onChange={(value) => imageLab.setModelId(value ?? '')}
-                value={imageLab.modelId}
-              />
-
-              {imageLab.hasNanoGptPaidModels ? (
-                <Checkbox
-                  checked={imageLab.showNanoGptPaidModels}
-                  data-testid="nanogpt-paid-models-toggle"
-                  label="Show NanoGPT paid-only models"
-                  onChange={(event) =>
-                    imageLab.setShowNanoGptPaidModels(event.currentTarget.checked)
-                  }
-                />
-              ) : null}
-            </Stack>
-          </div>
+          ) : null}
 
           <Accordion chevronPosition="right" defaultValue="prompt-and-options" variant="separated">
             <Accordion.Item value="prompt-and-options">
@@ -472,122 +427,122 @@ export function ImageRequestForm({
                     value={imageLab.prompt}
                   />
 
-                <Group grow align="start">
-                  {aspectRatios.length ? (
+                  <Group grow align="start">
+                    {aspectRatios.length ? (
+                      <Select
+                        data={aspectRatios.map((option) => ({
+                          value: (option as ImageAspectRatioOption).value,
+                          label: (option as ImageAspectRatioOption).label,
+                        }))}
+                        data-testid="image-aspect-ratio-select"
+                        label="Aspect ratio"
+                        onChange={(value) => imageLab.setAspectRatio(value ?? '')}
+                        value={imageLab.aspectRatio}
+                      />
+                    ) : null}
+                    {responseFormats.length ? (
+                      <Select
+                        data={responseFormats.map((format: 'url' | 'b64_json') => ({
+                          value: format,
+                          label: format === 'b64_json' ? 'Base64' : 'Hosted URL',
+                        }))}
+                        data-testid="image-response-format-select"
+                        label="Response format"
+                        onChange={(value) =>
+                          imageLab.setResponseFormat((value as 'url' | 'b64_json') ?? 'b64_json')
+                        }
+                        value={imageLab.responseFormat}
+                      />
+                    ) : null}
                     <Select
-                      data={aspectRatios.map((option) => ({
-                        value: (option as ImageAspectRatioOption).value,
-                        label: (option as ImageAspectRatioOption).label,
-                      }))}
-                      data-testid="image-aspect-ratio-select"
-                      label="Aspect ratio"
-                      onChange={(value) => imageLab.setAspectRatio(value ?? '')}
-                      value={imageLab.aspectRatio}
+                      data={buildImageCountOptions(maxGeneratedImagesPerRequest)}
+                      data-testid="image-count-select"
+                      label="Count"
+                      onChange={(value) => imageLab.setImageCount(value ?? '1')}
+                      value={imageLab.imageCount}
                     />
-                  ) : null}
-                  {responseFormats.length ? (
-                    <Select
-                      data={responseFormats.map((format: 'url' | 'b64_json') => ({
-                        value: format,
-                        label: format === 'b64_json' ? 'Base64' : 'Hosted URL',
-                      }))}
-                      data-testid="image-response-format-select"
-                      label="Response format"
-                      onChange={(value) =>
-                        imageLab.setResponseFormat((value as 'url' | 'b64_json') ?? 'b64_json')
-                      }
-                      value={imageLab.responseFormat}
-                    />
-                  ) : null}
-                  <Select
-                    data={buildImageCountOptions(maxGeneratedImagesPerRequest)}
-                    data-testid="image-count-select"
-                    label="Count"
-                    onChange={(value) => imageLab.setImageCount(value ?? '1')}
-                    value={imageLab.imageCount}
-                  />
-                </Group>
+                  </Group>
 
-                <Group grow align="start">
-                  {resolutions.length ? (
-                    <Select
-                      data={resolutions}
-                      data-testid="image-resolution-select"
-                      label="Resolution"
-                      onChange={(value) => imageLab.setResolution(value ?? '')}
-                      value={imageLab.resolution}
-                    />
-                  ) : null}
-                  {backgrounds.length ? (
-                    <Select
-                      data={backgrounds}
-                      data-testid="image-background-select"
-                      label="Background"
-                      onChange={(value) => imageLab.setBackground(value ?? '')}
-                      value={imageLab.background}
-                    />
-                  ) : null}
-                  {qualities.length ? (
-                    <Select
-                      data={qualities}
-                      data-testid="image-quality-select"
-                      label="Quality"
-                      onChange={(value) => imageLab.setQuality(value ?? '')}
-                      value={imageLab.quality}
-                    />
-                  ) : null}
-                  {showGptImageModerationControl ? (
-                    <Select
-                      data={moderations.map((option) => ({
-                        value: (option as ImageModerationOption).value,
-                        label: (option as ImageModerationOption).label,
-                      }))}
-                      data-testid="image-moderation-select"
-                      label="Moderation"
-                      onChange={(value) => imageLab.setModeration(value ?? '')}
-                      value={imageLab.moderation}
-                    />
-                  ) : null}
-                </Group>
+                  <Group grow align="start">
+                    {resolutions.length ? (
+                      <Select
+                        data={resolutions}
+                        data-testid="image-resolution-select"
+                        label="Resolution"
+                        onChange={(value) => imageLab.setResolution(value ?? '')}
+                        value={imageLab.resolution}
+                      />
+                    ) : null}
+                    {backgrounds.length ? (
+                      <Select
+                        data={backgrounds}
+                        data-testid="image-background-select"
+                        label="Background"
+                        onChange={(value) => imageLab.setBackground(value ?? '')}
+                        value={imageLab.background}
+                      />
+                    ) : null}
+                    {qualities.length ? (
+                      <Select
+                        data={qualities}
+                        data-testid="image-quality-select"
+                        label="Quality"
+                        onChange={(value) => imageLab.setQuality(value ?? '')}
+                        value={imageLab.quality}
+                      />
+                    ) : null}
+                    {showGptImageModerationControl ? (
+                      <Select
+                        data={moderations.map((option) => ({
+                          value: (option as ImageModerationOption).value,
+                          label: (option as ImageModerationOption).label,
+                        }))}
+                        data-testid="image-moderation-select"
+                        label="Moderation"
+                        onChange={(value) => imageLab.setModeration(value ?? '')}
+                        value={imageLab.moderation}
+                      />
+                    ) : null}
+                  </Group>
 
-                <Group grow align="start">
-                  {outputFormats.length ? (
-                    <Select
-                      data={outputFormats}
-                      data-testid="image-output-format-select"
-                      label="Output format"
-                      onChange={(value) => imageLab.setOutputFormat(value ?? '')}
-                      value={imageLab.outputFormat}
-                    />
-                  ) : null}
-                  {outputCompressionRange ? (
-                    <NumberInput
-                      data-testid="image-output-compression-input"
-                      label="Compression"
-                      min={outputCompressionRange.min}
-                      max={outputCompressionRange.max}
-                      step={outputCompressionRange.step ?? 1}
-                      onChange={(value) =>
-                        imageLab.setOutputCompression(
-                          typeof value === 'number' ? value : '',
-                        )
-                      }
-                      value={imageLab.outputCompression}
-                    />
-                  ) : null}
-                  {imageLab.references.length > 0 && inputFidelities.length ? (
-                    <Select
-                      data={inputFidelities.map((option) => ({
-                        value: (option as ImageInputFidelityOption).value,
-                        label: (option as ImageInputFidelityOption).label,
-                      }))}
-                      data-testid="image-input-fidelity-select"
-                      label="Input fidelity"
-                      onChange={(value) => imageLab.setInputFidelity(value ?? '')}
-                      value={imageLab.inputFidelity}
-                    />
-                  ) : null}
-                </Group>
+                  <Group grow align="start">
+                    {outputFormats.length ? (
+                      <Select
+                        data={outputFormats}
+                        data-testid="image-output-format-select"
+                        label="Output format"
+                        onChange={(value) => imageLab.setOutputFormat(value ?? '')}
+                        value={imageLab.outputFormat}
+                      />
+                    ) : null}
+                    {outputCompressionRange ? (
+                      <NumberInput
+                        data-testid="image-output-compression-input"
+                        label="Compression"
+                        min={outputCompressionRange.min}
+                        max={outputCompressionRange.max}
+                        step={outputCompressionRange.step ?? 1}
+                        onChange={(value) =>
+                          imageLab.setOutputCompression(
+                            typeof value === 'number' ? value : '',
+                          )
+                        }
+                        value={imageLab.outputCompression}
+                      />
+                    ) : null}
+                    {imageLab.references.length > 0 && inputFidelities.length ? (
+                      <Select
+                        data={inputFidelities.map((option) => ({
+                          value: (option as ImageInputFidelityOption).value,
+                          label: (option as ImageInputFidelityOption).label,
+                        }))}
+                        data-testid="image-input-fidelity-select"
+                        label="Input fidelity"
+                        onChange={(value) => imageLab.setInputFidelity(value ?? '')}
+                        value={imageLab.inputFidelity}
+                      />
+                    ) : null}
+                  </Group>
                 </Stack>
               </Accordion.Panel>
             </Accordion.Item>
@@ -624,126 +579,126 @@ export function ImageRequestForm({
           ) : null}
 
           <Group align="end">
-          <TextInput
-            className="image-reference-url"
-            data-testid="image-reference-url-input"
-            label="Reference image URL"
-            onChange={(event) => imageLab.setReferenceUrl(event.currentTarget.value)}
-            placeholder="https://example.com/source.png"
-            value={imageLab.referenceUrl}
-          />
-          <Button
-            data-testid="image-add-reference-url"
-            disabled={imageLab.references.length >= imageLab.maxReferenceImages}
-            onClick={imageLab.addReferenceUrl}
-            variant="light"
-          >
-            Add URL
-          </Button>
+            <TextInput
+              className="image-reference-url"
+              data-testid="image-reference-url-input"
+              label="Reference image URL"
+              onChange={(event) => imageLab.setReferenceUrl(event.currentTarget.value)}
+              placeholder="https://example.com/source.png"
+              value={imageLab.referenceUrl}
+            />
+            <Button
+              data-testid="image-add-reference-url"
+              disabled={imageLab.references.length >= imageLab.maxReferenceImages}
+              onClick={imageLab.addReferenceUrl}
+              variant="light"
+            >
+              Add URL
+            </Button>
           </Group>
 
           <Group>
-          <Button
-            component="label"
-            data-testid="image-upload-reference"
-            disabled={imageLab.references.length >= imageLab.maxReferenceImages}
-            htmlFor="image-reference-upload-input"
-            leftSection={<IconUpload size={16} />}
-            variant="light"
-          >
-            Upload image
-          </Button>
-          <Text c="dimmed" size="sm">
-            Uploaded files become gateway-managed reference assets.
-          </Text>
+            <Button
+              component="label"
+              data-testid="image-upload-reference"
+              disabled={imageLab.references.length >= imageLab.maxReferenceImages}
+              htmlFor="image-reference-upload-input"
+              leftSection={<IconUpload size={16} />}
+              variant="light"
+            >
+              Upload image
+            </Button>
+            <Text c="dimmed" size="sm">
+              Uploaded files become gateway-managed reference assets.
+            </Text>
           </Group>
 
           <Accordion chevronPosition="right" defaultValue={null} variant="separated">
-          <Accordion.Item value="selected-references">
-            <Accordion.Control data-testid="selected-references-accordion">
-              {selectedReferencesLabel}
-            </Accordion.Control>
-            <Accordion.Panel>
-              {imageLab.references.length ? (
-                <Stack gap="xs">
-                  {imageLab.references.map((reference) => (
-                    <Card key={reference.id} padding="sm" radius="md" withBorder>
-                      <Group align="flex-start" justify="space-between" wrap="nowrap">
-                        <Group align="flex-start" wrap="nowrap">
-                          <Image
-                            alt={reference.label}
-                            h={72}
-                            radius="md"
-                            src={reference.previewUrl}
-                            w={72}
-                          />
-                          <Stack gap={4}>
-                            <Text lineClamp={2} size="sm">
-                              {reference.label}
-                            </Text>
-                            <Badge size="sm" variant="light">
-                              {reference.kind === 'asset' ? reference.sourceType : 'url'}
-                            </Badge>
-                          </Stack>
+            <Accordion.Item value="selected-references">
+              <Accordion.Control data-testid="selected-references-accordion">
+                {selectedReferencesLabel}
+              </Accordion.Control>
+              <Accordion.Panel>
+                {imageLab.references.length ? (
+                  <Stack gap="xs">
+                    {imageLab.references.map((reference) => (
+                      <Card key={reference.id} padding="sm" radius="md" withBorder>
+                        <Group align="flex-start" justify="space-between" wrap="nowrap">
+                          <Group align="flex-start" wrap="nowrap">
+                            <Image
+                              alt={reference.label}
+                              h={72}
+                              radius="md"
+                              src={reference.previewUrl}
+                              w={72}
+                            />
+                            <Stack gap={4}>
+                              <Text lineClamp={2} size="sm">
+                                {reference.label}
+                              </Text>
+                              <Badge size="sm" variant="light">
+                                {reference.kind === 'asset' ? reference.sourceType : 'url'}
+                              </Badge>
+                            </Stack>
+                          </Group>
+                          <Button
+                            aria-label={`Remove ${reference.label}`}
+                            color="red"
+                            leftSection={<IconTrash size={14} />}
+                            onClick={() => imageLab.removeReference(reference.id)}
+                            size="xs"
+                            variant="subtle"
+                          >
+                            Remove
+                          </Button>
                         </Group>
-                        <Button
-                          aria-label={`Remove ${reference.label}`}
-                          color="red"
-                          leftSection={<IconTrash size={14} />}
-                          onClick={() => imageLab.removeReference(reference.id)}
-                          size="xs"
-                          variant="subtle"
-                        >
-                          Remove
-                        </Button>
-                      </Group>
-                    </Card>
-                  ))}
-                </Stack>
-              ) : (
-                <Text c="dimmed" size="sm">
-                  No references selected yet.
-                </Text>
-              )}
-            </Accordion.Panel>
-          </Accordion.Item>
+                      </Card>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    No references selected yet.
+                  </Text>
+                )}
+              </Accordion.Panel>
+            </Accordion.Item>
           </Accordion>
 
           <Stack gap="xs">
-          <Group justify="space-between" wrap="wrap">
-            <div>
-              <Text fw={600} size="sm">
-                Uploaded reference catalog
-              </Text>
-              <Text c="dimmed" size="xs">
-                Reuse without uploading again
-              </Text>
-            </div>
-            <Group gap="xs">
-              <Badge color={referenceLimitReached ? 'orange' : 'teal'} variant="light">
-                {imageLab.references.length} / {imageLab.maxReferenceImages} selected
-              </Badge>
-              <Button
-                data-testid="reference-catalog-open"
-                leftSection={<IconLibraryPhoto size={16} />}
-                onClick={openReferenceCatalog}
-                variant="light"
-              >
-                Browse catalog
-              </Button>
+            <Group justify="space-between" wrap="wrap">
+              <div>
+                <Text fw={600} size="sm">
+                  Uploaded reference catalog
+                </Text>
+                <Text c="dimmed" size="xs">
+                  Reuse without uploading again
+                </Text>
+              </div>
+              <Group gap="xs">
+                <Badge color={referenceLimitReached ? 'orange' : 'teal'} variant="light">
+                  {imageLab.references.length} / {imageLab.maxReferenceImages} selected
+                </Badge>
+                <Button
+                  data-testid="reference-catalog-open"
+                  leftSection={<IconLibraryPhoto size={16} />}
+                  onClick={openReferenceCatalog}
+                  variant="light"
+                >
+                  Browse catalog
+                </Button>
+              </Group>
             </Group>
-          </Group>
 
-          {referenceLimitReached ? (
-            <Alert color="orange" title="Reference limit reached">
-              This model supports up to {imageLab.maxReferenceImages} reference
-              {imageLab.maxReferenceImages > 1 ? 's' : ''}. Remove one before adding more.
-            </Alert>
-          ) : (
-            <Text c="dimmed" size="sm">
-              Open the catalog to search, filter, rename, select, and paginate uploaded references.
-            </Text>
-          )}
+            {referenceLimitReached ? (
+              <Alert color="orange" title="Reference limit reached">
+                This model supports up to {imageLab.maxReferenceImages} reference
+                {imageLab.maxReferenceImages > 1 ? 's' : ''}. Remove one before adding more.
+              </Alert>
+            ) : (
+              <Text c="dimmed" size="sm">
+                Open the catalog to search, filter, rename, select, and paginate uploaded references.
+              </Text>
+            )}
           </Stack>
 
           {imageLab.requestError ? (

@@ -178,6 +178,17 @@ export interface ImageProviderCatalog {
   models: ImageProviderModelCatalogEntry[];
 }
 
+export interface ImageReferenceLimitModel {
+  id: string;
+  displayName?: string;
+  capabilities?: {
+    maxReferenceImagesPerRequest?: number;
+    imageEditOptions?: {
+      maxReferenceImagesPerRequest?: number;
+    };
+  };
+}
+
 export interface GatewayRequestContext {
   requestId: string;
   callerId: string;
@@ -232,4 +243,139 @@ export function supportsPreservedThinking(
   }
 
   return providerId === 'zai' || providerId === 'nanogpt';
+}
+
+export function resolveMaxReferenceImages(
+  providerId: ProviderId | string | undefined,
+  model: ImageReferenceLimitModel | undefined,
+): number {
+  const editOptions = model?.capabilities?.imageEditOptions;
+  const catalogValue =
+    editOptions?.maxReferenceImagesPerRequest ??
+    model?.capabilities?.maxReferenceImagesPerRequest;
+
+  if (providerId !== 'nanogpt' || !model) {
+    return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
+  }
+
+  const normalizedModelId = normalizeModelToken(model.id);
+  const normalizedDisplayName = normalizeModelToken(model.displayName);
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'seedream-4-0',
+      'seedream-4-0-250828',
+      'seedream-4-5',
+      'seedream-4-5-251128',
+      'seedream-5-0-lite',
+      'seedream-5-0-lite-260128',
+      'seedream-5-lite',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 10);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'nano-banana-2',
+      'nano-banana-2-fast',
+      'nano-banana-pro',
+      'nano-banana-pro-edit',
+      'nano-banana-pro-ultra',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 14);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'nano-banana-pro-edit-ultra',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 10);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'qwen-image',
+      'qwen-image-edit',
+      'qwen-image-img2img',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 3);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'wan-2-7-image-pro',
+      'wan2-7-image-pro',
+      'wan2-7-image-professional-edition',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 9);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'nano-banana',
+      'nano-banana-edit',
+      'gemini-flash-edit',
+      'gpt-4o-image',
+      'flux-kontext',
+      'flux-kontext-dev',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 5);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'gpt-image-1',
+      'gpt-image-1-5',
+      'gpt-image-1-mini',
+      'chatgpt-image-latest',
+    )
+  ) {
+    return Math.max(catalogValue ?? 0, 16);
+  }
+
+  if (
+    isOneOf(
+      normalizedModelId,
+      normalizedDisplayName,
+      'seededit-3-0',
+      'seededit-3-0-i2i',
+      'seededit-3-0-i2i-250628',
+    )
+  ) {
+    return 1;
+  }
+
+  return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
+}
+
+function normalizeModelToken(value: string | undefined): string {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_/\s.]+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function isOneOf(valueA: string, valueB: string, ...candidates: string[]): boolean {
+  return candidates.includes(valueA) || candidates.includes(valueB);
 }

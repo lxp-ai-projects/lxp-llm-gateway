@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { resolveMaxReferenceImages } from '@lxp/domain';
 
 import { gatewayApiClient, gatewayApiUrl } from '../../lib/api-client';
 import type {
@@ -13,58 +14,31 @@ import { resolveImageFormDefaults } from './image-form-defaults';
 import { buildImageRequestPayload } from './image-request';
 
 const DEFAULT_HISTORY_PAGE = 1;
-export const IMAGE_LAB_DRAFT_STORAGE_KEY = 'lxp.image-lab.draft.v1';
-
-type ImageLabDraft = {
-  providerId: string;
-  modelId: string;
-  prompt: string;
-  aspectRatio: string;
-  responseFormat: 'url' | 'b64_json';
-  resolution: string;
-  background: string;
-  quality: string;
-  moderation: string;
-  outputFormat: string;
-  outputCompression: number | '';
-  inputFidelity: string;
-  imageCount: string;
-  referenceUrl: string;
-  references: ImageReferenceDraft[];
-  showNanoGptPaidModels: boolean;
-};
 
 export function useImageLab() {
-  const initialDraft = loadImageLabDraft();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [providerId, setProviderId] = useState(initialDraft?.providerId ?? '');
-  const [modelId, setModelId] = useState(initialDraft?.modelId ?? '');
-  const [prompt, setPrompt] = useState(initialDraft?.prompt ?? '');
-  const [aspectRatio, setAspectRatio] = useState(initialDraft?.aspectRatio ?? '');
+  const [providerId, setProviderId] = useState('');
+  const [modelId, setModelId] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [aspectRatio, setAspectRatio] = useState('');
   const [responseFormat, setResponseFormat] = useState<'url' | 'b64_json'>(
-    initialDraft?.responseFormat ?? 'b64_json',
+    'b64_json',
   );
-  const [resolution, setResolution] = useState(initialDraft?.resolution ?? '');
-  const [background, setBackground] = useState(initialDraft?.background ?? '');
-  const [quality, setQuality] = useState(initialDraft?.quality ?? '');
-  const [moderation, setModeration] = useState(initialDraft?.moderation ?? '');
-  const [outputFormat, setOutputFormat] = useState(initialDraft?.outputFormat ?? '');
-  const [outputCompression, setOutputCompression] = useState<number | ''>(
-    initialDraft?.outputCompression ?? '',
-  );
-  const [inputFidelity, setInputFidelity] = useState(initialDraft?.inputFidelity ?? '');
-  const [imageCount, setImageCount] = useState(initialDraft?.imageCount ?? '1');
-  const [referenceUrl, setReferenceUrl] = useState(initialDraft?.referenceUrl ?? '');
-  const [references, setReferences] = useState<ImageReferenceDraft[]>(
-    initialDraft?.references ?? [],
-  );
+  const [resolution, setResolution] = useState('');
+  const [background, setBackground] = useState('');
+  const [quality, setQuality] = useState('');
+  const [moderation, setModeration] = useState('');
+  const [outputFormat, setOutputFormat] = useState('');
+  const [outputCompression, setOutputCompression] = useState<number | ''>('');
+  const [inputFidelity, setInputFidelity] = useState('');
+  const [imageCount, setImageCount] = useState('1');
+  const [referenceUrl, setReferenceUrl] = useState('');
+  const [references, setReferences] = useState<ImageReferenceDraft[]>([]);
   const [results, setResults] = useState<GatewayGeneratedImage[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(DEFAULT_HISTORY_PAGE);
-  const [showNanoGptPaidModels, setShowNanoGptPaidModels] = useState(
-    initialDraft?.showNanoGptPaidModels ?? false,
-  );
+  const [showNanoGptPaidModels, setShowNanoGptPaidModels] = useState(false);
   const [activeRenderStartedAt, setActiveRenderStartedAt] = useState<number | null>(null);
   const [renderNowMs, setRenderNowMs] = useState(() => Date.now());
 
@@ -85,22 +59,22 @@ export function useImageLab() {
   const selectedProvider = providers.find((provider) => provider.providerId === providerId);
   const hasNanoGptPaidModels = Boolean(
     selectedProvider?.providerId === 'nanogpt' &&
-      selectedProvider.models.some(
-        (model) => model.capabilities?.requiresPaidAccess === true,
-      ),
+    selectedProvider.models.some(
+      (model) => model.capabilities?.requiresPaidAccess === true,
+    ),
   );
   const models: ProviderModelSummary[] = (
     selectedProvider?.providerId === 'nanogpt' && !showNanoGptPaidModels
       ? (selectedProvider?.models ?? []).filter(
-          (model: ProviderModelSummary) =>
-            model.capabilities?.requiresPaidAccess !== true,
-        )
+        (model: ProviderModelSummary) =>
+          model.capabilities?.requiresPaidAccess !== true,
+      )
       : selectedProvider?.models ?? []
   )
     .slice()
     .sort((left: ProviderModelSummary, right: ProviderModelSummary) =>
-    (left.displayName || left.id).localeCompare(right.displayName || right.id),
-  );
+      (left.displayName || left.id).localeCompare(right.displayName || right.id),
+    );
   const selectedModel = models.find((model: ProviderModelSummary) => model.id === modelId);
   const capabilities = selectedModel?.capabilities;
   const supportsImageEditing = capabilities?.supportsImageEditing === true;
@@ -136,176 +110,22 @@ export function useImageLab() {
 
   useEffect(() => {
     const defaults = resolveImageFormDefaults(selectedCapabilities);
-    setAspectRatio((current) =>
-      resolveDraftStringOption(
-        current,
-        defaults.aspectRatio,
-        selectedCapabilities?.supportedImageAspectRatios?.map((option) => option.value),
-      ),
-    );
-    setResponseFormat((current) =>
-      resolveDraftResponseFormat(
-        current,
-        defaults.responseFormat,
-        selectedCapabilities?.supportedImageResponseFormats,
-      ),
-    );
-    setResolution((current) =>
-      resolveDraftStringOption(
-        current,
-        defaults.resolution,
-        selectedCapabilities?.supportedImageResolutions?.map((option) => option.value),
-      ),
-    );
-    setBackground((current) =>
-      resolveDraftStringOption(
-        current,
-        defaults.background,
-        selectedCapabilities?.supportedImageBackgrounds?.map((option) => option.value),
-      ),
-    );
-    setQuality((current) =>
-      resolveDraftStringOption(
-        current,
-        defaults.quality,
-        selectedCapabilities?.supportedImageQualities?.map((option) => option.value),
-      ),
-    );
-    setModeration((current) =>
-      resolveDraftStringOption(
-        current,
-        defaults.moderation,
-        selectedCapabilities?.supportedImageModerations?.map((option) => option.value),
-      ),
-    );
-    setOutputFormat((current) =>
-      resolveDraftStringOption(
-        current,
-        defaults.outputFormat,
-        selectedCapabilities?.supportedImageOutputFormats?.map((option) => option.value),
-      ),
-    );
-    setOutputCompression((current) =>
-      resolveDraftOutputCompression(
-        current,
-        defaults.outputCompression,
-        selectedCapabilities?.imageOutputCompressionRange,
-      ),
-    );
-    setInputFidelity((current) =>
-      resolveDraftStringOption(
-        current,
-        defaults.inputFidelity,
-        selectedCapabilities?.supportedImageInputFidelities?.map((option) => option.value),
-      ),
-    );
-    setImageCount((current) =>
-      resolveDraftImageCount(
-        current,
-        defaults.imageCount,
-        selectedCapabilities?.maxGeneratedImagesPerRequest,
-      ),
-    );
+    setAspectRatio(defaults.aspectRatio);
+    setResponseFormat(defaults.responseFormat);
+    setResolution(defaults.resolution);
+    setBackground(defaults.background);
+    setQuality(defaults.quality);
+    setModeration(defaults.moderation);
+    setOutputFormat(defaults.outputFormat);
+    setOutputCompression(defaults.outputCompression);
+    setInputFidelity(defaults.inputFidelity);
+    setImageCount(defaults.imageCount);
   }, [selectedCapabilities]);
-
-  useEffect(() => {
-    persistImageLabDraft({
-      providerId,
-      modelId,
-      prompt,
-      aspectRatio,
-      responseFormat,
-      resolution,
-      background,
-      quality,
-      moderation,
-      outputFormat,
-      outputCompression,
-      inputFidelity,
-      imageCount,
-      referenceUrl,
-      references,
-      showNanoGptPaidModels,
-    });
-  }, [
-    aspectRatio,
-    background,
-    imageCount,
-    inputFidelity,
-    modelId,
-    moderation,
-    outputCompression,
-    outputFormat,
-    prompt,
-    providerId,
-    quality,
-    referenceUrl,
-    references,
-    resolution,
-    responseFormat,
-    showNanoGptPaidModels,
-  ]);
 
   const maxReferenceImages = resolveMaxReferenceImages(
     selectedProvider?.providerId,
     selectedModel,
   );
-
-  useEffect(() => {
-    if (!catalogQuery.data?.providers.length) {
-      return;
-    }
-
-    const nextProvider =
-      providers.find((provider) => provider.providerId === providerId) ??
-      providers[0];
-    const nextProviderId = nextProvider?.providerId ?? '';
-    const nextModels = resolveProviderModels(
-      nextProvider,
-      showNanoGptPaidModels,
-    );
-    const nextModelId = nextModels.some((model) => model.id === modelId)
-      ? modelId
-      : nextProvider?.defaultModelId &&
-          nextModels.some((model) => model.id === nextProvider.defaultModelId)
-        ? nextProvider.defaultModelId
-        : nextModels[0]?.id ?? '';
-    const nextModel = nextModels.find((model) => model.id === nextModelId);
-    const nextMaxReferenceImages = resolveMaxReferenceImages(
-      nextProvider?.providerId,
-      nextModel,
-    );
-    const sanitizedReferenceUrl = referenceUrl.trim();
-    const nextReferences = sanitizeRestoredReferences(
-      references,
-      nextMaxReferenceImages,
-    );
-
-    if (nextProviderId !== providerId) {
-      setProviderId(nextProviderId);
-    }
-
-    if (nextModelId !== modelId) {
-      setModelId(nextModelId);
-    }
-
-    if (sanitizedReferenceUrl !== referenceUrl) {
-      setReferenceUrl(sanitizedReferenceUrl);
-    }
-
-    if (!areReferencesEqual(nextReferences, references)) {
-      setReferences(nextReferences);
-    }
-  }, [
-    catalogQuery.data?.providers,
-    modelId,
-    providerId,
-    providers,
-    referenceUrl,
-    references,
-    showNanoGptPaidModels,
-  ]);
-
   const canEdit = supportsImageEditing && references.length > 0;
   const pendingResultCount = Math.max(1, Number.parseInt(imageCount, 10) || 1);
   const renderStats = resolveRenderStats(
@@ -411,9 +231,9 @@ export function useImageLab() {
         current.map((reference) =>
           reference.kind === 'asset' && reference.assetId === asset.id
             ? {
-                ...reference,
-                label: asset.label ?? 'Gateway image asset',
-              }
+              ...reference,
+              label: asset.label ?? 'Gateway image asset',
+            }
             : reference,
         ),
       );
@@ -594,160 +414,6 @@ export function useImageLab() {
   };
 }
 
-function loadImageLabDraft(): ImageLabDraft | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(IMAGE_LAB_DRAFT_STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<ImageLabDraft>;
-    return {
-      providerId: typeof parsed.providerId === 'string' ? parsed.providerId : '',
-      modelId: typeof parsed.modelId === 'string' ? parsed.modelId : '',
-      prompt: typeof parsed.prompt === 'string' ? parsed.prompt : '',
-      aspectRatio: typeof parsed.aspectRatio === 'string' ? parsed.aspectRatio : '',
-      responseFormat:
-        parsed.responseFormat === 'url' || parsed.responseFormat === 'b64_json'
-          ? parsed.responseFormat
-          : 'b64_json',
-      resolution: typeof parsed.resolution === 'string' ? parsed.resolution : '',
-      background: typeof parsed.background === 'string' ? parsed.background : '',
-      quality: typeof parsed.quality === 'string' ? parsed.quality : '',
-      moderation: typeof parsed.moderation === 'string' ? parsed.moderation : '',
-      outputFormat: typeof parsed.outputFormat === 'string' ? parsed.outputFormat : '',
-      outputCompression:
-        typeof parsed.outputCompression === 'number' ||
-        parsed.outputCompression === ''
-          ? parsed.outputCompression
-          : '',
-      inputFidelity:
-        typeof parsed.inputFidelity === 'string' ? parsed.inputFidelity : '',
-      imageCount: typeof parsed.imageCount === 'string' ? parsed.imageCount : '1',
-      referenceUrl: typeof parsed.referenceUrl === 'string' ? parsed.referenceUrl : '',
-      references: Array.isArray(parsed.references)
-        ? parsed.references.filter(isImageReferenceDraft)
-        : [],
-      showNanoGptPaidModels: parsed.showNanoGptPaidModels === true,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function persistImageLabDraft(draft: ImageLabDraft): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(
-      IMAGE_LAB_DRAFT_STORAGE_KEY,
-      JSON.stringify(draft),
-    );
-  } catch {
-    // Ignore storage failures so the lab remains usable in private mode.
-  }
-}
-
-function isImageReferenceDraft(value: unknown): value is ImageReferenceDraft {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const candidate = value as Partial<ImageReferenceDraft>;
-  if (
-    candidate.kind === 'asset' &&
-    typeof candidate.id === 'string' &&
-    typeof candidate.assetId === 'string' &&
-    typeof candidate.label === 'string' &&
-    typeof candidate.previewUrl === 'string' &&
-    (candidate.sourceType === 'upload' || candidate.sourceType === 'generated')
-  ) {
-    return true;
-  }
-
-  return (
-    candidate.kind === 'image_url' &&
-    typeof candidate.id === 'string' &&
-    typeof candidate.url === 'string' &&
-    typeof candidate.label === 'string' &&
-    typeof candidate.previewUrl === 'string'
-  );
-}
-
-function resolveDraftStringOption(
-  current: string,
-  fallback: string,
-  supportedValues: string[] | undefined,
-): string {
-  if (!supportedValues?.length) {
-    return current || fallback;
-  }
-
-  return supportedValues.includes(current) ? current : fallback;
-}
-
-function resolveDraftResponseFormat(
-  current: 'url' | 'b64_json',
-  fallback: 'url' | 'b64_json',
-  supportedValues: Array<'url' | 'b64_json'> | undefined,
-): 'url' | 'b64_json' {
-  if (!supportedValues?.length) {
-    return current || fallback;
-  }
-
-  return supportedValues.includes(current) ? current : fallback;
-}
-
-function resolveDraftOutputCompression(
-  current: number | '',
-  fallback: number | '',
-  range:
-    | {
-        min: number;
-        max: number;
-      }
-    | undefined,
-): number | '' {
-  if (!range) {
-    return current === '' ? fallback : current;
-  }
-
-  if (
-    typeof current === 'number' &&
-    current >= range.min &&
-    current <= range.max
-  ) {
-    return current;
-  }
-
-  return fallback;
-}
-
-function resolveDraftImageCount(
-  current: string,
-  fallback: string,
-  maxGeneratedImagesPerRequest: number | undefined,
-): string {
-  const maxValue = Math.max(1, Math.min(maxGeneratedImagesPerRequest ?? 1, 10));
-  const currentNumber = Number.parseInt(current, 10);
-
-  if (
-    Number.isInteger(currentNumber) &&
-    currentNumber >= 1 &&
-    currentNumber <= maxValue
-  ) {
-    return String(currentNumber);
-  }
-
-  return fallback;
-}
-
 function mapAssetReference(asset: GatewayImageAssetSummary): ImageReferenceDraft {
   return {
     id: createClientId(),
@@ -757,66 +423,6 @@ function mapAssetReference(asset: GatewayImageAssetSummary): ImageReferenceDraft
     previewUrl: resolveGatewayMediaUrl(asset.contentUrl),
     sourceType: asset.sourceType,
   };
-}
-
-function resolveProviderModels(
-  provider: { providerId: string; models: ProviderModelSummary[] } | undefined,
-  showNanoGptPaidModels: boolean,
-): ProviderModelSummary[] {
-  if (!provider) {
-    return [];
-  }
-
-  const visibleModels =
-    provider.providerId === 'nanogpt' && !showNanoGptPaidModels
-      ? provider.models.filter(
-          (model) => model.capabilities?.requiresPaidAccess !== true,
-        )
-      : provider.models;
-
-  return visibleModels
-    .slice()
-    .sort((left, right) =>
-      (left.displayName || left.id).localeCompare(right.displayName || right.id),
-    );
-}
-
-function sanitizeRestoredReferences(
-  references: ImageReferenceDraft[],
-  maxReferenceImages: number,
-): ImageReferenceDraft[] {
-  return references
-    .filter((reference) => {
-      if (reference.kind === 'asset') {
-        return Boolean(
-          reference.id.trim() &&
-            reference.assetId.trim() &&
-            reference.label.trim() &&
-            reference.previewUrl.trim(),
-        );
-      }
-
-      return Boolean(
-        reference.id.trim() &&
-          reference.url.trim() &&
-          reference.label.trim() &&
-          reference.previewUrl.trim(),
-      );
-    })
-    .slice(0, maxReferenceImages);
-}
-
-function areReferencesEqual(
-  left: ImageReferenceDraft[],
-  right: ImageReferenceDraft[],
-): boolean {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((reference, index) =>
-    JSON.stringify(reference) === JSON.stringify(right[index]),
-  );
 }
 
 function resolveGatewayMediaUrl(value: string) {
@@ -842,141 +448,6 @@ function readFileAsDataUrl(file: File): Promise<string> {
       reject(reader.error ?? new Error(`Unable to read ${file.name}.`));
     reader.readAsDataURL(file);
   });
-}
-
-function resolveMaxReferenceImages(
-  providerId: string | undefined,
-  model: ProviderModelSummary | undefined,
-) {
-  const editOptions = model?.capabilities?.imageEditOptions;
-  const catalogValue =
-    editOptions?.maxReferenceImagesPerRequest ??
-    model?.capabilities?.maxReferenceImagesPerRequest;
-
-  if (providerId !== 'nanogpt' || !model) {
-    return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
-  }
-
-  const normalizedModelId = normalizeModelToken(model.id);
-  const normalizedDisplayName = normalizeModelToken(model.displayName);
-
-  if (
-    isOneOf(
-      normalizedModelId,
-      normalizedDisplayName,
-      'seedream-4-0',
-      'seedream-4-0-250828',
-      'seedream-4-5',
-      'seedream-4-5-251128',
-      'seedream-5-0-lite',
-      'seedream-5-0-lite-260128',
-      'seedream-5-lite',
-    )
-  ) {
-    return Math.max(catalogValue ?? 0, 10);
-  }
-
-  if (
-    isOneOf(
-      normalizedModelId,
-      normalizedDisplayName,
-      'nano-banana-2',
-      'nano-banana-2-fast',
-      'nano-banana-pro',
-      'nano-banana-pro-edit',
-      'nano-banana-pro-ultra',
-    )
-  ) {
-    return Math.max(catalogValue ?? 0, 14);
-  }
-
-  if (
-    isOneOf(
-      normalizedModelId,
-      normalizedDisplayName,
-      'nano-banana-pro-edit-ultra',
-    )
-  ) {
-    return Math.max(catalogValue ?? 0, 10);
-  }
-
-  if (
-    isOneOf(
-      normalizedModelId,
-      normalizedDisplayName,
-      'qwen-image',
-      'qwen-image-edit',
-      'qwen-image-img2img',
-    )
-  ) {
-    return Math.max(catalogValue ?? 0, 3);
-  }
-
-  if (
-    isOneOf(
-      normalizedModelId,
-      normalizedDisplayName,
-      'wan-2-7-image-pro',
-      'wan2-7-image-pro',
-      'wan2-7-image-professional-edition',
-    )
-  ) {
-    return Math.max(catalogValue ?? 0, 9);
-  }
-
-  if (
-    isOneOf(
-      normalizedModelId,
-      normalizedDisplayName,
-      'nano-banana',
-      'nano-banana-edit',
-      'gemini-flash-edit',
-      'gpt-4o-image',
-      'flux-kontext',
-      'flux-kontext-dev',
-    )
-  ) {
-    return Math.max(catalogValue ?? 0, 5);
-  }
-
-  if (
-    isOneOf(
-      normalizedModelId,
-      normalizedDisplayName,
-      'gpt-image-1',
-      'gpt-image-1-5',
-      'gpt-image-1-mini',
-      'chatgpt-image-latest',
-    )
-  ) {
-    return Math.max(catalogValue ?? 0, 16);
-  }
-
-  if (
-    isOneOf(
-      normalizedModelId,
-      normalizedDisplayName,
-      'seededit-3-0',
-      'seededit-3-0-i2i',
-      'seededit-3-0-i2i-250628',
-    )
-  ) {
-    return 1;
-  }
-
-  return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
-}
-
-function normalizeModelToken(value: string | undefined) {
-  return (value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[_/\s.]+/g, '-')
-    .replace(/-+/g, '-');
-}
-
-function isOneOf(valueA: string, valueB: string, ...candidates: string[]) {
-  return candidates.includes(valueA) || candidates.includes(valueB);
 }
 
 function resolveImageModeCapabilities(
@@ -1039,8 +510,8 @@ function resolveRenderStats(
     sortedDurations.length % 2 === 1
       ? sortedDurations[middleIndex]
       : Math.round(
-          (sortedDurations[middleIndex - 1] + sortedDurations[middleIndex]) / 2,
-        );
+        (sortedDurations[middleIndex - 1] + sortedDurations[middleIndex]) / 2,
+      );
 
   return {
     estimatedDurationMs,
