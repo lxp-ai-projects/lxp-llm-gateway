@@ -58,10 +58,10 @@ The repository now includes:
 
 ## Provider Support
 
-| Status              | Meaning                                                                           | Current providers                                                  |
-|---------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------|
-| `Tested (QA)`       | Tested by the development team and currently confirmed to work in `lxp-llm-gateway`. | Google Gemini, Groq, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok |
-| `Not yet QA'd`      | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. | Anthropic Claude                                                   |
+| Status              | Meaning                                                                                                                                      | Current providers                                                                                              |
+|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| `Tested (QA)`       | Tested by the development team and currently confirmed to work in `lxp-llm-gateway`.                                                         | Anthropic Claude, Deepseek, Google Gemini, Groq, Moonshot, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok, z.AI |
+| `Not yet QA'd`      | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. |                                                                                                                |
 
 Image-model compatibility by provider is documented in:
 
@@ -69,6 +69,7 @@ Image-model compatibility by provider is documented in:
 
 ## Selected Stack
 
+- Runtime: Node.js 24
 - APIs: NestJS
 - Frontend: React 19, Vite, React Router DOM, TanStack Query
 - UI Foundation: Mantine with custom theme
