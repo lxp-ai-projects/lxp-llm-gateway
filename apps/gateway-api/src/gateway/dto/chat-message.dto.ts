@@ -1,4 +1,4 @@
-import { Allow, IsIn } from 'class-validator';
+import { Allow, IsIn, IsOptional, IsString } from 'class-validator';
 import type { GatewayChatContentPart } from '@lxp/contracts';
 
 export class ChatMessageDto {
@@ -7,4 +7,8 @@ export class ChatMessageDto {
 
   @Allow()
   content!: string | GatewayChatContentPart[];
+
+  @IsOptional()
+  @IsString()
+  reasoningContent?: string;
 }

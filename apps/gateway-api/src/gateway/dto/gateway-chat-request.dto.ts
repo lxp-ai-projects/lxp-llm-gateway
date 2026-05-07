@@ -39,12 +39,76 @@ class GatewayAnthropicProviderOptionsDto {
   extendedThinking?: GatewayAnthropicExtendedThinkingDto;
 }
 
+class GatewayZaiThinkingDto {
+  @IsIn(['enabled', 'disabled'])
+  type!: 'enabled' | 'disabled';
+
+  @IsOptional()
+  @IsBoolean()
+  clearThinking?: boolean;
+}
+
+class GatewayZaiProviderOptionsDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GatewayZaiThinkingDto)
+  thinking?: GatewayZaiThinkingDto;
+}
+
+class GatewayOpenRouterReasoningDto {
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  exclude?: boolean;
+}
+
+class GatewayOpenRouterProviderOptionsDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GatewayOpenRouterReasoningDto)
+  reasoning?: GatewayOpenRouterReasoningDto;
+}
+
+class GatewayOllamaThinkingDto {
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+}
+
+class GatewayOllamaProviderOptionsDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GatewayOllamaThinkingDto)
+  thinking?: GatewayOllamaThinkingDto;
+}
+
 class GatewayChatProviderOptionsDto {
   @IsOptional()
   @IsObject()
   @ValidateNested()
   @Type(() => GatewayAnthropicProviderOptionsDto)
   anthropic?: GatewayAnthropicProviderOptionsDto;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => GatewayZaiProviderOptionsDto)
+  zai?: GatewayZaiProviderOptionsDto;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => GatewayOpenRouterProviderOptionsDto)
+  openrouter?: GatewayOpenRouterProviderOptionsDto;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => GatewayOllamaProviderOptionsDto)
+  ollama?: GatewayOllamaProviderOptionsDto;
 }
 
 export class GatewayChatRequestDto implements GatewayChatRequest {

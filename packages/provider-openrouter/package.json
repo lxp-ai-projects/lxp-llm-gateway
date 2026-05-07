@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@lxp/contracts": "workspace:*",
+    "@lxp/domain": "workspace:*",
     "@lxp/provider-sdk": "workspace:*"
   },
   "scripts": {

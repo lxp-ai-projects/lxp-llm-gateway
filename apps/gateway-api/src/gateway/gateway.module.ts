@@ -9,6 +9,8 @@ import { AnthropicProviderAdapter } from '@lxp/provider-anthropic';
 import { XaiProviderAdapter } from '@lxp/provider-xai';
 import { MistralProviderAdapter } from '@lxp/provider-mistral';
 import { DeepSeekProviderAdapter } from '@lxp/provider-deepseek';
+import { MoonshotProviderAdapter } from '@lxp/provider-moonshot';
+import { ZaiProviderAdapter } from '@lxp/provider-zai';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -108,6 +110,8 @@ import { TenantPolicyService } from './tenant-policy.service';
         new XaiProviderAdapter(),
         new MistralProviderAdapter(),
         new DeepSeekProviderAdapter(),
+        new MoonshotProviderAdapter(),
+        new ZaiProviderAdapter(),
       ],
     },
   ],

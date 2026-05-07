@@ -85,9 +85,11 @@ vi.mock('../lib/api-client', () => ({
           { providerId: 'google', displayName: 'Google Gemini' },
           { providerId: 'mistral', displayName: 'Mistral' },
           { providerId: 'deepseek', displayName: 'DeepSeek' },
+          { providerId: 'moonshot', displayName: 'Moonshot / Kimi' },
           { providerId: 'openai', displayName: 'OpenAI' },
           { providerId: 'anthropic', displayName: 'Anthropic Claude' },
           { providerId: 'xai', displayName: 'xAI Grok' },
+          { providerId: 'zai', displayName: 'Z.ai' },
         ],
     })),
     importConversationFile: importConversationFileMock,
@@ -127,6 +129,7 @@ beforeEach(() => {
         providerId: 'openrouter',
         models: [
           { id: 'openrouter/auto', displayName: 'OpenRouter Auto' },
+          { id: 'z-ai/glm-4.5', displayName: 'Z.ai GLM 4.5' },
         ],
       };
     }
@@ -134,7 +137,10 @@ beforeEach(() => {
     if (providerId === 'ollama') {
       return {
         providerId: 'ollama',
-        models: [{ id: 'qwen3:8b', displayName: 'Qwen3 8B' }],
+        models: [
+          { id: 'qwen3:8b', displayName: 'Qwen3 8B' },
+          { id: 'glm-4.5', displayName: 'GLM 4.5' },
+        ],
       };
     }
 
@@ -188,6 +194,16 @@ beforeEach(() => {
       };
     }
 
+    if (providerId === 'zai') {
+      return {
+        providerId: 'zai',
+        models: [
+          { id: 'glm-4.5', displayName: 'GLM-4.5' },
+          { id: 'glm-4-32b-0414-128k', displayName: 'GLM-4 32B 0414 128K' },
+        ],
+      };
+    }
+
     return {
       providerId: 'nanogpt',
       models: [
@@ -229,6 +245,234 @@ test('ChatPage submits on Enter from the composer', async () => {
     expect.any(Object),
   );
 }, 10_000);
+
+test('ChatPage sends Z.ai thinking settings and prior reasoning with the chat request', async () => {
+  const user = userEvent.setup();
+
+  loadConversationsMock.mockResolvedValue([
+    {
+      id: 'conversation-zai-1',
+      title: 'Z.ai thread',
+      model: 'glm-4.5',
+      providerId: 'zai',
+      systemPrompt: 'You are a helpful assistant.',
+      providerOptions: {
+        zai: {
+          thinking: {
+            type: 'enabled',
+            clearThinking: false,
+          },
+        },
+      },
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      messages: [
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: 'Earlier answer',
+          reasoning: 'Earlier reasoning trace',
+          createdAt: '2026-04-16T00:01:00.000Z',
+        },
+      ],
+    },
+  ]);
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  expect(
+    await screen.findByText(
+      /Preserve prior reasoning keeps `clear_thinking` disabled/i,
+    ),
+  ).toBeInTheDocument();
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use Z.ai thinking{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'zai',
+      model: 'glm-4.5',
+      providerOptions: {
+        zai: {
+          thinking: {
+            type: 'enabled',
+            clearThinking: false,
+          },
+        },
+      },
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        {
+          role: 'assistant',
+          content: 'Earlier answer',
+          reasoningContent: 'Earlier reasoning trace',
+        },
+        { role: 'user', content: 'Use Z.ai thinking' },
+      ],
+    }),
+    expect.any(Object),
+  );
+}, 10_000);
+
+test('ChatPage exposes GLM thinking controls for NanoGPT Z.ai routes', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  expect(
+    await screen.findByText('NanoGPT GLM thinking'),
+  ).toBeInTheDocument();
+
+  await user.click(screen.getByTestId('chat-thinking-mode-select'));
+  const preserveOption = document.querySelector(
+    '[role="option"][value="enabled-preserve"]',
+  ) as HTMLElement | null;
+  expect(preserveOption).not.toBeNull();
+  await user.click(preserveOption!);
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use NanoGPT GLM thinking{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'nanogpt',
+      model: 'z-ai/glm-4.6:thinking',
+      providerOptions: {
+        zai: {
+          thinking: {
+            type: 'enabled',
+            clearThinking: false,
+          },
+        },
+      },
+    }),
+    expect.any(Object),
+  );
+});
+
+test('ChatPage disables Z.ai thinking for models below GLM 4.5', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const zaiOption = document.querySelector(
+    '[role="option"][value="zai"]',
+  ) as HTMLElement | null;
+  expect(zaiOption).not.toBeNull();
+  await user.click(zaiOption!);
+
+  await user.click(screen.getByTestId('chat-model-select'));
+  const olderGlmOption = document.querySelector(
+    '[role="option"][value="glm-4-32b-0414-128k"]',
+  ) as HTMLElement | null;
+  expect(olderGlmOption).not.toBeNull();
+  await user.click(olderGlmOption!);
+
+  expect(
+    await screen.findByText(/The selected model \(.+\) does not appear to support GLM 4\.5\+ thinking in this provider route/i),
+  ).toBeInTheDocument();
+  expect(screen.getByTestId('chat-thinking-mode-select')).toBeDisabled();
+});
+
+test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const openRouterOption = document.querySelector(
+    '[role="option"][value="openrouter"]',
+  ) as HTMLElement | null;
+  expect(openRouterOption).not.toBeNull();
+  await user.click(openRouterOption!);
+
+  await user.click(screen.getByTestId('chat-model-select'));
+  const glmOption = document.querySelector(
+    '[role="option"][value="z-ai/glm-4.5"]',
+  ) as HTMLElement | null;
+  expect(glmOption).not.toBeNull();
+  await user.click(glmOption!);
+
+  expect(await screen.findByText('OpenRouter GLM thinking')).toBeInTheDocument();
+  expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use OpenRouter GLM thinking{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'openrouter',
+      model: 'z-ai/glm-4.5',
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            enabled: true,
+          },
+        },
+      },
+    }),
+    expect.any(Object),
+  );
+});
+
+test('ChatPage exposes GLM thinking controls for Ollama GLM routes', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const ollamaOption = document.querySelector(
+    '[role="option"][value="ollama"]',
+  ) as HTMLElement | null;
+  expect(ollamaOption).not.toBeNull();
+  await user.click(ollamaOption!);
+
+  await user.click(screen.getByTestId('chat-model-select'));
+  const glmOption = document.querySelector(
+    '[role="option"][value="glm-4.5"]',
+  ) as HTMLElement | null;
+  expect(glmOption).not.toBeNull();
+  await user.click(glmOption!);
+
+  expect(await screen.findByText('Ollama GLM thinking')).toBeInTheDocument();
+  expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use Ollama GLM thinking{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'ollama',
+      model: 'glm-4.5',
+      providerOptions: {
+        ollama: {
+          thinking: {
+            enabled: true,
+          },
+        },
+      },
+    }),
+    expect.any(Object),
+  );
+});
 
 test('ChatPage lets the user switch provider and shows the catalog pricing note', async () => {
   const user = userEvent.setup();

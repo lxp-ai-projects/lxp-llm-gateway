@@ -203,6 +203,34 @@ Use IndexedDB for:
 
 Do not store auth tokens in IndexedDB.
 
+## React 19 Hook Posture
+
+For `admin-web`, `useCallback` should not be the default answer to function creation inside components or hooks.
+
+Preferred order:
+
+- use a plain function for event handlers and imperative hook commands
+- use `useEffectEvent` when logic is triggered from `useEffect` but must read fresh state or props without turning function identity into a dependency concern
+- use `useCallback` only when a stable function reference is materially required
+
+Use `useCallback` only for cases such as:
+
+- a function is consumed by a memoized child and reference churn is a proven problem
+- a function must stay stable because another hook or effect truly depends on that identity
+- removing it would create repeated subscriptions, effect churn, or behavioral loops
+
+Avoid `useCallback` when:
+
+- the function is only used in click, change, submit, or other direct UI event handlers
+- the child receiving the function is not memoized
+- it is being added only as a defensive habit rather than to solve a demonstrated dependency or rendering issue
+
+Current frontend direction:
+
+- prefer simpler plain functions for local UI actions
+- prefer `useEffectEvent` over `useCallback` for effect-driven persistence and synchronization flows
+- treat `useCallback` as an optimization or dependency-management tool, not as baseline ceremony
+
 ## Refactor Posture
 
 As the UI grows, refactor toward SRP-first modules instead of adding more responsibility to already large files.

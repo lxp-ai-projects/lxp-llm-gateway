@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { GatewayChatProviderOptions } from '../../../lib/api-client.types';
 import type {
@@ -33,6 +33,7 @@ export function useChatConversations({
   onSetActivePanel,
 }: UseChatConversationsOptions) {
   const [conversations, setConversations] = useState<StoredConversation[]>([]);
+  const conversationsRef = useRef<StoredConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
   >(null);
@@ -43,13 +44,19 @@ export function useChatConversations({
   useEffect(() => {
     loadConversations(scope)
       .then((storedConversations) => {
+        conversationsRef.current = storedConversations;
         setConversations(storedConversations);
         setActiveConversationId(storedConversations[0]?.id ?? null);
       })
       .catch(() => {
+        conversationsRef.current = [];
         setConversations([]);
       });
   }, [scope]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const activeConversation =
     conversations.find(
@@ -60,9 +67,35 @@ export function useChatConversations({
     setSystemPrompt(activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT);
   }, [activeConversation?.id, activeConversation?.systemPrompt]);
 
-  const createConversation = useCallback(async (
+  function updateActiveConversation(
+    mutate: (conversation: StoredConversation) => StoredConversation,
+  ): StoredConversation | null {
+    if (!activeConversationId) {
+      return null;
+    }
+
+    const currentConversation = conversationsRef.current.find(
+      (conversation) => conversation.id === activeConversationId,
+    );
+
+    if (!currentConversation) {
+      return null;
+    }
+
+    const updatedConversation = mutate(currentConversation);
+    const nextConversations = conversationsRef.current.map((conversation) =>
+      conversation.id === activeConversationId ? updatedConversation : conversation,
+    );
+
+    conversationsRef.current = nextConversations;
+    setConversations(nextConversations);
+
+    return updatedConversation;
+  }
+
+  async function createConversation(
     providerOptions?: GatewayChatProviderOptions,
-  ): Promise<void> => {
+  ): Promise<void> {
     const conversation = createLocalConversation(
       scope,
       providerId,
@@ -74,135 +107,97 @@ export function useChatConversations({
     await saveConversation(conversation);
     setConversations((current) => [conversation, ...current]);
     setActiveConversationId(conversation.id);
-  }, [maxOutputTokens, model, providerId, scope, systemPrompt]);
+  }
 
-  const persistConversationProvider = useCallback(async (
+  async function persistConversationProvider(
     nextProviderId: string,
     nextModel: string,
     nextProviderOptions?: StoredConversation['providerOptions'],
-  ): Promise<void> => {
-    if (!activeConversation) {
-      return;
-    }
-
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
+  ): Promise<void> {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
       providerId: nextProviderId,
       model: nextModel,
-      maxOutputTokens: activeConversation.maxOutputTokens,
       providerOptions: nextProviderOptions,
       updatedAt: new Date().toISOString(),
-    };
+    }));
 
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
+    if (!updatedConversation) {
+      return;
+    }
+
     await saveConversation(updatedConversation);
-  }, [activeConversation]);
+  }
 
-  const persistConversationModel = useCallback(async (
+  async function persistConversationModel(
     nextModel: string,
     nextProviderOptions?: StoredConversation['providerOptions'],
-  ): Promise<void> => {
-    if (!activeConversation) {
-      return;
-    }
-
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
+  ): Promise<void> {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
       model: nextModel,
-      maxOutputTokens: activeConversation.maxOutputTokens,
       providerOptions: nextProviderOptions,
       updatedAt: new Date().toISOString(),
-    };
+    }));
 
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
-    await saveConversation(updatedConversation);
-  }, [activeConversation]);
-
-  const persistConversationProviderOptions = useCallback(async (
-    nextProviderOptions?: StoredConversation['providerOptions'],
-  ): Promise<void> => {
-    if (!activeConversation) {
+    if (!updatedConversation) {
       return;
     }
 
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
-      maxOutputTokens: activeConversation.maxOutputTokens,
+    await saveConversation(updatedConversation);
+  }
+
+  async function persistConversationProviderOptions(
+    nextProviderOptions?: StoredConversation['providerOptions'],
+  ): Promise<void> {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
       providerOptions: nextProviderOptions,
       updatedAt: new Date().toISOString(),
-    };
+    }));
 
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
+    if (!updatedConversation) {
+      return;
+    }
+
     await saveConversation(updatedConversation);
-  }, [activeConversation]);
+  }
 
-  const persistConversationSystemPrompt = useCallback(async (
+  async function persistConversationSystemPrompt(
     nextSystemPrompt: string,
-  ): Promise<void> => {
+  ): Promise<void> {
     setSystemPrompt(nextSystemPrompt);
 
-    if (!activeConversation) {
-      return;
-    }
-
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
       systemPrompt: nextSystemPrompt,
       updatedAt: new Date().toISOString(),
-    };
+    }));
 
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
-    await saveConversation(updatedConversation);
-  }, [activeConversation]);
-
-  const persistConversationMaxOutputTokens = useCallback(async (
-    nextMaxOutputTokens?: number,
-  ): Promise<void> => {
-    if (!activeConversation) {
+    if (!updatedConversation) {
       return;
     }
 
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
+    await saveConversation(updatedConversation);
+  }
+
+  async function persistConversationMaxOutputTokens(
+    nextMaxOutputTokens?: number,
+  ): Promise<void> {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
       maxOutputTokens: nextMaxOutputTokens,
       updatedAt: new Date().toISOString(),
-    };
+    }));
 
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
+    if (!updatedConversation) {
+      return;
+    }
+
     await saveConversation(updatedConversation);
-  }, [activeConversation]);
+  }
 
-  const confirmConversationDeletion = useCallback(async (): Promise<void> => {
+  async function confirmConversationDeletion(): Promise<void> {
     const targetConversation = conversationPendingDeletion;
     if (!targetConversation) {
       return;
@@ -222,14 +217,7 @@ export function useChatConversations({
       onSetChatError(null);
       onResetComposerState();
     }
-  }, [
-    activeConversationId,
-    conversationPendingDeletion,
-    conversations,
-    onResetComposerState,
-    onSetActivePanel,
-    onSetChatError,
-  ]);
+  }
 
   return {
     activeConversation,

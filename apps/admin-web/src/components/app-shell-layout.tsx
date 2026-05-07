@@ -37,7 +37,6 @@ import {
 
 import { adminApiClient, gatewayApiClient } from '../lib/api-client';
 import { getActiveTenantLabel, getTenantOptionLabel } from '../lib/tenant-context';
-import { useRuntimeConfig } from '../lib/use-runtime-config';
 import { useSession } from '../lib/use-session';
 import { InstallAppButton } from './install-app-button';
 
@@ -117,7 +116,6 @@ export function AppShellLayout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const sessionQuery = useSession();
-  const runtimeConfigQuery = useRuntimeConfig();
   const gatewayHealthQuery = useQuery({
     queryKey: ['gateway-api-health', 'shell'],
     queryFn: () => gatewayApiClient.getHealth(),
@@ -148,6 +146,16 @@ export function AppShellLayout() {
   const gatewayOnline = gatewayHealthQuery.data?.status === 'ok';
   const availableTenants = currentUser?.availableTenants ?? [];
   const activeTenantLabel = getActiveTenantLabel(currentUser);
+  const roleBadgeColor = isSuperAdmin
+    ? 'grape'
+    : isTenantAdmin
+      ? 'ink'
+      : 'teal';
+  const roleBadgeLabel = isSuperAdmin
+    ? 'Super admin'
+    : isTenantAdmin
+      ? 'Tenant admin'
+      : 'User';
   const tenantOptions = availableTenants.map((tenant) => ({
     value: tenant.id,
     label: getTenantOptionLabel(tenant.displayName, tenant.slug),
@@ -209,7 +217,7 @@ export function AppShellLayout() {
           justify="space-between"
           wrap="nowrap"
         >
-          <Group gap="sm">
+          <Group className="shell-brand-group" gap="sm" wrap="nowrap">
             <Burger
               opened={opened}
               onClick={toggle}
@@ -226,23 +234,28 @@ export function AppShellLayout() {
             </Box>
           </Group>
           <Group className="shell-actions" gap="sm" wrap="nowrap">
-            <Badge variant="outline" color="ink">
-              Active tenant: {activeTenantLabel}
-            </Badge>
             <InstallAppButton />
-            <Badge
-              color={gatewayOnline ? 'moss' : 'red'}
-              variant="light"
-            >
-              {gatewayOnline ? 'Gateway online' : 'Gateway offline'}
-            </Badge>
-            <Badge
-              color={isSuperAdmin ? 'grape' : isTenantAdmin ? 'ink' : 'teal'}
-              variant="filled"
-              visibleFrom="sm"
-            >
-              {isSuperAdmin ? 'Super admin' : isTenantAdmin ? 'Tenant admin' : 'User'}
-            </Badge>
+            <Stack className="shell-status-stack" gap={4}>
+              <Badge
+                className="shell-status-badge"
+                color={gatewayOnline ? 'moss' : 'red'}
+                variant="light"
+              >
+                {gatewayOnline ? 'Gateway online' : 'Gateway offline'}
+              </Badge>
+              <Group className="shell-status-meta" gap={6} wrap="nowrap">
+                <Badge className="shell-tenant-badge" variant="outline" color="ink">
+                  Active tenant: {activeTenantLabel}
+                </Badge>
+                <Badge
+                  className="shell-role-badge"
+                  color={roleBadgeColor}
+                  variant="filled"
+                >
+                  {roleBadgeLabel}
+                </Badge>
+              </Group>
+            </Stack>
             <Button
               visibleFrom="sm"
               leftSection={<IconLogout size={16} />}

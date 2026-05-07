@@ -29,6 +29,7 @@ type OpenAiCompatibleChatPayload = {
       role?: 'assistant';
       content?: string;
       reasoning?: string;
+      reasoning_content?: string;
       reasoning_details?: unknown;
     };
   }>;
@@ -146,7 +147,7 @@ export class OpenAiCompatibleTextProviderAdapter
       message: {
         role: message?.role ?? 'assistant',
         content: message?.content ?? '',
-        reasoning: message?.reasoning,
+        reasoning: message?.reasoning ?? message?.reasoning_content,
         reasoningDetails: message?.reasoning_details,
       },
       finishReason: payload.choices?.[0]?.finish_reason ?? null,

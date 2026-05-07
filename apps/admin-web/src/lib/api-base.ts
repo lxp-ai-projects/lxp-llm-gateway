@@ -96,6 +96,10 @@ async function requestWithSessionRefresh<T>(
       );
     }
 
+    if (error instanceof TypeError) {
+      throw new Error(formatFetchFailureMessage(url));
+    }
+
     throw error;
   }
 }
@@ -158,6 +162,12 @@ export async function requestBlobWithSessionRefresh(
   const response = await fetch(url, {
     credentials: 'include',
     ...init,
+  }).catch((error: unknown) => {
+    if (error instanceof TypeError) {
+      throw new Error(formatFetchFailureMessage(url));
+    }
+
+    throw error;
   });
 
   if (!response.ok) {
@@ -190,6 +200,12 @@ export async function uploadFileWithSessionRefresh<T>(
     method: 'POST',
     credentials: 'include',
     body: formData,
+  }).catch((error: unknown) => {
+    if (error instanceof TypeError) {
+      throw new Error(formatFetchFailureMessage(url));
+    }
+
+    throw error;
   });
 
   if (!response.ok) {
@@ -268,12 +284,32 @@ function formatApiErrorMessage(body: string, status: number): string {
   return trimmedBody || `Request failed with ${status}`;
 }
 
+function formatFetchFailureMessage(url: string): string {
+  try {
+    const target = new URL(url);
+    const serviceName =
+      target.port === '3001'
+        ? 'gateway-api'
+        : target.port === '3002'
+          ? 'admin-api'
+          : 'API service';
+
+    return `${serviceName} is unreachable at ${target.origin}. Verify that the local dev service is running and that the configured API URL is correct.`;
+  } catch {
+    return `The API request failed before reaching the server (${url}). Verify that the local dev service is running and that the configured API URL is correct.`;
+  }
+}
+
 export async function chatStreamWithSessionRefresh(
   payload: {
     providerId?: string;
     model?: string;
     stream: true;
-    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+    messages: Array<{
+      role: 'user' | 'assistant' | 'system';
+      content: string;
+      reasoningContent?: string;
+    }>;
   },
   handlers: {
     onChunk: (chunk: GatewayChatStreamChunk) => void;
@@ -295,7 +331,8 @@ export async function chatStreamWithSessionRefresh(
 
   resetIdleTimeout();
 
-  const response = await fetch(`${gatewayApiUrl}/api/v1/chat`, {
+  const chatUrl = `${gatewayApiUrl}/api/v1/chat`;
+  const response = await fetch(chatUrl, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -304,6 +341,12 @@ export async function chatStreamWithSessionRefresh(
     },
     body: JSON.stringify(payload),
     signal: controller.signal,
+  }).catch((error: unknown) => {
+    if (error instanceof TypeError) {
+      throw new Error(formatFetchFailureMessage(chatUrl));
+    }
+
+    throw error;
   });
 
   if (!response.ok) {
@@ -338,6 +381,7 @@ export async function chatStreamWithSessionRefresh(
             choices?: Array<{
               delta?: {
                 reasoning?: string;
+                reasoning_content?: string;
                 content?: string;
               };
               finish_reason?: string | null;
@@ -346,13 +390,14 @@ export async function chatStreamWithSessionRefresh(
 
           const choice = parsed.choices?.[0];
           const delta = choice?.delta;
+          const reasoningDelta = delta?.reasoning ?? delta?.reasoning_content;
           finishReason = choice?.finish_reason ?? finishReason;
-          receivedReasoning ||= Boolean(delta?.reasoning);
+          receivedReasoning ||= Boolean(reasoningDelta);
           receivedContent ||= Boolean(delta?.content);
 
           handlers.onChunk({
             requestId,
-            reasoningDelta: delta?.reasoning,
+            reasoningDelta,
             contentDelta: delta?.content,
             finishReason: choice?.finish_reason,
           });
@@ -375,6 +420,7 @@ export async function chatStreamWithSessionRefresh(
           choices?: Array<{
             delta?: {
               reasoning?: string;
+              reasoning_content?: string;
               content?: string;
             };
             finish_reason?: string | null;
@@ -383,13 +429,14 @@ export async function chatStreamWithSessionRefresh(
 
         const choice = parsed.choices?.[0];
         const delta = choice?.delta;
+        const reasoningDelta = delta?.reasoning ?? delta?.reasoning_content;
         finishReason = choice?.finish_reason ?? finishReason;
-        receivedReasoning ||= Boolean(delta?.reasoning);
+        receivedReasoning ||= Boolean(reasoningDelta);
         receivedContent ||= Boolean(delta?.content);
 
         handlers.onChunk({
           requestId,
-          reasoningDelta: delta?.reasoning,
+          reasoningDelta,
           contentDelta: delta?.content,
           finishReason: choice?.finish_reason,
         });

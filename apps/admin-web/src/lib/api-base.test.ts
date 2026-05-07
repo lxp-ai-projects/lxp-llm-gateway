@@ -186,3 +186,51 @@ test('chatStreamWithSessionRefresh surfaces non-abort stream errors', async () =
     ),
   ).rejects.toThrow('socket reset');
 });
+
+test('chatStreamWithSessionRefresh maps reasoning_content deltas from SSE providers', async () => {
+  const onChunk = vi.fn();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(
+        new TextEncoder().encode(
+          'data: {"choices":[{"delta":{"reasoning_content":"Thought trace","content":"Answer"},"finish_reason":"stop"}]}\n\n',
+        ),
+      );
+      controller.close();
+    },
+  });
+
+  vi.mocked(fetch).mockResolvedValueOnce(
+    new Response(stream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'x-request-id': 'request-reasoning-content',
+      },
+    }),
+  );
+
+  const result = await chatStreamWithSessionRefresh(
+    {
+      stream: true,
+      messages: [{ role: 'user', content: 'Hello' }],
+    },
+    { onChunk },
+    false,
+  );
+
+  expect(onChunk).toHaveBeenCalledWith(
+    expect.objectContaining({
+      requestId: 'request-reasoning-content',
+      reasoningDelta: 'Thought trace',
+      contentDelta: 'Answer',
+      finishReason: 'stop',
+    }),
+  );
+  expect(result).toEqual({
+    requestId: 'request-reasoning-content',
+    receivedReasoning: true,
+    receivedContent: true,
+    finishReason: 'stop',
+  });
+});

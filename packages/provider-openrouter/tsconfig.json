@@ -1,9 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
+    "paths": {
+      "@lxp/domain": ["../domain/src/index.ts"]
+    },
     "noEmit": false
   },
   "include": ["src/**/*.ts"]

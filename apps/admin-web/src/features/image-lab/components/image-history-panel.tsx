@@ -8,6 +8,7 @@ import {
   Group,
   Image,
   Modal,
+  Skeleton,
   Stack,
   Text,
   Title,
@@ -31,6 +32,7 @@ export function ImageHistoryPanel({
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
+  const isHistoryLoading = imageLab.historyQuery.isPending;
 
   return (
     <>
@@ -61,7 +63,35 @@ export function ImageHistoryPanel({
             </Text>
           </Group>
 
-          {!history?.items.length ? (
+          {isHistoryLoading ? (
+            <Stack gap="sm">
+              {Array.from({ length: 3 }, (_, index) => (
+                <Card
+                  key={`history-skeleton-${index}`}
+                  className="image-history-card"
+                  data-testid={`history-skeleton-${index}`}
+                  withBorder
+                >
+                  <Stack gap="sm">
+                    <Group align="flex-start" gap="md" wrap="nowrap">
+                      <Skeleton height={88} radius="md" width={88} />
+                      <Stack className="image-history-summary" gap={8} style={{ flex: 1 }}>
+                        <Skeleton height={20} radius="sm" width="38%" />
+                        <Skeleton height={18} radius="sm" width="24%" />
+                        <Skeleton height={16} radius="sm" width="100%" />
+                        <Skeleton height={16} radius="sm" width="92%" />
+                      </Stack>
+                    </Group>
+                    <Group gap="xs">
+                      <Skeleton height={30} radius="xl" width={154} />
+                      <Skeleton height={30} radius="xl" width={132} />
+                      <Skeleton height={30} radius="xl" width={60} />
+                    </Group>
+                  </Stack>
+                </Card>
+              ))}
+            </Stack>
+          ) : !history?.items.length ? (
             <Alert color="gray" title="No history yet">
               Generated and edited jobs will appear here.
             </Alert>

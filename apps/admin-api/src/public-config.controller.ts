@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { SUPPORTED_PROVIDERS } from '@lxp/domain';
 
 @Controller('public/runtime-config')
 export class PublicConfigController {
@@ -8,48 +9,7 @@ export class PublicConfigController {
       registrationEnabled: process.env.LXP_REGISTRATION_ENABLED === 'true',
       forgotPasswordEnabled: process.env.LXP_FORGOT_PASSWORD_ENABLED === 'true',
       gatewayOnline: process.env.LXP_GATEWAY_ONLINE !== 'false',
-      supportedProviders: [
-        {
-          providerId: 'nanogpt',
-          displayName: 'NanoGPT',
-        },
-        {
-          providerId: 'openrouter',
-          displayName: 'OpenRouter',
-        },
-        {
-          providerId: 'ollama',
-          displayName: 'Ollama',
-        },
-        {
-          providerId: 'groq',
-          displayName: 'Groq',
-        },
-        {
-          providerId: 'google',
-          displayName: 'Google Gemini',
-        },
-        {
-          providerId: 'mistral',
-          displayName: 'Mistral',
-        },
-        {
-          providerId: 'deepseek',
-          displayName: 'DeepSeek',
-        },
-        {
-          providerId: 'xai',
-          displayName: 'xAI Grok',
-        },
-        {
-          providerId: 'openai',
-          displayName: 'OpenAI',
-        },
-        {
-          providerId: 'anthropic',
-          displayName: 'Anthropic Claude',
-        },
-      ],
+      supportedProviders: SUPPORTED_PROVIDERS,
     };
   }
 }

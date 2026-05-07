@@ -11,7 +11,7 @@
 - admin web application
 - shared contracts and domain packages
 - provider abstraction package
-- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, and DeepSeek
+- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai
 - user, role, and provider credential foundations
 - local development infrastructure
 - a first local Open WebUI integration path against `gateway-api`
@@ -22,7 +22,7 @@
 
 ## Out of Scope for Phase 1
 
-- additional providers beyond NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, and DeepSeek
+- additional providers beyond NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai
 - billing and analytics
 - quota enforcement
 - policy engines
@@ -35,7 +35,7 @@
 - the apps and packages are operational, not placeholders
 - the core architecture boundaries are documented
 - the provider seam is explicit
-- NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, and DeepSeek can be selected transparently through the same gateway contract
+- NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai can be selected transparently through the same gateway contract
 - the repository is ready for iterative feature implementation
 - the admin SPA remains operable on mobile and desktop without accumulating oversized, multi-responsibility modules as the feature surface grows
 
@@ -67,7 +67,7 @@ The repository now contains:
 - an initial `super_admin` tenant administration surface for cross-tenant listing, tenant policy editing, and membership visibility
 - tenant policy editing is now available in the `super_admin` tenant-control surface, while the current limiter remains intentionally app-level rather than globally distributed
 - shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
-- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, and DeepSeek behind `packages/provider-sdk`
+- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`
 - CI quality gates for typecheck, test, and build
 - an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
@@ -106,6 +106,13 @@ Current image-provider posture is:
 - `Google Gemini` image models are exposed for generation and editing
 - `OpenAI GPT Image` is exposed for generation and editing through the same seam, with provider-owned capability metadata controlling the UI affordances
 - `OpenRouter` is exposed for image generation and image editing through the same seam, with reused capability metadata where the underlying model family already exists in another provider package
+- `Z.ai` is exposed for image generation through the same seam, with a provider-owned native image client and a static image catalog fallback when upstream model discovery is unavailable or undocumented
+
+Current provider onboarding posture for the newest text providers is:
+
+- `Moonshot / Kimi` is treated as OpenAI-compatible for chat, model listing, and streaming
+- `Z.ai` chat is routed through the shared OpenAI-compatible adapter path, while image generation remains native to `provider-zai`
+- `Z.ai` model discovery currently attempts `GET /models` as a best-effort compatibility probe even though the official API reference does not document that endpoint; the gateway docs should continue to call that out explicitly
 
 Current multimodal chat posture is:
 

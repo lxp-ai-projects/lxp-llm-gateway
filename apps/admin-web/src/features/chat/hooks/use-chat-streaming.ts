@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supportsPreservedThinking } from '@lxp/domain';
 
 import { gatewayApiClient } from '../../../lib/api-client';
 import { shouldFlagMissingAssistantContent } from '../../../lib/chat-stream';
@@ -83,7 +84,17 @@ export function useChatStreaming({
           maxOutputTokens: baseConversation.maxOutputTokens,
           providerOptions: baseConversation.providerOptions,
           stream: true,
-          messages: buildGatewayMessages(baseConversation),
+          messages: buildGatewayMessages(baseConversation, {
+            includeAssistantReasoning:
+              supportsPreservedThinking(
+                baseConversation.providerId,
+                baseConversation.model,
+              ) &&
+              baseConversation.providerOptions?.zai?.thinking?.type ===
+                'enabled' &&
+              baseConversation.providerOptions?.zai?.thinking?.clearThinking ===
+                false,
+          }),
         },
         {
           onChunk: ({ reasoningDelta, contentDelta }) => {

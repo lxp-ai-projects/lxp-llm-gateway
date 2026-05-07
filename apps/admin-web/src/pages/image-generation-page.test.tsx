@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import { renderWithProviders } from '../test/test-utils';
+import { IMAGE_LAB_DRAFT_STORAGE_KEY } from '../features/image-lab/use-image-lab';
 import { ImageGenerationPage } from './image-generation-page';
 
 const {
@@ -424,6 +425,7 @@ beforeEach(() => {
   setImageAssetSavedMock.mockClear();
   updateImageAssetMock.mockClear();
   uploadImageAssetMock.mockClear();
+  window.localStorage.clear();
 
   vi.stubGlobal('navigator', {
     ...navigator,
@@ -435,6 +437,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 test('ImageGenerationPage renders providers and fields from the backend image catalog', async () => {
@@ -451,6 +454,76 @@ test('ImageGenerationPage renders providers and fields from the backend image ca
   expect(screen.getByText('Generated history')).toBeInTheDocument();
   expect(screen.getByText('10 items per page')).toBeInTheDocument();
 });
+
+test('ImageGenerationPage restores the saved mobile draft after a refresh-like remount', async () => {
+  window.localStorage.setItem(
+    IMAGE_LAB_DRAFT_STORAGE_KEY,
+    JSON.stringify({
+      providerId: 'google',
+      modelId: 'gemini-3.1-flash-image-preview',
+      prompt: 'Resume this draft after coming back from mobile multitasking',
+      aspectRatio: '2:3',
+      responseFormat: 'b64_json',
+      resolution: '1K',
+      background: '',
+      quality: '',
+      moderation: '',
+      outputFormat: '',
+      outputCompression: '',
+      inputFidelity: '',
+      imageCount: '1',
+      referenceUrl: 'https://example.com/reference.png',
+      references: [
+        {
+          id: 'reference-1',
+          kind: 'image_url',
+          url: 'https://example.com/reference.png',
+          label: 'https://example.com/reference.png',
+          previewUrl: 'https://example.com/reference.png',
+        },
+      ],
+      showNanoGptPaidModels: false,
+    }),
+  );
+
+  renderWithProviders(<ImageGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Image Generation Lab' });
+  expect(await screen.findByDisplayValue('Google Gemini')).toBeInTheDocument();
+  expect(
+    screen.getByDisplayValue(
+      'Resume this draft after coming back from mobile multitasking',
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByDisplayValue('https://example.com/reference.png'),
+  ).toBeInTheDocument();
+  expect(await screen.findByText('Selected reference (1)')).toBeInTheDocument();
+});
+
+test('ImageGenerationPage shows a delayed loading overlay while providers and models are still loading', async () => {
+  getImageCatalogMock.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        window.setTimeout(() => {
+          resolve({
+            providers: [],
+          });
+        }, 700);
+      }),
+  );
+
+  renderWithProviders(<ImageGenerationPage />);
+
+  const providerShell = await screen.findByTestId('image-provider-loading-shell');
+  expect(providerShell.querySelector('.mantine-LoadingOverlay-root')).toBeNull();
+
+  await waitFor(() =>
+    expect(
+      providerShell.querySelector('.mantine-LoadingOverlay-root'),
+    ).not.toBeNull(),
+  );
+}, 10_000);
 
 test('ImageGenerationPage only shows OpenAI moderation for GPT-prefixed OpenAI image models', async () => {
   renderWithProviders(<ImageGenerationPage />);

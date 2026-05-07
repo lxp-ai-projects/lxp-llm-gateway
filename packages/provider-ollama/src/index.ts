@@ -8,6 +8,7 @@ import type {
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
+import { isGlmThinkingModel } from '@lxp/domain';
 
 export class OllamaProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -69,7 +70,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<GatewayChatResponse> {
-    if (this.shouldUseNativeApi(context)) {
+    if (this.shouldUseNativeChatApi(request, context)) {
       return this.chatViaNativeApi(request, context);
     }
 
@@ -89,6 +90,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           role?: 'assistant';
           content?: string;
           reasoning?: string;
+          reasoning_content?: string;
           reasoning_details?: unknown;
         };
       }>;
@@ -122,7 +124,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
       message: {
         role: message?.role ?? 'assistant',
         content: message?.content ?? '',
-        reasoning: message?.reasoning,
+        reasoning: message?.reasoning ?? message?.reasoning_content,
         reasoningDetails: message?.reasoning_details,
       },
       finishReason: payload.choices?.[0]?.finish_reason ?? null,
@@ -144,7 +146,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<ReadableStream<Uint8Array>> {
-    if (this.shouldUseNativeApi(context)) {
+    if (this.shouldUseNativeChatApi(request, context)) {
       return this.chatStreamViaNativeApi(request, context);
     }
 
@@ -187,6 +189,9 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           messages: normalizedMessages,
           stream,
           user: context.userId,
+          ...(typeof request.maxOutputTokens === 'number'
+            ? { max_tokens: request.maxOutputTokens }
+            : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,
@@ -203,6 +208,20 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     const hostname = parsedUrl.hostname.toLowerCase();
 
     return hostname === 'ollama.com' || hostname === 'www.ollama.com';
+  }
+
+  private shouldUseNativeChatApi(
+    request: GatewayChatRequest,
+    context: ProviderExecutionContext,
+  ): boolean {
+    if (this.shouldUseNativeApi(context)) {
+      return true;
+    }
+
+    return (
+      supportsOllamaGlmThinking(request.model) &&
+      typeof request.providerOptions?.ollama?.thinking?.enabled === 'boolean'
+    );
   }
 
   private resolveOpenAiBaseUrl(context: ProviderExecutionContext): string {
@@ -286,6 +305,12 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           model: request.model,
           messages: normalizedMessages,
           stream: false,
+          ...(supportsOllamaGlmThinking(request.model) &&
+          typeof request.providerOptions?.ollama?.thinking?.enabled === 'boolean'
+            ? {
+                think: request.providerOptions.ollama.thinking.enabled,
+              }
+            : {}),
         }),
       },
       this.requestTimeoutMs,
@@ -357,6 +382,12 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           model: request.model,
           messages: normalizedMessages,
           stream: true,
+          ...(supportsOllamaGlmThinking(request.model) &&
+          typeof request.providerOptions?.ollama?.thinking?.enabled === 'boolean'
+            ? {
+                think: request.providerOptions.ollama.thinking.enabled,
+              }
+            : {}),
         }),
       },
       null,
@@ -525,4 +556,8 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
 
     return textParts.join('\n');
   }
+}
+
+function supportsOllamaGlmThinking(model: string | undefined): boolean {
+  return isGlmThinkingModel(model);
 }

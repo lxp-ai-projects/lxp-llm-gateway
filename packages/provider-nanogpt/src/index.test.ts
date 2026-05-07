@@ -59,8 +59,24 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
     const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
     const response = await adapter.chat(
       {
-        model: 'openai/gpt-5.2',
-        messages: [{ role: 'user', content: 'hello' }],
+        model: 'z-ai/glm-5',
+        maxOutputTokens: 2048,
+        providerOptions: {
+          zai: {
+            thinking: {
+              type: 'enabled',
+              clearThinking: false,
+            },
+          },
+        },
+        messages: [
+          { role: 'user', content: 'hello' },
+          {
+            role: 'assistant',
+            content: 'previous answer',
+            reasoningContent: 'previous reasoning',
+          },
+        ],
       },
       {
         requestId: 'req-1',
@@ -75,6 +91,31 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
     assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/chat/completions');
     const headers = calls[0]?.init?.headers as Record<string, string>;
     assert.equal(headers.authorization, 'Bearer nano-secret-token');
+    const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      max_tokens?: number;
+      thinking?: { type?: string; clear_thinking?: boolean };
+      messages?: Array<{
+        role?: string;
+        content?: unknown;
+        reasoning_content?: string;
+      }>;
+    };
+    assert.equal(body.max_tokens, 2048);
+    assert.deepEqual(body.thinking, {
+      type: 'enabled',
+      clear_thinking: false,
+    });
+    assert.deepEqual(body.messages, [
+      {
+        role: 'user',
+        content: 'hello',
+      },
+      {
+        role: 'assistant',
+        content: 'previous answer',
+        reasoning_content: 'previous reasoning',
+      },
+    ]);
     assert.equal(response.message.role, 'assistant');
     assert.equal(response.message.content, 'hello from nanogpt');
     assert.equal(
@@ -97,6 +138,53 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
         amount: 0,
       },
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter maps reasoning_content responses for GLM-style providers', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: 'hello from nanogpt',
+              reasoning_content: 'glm reasoning',
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const response = await adapter.chat(
+      {
+        model: 'z-ai/glm-4.5',
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-glm-reasoning',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'nano-secret-token',
+        },
+      },
+    );
+
+    assert.equal(response.message.reasoning, 'glm reasoning');
   } finally {
     globalThis.fetch = originalFetch;
   }

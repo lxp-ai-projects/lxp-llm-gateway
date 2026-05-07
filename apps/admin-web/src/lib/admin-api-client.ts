@@ -5,6 +5,7 @@ import {
   requestBlobWithSessionRefresh,
   uploadFileWithSessionRefresh,
 } from './api-base';
+import { SUPPORTED_PROVIDERS } from '@lxp/domain';
 import type {
   AdminCreateTenantInput,
   AdminCreateIntegrationApiKeyInput,
@@ -53,18 +54,7 @@ export const adminApiClient = {
         registrationEnabled: false,
         forgotPasswordEnabled: false,
         gatewayOnline: true,
-        supportedProviders: [
-          { providerId: 'nanogpt', displayName: 'NanoGPT' },
-          { providerId: 'openrouter', displayName: 'OpenRouter' },
-          { providerId: 'ollama', displayName: 'Ollama' },
-          { providerId: 'groq', displayName: 'Groq' },
-          { providerId: 'google', displayName: 'Google Gemini' },
-          { providerId: 'mistral', displayName: 'Mistral' },
-          { providerId: 'deepseek', displayName: 'DeepSeek' },
-          { providerId: 'xai', displayName: 'xAI Grok' },
-          { providerId: 'openai', displayName: 'OpenAI' },
-          { providerId: 'anthropic', displayName: 'Anthropic Claude' },
-        ],
+        supportedProviders: [...SUPPORTED_PROVIDERS],
       };
     }
   },
