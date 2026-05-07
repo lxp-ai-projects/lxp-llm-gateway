@@ -26,7 +26,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "coverage": "tsx --test --experimental-test-coverage src/admin/admin.service.test.ts src/auth/auth.service.test.ts src/conversation-transfer/conversation-transfer.service.test.ts src/security/crypto.service.test.ts src/security/email-protection.service.test.ts src/security/password.service.test.ts src/persistence/database.integration.test.ts",
-    "dev": "tsc-watch --project tsconfig.json --onSuccess \"node dist/main.js\"",
+    "dev": "node ../../scripts/run-with-port.mjs 3002 pnpm.cmd exec tsc-watch --project tsconfig.json --onSuccess \"node dist/main.js\"",
     "lint": "eslint src --ext .ts",
     "migration:generate": "typeorm-ts-node-commonjs -d src/persistence/data-source.ts migration:generate src/persistence/migrations/GeneratedMigration",
     "migration:run": "tsx ./node_modules/typeorm/cli.js migration:run -d src/persistence/data-source.ts",

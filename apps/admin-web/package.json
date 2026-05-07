@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
-    "dev": "vite --host",
+    "dev": "vite --host --port 3003 --strictPort",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

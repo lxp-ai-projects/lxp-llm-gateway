@@ -17,6 +17,7 @@ export interface ProviderCapabilities {
     modelCatalog: boolean;
     imageGeneration: boolean;
     imageEditing: boolean;
+    videoGeneration?: boolean;
 }
 export interface ImageAspectRatioOption {
     value: string;
@@ -86,6 +87,7 @@ export interface ModelCapability {
     supportsStreaming: boolean;
     supportsImageGeneration?: boolean;
     supportsImageEditing?: boolean;
+    supportsVideoGeneration?: boolean;
     requiresPaidAccess?: boolean;
     supportedImageAspectRatios?: ImageAspectRatioOption[];
     supportedImageResponseFormats?: Array<'url' | 'b64_json'>;
@@ -102,6 +104,7 @@ export interface ModelCapability {
     imageGenerationOptions?: ImageModeCapabilityOptions;
     imageEditOptions?: ImageModeCapabilityOptions;
 }
+export * from './media-generation.js';
 export interface ImageProviderModelCatalogEntry {
     id: string;
     displayName: string;
