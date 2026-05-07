@@ -46,13 +46,16 @@ export function useImageLab() {
     queryKey: ['image-catalog'],
     queryFn: () => gatewayApiClient.getImageCatalog(),
   });
+  const catalogInitialized = catalogQuery.status !== 'pending';
   const historyQuery = useQuery({
     queryKey: ['image-history', historyPage],
     queryFn: () => gatewayApiClient.getImageHistory(historyPage),
+    enabled: catalogInitialized,
   });
   const assetsQuery = useQuery({
     queryKey: ['image-assets'],
     queryFn: () => gatewayApiClient.getImageAssets(),
+    enabled: catalogInitialized,
   });
 
   const providers = catalogQuery.data?.providers ?? [];
