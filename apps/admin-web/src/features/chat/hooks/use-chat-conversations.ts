@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { GatewayChatProviderOptions } from '../../../lib/api-client.types';
 import type {
@@ -33,6 +33,7 @@ export function useChatConversations({
   onSetActivePanel,
 }: UseChatConversationsOptions) {
   const [conversations, setConversations] = useState<StoredConversation[]>([]);
+  const conversationsRef = useRef<StoredConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
   >(null);
@@ -43,13 +44,19 @@ export function useChatConversations({
   useEffect(() => {
     loadConversations(scope)
       .then((storedConversations) => {
+        conversationsRef.current = storedConversations;
         setConversations(storedConversations);
         setActiveConversationId(storedConversations[0]?.id ?? null);
       })
       .catch(() => {
+        conversationsRef.current = [];
         setConversations([]);
       });
   }, [scope]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const activeConversation =
     conversations.find(
@@ -59,6 +66,32 @@ export function useChatConversations({
   useEffect(() => {
     setSystemPrompt(activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT);
   }, [activeConversation?.id, activeConversation?.systemPrompt]);
+
+  function updateActiveConversation(
+    mutate: (conversation: StoredConversation) => StoredConversation,
+  ): StoredConversation | null {
+    if (!activeConversationId) {
+      return null;
+    }
+
+    const currentConversation = conversationsRef.current.find(
+      (conversation) => conversation.id === activeConversationId,
+    );
+
+    if (!currentConversation) {
+      return null;
+    }
+
+    const updatedConversation = mutate(currentConversation);
+    const nextConversations = conversationsRef.current.map((conversation) =>
+      conversation.id === activeConversationId ? updatedConversation : conversation,
+    );
+
+    conversationsRef.current = nextConversations;
+    setConversations(nextConversations);
+
+    return updatedConversation;
+  }
 
   async function createConversation(
     providerOptions?: GatewayChatProviderOptions,
@@ -81,26 +114,18 @@ export function useChatConversations({
     nextModel: string,
     nextProviderOptions?: StoredConversation['providerOptions'],
   ): Promise<void> {
-    if (!activeConversation) {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
+      providerId: nextProviderId,
+      model: nextModel,
+      providerOptions: nextProviderOptions,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    if (!updatedConversation) {
       return;
     }
 
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
-      providerId: nextProviderId,
-      model: nextModel,
-      maxOutputTokens: activeConversation.maxOutputTokens,
-      providerOptions: nextProviderOptions,
-      updatedAt: new Date().toISOString(),
-    };
-
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
     await saveConversation(updatedConversation);
   }
 
@@ -108,49 +133,33 @@ export function useChatConversations({
     nextModel: string,
     nextProviderOptions?: StoredConversation['providerOptions'],
   ): Promise<void> {
-    if (!activeConversation) {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
+      model: nextModel,
+      providerOptions: nextProviderOptions,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    if (!updatedConversation) {
       return;
     }
 
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
-      model: nextModel,
-      maxOutputTokens: activeConversation.maxOutputTokens,
-      providerOptions: nextProviderOptions,
-      updatedAt: new Date().toISOString(),
-    };
-
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
     await saveConversation(updatedConversation);
   }
 
   async function persistConversationProviderOptions(
     nextProviderOptions?: StoredConversation['providerOptions'],
   ): Promise<void> {
-    if (!activeConversation) {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
+      providerOptions: nextProviderOptions,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    if (!updatedConversation) {
       return;
     }
 
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
-      maxOutputTokens: activeConversation.maxOutputTokens,
-      providerOptions: nextProviderOptions,
-      updatedAt: new Date().toISOString(),
-    };
-
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
     await saveConversation(updatedConversation);
   }
 
@@ -159,46 +168,32 @@ export function useChatConversations({
   ): Promise<void> {
     setSystemPrompt(nextSystemPrompt);
 
-    if (!activeConversation) {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
+      systemPrompt: nextSystemPrompt,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    if (!updatedConversation) {
       return;
     }
 
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
-      systemPrompt: nextSystemPrompt,
-      updatedAt: new Date().toISOString(),
-    };
-
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
     await saveConversation(updatedConversation);
   }
 
   async function persistConversationMaxOutputTokens(
     nextMaxOutputTokens?: number,
   ): Promise<void> {
-    if (!activeConversation) {
+    const updatedConversation = updateActiveConversation((conversation) => ({
+      ...conversation,
+      maxOutputTokens: nextMaxOutputTokens,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    if (!updatedConversation) {
       return;
     }
 
-    const updatedConversation: StoredConversation = {
-      ...activeConversation,
-      maxOutputTokens: nextMaxOutputTokens,
-      updatedAt: new Date().toISOString(),
-    };
-
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === updatedConversation.id
-          ? updatedConversation
-          : conversation,
-      ),
-    );
     await saveConversation(updatedConversation);
   }
 

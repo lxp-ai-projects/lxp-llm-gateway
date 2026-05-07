@@ -733,6 +733,7 @@ a {
     max-width: 150px;
   }
 
+  /* Depends on Mantine Badge internals (.mantine-Badge-label); migrate if Mantine exposes a stable selector/API. */
   .shell-tenant-badge .mantine-Badge-label {
     display: block;
     overflow: hidden;

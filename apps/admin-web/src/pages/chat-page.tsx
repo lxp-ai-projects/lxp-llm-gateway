@@ -787,9 +787,16 @@ export function ChatPage() {
                     pendingConversationProviderSyncRef.current = false;
                     setModel(nextModel);
                     if (activeConversation && nextModel) {
+                      const nextChatProviderOptions = buildChatProviderOptions({
+                        providerId,
+                        model: nextModel,
+                        anthropicThinkingMode: effectiveAnthropicThinkingMode,
+                        anthropicThinkingBudgetTokens,
+                        thinkingMode: effectiveThinkingMode,
+                      });
                       void persistConversationModel(
                         nextModel,
-                        chatProviderOptions,
+                        nextChatProviderOptions,
                       );
                     }
                   }}

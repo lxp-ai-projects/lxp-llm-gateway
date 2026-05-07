@@ -8,6 +8,12 @@ module.exports = defineConfig(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ['eslint.config.js', '**/*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
     files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     languageOptions: {
       globals: {

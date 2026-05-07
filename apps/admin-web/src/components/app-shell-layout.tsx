@@ -146,6 +146,16 @@ export function AppShellLayout() {
   const gatewayOnline = gatewayHealthQuery.data?.status === 'ok';
   const availableTenants = currentUser?.availableTenants ?? [];
   const activeTenantLabel = getActiveTenantLabel(currentUser);
+  const roleBadgeColor = isSuperAdmin
+    ? 'grape'
+    : isTenantAdmin
+      ? 'ink'
+      : 'teal';
+  const roleBadgeLabel = isSuperAdmin
+    ? 'Super admin'
+    : isTenantAdmin
+      ? 'Tenant admin'
+      : 'User';
   const tenantOptions = availableTenants.map((tenant) => ({
     value: tenant.id,
     label: getTenantOptionLabel(tenant.displayName, tenant.slug),
@@ -239,10 +249,10 @@ export function AppShellLayout() {
                 </Badge>
                 <Badge
                   className="shell-role-badge"
-                  color={isSuperAdmin ? 'grape' : isTenantAdmin ? 'ink' : 'teal'}
+                  color={roleBadgeColor}
                   variant="filled"
                 >
-                  {isSuperAdmin ? 'Super admin' : isTenantAdmin ? 'Tenant admin' : 'User'}
+                  {roleBadgeLabel}
                 </Badge>
               </Group>
             </Stack>
