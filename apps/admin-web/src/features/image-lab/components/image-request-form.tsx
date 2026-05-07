@@ -8,6 +8,7 @@ import {
   Checkbox,
   Group,
   Image,
+  LoadingOverlay,
   Modal,
   NumberInput,
   Pagination,
@@ -32,7 +33,7 @@ import {
   IconUpload,
   IconX,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type {
   ImageAspectRatioOption,
@@ -59,6 +60,7 @@ export function ImageRequestForm({
     'all',
   );
   const [referenceCatalogPage, setReferenceCatalogPage] = useState(1);
+  const [showProviderLoadingOverlay, setShowProviderLoadingOverlay] = useState(false);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
   const capabilities = imageLab.selectedCapabilities;
   const aspectRatios = capabilities?.supportedImageAspectRatios ?? [];
@@ -135,6 +137,19 @@ export function ImageRequestForm({
   );
   const referenceLimitReached =
     imageLab.references.length >= imageLab.maxReferenceImages;
+
+  useEffect(() => {
+    if (!imageLab.catalogQuery.isPending) {
+      setShowProviderLoadingOverlay(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowProviderLoadingOverlay(true);
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [imageLab.catalogQuery.isPending]);
 
   function openReferenceCatalog() {
     setReferenceCatalogOpened(true);
@@ -374,31 +389,42 @@ export function ImageRequestForm({
         <Stack gap="md">
           <Title order={3}>Image request</Title>
 
-          <Select
-            data={imageLab.providers.map((provider) => ({
-              value: provider.providerId,
-              label: provider.displayName,
-            }))}
-            data-testid="image-provider-select"
-            label="Provider"
-            onChange={(value) => {
-              imageLab.setProviderId(value ?? '');
-              imageLab.setModelId('');
-              imageLab.setPrompt('');
-            }}
-            value={imageLab.providerId}
-          />
+          <div
+            data-testid="image-provider-loading-shell"
+            style={{ position: 'relative' }}
+          >
+            <LoadingOverlay
+              visible={showProviderLoadingOverlay}
+              zIndex={2}
+            />
+            <Stack gap="md">
+              <Select
+                data={imageLab.providers.map((provider) => ({
+                  value: provider.providerId,
+                  label: provider.displayName,
+                }))}
+                data-testid="image-provider-select"
+                label="Provider"
+                onChange={(value) => {
+                  imageLab.setProviderId(value ?? '');
+                  imageLab.setModelId('');
+                  imageLab.setPrompt('');
+                }}
+                value={imageLab.providerId}
+              />
 
-          <Select
-            data={imageLab.models.map((model: ProviderModelSummary) => ({
-              value: model.id,
-              label: model.displayName,
-            }))}
-            data-testid="image-model-select"
-            label="Model"
-            onChange={(value) => imageLab.setModelId(value ?? '')}
-            value={imageLab.modelId}
-          />
+              <Select
+                data={imageLab.models.map((model: ProviderModelSummary) => ({
+                  value: model.id,
+                  label: model.displayName,
+                }))}
+                data-testid="image-model-select"
+                label="Model"
+                onChange={(value) => imageLab.setModelId(value ?? '')}
+                value={imageLab.modelId}
+              />
+            </Stack>
+          </div>
 
           {imageLab.hasNanoGptPaidModels ? (
             <Checkbox

@@ -14,31 +14,58 @@ import { resolveImageFormDefaults } from './image-form-defaults';
 import { buildImageRequestPayload } from './image-request';
 
 const DEFAULT_HISTORY_PAGE = 1;
+export const IMAGE_LAB_DRAFT_STORAGE_KEY = 'image-lab-draft';
+
+type ImageLabDraft = {
+  providerId?: string;
+  modelId?: string;
+  prompt?: string;
+  aspectRatio?: string;
+  responseFormat?: 'url' | 'b64_json';
+  resolution?: string;
+  background?: string;
+  quality?: string;
+  moderation?: string;
+  outputFormat?: string;
+  outputCompression?: number | '';
+  inputFidelity?: string;
+  imageCount?: string;
+  referenceUrl?: string;
+  references?: ImageReferenceDraft[];
+  showNanoGptPaidModels?: boolean;
+};
 
 export function useImageLab() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [providerId, setProviderId] = useState('');
-  const [modelId, setModelId] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [aspectRatio, setAspectRatio] = useState('');
-  const [responseFormat, setResponseFormat] = useState<'url' | 'b64_json'>(
-    'b64_json',
+  const storedDraftRef = useRef<ImageLabDraft>(readStoredImageLabDraft());
+  const [providerId, setProviderId] = useState(() => storedDraftRef.current.providerId ?? '');
+  const [modelId, setModelId] = useState(() => storedDraftRef.current.modelId ?? '');
+  const [prompt, setPrompt] = useState(() => storedDraftRef.current.prompt ?? '');
+  const [aspectRatio, setAspectRatio] = useState(() => storedDraftRef.current.aspectRatio ?? '');
+  const [responseFormat, setResponseFormat] = useState<'url' | 'b64_json'>(() =>
+    storedDraftRef.current.responseFormat ?? 'b64_json',
   );
-  const [resolution, setResolution] = useState('');
-  const [background, setBackground] = useState('');
-  const [quality, setQuality] = useState('');
-  const [moderation, setModeration] = useState('');
-  const [outputFormat, setOutputFormat] = useState('');
-  const [outputCompression, setOutputCompression] = useState<number | ''>('');
-  const [inputFidelity, setInputFidelity] = useState('');
-  const [imageCount, setImageCount] = useState('1');
-  const [referenceUrl, setReferenceUrl] = useState('');
-  const [references, setReferences] = useState<ImageReferenceDraft[]>([]);
+  const [resolution, setResolution] = useState(() => storedDraftRef.current.resolution ?? '');
+  const [background, setBackground] = useState(() => storedDraftRef.current.background ?? '');
+  const [quality, setQuality] = useState(() => storedDraftRef.current.quality ?? '');
+  const [moderation, setModeration] = useState(() => storedDraftRef.current.moderation ?? '');
+  const [outputFormat, setOutputFormat] = useState(() => storedDraftRef.current.outputFormat ?? '');
+  const [outputCompression, setOutputCompression] = useState<number | ''>(() =>
+    storedDraftRef.current.outputCompression ?? '',
+  );
+  const [inputFidelity, setInputFidelity] = useState(() => storedDraftRef.current.inputFidelity ?? '');
+  const [imageCount, setImageCount] = useState(() => storedDraftRef.current.imageCount ?? '1');
+  const [referenceUrl, setReferenceUrl] = useState(() => storedDraftRef.current.referenceUrl ?? '');
+  const [references, setReferences] = useState<ImageReferenceDraft[]>(
+    () => storedDraftRef.current.references ?? [],
+  );
   const [results, setResults] = useState<GatewayGeneratedImage[]>([]);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(DEFAULT_HISTORY_PAGE);
-  const [showNanoGptPaidModels, setShowNanoGptPaidModels] = useState(false);
+  const [showNanoGptPaidModels, setShowNanoGptPaidModels] = useState(
+    () => storedDraftRef.current.showNanoGptPaidModels ?? false,
+  );
   const [activeRenderStartedAt, setActiveRenderStartedAt] = useState<number | null>(null);
   const [renderNowMs, setRenderNowMs] = useState(() => Date.now());
 
@@ -124,6 +151,44 @@ export function useImageLab() {
     setInputFidelity(defaults.inputFidelity);
     setImageCount(defaults.imageCount);
   }, [selectedCapabilities]);
+
+  useEffect(() => {
+    writeStoredImageLabDraft({
+      providerId,
+      modelId,
+      prompt,
+      aspectRatio,
+      responseFormat,
+      resolution,
+      background,
+      quality,
+      moderation,
+      outputFormat,
+      outputCompression,
+      inputFidelity,
+      imageCount,
+      referenceUrl,
+      references,
+      showNanoGptPaidModels,
+    });
+  }, [
+    providerId,
+    modelId,
+    prompt,
+    aspectRatio,
+    responseFormat,
+    resolution,
+    background,
+    quality,
+    moderation,
+    outputFormat,
+    outputCompression,
+    inputFidelity,
+    imageCount,
+    referenceUrl,
+    references,
+    showNanoGptPaidModels,
+  ]);
 
   const maxReferenceImages = resolveMaxReferenceImages(
     selectedProvider?.providerId,
@@ -520,4 +585,41 @@ function resolveRenderStats(
     estimatedDurationMs,
     sampleSize: durations.length,
   };
+}
+
+function readStoredImageLabDraft(): ImageLabDraft {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  try {
+    const rawDraft = window.localStorage.getItem(IMAGE_LAB_DRAFT_STORAGE_KEY);
+    if (!rawDraft) {
+      return {};
+    }
+
+    const parsedDraft = JSON.parse(rawDraft);
+    if (!parsedDraft || typeof parsedDraft !== 'object') {
+      return {};
+    }
+
+    return parsedDraft as ImageLabDraft;
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredImageLabDraft(draft: ImageLabDraft) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      IMAGE_LAB_DRAFT_STORAGE_KEY,
+      JSON.stringify(draft),
+    );
+  } catch {
+    // Ignore storage failures so the lab remains usable in restricted browsers.
+  }
 }
