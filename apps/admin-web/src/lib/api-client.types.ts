@@ -130,6 +130,113 @@ export type GatewayImageReference =
       assetId: string;
     };
 
+export type GatewayVideoReference = GatewayImageReference;
+
+export type GatewayVideoFrameImageReference = {
+  image: GatewayVideoReference;
+  frameType: 'first_frame' | 'last_frame';
+};
+
+export type GatewayVideoOutput = {
+  assetId?: string;
+  contentUrl?: string;
+  mimeType?: string;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+  byteSize?: number;
+  saved?: boolean;
+  providerMetadata?: Record<string, unknown>;
+};
+
+export type GatewayVideoGenerationJob = {
+  id: string;
+  requestId: string;
+  providerId: string;
+  model: string;
+  prompt: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  failedAt?: string;
+  cancelledAt?: string;
+  durationMs?: number;
+  error?: string;
+  outputs: GatewayVideoOutput[];
+  providerMetadata?: Record<string, unknown>;
+};
+
+export type VideoAspectRatioOption = {
+  value: string;
+  label: string;
+  useCase?: string;
+};
+
+export type VideoResolutionOption = {
+  value: string;
+  label: string;
+};
+
+export type VideoSizeOption = {
+  value: string;
+  label: string;
+};
+
+export type VideoDurationOption = {
+  value: number;
+  label: string;
+  description?: string;
+};
+
+export type VideoModelSummary = {
+  id: string;
+  displayName: string;
+  capabilities?: {
+    supportsStreaming?: boolean;
+    supportsVideoGeneration?: boolean;
+    requiresPaidAccess?: boolean;
+    supportedVideoAspectRatios?: VideoAspectRatioOption[];
+    supportedVideoResolutions?: VideoResolutionOption[];
+    supportedVideoSizes?: VideoSizeOption[];
+    supportedVideoDurations?: VideoDurationOption[];
+    supportedVideoFrameTypes?: Array<'first_frame' | 'last_frame'>;
+    supportsVideoReferenceImages?: boolean;
+    supportsVideoAudioGeneration?: boolean;
+    allowedVideoProviderParameters?: string[];
+    maxGeneratedVideosPerRequest?: number;
+    maxReferenceImagesPerRequest?: number;
+    videoDefaults?: {
+      durationSeconds?: number;
+      aspectRatio?: string;
+      resolution?: string;
+      size?: string;
+      generateAudio?: boolean;
+      videoCount?: number;
+    };
+    pricingSkus?: Record<string, string>;
+  };
+};
+
+export type GatewayVideoCatalogProvider = {
+  providerId: string;
+  displayName: string;
+  defaultModelId: string | null;
+  models: VideoModelSummary[];
+};
+
+export type GatewayVideoCatalogResponse = {
+  providers: GatewayVideoCatalogProvider[];
+};
+
+export type GatewayVideoHistoryResponse = {
+  items: GatewayVideoGenerationJob[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+};
+
 export type GatewayGeneratedImage = {
   assetId?: string;
   contentUrl?: string;
@@ -405,7 +512,7 @@ export type AdminTenantModelAccessRuleSummary = {
   tenantId: string;
   providerId: string;
   modelPattern: string;
-  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding';
+  capability: 'text' | 'image' | 'video' | 'stt' | 'tts' | 'embedding';
   effect: 'allow' | 'deny';
   maxInputTokens: number | null;
   maxOutputTokens: number | null;
@@ -425,6 +532,8 @@ export type AdminTenantPolicySummary = {
   tokensPerMinute: number;
   monthlyTokenLimit: number | null;
   imageRequestsPerMonth: number | null;
+  videoRequestsPerMonth: number | null;
+  maxConcurrentVideoJobs: number | null;
   maxInputTokens: number | null;
   maxOutputTokens: number | null;
   allowPromptLogging: boolean;
@@ -474,8 +583,15 @@ export type AdminTenantUsageEventSummary = {
   id: string;
   requestId: string;
   userUuid: string;
-  operation: 'chat' | 'image_generation' | 'image_edit';
-  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding' | null;
+  operation:
+    | 'chat'
+    | 'image_generation'
+    | 'image_edit'
+    | 'video_generation_submit'
+    | 'video_generation_poll'
+    | 'video_generation_download'
+    | 'video_generation_cancel';
+  capability: 'text' | 'image' | 'video' | 'stt' | 'tts' | 'embedding' | null;
   providerId: string;
   model: string;
   identitySource: string;
@@ -513,7 +629,7 @@ export type AdminTenantUsageByProviderSummary = {
 export type AdminTenantUsageByModelSummary = {
   providerId: string;
   model: string;
-  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding' | null;
+  capability: 'text' | 'image' | 'video' | 'stt' | 'tts' | 'embedding' | null;
   requests30d: number;
   blockedRequests30d: number;
   estimatedCostUsd30d: string;
@@ -575,6 +691,8 @@ export type AdminUpdateTenantPolicyInput = {
   tokensPerMinute?: number;
   monthlyTokenLimit?: number;
   imageRequestsPerMonth?: number;
+  videoRequestsPerMonth?: number;
+  maxConcurrentVideoJobs?: number;
   maxInputTokens?: number;
   maxOutputTokens?: number;
   allowPromptLogging?: boolean;
@@ -589,12 +707,13 @@ export type AdminTestTenantProviderConfigurationInput = {
 export type AdminCreateTenantModelAccessRuleInput = {
   providerId: string;
   modelPattern: string;
-  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding';
+  capability: 'text' | 'image' | 'video' | 'stt' | 'tts' | 'embedding';
   effect: 'allow' | 'deny';
   maxInputTokens?: number;
   maxOutputTokens?: number;
   maxImagesPerRequest?: number;
   maxResolution?: string;
+  maxDurationSeconds?: number;
   priority?: number;
 };
 
@@ -606,7 +725,9 @@ export type AdminCreateIntegrationClientInput = {
   displayName: string;
   applicationId: string;
   defaultUserUuid?: string;
-  scopes: Array<'chat:completion' | 'image:generate' | 'image:edit' | 'models:list'>;
+  scopes: Array<
+    'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+  >;
   trustedForwardedIdentityEnabled: boolean;
 };
 
@@ -614,20 +735,26 @@ export type AdminUpdateIntegrationClientInput = {
   displayName?: string;
   applicationId?: string;
   defaultUserUuid?: string;
-  scopes?: Array<'chat:completion' | 'image:generate' | 'image:edit' | 'models:list'>;
+  scopes?: Array<
+    'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+  >;
   trustedForwardedIdentityEnabled?: boolean;
   status?: 'active' | 'disabled';
 };
 
 export type AdminCreateIntegrationApiKeyInput = {
   label: string;
-  scopes?: Array<'chat:completion' | 'image:generate' | 'image:edit' | 'models:list'>;
+  scopes?: Array<
+    'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+  >;
   expiresAt?: string;
 };
 
 export type AdminUpdateIntegrationApiKeyInput = {
   label?: string;
-  scopes?: Array<'chat:completion' | 'image:generate' | 'image:edit' | 'models:list'>;
+  scopes?: Array<
+    'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+  >;
   status?: 'active' | 'disabled';
   expiresAt?: string;
 };

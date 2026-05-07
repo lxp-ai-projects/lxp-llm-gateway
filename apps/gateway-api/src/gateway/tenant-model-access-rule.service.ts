@@ -7,7 +7,7 @@ import { Repository } from 'typeorm';
 
 import { TenantModelAccessRuleEntity } from '../persistence/entities/tenant-model-access-rule.entity';
 
-type TenantModelAccessCapability = 'text' | 'image';
+type TenantModelAccessCapability = 'text' | 'image' | 'video';
 
 type EffectiveRule = {
   effect: 'allow' | 'deny';
@@ -15,6 +15,7 @@ type EffectiveRule = {
   maxOutputTokens: number | null;
   maxImagesPerRequest: number | null;
   maxResolution: string | null;
+  maxDurationSeconds: number | null;
 };
 
 export class ModelAccessPolicyException extends ForbiddenException {}
@@ -88,6 +89,47 @@ export class TenantModelAccessRuleService {
     }
   }
 
+  async assertVideoModelAllowed(params: {
+    tenantId: string;
+    providerId: ProviderId;
+    model: string;
+    durationSeconds?: number;
+    resolution?: string;
+  }): Promise<void> {
+    const rule = await this.resolveEffectiveRule(
+      params.tenantId,
+      params.providerId,
+      params.model,
+      'video',
+    );
+    if (rule?.effect === 'deny') {
+      throw new ModelAccessPolicyException(
+        `Model ${params.providerId}/${params.model} is denied for tenant ${params.tenantId}.`,
+      );
+    }
+
+    if (
+      rule?.maxDurationSeconds !== null &&
+      rule?.maxDurationSeconds !== undefined &&
+      typeof params.durationSeconds === 'number' &&
+      params.durationSeconds > rule.maxDurationSeconds
+    ) {
+      throw new ModelAccessLimitException(
+        `Video requests for ${params.providerId}/${params.model} cannot exceed ${rule.maxDurationSeconds} second(s) for this tenant.`,
+      );
+    }
+
+    if (
+      rule?.maxResolution &&
+      params.resolution &&
+      this.isResolutionAboveLimit(params.resolution, rule.maxResolution)
+    ) {
+      throw new ModelAccessLimitException(
+        `Video requests for ${params.providerId}/${params.model} cannot exceed resolution ${rule.maxResolution} for this tenant.`,
+      );
+    }
+  }
+
   async filterTextModels(
     tenantId: string,
     providerId: ProviderId,
@@ -112,6 +154,43 @@ export class TenantModelAccessRuleService {
       tenantId,
       provider.providerId as ProviderId,
       'image',
+    );
+    if (!rules.length) {
+      return provider;
+    }
+
+    const models = provider.models.filter((model) => {
+      const rule = this.pickEffectiveRule(rules, model.id);
+      return rule?.effect !== 'deny';
+    });
+    if (!models.length) {
+      return null;
+    }
+
+    const defaultModelStillAllowed = provider.defaultModelId
+      ? models.some((model) => model.id === provider.defaultModelId)
+      : false;
+
+    return {
+      ...provider,
+      defaultModelId: defaultModelStillAllowed
+        ? provider.defaultModelId
+        : models[0]?.id ?? null,
+      models,
+    };
+  }
+
+  async filterVideoCatalogProvider<
+    TProvider extends {
+      providerId: ProviderId;
+      defaultModelId: string | null;
+      models: Array<{ id: string }>;
+    },
+  >(tenantId: string, provider: TProvider): Promise<TProvider | null> {
+    const rules = await this.listMatchingRules(
+      tenantId,
+      provider.providerId,
+      'video',
     );
     if (!rules.length) {
       return provider;
@@ -195,6 +274,7 @@ export class TenantModelAccessRuleService {
       maxOutputTokens: winningRule.maxOutputTokens,
       maxImagesPerRequest: winningRule.maxImagesPerRequest,
       maxResolution: winningRule.maxResolution,
+      maxDurationSeconds: winningRule.maxDurationSeconds,
     };
   }
 

@@ -10,6 +10,7 @@ import {
 export type TenantModelAccessCapability =
   | 'text'
   | 'image'
+  | 'video'
   | 'stt'
   | 'tts'
   | 'embedding';
@@ -54,6 +55,9 @@ export class TenantModelAccessRuleEntity {
 
   @Column({ name: 'max_resolution', type: 'varchar', length: 50, nullable: true })
   maxResolution!: string | null;
+
+  @Column({ name: 'max_duration_seconds', type: 'integer', nullable: true })
+  maxDurationSeconds!: number | null;
 
   @Column({ name: 'priority', type: 'integer', default: 100 })
   priority!: number;

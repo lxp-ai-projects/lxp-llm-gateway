@@ -6,6 +6,7 @@ export type IntegrationClientScope =
   | 'chat:completion'
   | 'image:generate'
   | 'image:edit'
+  | 'video:generate'
   | 'models:list'
   | 'usage:read';
 

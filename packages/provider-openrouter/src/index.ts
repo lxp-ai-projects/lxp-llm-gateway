@@ -3,6 +3,8 @@ import type {
   GatewayChatResponse,
   GatewayImageEditRequest,
   GatewayImageGenerationRequest,
+  GatewayVideoGenerationJob,
+  GatewayVideoGenerationRequest,
 } from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
@@ -18,6 +20,12 @@ import {
 import { OpenRouterImageApiClient } from './image/api-client.js';
 import { OpenRouterImageEditService } from './image/edit-service.js';
 import { OpenRouterImageGenerationService } from './image/generation-service.js';
+import {
+  buildKnownOpenRouterVideoCatalog,
+  buildOpenRouterVideoCatalog,
+} from './video/catalog.js';
+import { OpenRouterVideoApiClient } from './video/api-client.js';
+import { OpenRouterVideoGenerationService } from './video/generation-service.js';
 
 export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -25,6 +33,7 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     modelCatalog: true,
     imageGeneration: true,
     imageEditing: true,
+    videoGeneration: true,
   } as const;
 
   private readonly baseUrl: string;
@@ -32,6 +41,8 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   private readonly imageApiClient: OpenRouterImageApiClient;
   private readonly imageGenerationService: OpenRouterImageGenerationService;
   private readonly imageEditService: OpenRouterImageEditService;
+  private readonly videoApiClient: OpenRouterVideoApiClient;
+  private readonly videoGenerationService: OpenRouterVideoGenerationService;
 
   constructor(
     baseUrl = process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1',
@@ -49,6 +60,13 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       this.imageApiClient,
     );
     this.imageEditService = new OpenRouterImageEditService(this.imageApiClient);
+    this.videoApiClient = new OpenRouterVideoApiClient(
+      this.baseUrl,
+      this.requestTimeoutMs,
+    );
+    this.videoGenerationService = new OpenRouterVideoGenerationService(
+      this.videoApiClient,
+    );
   }
 
   readonly providerId = 'openrouter' as const;
@@ -93,6 +111,16 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       );
     } catch {
       return buildKnownOpenRouterImageCatalog();
+    }
+  }
+
+  async listVideoCatalog(context: ProviderExecutionContext) {
+    try {
+      return buildOpenRouterVideoCatalog(
+        await this.videoApiClient.listVideoModels(context),
+      );
+    } catch {
+      return buildKnownOpenRouterVideoCatalog();
     }
   }
 
@@ -199,6 +227,57 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
   ) {
     return this.imageEditService.execute(request, context);
+  }
+
+  async submitVideoGeneration(
+    request: GatewayVideoGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob> {
+    return this.videoGenerationService.submit(request, context);
+  }
+
+  async getVideoGenerationJob(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob> {
+    const requestedModel =
+      typeof context.metadata?.requestedModel === 'string'
+        ? context.metadata.requestedModel
+        : 'unknown-model';
+    const prompt =
+      typeof context.metadata?.prompt === 'string' ? context.metadata.prompt : '';
+
+    return this.videoGenerationService.getJob(
+      requestedModel,
+      jobId,
+      prompt,
+      context,
+    );
+  }
+
+  async downloadVideoOutput(
+    jobId: string,
+    outputIndex: number,
+    context: ProviderExecutionContext,
+  ): Promise<ReadableStream<Uint8Array>> {
+    const response = await this.videoApiClient.downloadVideoContent(
+      context,
+      jobId,
+      outputIndex,
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `OpenRouter video download failed with status ${response.status}: ${errorText}`,
+      );
+    }
+
+    if (!response.body) {
+      throw new Error('OpenRouter video download did not include a body.');
+    }
+
+    return response.body;
   }
 
   private dispatchChatRequest(

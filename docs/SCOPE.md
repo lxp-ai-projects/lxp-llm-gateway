@@ -68,6 +68,14 @@ Phase 1 does not include:
 - event-driven workers
 - speculative subsystems beyond the current control-plane and gateway needs
 
+The next seam expansion is intentionally incremental:
+
+- introduce a reusable media-generation foundation in the shared seam
+- land asynchronous video generation behind that seam starting with OpenRouter Video
+- prove image-to-video first while keeping text-to-video compatibility in the shared contracts
+- keep backend contract stabilization ahead of any new workspace UI surface
+- avoid implementing OpenRouter, xAI direct, and NanoGPT video all at once
+
 The repository now treats multi-tenancy as a first-class architectural concern:
 
 - users remain global identities
@@ -223,6 +231,7 @@ Transport-level contracts shared across applications:
 - error payloads
 - auth payloads
 - frontend-backend API shapes
+- media-generation transport contracts for asynchronous video workflows
 
 ### `packages/domain`
 
@@ -232,6 +241,7 @@ Pure domain concepts that are not tied to NestJS or React:
 - capability models
 - routing concepts
 - execution context types
+- media-generation concepts such as shared async job states and video model capability metadata
 
 ### `packages/provider-sdk`
 
@@ -241,12 +251,14 @@ Provider abstraction seam:
 - normalized provider result types
 - shared provider execution contracts
 - capability-oriented contracts for chat, model catalog, image generation, and image editing
+- capability-oriented contracts for asynchronous video generation
 - provider-owned model metadata for capability-specific constraints such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, input fidelity, compression ranges, and request limits
+- provider-owned video metadata for capability-specific constraints such as supported durations, aspect ratios, resolutions, frame-image support, passthrough parameters, and pricing hints
 - provider access configuration that can represent:
   - bearer-token providers such as `NanoGPT` and `OpenRouter`
   - endpoint-based providers such as `Ollama`
 
-The seam should evolve by adding new capability contracts, not by teaching `gateway-api` provider-specific image endpoints or payload formats.
+The seam should evolve by adding new capability contracts, not by teaching `gateway-api` provider-specific image or video endpoints or payload formats.
 
 Current provider posture for the newest additions is intentionally mixed by capability:
 
@@ -467,6 +479,8 @@ The current policy and limit posture is intentionally incremental:
 - the current limiter is app-level and database-backed, not a distributed multi-instance rate limiter yet
 
 The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection, output format, transparency/background handling, input fidelity, and compression controls.
+
+The next capability slice after that is media-generation expansion for asynchronous video jobs, starting with OpenRouter Video and preserving the same seam rule.
 
 The current implementation now also includes:
 

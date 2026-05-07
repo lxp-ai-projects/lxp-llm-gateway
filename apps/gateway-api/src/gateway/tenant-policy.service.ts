@@ -8,6 +8,7 @@ import {
   Repository,
 } from 'typeorm';
 
+import { MediaGenerationJobEntity } from '../persistence/entities/media-generation-job.entity';
 import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
 import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
 
@@ -30,6 +31,8 @@ type ResolvedTenantPolicy = {
   tokensPerMinute: number;
   monthlyTokenLimit: number | null;
   imageRequestsPerMonth: number | null;
+  videoRequestsPerMonth: number | null;
+  maxConcurrentVideoJobs: number | null;
   maxInputTokens: number | null;
   maxOutputTokens: number | null;
   allowPromptLogging: boolean;
@@ -49,6 +52,8 @@ export class TenantPolicyService {
     private readonly tenantPolicyRepository: Repository<TenantPolicyEntity>,
     @InjectRepository(UsageEventEntity)
     private readonly usageEventRepository: Repository<UsageEventEntity>,
+    @InjectRepository(MediaGenerationJobEntity)
+    private readonly mediaGenerationJobRepository: Repository<MediaGenerationJobEntity>,
   ) {}
 
   async resolvePolicy(
@@ -68,6 +73,8 @@ export class TenantPolicyService {
       tokensPerMinute: policy?.tokensPerMinute ?? 100000,
       monthlyTokenLimit: policy?.monthlyTokenLimit ?? null,
       imageRequestsPerMonth: policy?.imageRequestsPerMonth ?? null,
+      videoRequestsPerMonth: policy?.videoRequestsPerMonth ?? null,
+      maxConcurrentVideoJobs: policy?.maxConcurrentVideoJobs ?? null,
       maxInputTokens: policy?.maxInputTokens ?? null,
       maxOutputTokens: policy?.maxOutputTokens ?? null,
       allowPromptLogging: policy?.allowPromptLogging ?? false,
@@ -97,6 +104,19 @@ export class TenantPolicyService {
     await this.assertRequestWindows(policy, input, manager);
     await this.assertMonthlyBudget(policy, input, manager);
     await this.assertImageRequestLimit(policy, input, manager);
+    return policy;
+  }
+
+  async assertVideoRequestAllowed(input: {
+    tenantId: string;
+    providerId: string;
+    model: string;
+  }, manager?: EntityManager): Promise<ResolvedTenantPolicy> {
+    const policy = await this.resolvePolicy(input.tenantId, manager);
+    await this.assertRequestWindows(policy, input, manager);
+    await this.assertMonthlyBudget(policy, input, manager);
+    await this.assertVideoRequestLimit(policy, input, manager);
+    await this.assertConcurrentVideoJobLimit(policy, input, manager);
     return policy;
   }
 
@@ -275,6 +295,64 @@ export class TenantPolicyService {
     }
   }
 
+  private async assertVideoRequestLimit(
+    policy: ResolvedTenantPolicy,
+    input: { tenantId: string },
+    manager?: EntityManager,
+  ): Promise<void> {
+    if (policy.videoRequestsPerMonth === null) {
+      return;
+    }
+
+    const current = await this.getUsageEventRepository(manager).count({
+      where: {
+        tenantId: input.tenantId,
+        capability: 'video',
+        createdAt: MoreThanOrEqual(this.buildStartOfMonthDate()),
+        status: Not(In(TenantPolicyService.blockedUsageStatuses)),
+      },
+    });
+    if (current >= policy.videoRequestsPerMonth) {
+      throw new TenantPolicyLimitException(
+        'tenant_monthly_video_request_limit_exceeded',
+        `Tenant ${input.tenantId} exceeded the monthly video request limit.`,
+        {
+          limit: policy.videoRequestsPerMonth,
+          current,
+          window: 'month',
+        },
+      );
+    }
+  }
+
+  private async assertConcurrentVideoJobLimit(
+    policy: ResolvedTenantPolicy,
+    input: { tenantId: string },
+    manager?: EntityManager,
+  ): Promise<void> {
+    if (policy.maxConcurrentVideoJobs === null) {
+      return;
+    }
+
+    const current = await this.getMediaGenerationJobRepository(manager).count({
+      where: {
+        tenantId: input.tenantId,
+        capability: 'video',
+        status: In(['queued', 'running']),
+      },
+    });
+    if (current >= policy.maxConcurrentVideoJobs) {
+      throw new TenantPolicyLimitException(
+        'tenant_concurrent_video_job_limit_exceeded',
+        `Tenant ${input.tenantId} exceeded the concurrent video job limit.`,
+        {
+          limit: policy.maxConcurrentVideoJobs,
+          current,
+        },
+      );
+    }
+  }
+
   private buildLowerBoundDate(windowMs: number): Date {
     return new Date(Date.now() - windowMs);
   }
@@ -315,5 +393,12 @@ export class TenantPolicyService {
     manager?: EntityManager,
   ): Repository<UsageEventEntity> {
     return manager?.getRepository(UsageEventEntity) ?? this.usageEventRepository;
+  }
+
+  private getMediaGenerationJobRepository(
+    manager?: EntityManager,
+  ): Repository<MediaGenerationJobEntity> {
+    return manager?.getRepository(MediaGenerationJobEntity) ??
+      this.mediaGenerationJobRepository;
   }
 }

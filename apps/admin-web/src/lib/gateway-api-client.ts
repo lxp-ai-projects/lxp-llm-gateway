@@ -17,6 +17,11 @@ import type {
   GatewayImageHistoryResponse,
   GatewayImageReference,
   ProviderModelSummary,
+  GatewayVideoCatalogResponse,
+  GatewayVideoGenerationJob,
+  GatewayVideoHistoryResponse,
+  GatewayVideoFrameImageReference,
+  GatewayVideoReference,
 } from './api-client.types';
 
 const IMAGE_REQUEST_TIMEOUT_MS = 300000;
@@ -29,6 +34,12 @@ export const gatewayApiClient = {
   async getImageCatalog(): Promise<GatewayImageCatalogResponse> {
     return request<GatewayImageCatalogResponse>(
       `${gatewayApiUrl}/api/v1/images/catalog`,
+    );
+  },
+
+  async getVideoCatalog(): Promise<GatewayVideoCatalogResponse> {
+    return request<GatewayVideoCatalogResponse>(
+      `${gatewayApiUrl}/api/v1/videos/catalog`,
     );
   },
 
@@ -182,6 +193,55 @@ export const gatewayApiClient = {
   async getImageHistory(page = 1): Promise<GatewayImageHistoryResponse> {
     return request<GatewayImageHistoryResponse>(
       `${gatewayApiUrl}/api/v1/images/history?page=${encodeURIComponent(String(page))}`,
+    );
+  },
+
+  async generateVideo(payload: {
+    providerId?: string;
+    model?: string;
+    idempotencyKey?: string;
+    prompt: string;
+    durationSeconds?: number;
+    aspectRatio?: string;
+    resolution?: string;
+    size?: string;
+    generateAudio?: boolean;
+    seed?: number;
+    frameImages?: GatewayVideoFrameImageReference[];
+    referenceImages?: GatewayVideoReference[];
+    providerOptions?: Record<string, unknown>;
+  }): Promise<GatewayVideoGenerationJob> {
+    return request<GatewayVideoGenerationJob>(
+      `${gatewayApiUrl}/api/v1/videos/generations`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: IMAGE_REQUEST_TIMEOUT_MS,
+      },
+    );
+  },
+
+  async getVideoJob(jobId: string): Promise<GatewayVideoGenerationJob> {
+    return request<GatewayVideoGenerationJob>(
+      `${gatewayApiUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
+      {
+        timeoutMs: 90000,
+      },
+    );
+  },
+
+  async cancelVideoJob(jobId: string): Promise<GatewayVideoGenerationJob> {
+    return request<GatewayVideoGenerationJob>(
+      `${gatewayApiUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}/cancel`,
+      {
+        method: 'PATCH',
+      },
+    );
+  },
+
+  async getVideoHistory(page = 1): Promise<GatewayVideoHistoryResponse> {
+    return request<GatewayVideoHistoryResponse>(
+      `${gatewayApiUrl}/api/v1/videos/history?page=${encodeURIComponent(String(page))}`,
     );
   },
 };

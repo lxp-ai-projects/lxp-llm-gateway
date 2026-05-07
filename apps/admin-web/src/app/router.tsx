@@ -35,6 +35,11 @@ const ImageGenerationPage = lazy(async () =>
     default: module.ImageGenerationPage,
   })),
 );
+const VideoGenerationPage = lazy(async () =>
+  import('../pages/video-generation-page').then((module) => ({
+    default: module.VideoGenerationPage,
+  })),
+);
 const UsersPage = lazy(async () =>
   import('../pages/users-page').then((module) => ({
     default: module.UsersPage,
@@ -159,6 +164,7 @@ export const router = createBrowserRouter([
       { path: 'profile', element: withSuspense(<ProfilePage />) },
       { path: 'chat', element: withSuspense(<ChatPage />) },
       { path: 'images', element: withSuspense(<ImageGenerationPage />) },
+      { path: 'videos', element: withSuspense(<VideoGenerationPage />) },
       {
         path: 'admin/users',
         element: withSuspense(

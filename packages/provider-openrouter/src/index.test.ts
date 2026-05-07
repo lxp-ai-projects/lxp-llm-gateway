@@ -646,3 +646,172 @@ test('OpenRouterProviderAdapter sends image edit requests through chat completio
     globalThis.fetch = originalFetch;
   }
 });
+
+test('OpenRouterProviderAdapter exposes a video catalog', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'google/veo-3.1',
+            name: 'Veo 3.1',
+            generate_audio: true,
+            supported_aspect_ratios: ['16:9'],
+            supported_durations: [5, 8],
+            supported_frame_images: ['first_frame', 'last_frame'],
+            supported_resolutions: ['720p'],
+            supported_sizes: null,
+            allowed_passthrough_parameters: ['seed'],
+            pricing_skus: {
+              generate: '0.50',
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    const catalog = await adapter.listVideoCatalog?.({
+      requestId: 'req-video-catalog',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'openrouter-secret-token',
+      },
+    });
+
+    assert.ok(catalog);
+    assert.equal(catalog?.providerId, 'openrouter');
+    assert.equal(catalog?.defaultModelId, 'google/veo-3.1');
+    assert.equal(catalog?.models[0]?.capabilities.supportsVideoGeneration, true);
+    assert.equal(catalog?.models[0]?.capabilities.supportsVideoAudioGeneration, true);
+    assert.deepEqual(
+      catalog?.models[0]?.capabilities.supportedVideoFrameTypes,
+      ['first_frame', 'last_frame'],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouterProviderAdapter submits and polls a video generation job', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    if (String(url).endsWith('/videos')) {
+      return new Response(
+        JSON.stringify({
+          id: 'job-abc123',
+          polling_url: '/api/v1/videos/job-abc123',
+          status: 'pending',
+          generation_id: 'gen-xyz789',
+        }),
+        {
+          status: 202,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        id: 'job-abc123',
+        polling_url: '/api/v1/videos/job-abc123',
+        status: 'completed',
+        generation_id: 'gen-xyz789',
+        unsigned_urls: ['https://provider.example/video.mp4'],
+        usage: {
+          cost: 0.5,
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    const submitted = await adapter.submitVideoGeneration?.(
+      {
+        model: 'google/veo-3.1',
+        prompt: 'Animate this product photo into a reveal shot',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        resolution: '720p',
+        referenceImages: [
+          {
+            type: 'image_url',
+            url: 'https://example.com/reference.png',
+          },
+        ],
+      },
+      {
+        requestId: 'req-video-submit',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'openrouter-secret-token',
+        },
+      },
+    );
+
+    assert.ok(submitted);
+    assert.equal(submitted?.status, 'queued');
+    assert.equal(calls[0]?.url, 'https://openrouter.ai/api/v1/videos');
+
+    const payload = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      duration?: number;
+      aspect_ratio?: string;
+      resolution?: string;
+      input_references?: Array<{ image_url: string }>;
+    };
+    assert.equal(payload.duration, 5);
+    assert.equal(payload.aspect_ratio, '16:9');
+    assert.equal(payload.resolution, '720p');
+    assert.equal(
+      payload.input_references?.[0]?.image_url,
+      'https://example.com/reference.png',
+    );
+
+    const polled = await adapter.getVideoGenerationJob?.('job-abc123', {
+      requestId: 'req-video-submit',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'openrouter-secret-token',
+      },
+      metadata: {
+        requestedModel: 'google/veo-3.1',
+        prompt: 'Animate this product photo into a reveal shot',
+      },
+    });
+
+    assert.ok(polled);
+    assert.equal(polled?.status, 'succeeded');
+    assert.equal(polled?.outputs[0]?.contentUrl, 'https://provider.example/video.mp4');
+    assert.equal(
+      (polled?.providerMetadata?.usage as { cost?: number } | undefined)?.cost,
+      0.5,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

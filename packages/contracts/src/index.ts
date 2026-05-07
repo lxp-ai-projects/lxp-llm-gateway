@@ -364,3 +364,5 @@ export interface GatewayErrorResponse {
   code: string;
   message: string;
 }
+
+export * from './video-generation.js';

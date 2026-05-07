@@ -11,6 +11,7 @@ import type { GatewayAuthIdentitySource } from '../../auth/auth.types';
 export type UsageEventCapability =
   | 'text'
   | 'image'
+  | 'video'
   | 'stt'
   | 'tts'
   | 'embedding';
@@ -44,7 +45,14 @@ export class UsageEventEntity {
   requestId!: string;
 
   @Column({ name: 'operation', type: 'varchar', length: 50 })
-  operation!: 'chat' | 'image_generation' | 'image_edit';
+  operation!:
+    | 'chat'
+    | 'image_generation'
+    | 'image_edit'
+    | 'video_generation_submit'
+    | 'video_generation_poll'
+    | 'video_generation_download'
+    | 'video_generation_cancel';
 
   @Column({ name: 'capability', type: 'varchar', length: 20, nullable: true })
   capability!: UsageEventCapability | null;

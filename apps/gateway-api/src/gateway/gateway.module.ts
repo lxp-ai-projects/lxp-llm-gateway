@@ -47,8 +47,13 @@ import { EncryptionService } from '../security/encryption.service';
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
+import { MediaAssetEntity } from '../persistence/entities/media-asset.entity';
+import { MediaGenerationJobEntity } from '../persistence/entities/media-generation-job.entity';
 import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { TenantPolicyService } from './tenant-policy.service';
+import { VideosController } from '../videos.controller';
+import { MediaStorageService } from '../videos/media-storage.service';
+import { VideoApplicationService } from '../videos/video-application.service';
 
 @Module({
   imports: [
@@ -68,6 +73,8 @@ import { TenantPolicyService } from './tenant-policy.service';
       ImageAssetEntity,
       ImageJobEntity,
       ImageJobResultEntity,
+      MediaAssetEntity,
+      MediaGenerationJobEntity,
     ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -80,6 +87,7 @@ import { TenantPolicyService } from './tenant-policy.service';
     GatewayController,
     ModelsController,
     ImagesController,
+    VideosController,
     OpenAiCompatibleController,
   ],
   providers: [
@@ -95,6 +103,8 @@ import { TenantPolicyService } from './tenant-policy.service';
     TenantProviderConfigurationService,
     TenantPolicyService,
     ImageApplicationService,
+    VideoApplicationService,
+    MediaStorageService,
     TenantRlsService,
     EncryptionService,
     {
