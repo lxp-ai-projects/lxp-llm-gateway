@@ -2,6 +2,7 @@ import type {
   ModelFamilyProfile,
   MediaGenerationStatus,
   ProviderId,
+  UnsupportedFeatureReason,
   VideoFrameType,
 } from '@lxp/domain';
 
@@ -58,6 +59,14 @@ export interface GatewayVideoOutput {
   providerMetadata?: Record<string, unknown>;
 }
 
+
+export interface GatewayVideoAssetSaveRequest {
+  saved: boolean;
+}
+
+export interface GatewayVideoAssetSaveResponse {
+  asset: GatewayVideoOutput;
+}
 export interface GatewayVideoGenerationJob {
   id: string;
   requestId: string;
@@ -118,6 +127,7 @@ export interface GatewayVideoCatalogModel {
       videoCount?: number;
     };
     pricingSkus?: Record<string, string>;
+    capabilityDiagnostics?: UnsupportedFeatureReason[];
     family?: ModelFamilyProfile;
   };
 }
@@ -132,3 +142,4 @@ export interface GatewayVideoCatalogProvider {
 export interface GatewayVideoCatalogResponse {
   providers: GatewayVideoCatalogProvider[];
 }
+

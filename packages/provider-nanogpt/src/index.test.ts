@@ -1277,6 +1277,116 @@ test('NanoGptProviderAdapter submits image-to-video requests to the NanoGPT vide
   }
 });
 
+test('NanoGptProviderAdapter maps the unified top-level NanoGPT video status payload', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        requestId: 'vid_456',
+        model: 'kling-video-o1',
+        status: 'completed',
+        videoUrl: 'https://cdn.nano-gpt.com/videos/vid_456.mp4',
+        createdAt: '2026-05-08T15:00:00.000Z',
+        completedAt: '2026-05-08T15:00:09.000Z',
+        progress: 100,
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const job = await adapter.getVideoGenerationJob?.(
+      'vid_456',
+      {
+        requestId: 'req-video-status-top-level',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'nano-secret-token',
+        },
+        metadata: {
+          requestedModel: 'kling-video-o1',
+          prompt: 'Animate the still image',
+        },
+      },
+    );
+
+    assert.equal(job?.status, 'succeeded');
+    assert.equal(job?.outputs[0]?.contentUrl, 'https://cdn.nano-gpt.com/videos/vid_456.mp4');
+    assert.equal(job?.providerMetadata?.upstreamStatus, 'completed');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter keeps downloadVideoOutput bound when the method is detached', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (url) => {
+    const rawUrl = String(url);
+    if (rawUrl.includes('/api/video/status')) {
+      return new Response(
+        JSON.stringify({
+          requestId: 'vid_bound_1',
+          model: 'kling-video-o1',
+          data: {
+            status: 'COMPLETED',
+            requestId: 'vid_bound_1',
+            output: {
+              video: {
+                url: 'https://cdn.nano-gpt.com/videos/vid_bound_1.mp4',
+              },
+            },
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    }
+
+    return new Response(new TextEncoder().encode('video-bytes'), {
+      status: 200,
+      headers: {
+        'content-type': 'video/mp4',
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
+    const detachedDownload = adapter.downloadVideoOutput;
+    const stream = await detachedDownload?.(
+      'vid_bound_1',
+      0,
+      {
+        requestId: 'req-video-download-detached',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'nano-secret-token',
+        },
+        metadata: {
+          requestedModel: 'kling-video-o1',
+        },
+      },
+    );
+    const reader = stream?.getReader();
+    const firstChunk = await reader?.read();
+
+    assert.match(new TextDecoder().decode(firstChunk?.value), /video-bytes/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('NanoGptProviderAdapter polls completed video jobs and downloads the provider artifact independently of family metadata', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -1754,3 +1864,6 @@ test('buildNanoGptImageCatalog aligns Qwen Image with a 3-reference edit limit',
   assert.ok(model);
   assert.equal(model.capabilities.maxReferenceImagesPerRequest, 3);
 });
+
+
+

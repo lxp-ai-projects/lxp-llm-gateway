@@ -17,6 +17,7 @@ import type {
   GatewayImageHistoryResponse,
   GatewayImageReference,
   ProviderModelSummary,
+  GatewayVideoAssetSaveResponse,
   GatewayVideoCatalogResponse,
   GatewayVideoGenerationJob,
   GatewayVideoHistoryResponse,
@@ -244,6 +245,19 @@ export const gatewayApiClient = {
       `${gatewayApiUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
       {
         method: 'DELETE',
+      },
+    );
+  },
+
+  async setVideoAssetSaved(
+    assetId: string,
+    saved: boolean,
+  ): Promise<GatewayVideoAssetSaveResponse> {
+    return request<GatewayVideoAssetSaveResponse>(
+      `${gatewayApiUrl}/api/v1/videos/assets/${encodeURIComponent(assetId)}/save`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ saved }),
       },
     );
   },

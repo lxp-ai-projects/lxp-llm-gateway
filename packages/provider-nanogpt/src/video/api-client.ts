@@ -56,6 +56,13 @@ export interface NanoGptVideoStatusPayload {
   requestId?: string;
   runId?: string;
   model?: string;
+  status?: string;
+  videoUrl?: string | null;
+  error?: string | null;
+  createdAt?: string | null;
+  completedAt?: string | null;
+  progress?: number | null;
+  estimatedTimeRemaining?: number | null;
   data?: {
     status?: string;
     requestId?: string;
@@ -137,11 +144,15 @@ export class NanoGptVideoApiClient {
     );
   }
 
-  downloadVideoContent(url: string): Promise<Response> {
+  downloadVideoContent(
+    context: ProviderExecutionContext,
+    url: string,
+  ): Promise<Response> {
     return this.fetchWithTimeout(
       url,
       {
         method: 'GET',
+        headers: this.resolveHeaders(context),
       },
       this.requestTimeoutMs,
     );
@@ -212,3 +223,4 @@ export class NanoGptVideoApiClient {
     }
   }
 }
+

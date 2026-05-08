@@ -355,7 +355,8 @@ test('VideoGenerationPage renders providers, request controls, and history from 
   expect(screen.getAllByText('text-to-video').length).toBeGreaterThan(0);
   expect(screen.getByText('No video job yet')).toBeInTheDocument();
   expect(screen.getByText('Video history')).toBeInTheDocument();
-  expect(screen.getByText('Storyboard still')).toBeInTheDocument();
+  expect(screen.getByText('Uploaded reference catalog')).toBeInTheDocument();
+  expect(screen.getByTestId('video-reference-catalog-open')).toBeInTheDocument();
 });
 
 test('VideoGenerationPage restores the saved draft after a remount-like refresh', async () => {
@@ -392,7 +393,62 @@ test('VideoGenerationPage restores the saved draft after a remount-like refresh'
   expect(
     screen.getByDisplayValue('https://example.com/reference-frame.png'),
   ).toBeInTheDocument();
-  expect(screen.getByText('1 / 3 selected')).toBeInTheDocument();
+  expect(screen.getAllByText('1 / 3 selected').length).toBeGreaterThan(0);
+});
+
+
+test('VideoGenerationPage turns pasted data URLs into reusable image assets before video submission', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<VideoGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Video Generation Lab' });
+  fireEvent.change(screen.getByTestId('video-reference-url-input'), {
+    target: { value: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABA...' },
+  });
+  await user.click(screen.getByTestId('video-add-reference-url'));
+
+  await waitFor(() =>
+    expect(uploadImageAssetMock).toHaveBeenCalledWith({
+      dataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABA...',
+      label: 'Pasted reference image',
+    }),
+  );
+  expect((await screen.findAllByText('upload.png')).length).toBeGreaterThan(0);
+
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'Animate the portrait with a gentle push-in' },
+  });
+  await user.click(screen.getByTestId('video-submit'));
+
+  await waitFor(() =>
+    expect(generateVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceImages: [{ type: 'asset', assetId: 'asset-upload-1' }],
+      }),
+    ),
+  );
+});
+
+
+test('VideoGenerationPage lets a long URL reference be removed from the selected list', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<VideoGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Video Generation Lab' });
+  fireEvent.change(screen.getByTestId('video-reference-url-input'), {
+    target: {
+      value:
+        'https://example.com/reference/super/long/path/that/should/not/hide/the/remove/action/frame-preview-image.jpg',
+    },
+  });
+  await user.click(screen.getByTestId('video-add-reference-url'));
+
+  expect(screen.getAllByText('1 / 3 selected').length).toBeGreaterThan(0);
+  await user.click(screen.getByRole('button', { name: 'Remove' }));
+
+  await waitFor(() => {
+    expect(screen.getAllByText('0 / 3 selected').length).toBeGreaterThan(0);
+  });
 });
 
 test('VideoGenerationPage submits an image-to-video job using a selected uploaded asset and then shows the ingested result', async () => {
@@ -429,6 +485,32 @@ test('VideoGenerationPage submits an image-to-video job using a selected uploade
   expect(screen.getByText('Gateway request snapshot')).toBeInTheDocument();
   expect(screen.getByText('Provider metadata')).toBeInTheDocument();
   expect(screen.getByText(/"upstreamStatus": "completed"/)).toBeInTheDocument();
+});
+
+test('VideoGenerationPage lets a removed shared asset reference be selected again', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<VideoGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Video Generation Lab' });
+  await user.click(screen.getByTestId('video-reference-catalog-open'));
+  await user.click(await screen.findByTestId('video-reference-catalog-use-asset-upload-catalog-1'));
+
+  expect((await screen.findAllByText('Storyboard still')).length).toBeGreaterThan(0);
+  expect(screen.getAllByText('1 / 3 selected').length).toBeGreaterThan(0);
+  expect(screen.getByRole('button', { name: 'Selected' })).toBeDisabled();
+
+  await user.click(screen.getByRole('button', { name: 'Remove' }));
+
+  await waitFor(() => {
+    expect(screen.getAllByText('0 / 3 selected').length).toBeGreaterThan(0);
+  });
+  expect(await screen.findByTestId('video-reference-catalog-use-asset-upload-catalog-1')).toBeEnabled();
+
+  await user.click(screen.getByTestId('video-reference-catalog-use-asset-upload-catalog-1'));
+
+  expect((await screen.findAllByText('Storyboard still')).length).toBeGreaterThan(0);
+  expect(screen.getAllByText('1 / 3 selected').length).toBeGreaterThan(0);
+  expect(screen.getByRole('button', { name: 'Selected' })).toBeDisabled();
 });
 
 test(
@@ -519,6 +601,11 @@ test(
   await user.click(screen.getByTestId('video-submit'));
 
   await waitFor(() => expect(getVideoJobMock).toHaveBeenCalledTimes(1));
+  expect(await screen.findByText('Estimated')).toBeInTheDocument();
+  expect(
+    screen.getByText('Estimate based on 1 previous run for this provider and model.'),
+  ).toBeInTheDocument();
+  expect(screen.getByRole('progressbar', { name: 'Video rendering progress' })).toBeInTheDocument();
   await new Promise((resolve) => window.setTimeout(resolve, 3200));
   await waitFor(() => expect(getVideoJobMock).toHaveBeenCalledTimes(2));
   expect(await screen.findByText('Generation completed')).toBeInTheDocument();
@@ -614,3 +701,15 @@ test('VideoGenerationPage deletes a terminal job from the results panel', async 
   await waitFor(() => expect(deleteVideoJobMock).toHaveBeenCalledWith('history-video-job-1'));
   expect(await screen.findByText('No video job yet')).toBeInTheDocument();
 });
+
+
+
+
+
+
+
+
+
+
+
+

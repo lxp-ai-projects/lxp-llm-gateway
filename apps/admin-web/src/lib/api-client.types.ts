@@ -1,4 +1,4 @@
-import type { ModelFamilyProfile } from '@lxp/domain';
+import type { ModelFamilyProfile, UnsupportedFeatureReason } from '@lxp/domain';
 export type { GatewayVideoRetryRequest } from '@lxp/contracts';
 import type { GatewayVideoRetryRequest } from '@lxp/contracts';
 
@@ -153,6 +153,14 @@ export type GatewayVideoOutput = {
   providerMetadata?: Record<string, unknown>;
 };
 
+export type GatewayVideoAssetSaveRequest = {
+  saved: boolean;
+};
+
+export type GatewayVideoAssetSaveResponse = {
+  asset: GatewayVideoOutput;
+};
+
 export type GatewayVideoGenerationJob = {
   id: string;
   requestId: string;
@@ -221,6 +229,7 @@ export type VideoModelSummary = {
       videoCount?: number;
     };
     pricingSkus?: Record<string, string>;
+    capabilityDiagnostics?: UnsupportedFeatureReason[];
     family?: ModelFamilyProfile;
   };
 };
@@ -783,3 +792,4 @@ export type ChatTransferConversation = {
   }>;
   updatedAt: string;
 };
+

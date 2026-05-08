@@ -490,6 +490,8 @@ For the current NanoGPT video stabilization pass, image-to-video routability mus
 - require known input semantics before treating a catalog entry as routable
 - keep specialized variants such as motion-control, extend, edit, and lip-sync visible in the catalog if needed, but not routable through the current NanoGPT transport unless request mapping is explicitly implemented
 - prefer provider-declared `supported_parameters.supported_modes`, then explicit provider metadata, and only use Kling-family heuristics as a last-resort fallback when NanoGPT does not return exploitable data
+- treat Kling-family effective capabilities as the intersection of native family rules, provider live metadata, transport coverage, and gateway mapper coverage
+- keep the current hardening pass at the native-foundation level only: model-family-capabilities owns shared Kling native specs and projection logic, while a native provider-kling route remains a follow-up
 
 The current implementation now also includes:
 
@@ -504,3 +506,5 @@ The current implementation now also includes:
 - trusted internal caller support that can correlate Open WebUI requests to existing gateway users by forwarded email header when explicitly configured
 
 That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.
+
+

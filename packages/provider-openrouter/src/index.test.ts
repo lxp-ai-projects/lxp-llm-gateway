@@ -708,7 +708,12 @@ test('OpenRouterProviderAdapter exposes a video catalog', async () => {
     assert.equal(catalog?.providerId, 'openrouter');
     assert.equal(catalog?.defaultModelId, 'kling/kling-2.1-master');
     assert.equal(catalog?.models[0]?.capabilities.supportsVideoGeneration, true);
-    assert.equal(catalog?.models[0]?.capabilities.supportsVideoAudioGeneration, true);
+    assert.equal(catalog?.models[0]?.capabilities.supportsVideoAudioGeneration, false);
+    assert.ok(
+      catalog?.models[0]?.capabilities.capabilityDiagnostics?.some(
+        (diagnostic) => diagnostic.code === 'provider_claims_capability_unknown_to_native_spec',
+      ),
+    );
     assert.deepEqual(
       catalog?.models[0]?.capabilities.supportedVideoFrameTypes,
       ['first_frame', 'last_frame'],
@@ -878,3 +883,4 @@ test('OpenRouter video transport mapping remains independent from model family m
     },
   });
 });
+

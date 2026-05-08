@@ -25,6 +25,7 @@ import {
 } from './gateway/dto/gateway-video-generation-request.dto';
 import { GatewayVideoReferenceDto } from './gateway/dto/gateway-video-reference.dto';
 import { VideoApplicationService } from './videos/video-application.service';
+import { VideoAssetSaveRequestDto } from './videos/dto/video-asset-save-request.dto';
 import { VideoHistoryQueryDto } from './videos/dto/video-history-query.dto';
 
 @Controller('videos')
@@ -132,6 +133,28 @@ export class VideosController {
     return this.videoApplicationService.deleteJob(jobId, authContext);
   }
 
+
+  @Patch('assets/:assetId/save')
+  async setAssetSaved(
+    @Param('assetId') assetId: string,
+    @Body() request: VideoAssetSaveRequestDto,
+    @Headers('authorization') authorizationHeader: string | undefined,
+    @Req()
+    httpRequest: Request & { cookies?: Record<string, string | undefined> },
+  ) {
+    const authContext = await this.gatewayAuthService.authenticateGatewayRequest(
+      authorizationHeader,
+      httpRequest.cookies?.lxp_access_token,
+      httpRequest.headers,
+    );
+
+    return this.videoApplicationService.setAssetSaved(
+      assetId,
+      request,
+      authContext,
+    );
+  }
+
   @Get('assets/:assetId/content')
   async getAssetContent(
     @Param('assetId') assetId: string,
@@ -190,3 +213,5 @@ function mapVideoReferenceDto(
           url: image.url!,
         };
 }
+
+

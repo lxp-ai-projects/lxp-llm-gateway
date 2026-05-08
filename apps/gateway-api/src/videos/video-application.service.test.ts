@@ -702,6 +702,100 @@ test('VideoApplicationService polls a provider job once, ingests the application
   assert.equal((await mediaAssets.find()).length, 1);
 });
 
+test('VideoApplicationService stops polling and marks the job failed when provider polling throws', async () => {
+  const stalePollTime = new Date(Date.now() - 60_000);
+  const provider = new FakeVideoProvider();
+  provider.getVideoGenerationJob = async () => {
+    throw new Error('NanoGPT status returned an invalid payload');
+  };
+
+  const { service } = createVideoService({
+    providerRegistry: {
+      getProvider: () => provider,
+      listProviders: () => [provider],
+    },
+    mediaJobs: [
+      {
+        id: 'video-job-failure-1',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        requestId: 'request-video-failure-1',
+        providerId: 'openrouter',
+        capability: 'video',
+        mode: 'text_to_video',
+        model: 'openrouter/kling-v1',
+        prompt: 'Polling should stop after this error',
+        status: 'running',
+        providerJobId: 'provider-job-failure-1',
+        idempotencyKey: null,
+        requestPayload: { prompt: 'Polling should stop after this error' },
+        sourceAssetId: null,
+        providerMetadata: null,
+        errorMessage: null,
+        submissionAttempts: 1,
+        pollAttempts: 0,
+        nextPollAfter: stalePollTime,
+        lastPolledAt: null,
+        startedAt: new Date('2026-05-07T12:00:00.000Z'),
+        completedAt: null,
+        failedAt: null,
+        cancelledAt: null,
+        createdAt: new Date('2026-05-07T12:00:00.000Z'),
+        updatedAt: new Date('2026-05-07T12:00:00.000Z'),
+      },
+    ],
+  });
+
+  const job = await service.getJob('video-job-failure-1', buildAuthContext());
+
+  assert.equal(job.status, 'failed');
+  assert.match(job.error ?? '', /invalid payload/i);
+});
+
+test('VideoApplicationService refreshes non-terminal history jobs and returns the ingested output', async () => {
+  const stalePollTime = new Date(Date.now() - 60_000);
+  const { service, provider } = createVideoService({
+    mediaJobs: [
+      {
+        id: 'video-history-job-1',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        requestId: 'request-video-history-1',
+        providerId: 'openrouter',
+        capability: 'video',
+        mode: 'text_to_video',
+        model: 'openrouter/kling-v1',
+        prompt: 'Refresh this history entry',
+        status: 'queued',
+        providerJobId: 'provider-job-history-1',
+        idempotencyKey: null,
+        requestPayload: { prompt: 'Refresh this history entry' },
+        sourceAssetId: null,
+        providerMetadata: null,
+        errorMessage: null,
+        submissionAttempts: 1,
+        pollAttempts: 0,
+        nextPollAfter: stalePollTime,
+        lastPolledAt: null,
+        startedAt: new Date('2026-05-07T12:00:00.000Z'),
+        completedAt: null,
+        failedAt: null,
+        cancelledAt: null,
+        createdAt: new Date('2026-05-07T12:00:00.000Z'),
+        updatedAt: new Date('2026-05-07T12:00:00.000Z'),
+      },
+    ],
+  });
+
+  const history = await service.listHistory(1, buildAuthContext());
+
+  assert.equal(history.items[0]?.status, 'succeeded');
+  assert.equal(history.items[0]?.outputs.length, 1);
+  assert.match(history.items[0]?.outputs[0]?.contentUrl ?? '', /\/api\/v1\/videos\/assets\/.+\/content/);
+  assert.equal(provider.pollCalls, 1);
+  assert.equal(provider.downloadCalls, 1);
+});
+
 test('VideoApplicationService resolves uploaded image assets before provider submission and normalizes cancellation at gateway level', async () => {
   const { service, provider, mediaJobs } = createVideoService({
     imageAssets: [
@@ -971,3 +1065,5 @@ test('VideoApplicationService reads back stored application-owned video assets',
   assert.equal(assetContent.data.toString('utf8'), 'video-bytes');
   assert.equal(mediaStorageService.readCalls, 1);
 });
+
+

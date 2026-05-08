@@ -319,11 +319,11 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     );
   }
 
-  async downloadVideoOutput(
+  downloadVideoOutput = async (
     jobId: string,
     outputIndex: number,
     context: ProviderExecutionContext,
-  ): Promise<ReadableStream<Uint8Array>> {
+  ): Promise<ReadableStream<Uint8Array>> => {
     const requestedModel =
       typeof context.metadata?.requestedModel === 'string'
         ? context.metadata.requestedModel
@@ -335,7 +335,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       outputIndex,
       context,
     );
-  }
+  };
 
   private dispatchChatRequest(
     request: GatewayChatRequest,
@@ -445,3 +445,4 @@ function isNanoGptZaiThinkingModel(model: string | undefined): boolean {
     model,
   );
 }
+

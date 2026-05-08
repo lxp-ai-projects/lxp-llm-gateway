@@ -8,6 +8,11 @@ export {
   validateKlingVideoRequest,
 } from './kling-video-family.js';
 export {
+  buildUnknownKlingNativeSpecDiagnostic,
+  lookupKlingNativeVideoSpec,
+} from './kling-native-spec.js';
+export { projectKlingVideoCapabilities } from './kling-video-projection.js';
+export {
   collectPassthroughIssues,
   normalizeVideoGenerationMode,
   validateVideoRequestAgainstFamily,

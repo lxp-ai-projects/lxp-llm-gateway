@@ -8,14 +8,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type {
+  GatewayVideoAssetSaveRequest,
   GatewayVideoCatalogResponse,
   GatewayVideoGenerationJob,
   GatewayVideoGenerationRequest,
   GatewayVideoRetryRequest,
   GatewayVideoReference,
 } from '@lxp/contracts';
-import type { ProviderId } from '@lxp/domain';
-import { validateVideoRequestAgainstFamily } from '@lxp/model-family-capabilities';
 import type { ProviderAccessConfig } from '@lxp/provider-sdk';
 import { Repository } from 'typeorm';
 
@@ -46,6 +45,9 @@ import { MediaStorageService } from './media-storage.service';
 const VIDEO_HISTORY_PAGE_SIZE = 10;
 const BASE_POLL_DELAY_MS = 2000;
 const MAX_POLL_DELAY_MS = 30000;
+
+type ProviderId = import('@lxp/domain').ProviderId;
+const { validateVideoRequestAgainstFamily } = require('@lxp/model-family-capabilities');
 
 @Injectable()
 export class VideoApplicationService {
@@ -428,10 +430,13 @@ export class VideoApplicationService {
         }),
     );
 
+    const hydratedJobs = await Promise.all(
+      jobs.map((job) => this.refreshJobIfNeeded(job, authContext)),
+    );
     const assets = await this.loadAssetsForJobs(
       authContext.activeTenantId,
       user.id,
-      jobs.map((job) => job.id),
+      hydratedJobs.map((job) => job.id),
     );
     const assetsByJobId = new Map<string, MediaAssetEntity[]>();
     for (const asset of assets) {
@@ -444,7 +449,9 @@ export class VideoApplicationService {
     }
 
     return {
-      items: jobs.map((job) => this.mapJob(job, assetsByJobId.get(job.id) ?? [])),
+      items: hydratedJobs.map((job) =>
+        this.mapJob(job, assetsByJobId.get(job.id) ?? []),
+      ),
       page: safePage,
       pageSize: VIDEO_HISTORY_PAGE_SIZE,
       totalItems,
@@ -568,6 +575,41 @@ export class VideoApplicationService {
     return { deleted: true as const };
   }
 
+  async setAssetSaved(
+    assetId: string,
+    request: GatewayVideoAssetSaveRequest,
+    authContext: GatewayAuthContext,
+  ) {
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
+    const asset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(MediaAssetEntity).findOne({
+          where: {
+            id: assetId,
+            tenantId: authContext.activeTenantId,
+            userId: user.id,
+          },
+        }),
+    );
+    if (!asset) {
+      throw new NotFoundException('Video asset not found.');
+    }
+
+    asset.isSaved = request.saved;
+    const savedAsset = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) => manager.getRepository(MediaAssetEntity).save(asset),
+    );
+
+    return {
+      asset: this.mapAssetOutput(savedAsset),
+    };
+  }
+
   async getAssetContent(
     assetId: string,
     authContext: GatewayAuthContext,
@@ -624,65 +666,100 @@ export class VideoApplicationService {
         provider.providerId,
       );
 
-    const providerJob = await provider.getVideoGenerationJob(job.providerJobId, {
-      requestId: job.requestId,
-      userId: authContext.userId,
-      providerAccess,
-      metadata: {
-        requestedModel: job.model,
-        prompt: job.prompt,
-      },
-    });
+    try {
+      const providerJob = await provider.getVideoGenerationJob(job.providerJobId, {
+        requestId: job.requestId,
+        userId: authContext.userId,
+        providerAccess,
+        metadata: {
+          requestedModel: job.model,
+          prompt: job.prompt,
+        },
+      });
 
-    return this.tenantRlsService.withTenantContext(
-      authContext.activeTenantId,
-      async (manager) => {
-        const repository = manager.getRepository(MediaGenerationJobEntity);
-        const current = await repository.findOneByOrFail({ id: job.id });
-        if (this.isTerminalStatus(current.status)) {
-          return current;
-        }
-
-        current.lastPolledAt = new Date();
-        current.pollAttempts += 1;
-        current.providerMetadata = {
-          ...(current.providerMetadata ?? {}),
-          credentialScopeUsed,
-          ...(providerJob.providerMetadata ?? {}),
-        };
-        current.errorMessage = providerJob.error ?? current.errorMessage;
-
-        if (providerJob.status === 'queued' || providerJob.status === 'running') {
-          current.status = providerJob.status;
-          current.nextPollAfter = this.computeNextPollAfter(current.pollAttempts);
-          if (providerJob.status === 'running' && !current.startedAt) {
-            current.startedAt = new Date();
+      return this.tenantRlsService.withTenantContext(
+        authContext.activeTenantId,
+        async (manager) => {
+          const repository = manager.getRepository(MediaGenerationJobEntity);
+          const current = await repository.findOneByOrFail({ id: job.id });
+          if (this.isTerminalStatus(current.status)) {
+            return current;
           }
-          return repository.save(current);
-        }
 
-        if (providerJob.status === 'succeeded') {
-          current.status = 'succeeded';
-          current.completedAt = current.completedAt ?? new Date();
+          current.lastPolledAt = new Date();
+          current.pollAttempts += 1;
+          current.providerMetadata = {
+            ...(current.providerMetadata ?? {}),
+            credentialScopeUsed,
+            ...(providerJob.providerMetadata ?? {}),
+          };
+          current.errorMessage = providerJob.error ?? current.errorMessage;
+
+          const hasIngestibleOutputs = providerJob.outputs.some((output) =>
+            typeof output.contentUrl === 'string' && output.contentUrl.trim().length > 0,
+          );
+
+          if (
+            providerJob.status !== 'failed' &&
+            providerJob.status !== 'cancelled' &&
+            (providerJob.status === 'succeeded' || hasIngestibleOutputs)
+          ) {
+            current.status = 'succeeded';
+            current.completedAt = current.completedAt ?? new Date();
+            current.nextPollAfter = null;
+            const savedJob = await repository.save(current);
+            await this.ingestJobOutputs(savedJob, providerJob, authContext);
+            return repository.findOneByOrFail({ id: current.id });
+          }
+
+          if (providerJob.status === 'queued' || providerJob.status === 'running') {
+            current.status = providerJob.status;
+            current.nextPollAfter = this.computeNextPollAfter(current.pollAttempts);
+            if (providerJob.status === 'running' && !current.startedAt) {
+              current.startedAt = new Date();
+            }
+            return repository.save(current);
+          }
+
+          if (providerJob.status === 'cancelled') {
+            current.status = 'cancelled';
+            current.cancelledAt = current.cancelledAt ?? new Date();
+            current.nextPollAfter = null;
+            return repository.save(current);
+          }
+
+          current.status = 'failed';
+          current.failedAt = current.failedAt ?? new Date();
           current.nextPollAfter = null;
-          const savedJob = await repository.save(current);
-          await this.ingestJobOutputs(savedJob, providerJob, authContext);
-          return savedJob;
-        }
-
-        if (providerJob.status === 'cancelled') {
-          current.status = 'cancelled';
-          current.cancelledAt = current.cancelledAt ?? new Date();
-          current.nextPollAfter = null;
           return repository.save(current);
-        }
+        },
+      );
+    } catch (error) {
+      return this.tenantRlsService.withTenantContext(
+        authContext.activeTenantId,
+        async (manager) => {
+          const repository = manager.getRepository(MediaGenerationJobEntity);
+          const current = await repository.findOneByOrFail({ id: job.id });
+          if (this.isTerminalStatus(current.status)) {
+            return current;
+          }
 
-        current.status = 'failed';
-        current.failedAt = current.failedAt ?? new Date();
-        current.nextPollAfter = null;
-        return repository.save(current);
-      },
-    );
+          current.lastPolledAt = new Date();
+          current.pollAttempts += 1;
+          current.status = 'failed';
+          current.failedAt = current.failedAt ?? new Date();
+          current.nextPollAfter = null;
+          current.errorMessage =
+            error instanceof Error ? error.message : 'Video polling failed.';
+          current.providerMetadata = {
+            ...(current.providerMetadata ?? {}),
+            credentialScopeUsed,
+            pollingFailure: current.errorMessage,
+          };
+          return repository.save(current);
+        },
+      );
+    }
   }
 
   private async ingestJobOutputs(
@@ -945,21 +1022,25 @@ export class VideoApplicationService {
       request: this.mapStoredRequestPayload(job.requestPayload),
       outputs: assets
         .sort((left, right) => left.outputIndex - right.outputIndex)
-        .map((asset) => ({
-          assetId: asset.id,
-          contentUrl: `/api/v1/videos/assets/${asset.id}/content`,
-          mimeType: asset.mimeType ?? undefined,
-          width: asset.width ?? undefined,
-          height: asset.height ?? undefined,
-          durationSeconds:
-            asset.durationSeconds !== null
-              ? Number(asset.durationSeconds)
-              : undefined,
-          byteSize: asset.byteSize ?? undefined,
-          saved: asset.isSaved,
-          providerMetadata: asset.providerMetadata ?? undefined,
-        })),
+        .map((asset) => this.mapAssetOutput(asset)),
       providerMetadata: job.providerMetadata ?? undefined,
+    };
+  }
+
+  private mapAssetOutput(asset: MediaAssetEntity) {
+    return {
+      assetId: asset.id,
+      contentUrl: `/api/v1/videos/assets/${asset.id}/content`,
+      mimeType: asset.mimeType ?? undefined,
+      width: asset.width ?? undefined,
+      height: asset.height ?? undefined,
+      durationSeconds:
+        asset.durationSeconds !== null
+          ? Number(asset.durationSeconds)
+          : undefined,
+      byteSize: asset.byteSize ?? undefined,
+      saved: asset.isSaved,
+      providerMetadata: asset.providerMetadata ?? undefined,
     };
   }
 
@@ -1063,3 +1144,10 @@ export class VideoApplicationService {
     return user;
   }
 }
+
+
+
+
+
+
+

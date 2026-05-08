@@ -104,6 +104,7 @@ That means:
 
 - transport adapters own upstream HTTP behavior
 - `model-family-capabilities` owns reusable family semantics such as Kling video constraints
+- model-family-capabilities now also owns the conservative native Kling foundation and the projection/intersection logic consumed by aggregator video transports
 - `gateway-api` consumes neutral metadata and validation results rather than provider-specific family branches
 
 Shared image-reference safety rules that apply across providers should live in the provider seam rather than being reimplemented independently in each adapter.
@@ -407,3 +408,5 @@ That UI should remain behind the same backend boundaries already used for chat:
 - `admin-web` should talk to application APIs, not directly to providers
 - provider credential reuse should follow the existing BYOK model
 - reference image upload, prompting, result display, save actions, and history pagination should be capability-specific UI concerns, not provider-specific page logic
+
+

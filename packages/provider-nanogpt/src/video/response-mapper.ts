@@ -39,7 +39,7 @@ export function mapNanoGptStatusVideoJob(
   context: ProviderExecutionContext,
   payload: NanoGptVideoStatusPayload,
 ): GatewayVideoGenerationJob {
-  const upstreamStatus = payload.data?.status;
+  const upstreamStatus = readUpstreamStatus(payload);
   const contentUrls = extractVideoUrls(payload);
 
   return {
@@ -49,9 +49,9 @@ export function mapNanoGptStatusVideoJob(
     model: payload.model ?? requestedModel,
     prompt: '',
     status: mapNanoGptVideoStatus(upstreamStatus),
-    createdAt: new Date().toISOString(),
-    error:
-      payload.data?.userFriendlyError ?? payload.data?.error ?? payload.data?.details,
+    createdAt: payload.createdAt ?? new Date().toISOString(),
+    completedAt: payload.completedAt ?? undefined,
+    error: readStatusError(payload),
     outputs: contentUrls.map((contentUrl) => ({
       contentUrl,
       mimeType: 'video/mp4',
@@ -62,9 +62,11 @@ export function mapNanoGptStatusVideoJob(
       upstreamStatus: upstreamStatus ?? null,
       cost: payload.data?.cost ?? null,
       details: payload.data?.details ?? null,
-      error: payload.data?.error ?? null,
+      error: payload.error ?? payload.data?.error ?? null,
       userFriendlyError: payload.data?.userFriendlyError ?? null,
       isNSFWError: payload.data?.isNSFWError ?? null,
+      progress: payload.progress ?? null,
+      estimatedTimeRemaining: payload.estimatedTimeRemaining ?? null,
       contentUrls,
     },
   };
@@ -76,12 +78,20 @@ export function mapNanoGptVideoStatus(
   switch (status?.toUpperCase()) {
     case 'PENDING':
     case 'IN_QUEUE':
+    case 'QUEUED':
       return 'queued';
     case 'IN_PROGRESS':
+    case 'PROCESSING':
+    case 'GENERATING':
+    case 'DELIVERING':
+    case 'RUNNING':
       return 'running';
     case 'COMPLETED':
+    case 'SUCCEEDED':
+    case 'SUCCESS':
       return 'succeeded';
     case 'CANCELED':
+    case 'CANCELLED':
       return 'cancelled';
     case 'FAILED':
       return 'failed';
@@ -92,6 +102,11 @@ export function mapNanoGptVideoStatus(
 
 export function extractVideoUrls(payload: NanoGptVideoStatusPayload): string[] {
   const urls = [];
+  const normalizedUrl = payload.videoUrl;
+  if (typeof normalizedUrl === 'string' && normalizedUrl.trim()) {
+    urls.push(normalizedUrl);
+  }
+
   const primaryUrl = payload.data?.output?.video?.url;
   if (typeof primaryUrl === 'string' && primaryUrl.trim()) {
     urls.push(primaryUrl);
@@ -104,4 +119,17 @@ export function extractVideoUrls(payload: NanoGptVideoStatusPayload): string[] {
   }
 
   return Array.from(new Set(urls));
+}
+
+function readUpstreamStatus(payload: NanoGptVideoStatusPayload) {
+  return payload.data?.status ?? payload.status;
+}
+
+function readStatusError(payload: NanoGptVideoStatusPayload) {
+  return (
+    payload.error ??
+    payload.data?.userFriendlyError ??
+    payload.data?.error ??
+    payload.data?.details
+  );
 }

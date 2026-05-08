@@ -73,6 +73,7 @@ export function useVideoLab() {
   const [submittedJob, setSubmittedJob] = useState<GatewayVideoGenerationJob | null>(
     null,
   );
+  const [renderNowMs, setRenderNowMs] = useState(() => Date.now());
 
   const catalogQuery = useQuery({
     queryKey: ['video-catalog'],
@@ -83,6 +84,14 @@ export function useVideoLab() {
     queryKey: ['video-history', historyPage],
     queryFn: () => gatewayApiClient.getVideoHistory(historyPage),
     enabled: catalogInitialized,
+    refetchInterval: (query) => {
+      const history = query.state.data;
+      if (!history?.items?.some((job) => !isTerminalStatus(job.status))) {
+        return false;
+      }
+
+      return 5000;
+    },
   });
   const assetsQuery = useQuery({
     queryKey: ['image-assets'],
@@ -93,7 +102,12 @@ export function useVideoLab() {
     queryKey: ['video-job', activeJobId],
     queryFn: () => gatewayApiClient.getVideoJob(activeJobId!),
     enabled: Boolean(activeJobId),
+    retry: false,
     refetchInterval: (query) => {
+      if (query.state.error) {
+        return false;
+      }
+
       const job = query.state.data as GatewayVideoGenerationJob | undefined;
       if (!job) {
         return 3000;
@@ -163,6 +177,18 @@ export function useVideoLab() {
     family,
   );
   const activeJob = resolveActiveJob(submittedJob, activeJobQuery.data);
+  const renderStats = resolveVideoRenderStats(
+    historyQuery.data?.items ?? [],
+    activeJob?.providerId ?? providerId,
+    activeJob?.model ?? modelId,
+  );
+  const activeRenderStartedAtMs = resolveActiveRenderStartedAtMs(activeJob);
+  const currentRenderElapsedMs =
+    activeRenderStartedAtMs === null ? 0 : Math.max(0, renderNowMs - activeRenderStartedAtMs);
+  const currentRenderProgressPercent =
+    activeRenderStartedAtMs === null || !renderStats.estimatedDurationMs
+      ? null
+      : Math.min(99, Math.max(0, (currentRenderElapsedMs / renderStats.estimatedDurationMs) * 100));
 
   function buildRequestFromForm(): GatewayVideoRetryRequest {
     return {
@@ -268,6 +294,19 @@ export function useVideoLab() {
     }
   }, [activeJobQuery.data, queryClient]);
 
+  useEffect(() => {
+    if (!activeJob || isTerminalStatus(activeJob.status)) {
+      return;
+    }
+
+    setRenderNowMs(Date.now());
+    const intervalId = window.setInterval(() => {
+      setRenderNowMs(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeJob]);
+
   const generateMutation = useMutation({
     mutationFn: async (requestOverride?: GatewayVideoRetryRequest) => {
       const request =
@@ -354,6 +393,33 @@ export function useVideoLab() {
       gatewayApiClient.uploadImageAsset(payload),
   });
 
+  const saveAssetMutation = useMutation({
+    mutationFn: ({ assetId, saved }: { assetId: string; saved: boolean }) =>
+      gatewayApiClient.setVideoAssetSaved(assetId, saved),
+    onSuccess: (response) => {
+      setRequestError(null);
+      setSubmittedJob((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          outputs: current.outputs.map((output) =>
+            output.assetId === response.asset.assetId ? { ...output, ...response.asset } : output,
+          ),
+        };
+      });
+      void queryClient.invalidateQueries({ queryKey: ['video-job', activeJobId] });
+      void queryClient.invalidateQueries({ queryKey: ['video-history'] });
+    },
+    onError: (error) => {
+      setRequestError(
+        error instanceof Error ? error.message : 'The video save request failed.',
+      );
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (jobId: string) => gatewayApiClient.deleteVideoJob(jobId),
     onSuccess: (_result, jobId) => {
@@ -379,18 +445,18 @@ export function useVideoLab() {
       const nextReferences: VideoReferenceDraft[] = [];
       for (const file of Array.from(fileList)) {
         const dataUrl = await readFileAsDataUrl(file);
-        const uploaded = await uploadMutation.mutateAsync({
+        const uploadedReference = await addUploadedReferenceAsset({
           dataUrl,
           label: file.name,
+          appendToReferences: false,
         });
-        nextReferences.push(mapAssetReference(uploaded.asset));
+        nextReferences.push(uploadedReference);
       }
 
       setRequestError(null);
       setReferences((current) =>
         [...current, ...nextReferences].slice(0, maxReferenceImages),
       );
-      void queryClient.invalidateQueries({ queryKey: ['image-assets'] });
     } catch (error) {
       setRequestError(
         error instanceof Error ? error.message : 'Image upload failed.',
@@ -398,34 +464,81 @@ export function useVideoLab() {
     }
   }
 
-  function addReferenceUrl() {
+  async function addUploadedReferenceAsset(input: {
+    dataUrl: string;
+    label?: string;
+    appendToReferences?: boolean;
+  }) {
+    const uploaded = await uploadMutation.mutateAsync({
+      dataUrl: input.dataUrl,
+      label: input.label,
+    });
+    const uploadedReference = mapAssetReference(uploaded.asset);
+
+    setRequestError(null);
+    if (input.appendToReferences !== false) {
+      setReferences((current) =>
+        [...current, uploadedReference].slice(0, maxReferenceImages),
+      );
+    }
+    void queryClient.invalidateQueries({ queryKey: ['image-assets'] });
+
+    return uploadedReference;
+  }
+
+  async function addReferenceUrl() {
     const trimmedUrl = referenceUrl.trim();
     if (!trimmedUrl) {
       return;
     }
 
-    setReferences((current) =>
-      [
-        ...current,
-        {
-          id: createClientId(),
-          kind: 'image_url' as const,
-          url: trimmedUrl,
-          label: trimmedUrl,
-          previewUrl: trimmedUrl,
-        },
-      ].slice(0, maxReferenceImages),
-    );
-    setReferenceUrl('');
+    try {
+      if (isImageDataUrl(trimmedUrl)) {
+        await addUploadedReferenceAsset({
+          dataUrl: trimmedUrl,
+          label: 'Pasted reference image',
+        });
+      } else {
+        setRequestError(null);
+        setReferences((current) =>
+          [
+            ...current,
+            {
+              id: createClientId(),
+              kind: 'image_url' as const,
+              url: trimmedUrl,
+              label: trimmedUrl,
+              previewUrl: trimmedUrl,
+            },
+          ].slice(0, maxReferenceImages),
+        );
+      }
+
+      setReferenceUrl('');
+    } catch (error) {
+      setRequestError(
+        error instanceof Error ? error.message : 'Image reference could not be added.',
+      );
+    }
   }
 
   function addReferenceAsset(asset: GatewayImageAssetSummary) {
-    setReferences((current) =>
-      [...current, mapAssetReference(asset)].slice(0, maxReferenceImages),
-    );
+    setRequestError(null);
+    setReferences((current) => {
+      if (
+        current.some(
+          (reference) => reference.kind === 'asset' && reference.assetId === asset.id,
+        )
+      ) {
+        return current;
+      }
+
+      return [...current, mapAssetReference(asset)].slice(0, maxReferenceImages);
+    });
   }
 
   function removeReference(referenceId: string) {
+    setRequestError(null);
     setReferences((current) =>
       current.filter((reference) => reference.id !== referenceId),
     );
@@ -519,6 +632,7 @@ export function useVideoLab() {
     generateMutation,
     cancelMutation,
     deleteMutation,
+    saveAssetMutation,
     uploadMutation,
     supportsReferenceImages,
     supportsAudioGeneration,
@@ -531,7 +645,65 @@ export function useVideoLab() {
     applyRetryRequestToForm,
     retryJob,
     mediaUrl,
+    currentRenderElapsedMs,
+    currentRenderProgressPercent,
+    estimatedRenderDurationMs: renderStats.estimatedDurationMs,
+    estimatedRenderSampleSize: renderStats.sampleSize,
   };
+}
+
+function resolveVideoRenderStats(
+  historyItems: Array<{
+    providerId: string;
+    model: string;
+    durationMs?: number;
+    status: GatewayVideoGenerationJob['status'];
+  }>,
+  providerId: string,
+  modelId: string,
+) {
+  const durations = historyItems
+    .filter(
+      (item) =>
+        item.providerId === providerId &&
+        item.model === modelId &&
+        item.status === 'succeeded' &&
+        typeof item.durationMs === 'number' &&
+        item.durationMs > 0,
+    )
+    .map((item) => item.durationMs as number)
+    .slice(0, 5);
+
+  if (!durations.length) {
+    return {
+      estimatedDurationMs: null,
+      sampleSize: 0,
+    };
+  }
+
+  const sortedDurations = durations.slice().sort((left, right) => left - right);
+  const middleIndex = Math.floor(sortedDurations.length / 2);
+  const estimatedDurationMs =
+    sortedDurations.length % 2 === 1
+      ? sortedDurations[middleIndex]
+      : Math.round(
+        (sortedDurations[middleIndex - 1] + sortedDurations[middleIndex]) / 2,
+      );
+
+  return {
+    estimatedDurationMs,
+    sampleSize: durations.length,
+  };
+}
+
+function resolveActiveRenderStartedAtMs(job: GatewayVideoGenerationJob | null) {
+  if (!job || isTerminalStatus(job.status)) {
+    return null;
+  }
+
+  const timestamp = job.startedAt ?? job.createdAt;
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function parseNumericValue(value: string) {
@@ -607,6 +779,10 @@ function sanitizeRetryRequest(
     referenceImages: request.referenceImages,
     providerOptions: request.providerOptions,
   };
+}
+
+function isImageDataUrl(value: string) {
+  return /^data:image\/(?:png|jpe?g);base64,/i.test(value);
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -701,3 +877,9 @@ function writeStoredVideoLabDraft(draft: VideoLabDraft) {
     // Ignore storage failures so the lab remains usable in restricted browsers.
   }
 }
+
+
+
+
+
+

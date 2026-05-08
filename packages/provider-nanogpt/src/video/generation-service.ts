@@ -83,7 +83,7 @@ export class NanoGptVideoGenerationService {
       throw new Error(`NanoGPT video output ${outputIndex} is not available yet.`);
     }
 
-    const downloadResponse = await this.client.downloadVideoContent(contentUrl);
+    const downloadResponse = await this.client.downloadVideoContent(context, contentUrl);
     if (!downloadResponse.ok) {
       throw await buildProviderHttpError(
         'NanoGPT video download request',
@@ -98,3 +98,4 @@ export class NanoGptVideoGenerationService {
     return downloadResponse.body;
   }
 }
+

@@ -1,4 +1,5 @@
 import {
+  Accordion,
   Alert,
   Anchor,
   Badge,
@@ -7,6 +8,7 @@ import {
   Code,
   Group,
   Loader,
+  Progress,
   Stack,
   Text,
   Title,
@@ -100,6 +102,46 @@ export function VideoResultsPanel({
               />
             </Group>
 
+            {pollingEnabled ? (
+              <Card padding="sm" radius="md" withBorder>
+                <Stack gap="sm">
+                  <Group gap="md" grow>
+                    <Metric
+                      label="Elapsed"
+                      value={formatClockDuration(videoLab.currentRenderElapsedMs)}
+                    />
+                    <Metric
+                      label="Estimated"
+                      value={
+                        videoLab.estimatedRenderDurationMs
+                          ? formatClockDuration(videoLab.estimatedRenderDurationMs)
+                          : 'Calculating...'
+                      }
+                    />
+                  </Group>
+                  {videoLab.currentRenderProgressPercent !== null ? (
+                    <Stack gap={4}>
+                      <Progress
+                        aria-label="Video rendering progress"
+                        radius="xl"
+                        size="md"
+                        value={videoLab.currentRenderProgressPercent}
+                      />
+                      <Text c="dimmed" size="xs">
+                        Estimate based on {videoLab.estimatedRenderSampleSize} previous{' '}
+                        {videoLab.estimatedRenderSampleSize === 1 ? 'run' : 'runs'} for this
+                        provider and model.
+                      </Text>
+                    </Stack>
+                  ) : (
+                    <Text c="dimmed" size="xs">
+                      Estimation will appear after a few completed runs for this provider and model.
+                    </Text>
+                  )}
+                </Stack>
+              </Card>
+            ) : null}
+
             {providerDiagnostics.length ? (
               <Card padding="sm" radius="md" withBorder>
                 <Stack gap="sm">
@@ -126,30 +168,40 @@ export function VideoResultsPanel({
 
             {job.request || job.providerMetadata ? (
               <Card padding="sm" radius="md" withBorder>
-                <Stack gap="sm">
-                  <Text fw={600} size="sm">
-                    Debug payloads
-                  </Text>
-                  <Text c="dimmed" size="sm">
-                    Gateway snapshot plus normalized provider metadata for troubleshooting.
-                  </Text>
-                  {job.request ? (
-                    <Stack gap={4}>
-                      <Text fw={500} size="sm">
-                        Gateway request snapshot
-                      </Text>
-                      <Code block>{formatDebugJson(job.request)}</Code>
-                    </Stack>
-                  ) : null}
-                  {job.providerMetadata ? (
-                    <Stack gap={4}>
-                      <Text fw={500} size="sm">
-                        Provider metadata
-                      </Text>
-                      <Code block>{formatDebugJson(job.providerMetadata)}</Code>
-                    </Stack>
-                  ) : null}
-                </Stack>
+                <Accordion chevronPosition="right" defaultValue={null} variant="separated">
+                  <Accordion.Item value="debug-payloads">
+                    <Accordion.Control>
+                      <Stack gap={2}>
+                        <Text fw={600} size="sm">
+                          Debug payloads
+                        </Text>
+                        <Text c="dimmed" size="sm">
+                          Gateway snapshot plus normalized provider metadata for troubleshooting.
+                        </Text>
+                      </Stack>
+                    </Accordion.Control>
+                    <Accordion.Panel>
+                      <Stack gap="sm">
+                        {job.request ? (
+                          <Stack gap={4}>
+                            <Text fw={500} size="sm">
+                              Gateway request snapshot
+                            </Text>
+                            <Code block>{formatDebugJson(job.request)}</Code>
+                          </Stack>
+                        ) : null}
+                        {job.providerMetadata ? (
+                          <Stack gap={4}>
+                            <Text fw={500} size="sm">
+                              Provider metadata
+                            </Text>
+                            <Code block>{formatDebugJson(job.providerMetadata)}</Code>
+                          </Stack>
+                        ) : null}
+                      </Stack>
+                    </Accordion.Panel>
+                  </Accordion.Item>
+                </Accordion>
               </Card>
             ) : null}
 
@@ -270,15 +322,32 @@ export function VideoResultsPanel({
                         }
                       />
                     </Group>
-                    {output.contentUrl ? (
-                      <Anchor
-                        href={videoLab.mediaUrl(output.contentUrl)}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        Open application asset
-                      </Anchor>
-                    ) : null}
+                    <Group gap="sm">
+                      {output.assetId ? (
+                        <Button
+                          loading={videoLab.saveAssetMutation.isPending}
+                          onClick={() =>
+                            videoLab.saveAssetMutation.mutate({
+                              assetId: output.assetId,
+                              saved: !output.saved,
+                            })
+                          }
+                          size="xs"
+                          variant={output.saved ? 'filled' : 'light'}
+                        >
+                          {output.saved ? 'Saved' : 'Save'}
+                        </Button>
+                      ) : null}
+                      {output.contentUrl ? (
+                        <Anchor
+                          href={videoLab.mediaUrl(output.contentUrl)}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Open application asset
+                        </Anchor>
+                      ) : null}
+                    </Group>
                   </Stack>
                 </Card>
               ))
@@ -407,6 +476,17 @@ function formatDuration(durationMs: number) {
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
 }
 
+function formatClockDuration(durationMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, '0'))
+    .join(':');
+}
+
 function formatBytes(byteSize: number) {
   if (byteSize < 1024) {
     return `${byteSize} B`;
@@ -474,3 +554,5 @@ function formatProviderName(providerId: string) {
 function formatDebugJson(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
+
+

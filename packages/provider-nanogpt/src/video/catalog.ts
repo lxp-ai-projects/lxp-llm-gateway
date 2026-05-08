@@ -1,11 +1,17 @@
-import type { VideoGenerationMode } from '@lxp/domain';
+import type {
+  UnsupportedFeatureReason,
+  VideoGenerationMode,
+} from '@lxp/domain';
 import type {
   CanonicalVideoProviderCatalog,
   VideoModelDescriptor,
 } from '@lxp/provider-sdk';
 import {
   attachKlingVideoFamilyToModel,
+  buildUnknownKlingNativeSpecDiagnostic,
   detectKlingVideoFamily,
+  lookupKlingNativeVideoSpec,
+  projectKlingVideoCapabilities,
 } from '@lxp/model-family-capabilities';
 
 import type { NanoGptVideoModelRecord } from './api-client.js';
@@ -72,34 +78,61 @@ function toVideoModelDescriptor(
   const sizes = model.supported_parameters?.sizes ?? [];
   const overrides = resolveNanoGptVideoOverrides(model);
   const resolvedModes = resolveNanoGptVideoGenerationModes(model, overrides);
-  const generationModes = resolvedModes.generationModes;
-  const maxReferenceImages = resolveNanoGptMaxReferenceImages(
+  let generationModes = resolvedModes.generationModes;
+  let maxReferenceImages = resolveNanoGptMaxReferenceImages(
     model,
     generationModes,
     overrides.maxReferenceImages,
   );
-  const supportsReferenceImages =
+  let supportsReferenceImages =
     generationModes.includes('image-to-video') ||
     generationModes.includes('multi-image-to-video');
-  const generateAudio = resolveNanoGptAudioGeneration(model, overrides.generateAudio);
+  let generateAudio = resolveNanoGptAudioGeneration(model, overrides.generateAudio);
   const resolvedDurations = durations.length ? durations : overrides.durations;
   const resolvedAspectRatios = aspectRatios.length
     ? aspectRatios
     : overrides.aspectRatios;
   const resolvedResolutions = resolutions.length ? resolutions : overrides.resolutions;
+  const capabilityDiagnostics: UnsupportedFeatureReason[] = [
+    ...resolvedModes.unsupportedFeatures,
+  ];
+  const klingProjection = resolveNanoGptKlingProjection({
+    model,
+    generationModes,
+    durations: resolvedDurations,
+    aspectRatios: resolvedAspectRatios,
+    resolutions: resolvedResolutions,
+    generateAudio,
+    maxReferenceImages,
+    diagnostics: capabilityDiagnostics,
+  });
+
+  if (klingProjection) {
+    generationModes = klingProjection.generationModes;
+    maxReferenceImages = klingProjection.maxReferenceImages;
+    supportsReferenceImages = klingProjection.supportsReferenceImages;
+    generateAudio = klingProjection.supportsAudioGeneration;
+  }
+
   const capabilities: VideoModelDescriptor['capabilities'] = {
     ...NANO_GPT_BASE_VIDEO_CAPABILITIES,
     supportsVideoGeneration: generationModes.length > 0,
     requiresPaidAccess,
-    supportedVideoDurations: resolvedDurations.map((value) => ({
-      value,
-      label: `${value}s`,
-    })),
-    supportedVideoAspectRatios: resolvedAspectRatios.map((value) => ({
+    supportedVideoDurations: (klingProjection?.durations ?? resolvedDurations).map(
+      (value) => ({
+        value,
+        label: `${value}s`,
+      }),
+    ),
+    supportedVideoAspectRatios: (
+      klingProjection?.aspectRatios ?? resolvedAspectRatios
+    ).map((value) => ({
       value,
       label: value,
     })),
-    supportedVideoResolutions: resolvedResolutions.map((value) => ({
+    supportedVideoResolutions: (
+      klingProjection?.resolutions ?? resolvedResolutions
+    ).map((value) => ({
       value,
       label: value,
     })),
@@ -110,18 +143,20 @@ function toVideoModelDescriptor(
     supportsVideoReferenceImages: supportsReferenceImages,
     supportsVideoAudioGeneration: generateAudio,
     allowedVideoProviderParameters:
+      klingProjection?.allowedPassthroughParameters ??
       model.supported_parameters?.allowed_passthrough_parameters ??
       overrides.allowedPassthroughParameters,
     maxReferenceImagesPerRequest: maxReferenceImages,
     videoDefaults: {
-      durationSeconds: resolvedDurations[0],
-      aspectRatio: resolvedAspectRatios[0],
-      resolution: resolvedResolutions[0],
+      durationSeconds: klingProjection?.durations[0] ?? resolvedDurations[0],
+      aspectRatio: klingProjection?.aspectRatios[0] ?? resolvedAspectRatios[0],
+      resolution: klingProjection?.resolutions[0] ?? resolvedResolutions[0],
       size: sizes[0],
       generateAudio,
       videoCount: 1,
     },
     pricingSkus: toPricingSkus(model.pricing),
+    capabilityDiagnostics: klingProjection?.diagnostics ?? capabilityDiagnostics,
   };
 
   const descriptor: VideoModelDescriptor = {
@@ -134,18 +169,19 @@ function toVideoModelDescriptor(
   if (detectKlingVideoFamily({ id: model.id, displayName: descriptor.displayName })) {
     return attachKlingVideoFamilyToModel(descriptor, {
       providerId: 'nanogpt',
-      durations: resolvedDurations,
-      aspectRatios: resolvedAspectRatios,
-      resolutions: resolvedResolutions,
-      frameTypes: [],
-      supportsFrameImages: false,
+      durations: klingProjection?.durations ?? resolvedDurations,
+      aspectRatios: klingProjection?.aspectRatios ?? resolvedAspectRatios,
+      resolutions: klingProjection?.resolutions ?? resolvedResolutions,
+      frameTypes: klingProjection?.frameTypes ?? [],
+      supportsFrameImages: klingProjection?.supportsFrameImages ?? false,
       generateAudio,
       allowedPassthroughParameters:
+        klingProjection?.allowedPassthroughParameters ??
         model.supported_parameters?.allowed_passthrough_parameters ??
         overrides.allowedPassthroughParameters,
       generationModes,
       maxReferenceImages,
-      unsupportedFeatures: resolvedModes.unsupportedFeatures,
+      unsupportedFeatures: klingProjection?.diagnostics ?? capabilityDiagnostics,
     });
   }
 
@@ -493,6 +529,64 @@ function finalizeNanoGptGenerationModes(
     generationModes,
     unsupportedFeatures: transportRequirements.unsupportedFeatures,
   };
+}
+
+function resolveNanoGptKlingProjection(input: {
+  model: NanoGptVideoModelRecord;
+  generationModes: VideoGenerationMode[];
+  durations: number[];
+  aspectRatios: string[];
+  resolutions: string[];
+  generateAudio: boolean;
+  maxReferenceImages: number;
+  diagnostics: UnsupportedFeatureReason[];
+}) {
+  if (
+    !detectKlingVideoFamily({
+      id: input.model.id,
+      displayName: input.model.name,
+    })
+  ) {
+    return null;
+  }
+
+  const nativeSpec = lookupKlingNativeVideoSpec({
+    id: input.model.id,
+    displayName: input.model.name,
+  });
+
+  return projectKlingVideoCapabilities({
+    nativeSpec,
+    providerId: 'nanogpt',
+    modelId: input.model.id,
+    liveMetadata: {
+      declaredGenerationModes: input.generationModes,
+      durations: input.durations,
+      aspectRatios: input.aspectRatios,
+      resolutions: input.resolutions,
+      frameTypes: [],
+      generateAudio: input.generateAudio,
+      allowedPassthroughParameters:
+        input.model.supported_parameters?.allowed_passthrough_parameters ??
+        undefined,
+      maxReferenceImages: input.maxReferenceImages,
+    },
+    transportCapabilities: {
+      supportedGenerationModes: [
+        'text-to-video',
+        'image-to-video',
+        'multi-image-to-video',
+      ],
+      supportedFrameTypes: [],
+      supportsFrameImages: false,
+      supportedPassthroughParameters:
+        input.model.supported_parameters?.allowed_passthrough_parameters ??
+        undefined,
+    },
+    baseDiagnostics: nativeSpec
+      ? input.diagnostics
+      : [...input.diagnostics, buildUnknownKlingNativeSpecDiagnostic()],
+  });
 }
 
 function parseNumericValues(values: Array<number | string> | undefined) {

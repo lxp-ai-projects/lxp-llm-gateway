@@ -208,6 +208,7 @@ export interface VideoModelCapability extends VideoModeCapabilityOptions {
   supportsStreaming: boolean;
   supportsVideoGeneration?: boolean;
   requiresPaidAccess?: boolean;
+  capabilityDiagnostics?: UnsupportedFeatureReason[];
   family?: ModelFamilyProfile;
 }
 
