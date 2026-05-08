@@ -1,5 +1,5 @@
 {
-  "name": "@lxp/provider-nanogpt",
+  "name": "@lxp/model-family-capabilities",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -13,16 +13,13 @@
   },
   "dependencies": {
     "@lxp/contracts": "workspace:*",
-    "@lxp/domain": "workspace:*",
-    "@lxp/model-family-capabilities": "workspace:*",
-    "@lxp/provider-sdk": "workspace:*"
+    "@lxp/domain": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "lint": "eslint src --ext .ts",
-    "pretest": "pnpm --filter @lxp/domain build && pnpm --filter @lxp/contracts build && pnpm --filter @lxp/provider-sdk build && pnpm --filter @lxp/model-family-capabilities build",
-    "test": "tsx --test src/index.test.ts src/image/model-policy.test.ts",
+    "test": "tsx --test src/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

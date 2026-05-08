@@ -21,7 +21,6 @@ import { OpenRouterImageApiClient } from './image/api-client.js';
 import { OpenRouterImageEditService } from './image/edit-service.js';
 import { OpenRouterImageGenerationService } from './image/generation-service.js';
 import {
-  buildKnownOpenRouterVideoCatalog,
   buildOpenRouterVideoCatalog,
 } from './video/catalog.js';
 import { OpenRouterVideoApiClient } from './video/api-client.js';
@@ -115,13 +114,9 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   }
 
   async listVideoCatalog(context: ProviderExecutionContext) {
-    try {
-      return buildOpenRouterVideoCatalog(
-        await this.videoApiClient.listVideoModels(context),
-      );
-    } catch {
-      return buildKnownOpenRouterVideoCatalog();
-    }
+    return buildOpenRouterVideoCatalog(
+      await this.videoApiClient.listVideoModels(context),
+    );
   }
 
   async chat(

@@ -13,7 +13,9 @@ export async function buildOpenRouterVideoGenerationRequest(
 
           return {
             frame_type: frame.frameType,
-            image_url: resolved.url,
+            image_url: {
+              url: resolved.url,
+            },
           };
         }),
       )
@@ -27,7 +29,9 @@ export async function buildOpenRouterVideoGenerationRequest(
           });
 
           return {
-            image_url: resolved.url,
+            image_url: {
+              url: resolved.url,
+            },
           };
         }),
       )

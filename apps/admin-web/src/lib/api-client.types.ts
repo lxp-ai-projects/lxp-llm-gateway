@@ -1,3 +1,7 @@
+import type { ModelFamilyProfile } from '@lxp/domain';
+export type { GatewayVideoRetryRequest } from '@lxp/contracts';
+import type { GatewayVideoRetryRequest } from '@lxp/contracts';
+
 export type RuntimeConfig = {
   registrationEnabled: boolean;
   forgotPasswordEnabled: boolean;
@@ -163,6 +167,7 @@ export type GatewayVideoGenerationJob = {
   cancelledAt?: string;
   durationMs?: number;
   error?: string;
+  request?: GatewayVideoRetryRequest;
   outputs: GatewayVideoOutput[];
   providerMetadata?: Record<string, unknown>;
 };
@@ -192,6 +197,7 @@ export type VideoDurationOption = {
 export type VideoModelSummary = {
   id: string;
   displayName: string;
+  family?: ModelFamilyProfile;
   capabilities?: {
     supportsStreaming?: boolean;
     supportsVideoGeneration?: boolean;
@@ -215,6 +221,7 @@ export type VideoModelSummary = {
       videoCount?: number;
     };
     pricingSkus?: Record<string, string>;
+    family?: ModelFamilyProfile;
   };
 };
 

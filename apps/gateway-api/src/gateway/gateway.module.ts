@@ -28,6 +28,7 @@ import { OpenAiCompatibleController } from '../openai-compatible/openai-compatib
 import { OpenAiCompatibleService } from '../openai-compatible/openai-compatible.service';
 import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
 import { ProviderCredentialService } from './provider-credential.service';
+import { ProviderRegistryBootstrapService } from './provider-registry-bootstrap.service';
 import { ProviderRegistryService } from './provider-registry.service';
 import { TenantProviderConfigurationService } from './tenant-provider-configuration.service';
 import { GatewayTelemetryService } from './gateway-telemetry.service';
@@ -99,6 +100,7 @@ import { VideoApplicationService } from '../videos/video-application.service';
     TenantModelAccessRuleService,
     OpenAiCompatibleService,
     ProviderCredentialService,
+    ProviderRegistryBootstrapService,
     ProviderRegistryService,
     TenantProviderConfigurationService,
     TenantPolicyService,

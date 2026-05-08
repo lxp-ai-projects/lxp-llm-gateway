@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { OpenRouterProviderAdapter } from './index';
+import { buildOpenRouterVideoGenerationRequest } from './video/request-mapper.js';
 
 test('OpenRouterProviderAdapter sends an OpenAI-compatible chat completions request', async () => {
   const originalFetch = globalThis.fetch;
@@ -655,6 +656,21 @@ test('OpenRouterProviderAdapter exposes a video catalog', async () => {
       JSON.stringify({
         data: [
           {
+            id: 'kling/kling-2.1-master',
+            canonical_slug: 'kling-2.1-master',
+            name: 'Kling 2.1 Master',
+            generate_audio: true,
+            supported_aspect_ratios: ['16:9', '9:16'],
+            supported_durations: [5, 10],
+            supported_frame_images: ['first_frame', 'last_frame'],
+            supported_resolutions: ['720p', '1080p'],
+            supported_sizes: null,
+            allowed_passthrough_parameters: ['seed'],
+            pricing_skus: {
+              generate: '0.80',
+            },
+          },
+          {
             id: 'google/veo-3.1',
             name: 'Veo 3.1',
             generate_audio: true,
@@ -690,13 +706,23 @@ test('OpenRouterProviderAdapter exposes a video catalog', async () => {
 
     assert.ok(catalog);
     assert.equal(catalog?.providerId, 'openrouter');
-    assert.equal(catalog?.defaultModelId, 'google/veo-3.1');
+    assert.equal(catalog?.defaultModelId, 'kling/kling-2.1-master');
     assert.equal(catalog?.models[0]?.capabilities.supportsVideoGeneration, true);
     assert.equal(catalog?.models[0]?.capabilities.supportsVideoAudioGeneration, true);
     assert.deepEqual(
       catalog?.models[0]?.capabilities.supportedVideoFrameTypes,
       ['first_frame', 'last_frame'],
     );
+    assert.equal(catalog?.models[0]?.family?.profileId, 'kling-video-family');
+    assert.equal(catalog?.models[0]?.capabilities.family?.familyId, 'kling');
+    assert.deepEqual(
+      catalog?.models[0]?.family?.video?.durationConstraint?.allowedValues,
+      [5, 10],
+    );
+
+    const nonKlingModel = catalog?.models.find((model) => model.id === 'google/veo-3.1');
+    assert.ok(nonKlingModel);
+    assert.equal(nonKlingModel?.family, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -782,13 +808,13 @@ test('OpenRouterProviderAdapter submits and polls a video generation job', async
       duration?: number;
       aspect_ratio?: string;
       resolution?: string;
-      input_references?: Array<{ image_url: string }>;
+      input_references?: Array<{ image_url: { url: string } }>;
     };
     assert.equal(payload.duration, 5);
     assert.equal(payload.aspect_ratio, '16:9');
     assert.equal(payload.resolution, '720p');
     assert.equal(
-      payload.input_references?.[0]?.image_url,
+      payload.input_references?.[0]?.image_url.url,
       'https://example.com/reference.png',
     );
 
@@ -814,4 +840,41 @@ test('OpenRouterProviderAdapter submits and polls a video generation job', async
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('OpenRouter video transport mapping remains independent from model family metadata', async () => {
+  const payload = await buildOpenRouterVideoGenerationRequest({
+    model: 'kling/kling-2.1-master',
+    prompt: 'Animate the still frame into a cinematic reveal',
+    durationSeconds: 5,
+    aspectRatio: '16:9',
+    resolution: '720p',
+    providerOptions: {
+      seed: 1234,
+    },
+    referenceImages: [
+      {
+        type: 'image_url',
+        url: 'https://example.com/reference.png',
+      },
+    ],
+  });
+
+  assert.deepEqual(payload, {
+    model: 'kling/kling-2.1-master',
+    prompt: 'Animate the still frame into a cinematic reveal',
+    aspect_ratio: '16:9',
+    duration: 5,
+    resolution: '720p',
+    input_references: [
+      {
+        image_url: {
+          url: 'https://example.com/reference.png',
+        },
+      },
+    ],
+    provider: {
+      seed: 1234,
+    },
+  });
 });

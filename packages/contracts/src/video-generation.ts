@@ -1,4 +1,5 @@
 import type {
+  ModelFamilyProfile,
   MediaGenerationStatus,
   ProviderId,
   VideoFrameType,
@@ -40,6 +41,11 @@ export interface GatewayVideoGenerationRequest {
   providerOptions?: Record<string, unknown>;
 }
 
+export type GatewayVideoRetryRequest = Omit<
+  GatewayVideoGenerationRequest,
+  'idempotencyKey'
+>;
+
 export interface GatewayVideoOutput {
   assetId?: string;
   contentUrl?: string;
@@ -66,6 +72,7 @@ export interface GatewayVideoGenerationJob {
   cancelledAt?: string;
   durationMs?: number;
   error?: string;
+  request?: GatewayVideoRetryRequest;
   outputs: GatewayVideoOutput[];
   providerMetadata?: Record<string, unknown>;
 }
@@ -73,6 +80,7 @@ export interface GatewayVideoGenerationJob {
 export interface GatewayVideoCatalogModel {
   id: string;
   displayName: string;
+  family?: ModelFamilyProfile;
   capabilities?: {
     supportsStreaming?: boolean;
     supportsVideoGeneration?: boolean;
@@ -110,6 +118,7 @@ export interface GatewayVideoCatalogModel {
       videoCount?: number;
     };
     pricingSkus?: Record<string, string>;
+    family?: ModelFamilyProfile;
   };
 }
 

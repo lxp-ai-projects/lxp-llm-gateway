@@ -239,6 +239,15 @@ export const gatewayApiClient = {
     );
   },
 
+  async deleteVideoJob(jobId: string): Promise<{ deleted: true }> {
+    return request<{ deleted: true }>(
+      `${gatewayApiUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
   async getVideoHistory(page = 1): Promise<GatewayVideoHistoryResponse> {
     return request<GatewayVideoHistoryResponse>(
       `${gatewayApiUrl}/api/v1/videos/history?page=${encodeURIComponent(String(page))}`,

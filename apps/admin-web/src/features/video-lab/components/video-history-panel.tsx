@@ -62,6 +62,28 @@ export function VideoHistoryPanel({
                       >
                         Load in results
                       </Button>
+                      <Button
+                        disabled={!job.request}
+                        loading={videoLab.generateMutation.isPending}
+                        onClick={() => void videoLab.retryJob(job)}
+                        size="xs"
+                        variant="light"
+                      >
+                        Retry
+                      </Button>
+                      <Button
+                        color="red"
+                        disabled={
+                          !isTerminalStatus(job.status) ||
+                          videoLab.deleteMutation.isPending
+                        }
+                        loading={videoLab.deleteMutation.isPending}
+                        onClick={() => void videoLab.deleteMutation.mutate(job.id)}
+                        size="xs"
+                        variant="light"
+                      >
+                        Delete
+                      </Button>
                     </Group>
                   </Group>
 
@@ -148,4 +170,12 @@ function resolveStatusColor(status: GatewayVideoGenerationJob['status']) {
     return 'yellow';
   }
   return 'blue';
+}
+
+function isTerminalStatus(status: GatewayVideoGenerationJob['status']) {
+  return (
+    status === 'succeeded' ||
+    status === 'failed' ||
+    status === 'cancelled'
+  );
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { GatewayVideoGenerationRequest } from '@lxp/contracts';
+import { attachKlingVideoFamilyToModel } from '@lxp/model-family-capabilities';
 import type { LlmProviderAdapter, ProviderExecutionContext } from '@lxp/provider-sdk';
 
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
@@ -243,14 +244,24 @@ class FakeVideoProvider implements LlmProviderAdapter {
       providerId: this.providerId,
       defaultModelId: 'openrouter/kling-v1',
       models: [
-        {
-          id: 'openrouter/kling-v1',
-          displayName: 'Kling v1',
-          capabilities: {
-            supportsVideoGeneration: true,
-            supportsVideoReferenceImages: true,
+        attachKlingVideoFamilyToModel(
+          {
+            id: 'openrouter/kling-v1',
+            displayName: 'Kling v1',
+            capabilities: {
+              supportsVideoGeneration: true,
+              supportsVideoReferenceImages: true,
+            },
           },
-        },
+          {
+            durations: [5, 10],
+            aspectRatios: ['16:9', '9:16'],
+            resolutions: ['720p'],
+            frameTypes: ['first_frame', 'last_frame'],
+            generateAudio: true,
+            allowedPassthroughParameters: ['seed'],
+          },
+        ),
       ],
     };
   }
@@ -387,6 +398,7 @@ class FakeTenantPolicyService {
 class FakeMediaStorageService {
   public writeCalls = 0;
   public readCalls = 0;
+  public deleteCalls = 0;
   public stored = new Map<string, Buffer>();
 
   async writeVideoAsset(input: {
@@ -408,6 +420,11 @@ class FakeMediaStorageService {
   async readAsset(storageKey: string) {
     this.readCalls += 1;
     return this.stored.get(storageKey) ?? Buffer.alloc(0);
+  }
+
+  async deleteAsset(storageKey: string) {
+    this.deleteCalls += 1;
+    this.stored.delete(storageKey);
   }
 }
 
@@ -676,6 +693,8 @@ test('VideoApplicationService polls a provider job once, ingests the application
     firstRead.outputs[0]?.contentUrl ?? '',
     /\/api\/v1\/videos\/assets\/.+\/content/,
   );
+  assert.equal(firstRead.providerMetadata?.credentialScopeUsed, 'user');
+  assert.equal(secondRead.providerMetadata?.credentialScopeUsed, 'user');
   assert.equal(secondRead.outputs.length, 1);
   assert.equal(provider.pollCalls, 1);
   assert.equal(provider.downloadCalls, 1);
@@ -730,6 +749,88 @@ test('VideoApplicationService resolves uploaded image assets before provider sub
   assert.equal(provider.cancelCalls, 1);
   assert.equal(cancelled.status, 'cancelled');
   assert.equal(storedJob?.status, 'cancelled');
+  assert.equal(cancelled.providerMetadata?.credentialScopeUsed, 'user');
+  assert.deepEqual(cancelled.request?.referenceImages, [
+    {
+      type: 'asset',
+      assetId: 'image-asset-1',
+    },
+  ]);
+});
+
+test('VideoApplicationService deletes a terminal job and its ingested application assets', async () => {
+  const { service, mediaAssets, mediaJobs, mediaStorageService } = createVideoService({
+    mediaJobs: [
+      {
+        id: 'video-job-delete-1',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        requestId: 'request-video-delete-1',
+        providerId: 'openrouter',
+        capability: 'video',
+        mode: 'image_to_video',
+        model: 'openrouter/kling-v1',
+        prompt: 'Delete this cancelled job',
+        status: 'cancelled',
+        providerJobId: 'provider-job-delete-1',
+        idempotencyKey: null,
+        requestPayload: {
+          providerId: 'openrouter',
+          model: 'openrouter/kling-v1',
+          prompt: 'Delete this cancelled job',
+          referenceImages: [{ type: 'asset', assetId: 'image-asset-1' }],
+        },
+        sourceAssetId: 'image-asset-1',
+        providerMetadata: null,
+        errorMessage: null,
+        submissionAttempts: 1,
+        pollAttempts: 1,
+        nextPollAfter: null,
+        lastPolledAt: new Date('2026-05-07T12:00:08.000Z'),
+        startedAt: new Date('2026-05-07T12:00:00.000Z'),
+        completedAt: null,
+        failedAt: null,
+        cancelledAt: new Date('2026-05-07T12:00:08.000Z'),
+        createdAt: new Date('2026-05-07T12:00:00.000Z'),
+        updatedAt: new Date('2026-05-07T12:00:08.000Z'),
+      },
+    ],
+    mediaAssets: [
+      {
+        id: 'video-asset-delete-1',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        jobId: 'video-job-delete-1',
+        kind: 'video',
+        sourceType: 'generated',
+        outputIndex: 0,
+        label: 'Generated video 1',
+        mimeType: 'video/mp4',
+        storageKey: 'tenant-1/video-asset-delete-1.mp4',
+        originalUrl: 'https://provider.example/video-delete-1.mp4',
+        byteSize: 11,
+        durationSeconds: '5.000',
+        width: 1280,
+        height: 720,
+        sha256: 'sha256-video',
+        isSaved: false,
+        providerMetadata: null,
+        createdAt: new Date('2026-05-07T12:00:08.000Z'),
+        updatedAt: new Date('2026-05-07T12:00:08.000Z'),
+      },
+    ],
+  });
+  mediaStorageService.stored.set(
+    'tenant-1/video-asset-delete-1.mp4',
+    Buffer.from('video-bytes'),
+  );
+
+  const result = await service.deleteJob('video-job-delete-1', buildAuthContext());
+
+  assert.deepEqual(result, { deleted: true });
+  assert.equal((await mediaJobs.find()).length, 0);
+  assert.equal((await mediaAssets.find()).length, 0);
+  assert.equal(mediaStorageService.deleteCalls, 1);
 });
 
 test('VideoApplicationService returns video catalog entries even when provider credentials are not yet configured', async () => {
@@ -746,23 +847,15 @@ test('VideoApplicationService returns video catalog entries even when provider c
 
   const catalog = await service.getCatalog(buildAuthContext());
 
-  assert.deepEqual(catalog.providers, [
-    {
-      providerId: 'openrouter',
-      displayName: 'OpenRouter',
-      defaultModelId: 'openrouter/kling-v1',
-      models: [
-        {
-          id: 'openrouter/kling-v1',
-          displayName: 'Kling v1',
-          capabilities: {
-            supportsVideoGeneration: true,
-            supportsVideoReferenceImages: true,
-          },
-        },
-      ],
-    },
-  ]);
+  assert.equal(catalog.providers.length, 1);
+  assert.equal(catalog.providers[0]?.providerId, 'openrouter');
+  assert.equal(catalog.providers[0]?.defaultModelId, 'openrouter/kling-v1');
+  assert.equal(catalog.providers[0]?.models[0]?.id, 'openrouter/kling-v1');
+  assert.equal(
+    catalog.providers[0]?.models[0]?.capabilities?.supportsVideoGeneration,
+    true,
+  );
+  assert.equal(catalog.providers[0]?.models[0]?.family?.profileId, 'kling-video-family');
 });
 
 test('VideoApplicationService filters video catalog models denied for the active tenant', async () => {
@@ -810,6 +903,31 @@ test('VideoApplicationService rejects video generation when tenant quota policy 
       ),
     /monthly video request limit/i,
   );
+});
+
+test('VideoApplicationService rejects unsupported Kling-family requests before calling provider transport', async () => {
+  const { service, provider } = createVideoService();
+
+  await assert.rejects(
+    () =>
+      service.submitVideoGeneration(
+        {
+          providerId: 'openrouter',
+          model: 'openrouter/kling-v1',
+          prompt: 'Request an unsupported Kling configuration',
+          durationSeconds: 7,
+          aspectRatio: '4:3',
+          resolution: '4k',
+          providerOptions: {
+            unsupportedKnob: true,
+          },
+        },
+        buildAuthContext(),
+      ),
+    /not supported by Kling Video|not allowed for this model family/i,
+  );
+
+  assert.equal(provider.submitCalls, 0);
 });
 
 test('VideoApplicationService reads back stored application-owned video assets', async () => {

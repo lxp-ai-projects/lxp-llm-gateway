@@ -8,6 +8,7 @@ import { VideoGenerationPage } from './video-generation-page';
 
 const {
   cancelVideoJobMock,
+  deleteVideoJobMock,
   generateVideoMock,
   getImageAssetsMock,
   getVideoCatalogMock,
@@ -24,8 +25,29 @@ const {
     status: 'cancelled' as const,
     createdAt: '2026-05-07T12:00:00.000Z',
     cancelledAt: '2026-05-07T12:01:00.000Z',
+    request: {
+      providerId: 'openrouter',
+      model: 'openrouter/kling-v1',
+      prompt: 'Hold on the lantern in the rain',
+      durationSeconds: 5,
+      aspectRatio: '16:9',
+      resolution: '720p',
+      size: '1280x720',
+      referenceImages: [],
+    },
+    providerMetadata: {
+      id: jobId,
+      generationId: 'or-generation-cancelled-1',
+      pollingUrl: `https://openrouter.ai/api/v1/videos/${jobId}`,
+      credentialScopeUsed: 'user',
+      upstreamStatus: 'cancelled',
+      usage: {
+        cost: 0.18,
+      },
+    },
     outputs: [],
   })),
+  deleteVideoJobMock: vi.fn(async () => ({ deleted: true as const })),
   generateVideoMock: vi.fn(async () => ({
     id: 'video-job-1',
     requestId: 'request-video-1',
@@ -34,6 +56,26 @@ const {
     prompt: 'Animate the still image with subtle camera drift',
     status: 'queued' as const,
     createdAt: '2026-05-07T12:00:00.000Z',
+    request: {
+      providerId: 'openrouter',
+      model: 'openrouter/kling-v1',
+      prompt: 'Animate the still image with subtle camera drift',
+      durationSeconds: 5,
+      aspectRatio: '16:9',
+      resolution: '720p',
+      size: '1280x720',
+      referenceImages: [],
+    },
+    providerMetadata: {
+      id: 'provider-job-1',
+      generationId: 'or-generation-1',
+      pollingUrl: 'https://openrouter.ai/api/v1/videos/provider-job-1',
+      credentialScopeUsed: 'user',
+      upstreamStatus: 'pending',
+      usage: {
+        cost: 0.25,
+      },
+    },
     outputs: [],
   })),
   getImageAssetsMock: vi.fn(async () => ({
@@ -59,6 +101,57 @@ const {
           {
             id: 'openrouter/kling-v1',
             displayName: 'Kling v1',
+            family: {
+              familyId: 'kling',
+              profileId: 'kling-video-family',
+              modality: 'video',
+              displayName: 'Kling Video',
+              summary: 'Reusable Kling-family video capability profile for direct and aggregator transports.',
+              video: {
+                generationModes: [
+                  'text-to-video',
+                  'image-to-video',
+                  'multi-image-to-video',
+                  'video-extension',
+                  'lip-sync',
+                ],
+                inputRequirements: [
+                  {
+                    mode: 'text-to-video',
+                    maxReferenceImages: 0,
+                    minReferenceImages: 0,
+                    supportsReferenceImages: false,
+                  },
+                  {
+                    mode: 'image-to-video',
+                    maxReferenceImages: 1,
+                    minReferenceImages: 1,
+                    supportsReferenceImages: true,
+                  },
+                  {
+                    mode: 'multi-image-to-video',
+                    maxReferenceImages: 4,
+                    minReferenceImages: 2,
+                    supportsReferenceImages: true,
+                  },
+                ],
+                durationConstraint: {
+                  allowedValues: [5, 10],
+                  defaultSeconds: 5,
+                },
+                aspectRatioConstraint: {
+                  allowedValues: ['16:9', '9:16'],
+                  defaultValue: '16:9',
+                },
+                resolutionConstraint: {
+                  allowedValues: ['720p', '1080p'],
+                  defaultValue: '720p',
+                },
+                audioSupport: {
+                  supportsGeneration: true,
+                },
+              },
+            },
             capabilities: {
               supportsVideoGeneration: true,
               supportsVideoReferenceImages: true,
@@ -121,6 +214,26 @@ const {
         createdAt: '2026-05-07T11:30:00.000Z',
         completedAt: '2026-05-07T11:31:10.000Z',
         durationMs: 70000,
+        request: {
+          providerId: 'openrouter',
+          model: 'openrouter/kling-v1',
+          prompt: `History video prompt ${page}`,
+          durationSeconds: 5,
+          aspectRatio: '16:9',
+          resolution: '720p',
+          size: '1280x720',
+          referenceImages: [],
+        },
+        providerMetadata: {
+          id: `provider-history-video-job-${page}`,
+          generationId: `or-history-generation-${page}`,
+          pollingUrl: `https://openrouter.ai/api/v1/videos/provider-history-video-job-${page}`,
+          credentialScopeUsed: 'user',
+          upstreamStatus: 'completed',
+          usage: {
+            cost: 0.42,
+          },
+        },
         outputs: [
           {
             assetId: `history-video-asset-${page}`,
@@ -149,6 +262,26 @@ const {
     createdAt: '2026-05-07T12:00:00.000Z',
     completedAt: '2026-05-07T12:00:09.000Z',
     durationMs: 9000,
+    request: {
+      providerId: 'openrouter',
+      model: 'openrouter/kling-v1',
+      prompt: 'Animate the still image with subtle camera drift',
+      durationSeconds: 5,
+      aspectRatio: '16:9',
+      resolution: '720p',
+      size: '1280x720',
+      referenceImages: [{ type: 'asset', assetId: 'asset-upload-1' }],
+    },
+    providerMetadata: {
+      id: jobId,
+      generationId: 'or-generation-succeeded-1',
+      pollingUrl: `https://openrouter.ai/api/v1/videos/${jobId}`,
+      credentialScopeUsed: 'user',
+      upstreamStatus: 'completed',
+      usage: {
+        cost: 0.31,
+      },
+    },
     outputs: [
       {
         assetId: 'video-output-1',
@@ -185,6 +318,7 @@ vi.mock('../lib/api-client', async () => {
       generateVideo: generateVideoMock,
       getVideoJob: getVideoJobMock,
       cancelVideoJob: cancelVideoJobMock,
+      deleteVideoJob: deleteVideoJobMock,
       uploadImageAsset: uploadImageAssetMock,
     },
   };
@@ -192,6 +326,7 @@ vi.mock('../lib/api-client', async () => {
 
 beforeEach(() => {
   cancelVideoJobMock.mockClear();
+  deleteVideoJobMock.mockClear();
   generateVideoMock.mockClear();
   getImageAssetsMock.mockClear();
   getVideoCatalogMock.mockClear();
@@ -216,6 +351,9 @@ test('VideoGenerationPage renders providers, request controls, and history from 
   expect(screen.getByTestId('video-provider-select')).toBeInTheDocument();
   expect(screen.getByTestId('video-model-select')).toBeInTheDocument();
   expect(screen.getByTestId('video-duration-select')).toBeInTheDocument();
+  expect(screen.getByText('Kling Video')).toBeInTheDocument();
+  expect(screen.getAllByText('text-to-video').length).toBeGreaterThan(0);
+  expect(screen.getByText('No video job yet')).toBeInTheDocument();
   expect(screen.getByText('Video history')).toBeInTheDocument();
   expect(screen.getByText('Storyboard still')).toBeInTheDocument();
 });
@@ -281,8 +419,16 @@ test('VideoGenerationPage submits an image-to-video job using a selected uploade
       }),
     ),
   );
+  expect(screen.getAllByText('image-to-video').length).toBeGreaterThan(0);
   expect(await screen.findAllByText('Output 1')).not.toHaveLength(0);
   expect(document.querySelector('video')).not.toBeNull();
+  expect(screen.getByText('Provider diagnostics')).toBeInTheDocument();
+  expect(screen.getByText('Credential scope')).toBeInTheDocument();
+  expect(screen.getByText('Provider job id')).toBeInTheDocument();
+  expect(screen.getByText('Debug payloads')).toBeInTheDocument();
+  expect(screen.getByText('Gateway request snapshot')).toBeInTheDocument();
+  expect(screen.getByText('Provider metadata')).toBeInTheDocument();
+  expect(screen.getByText(/"upstreamStatus": "completed"/)).toBeInTheDocument();
 });
 
 test(
@@ -299,6 +445,26 @@ test(
       status: 'running' as const,
       createdAt: '2026-05-07T12:00:00.000Z',
       startedAt: '2026-05-07T12:00:02.000Z',
+      request: {
+        providerId: 'openrouter',
+        model: 'openrouter/kling-v1',
+        prompt: 'Animate the still image with subtle camera drift',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        resolution: '720p',
+        size: '1280x720',
+        referenceImages: [],
+      },
+      providerMetadata: {
+        id: 'provider-job-1',
+        generationId: 'or-generation-running-1',
+        pollingUrl: 'https://openrouter.ai/api/v1/videos/provider-job-1',
+        credentialScopeUsed: 'user',
+        upstreamStatus: 'in_progress',
+        usage: {
+          cost: 0.25,
+        },
+      },
       outputs: [],
     })
     .mockResolvedValueOnce({
@@ -311,6 +477,26 @@ test(
       createdAt: '2026-05-07T12:00:00.000Z',
       completedAt: '2026-05-07T12:00:10.000Z',
       durationMs: 8000,
+      request: {
+        providerId: 'openrouter',
+        model: 'openrouter/kling-v1',
+        prompt: 'Animate the still image with subtle camera drift',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        resolution: '720p',
+        size: '1280x720',
+        referenceImages: [],
+      },
+      providerMetadata: {
+        id: 'provider-job-1',
+        generationId: 'or-generation-running-1',
+        pollingUrl: 'https://openrouter.ai/api/v1/videos/provider-job-1',
+        credentialScopeUsed: 'user',
+        upstreamStatus: 'completed',
+        usage: {
+          cost: 0.29,
+        },
+      },
       outputs: [
         {
           assetId: 'video-output-1',
@@ -335,6 +521,8 @@ test(
   await waitFor(() => expect(getVideoJobMock).toHaveBeenCalledTimes(1));
   await new Promise((resolve) => window.setTimeout(resolve, 3200));
   await waitFor(() => expect(getVideoJobMock).toHaveBeenCalledTimes(2));
+  expect(await screen.findByText('Generation completed')).toBeInTheDocument();
+  expect(screen.getByText('completed')).toBeInTheDocument();
   expect(await screen.findAllByText('Output 1')).not.toHaveLength(0);
   },
   12000,
@@ -351,6 +539,26 @@ test('VideoGenerationPage cancels a non-terminal job from the results panel', as
     status: 'running' as const,
     createdAt: '2026-05-07T12:00:00.000Z',
     startedAt: '2026-05-07T12:00:03.000Z',
+    request: {
+      providerId: 'openrouter',
+      model: 'openrouter/kling-v1',
+      prompt: 'Hold on the lantern in the rain',
+      durationSeconds: 5,
+      aspectRatio: '16:9',
+      resolution: '720p',
+      size: '1280x720',
+      referenceImages: [],
+    },
+    providerMetadata: {
+      id: 'provider-job-1',
+      generationId: 'or-generation-running-2',
+      pollingUrl: 'https://openrouter.ai/api/v1/videos/provider-job-1',
+      credentialScopeUsed: 'user',
+      upstreamStatus: 'in_progress',
+      usage: {
+        cost: 0.22,
+      },
+    },
     outputs: [],
   });
 
@@ -368,6 +576,41 @@ test('VideoGenerationPage cancels a non-terminal job from the results panel', as
   await waitFor(() =>
     expect(cancelVideoJobMock).toHaveBeenCalledWith('video-job-1'),
   );
-  expect(await screen.findByText('Generation cancelled')).toBeInTheDocument();
+  expect((await screen.findAllByText('Generation cancelled')).length).toBeGreaterThan(0);
   expect(screen.getByRole('button', { name: 'Cancel job' })).toBeDisabled();
+});
+
+test('VideoGenerationPage retries a history job by repopulating the form and submitting a new request', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<VideoGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Video Generation Lab' });
+  await user.click(await screen.findByRole('button', { name: 'Retry' }));
+
+  await waitFor(() =>
+    expect(generateVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'openrouter',
+        model: 'openrouter/kling-v1',
+        prompt: 'History video prompt 1',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        resolution: '720p',
+        size: '1280x720',
+      }),
+    ),
+  );
+  expect(await screen.findByDisplayValue('History video prompt 1')).toBeInTheDocument();
+});
+
+test('VideoGenerationPage deletes a terminal job from the results panel', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<VideoGenerationPage />);
+
+  await screen.findByRole('heading', { name: 'Video Generation Lab' });
+  await user.click(await screen.findByRole('button', { name: 'Load in results' }));
+  await user.click(await screen.findByRole('button', { name: 'Delete job' }));
+
+  await waitFor(() => expect(deleteVideoJobMock).toHaveBeenCalledWith('history-video-job-1'));
+  expect(await screen.findByText('No video job yet')).toBeInTheDocument();
 });

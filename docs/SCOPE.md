@@ -71,10 +71,11 @@ Phase 1 does not include:
 The next seam expansion is intentionally incremental:
 
 - introduce a reusable media-generation foundation in the shared seam
-- land asynchronous video generation behind that seam starting with OpenRouter Video
+- land asynchronous video generation behind that seam starting with OpenRouter Video and then extending the same transport pattern to NanoGPT video
 - prove image-to-video first while keeping text-to-video compatibility in the shared contracts
+- introduce a reusable model-family capability layer so shared family rules such as Kling video do not get duplicated across aggregators
 - keep backend contract stabilization ahead of any new workspace UI surface
-- avoid implementing OpenRouter, xAI direct, and NanoGPT video all at once
+- avoid implementing OpenRouter, xAI direct, and other future video transports all at once
 
 The repository now treats multi-tenancy as a first-class architectural concern:
 
@@ -254,6 +255,7 @@ Provider abstraction seam:
 - capability-oriented contracts for asynchronous video generation
 - provider-owned model metadata for capability-specific constraints such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, input fidelity, compression ranges, and request limits
 - provider-owned video metadata for capability-specific constraints such as supported durations, aspect ratios, resolutions, frame-image support, passthrough parameters, and pricing hints
+- reusable model-family metadata and validation that can be consumed by more than one transport adapter
 - provider access configuration that can represent:
   - bearer-token providers such as `NanoGPT` and `OpenRouter`
   - endpoint-based providers such as `Ollama`
@@ -480,7 +482,14 @@ The current policy and limit posture is intentionally incremental:
 
 The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection, output format, transparency/background handling, input fidelity, and compression controls.
 
-The next capability slice after that is media-generation expansion for asynchronous video jobs, starting with OpenRouter Video and preserving the same seam rule.
+The next capability slice after that is media-generation expansion for asynchronous video jobs, starting with OpenRouter Video, then NanoGPT Video, and preserving the same seam rule.
+
+For the current NanoGPT video stabilization pass, image-to-video routability must stay conservative:
+
+- expose `image-to-video` only when the normalized provider profile makes that mode explicit
+- require known input semantics before treating a catalog entry as routable
+- keep specialized variants such as motion-control, extend, edit, and lip-sync visible in the catalog if needed, but not routable through the current NanoGPT transport unless request mapping is explicitly implemented
+- prefer provider-declared `supported_parameters.supported_modes`, then explicit provider metadata, and only use Kling-family heuristics as a last-resort fallback when NanoGPT does not return exploitable data
 
 The current implementation now also includes:
 

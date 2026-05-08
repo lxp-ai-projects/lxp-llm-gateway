@@ -24,10 +24,13 @@ export function VideoRequestForm({
   videoLab: ReturnTypeUseVideoLab;
 }) {
   const capabilities = videoLab.capabilities;
+  const family = videoLab.family;
   const aspectRatios = capabilities?.supportedVideoAspectRatios ?? [];
   const resolutions = capabilities?.supportedVideoResolutions ?? [];
   const sizes = capabilities?.supportedVideoSizes ?? [];
   const durations = capabilities?.supportedVideoDurations ?? [];
+  const familyModes = family?.video?.generationModes ?? [];
+  const familyIssues = videoLab.familyValidation.issues;
   const selectedAssetIds = new Set(
     videoLab.references
       .filter((reference) => reference.kind === 'asset')
@@ -68,6 +71,39 @@ export function VideoRequestForm({
           onChange={(value) => videoLab.setModelId(value ?? '')}
           value={videoLab.modelId}
         />
+
+        {family ? (
+          <Card padding="sm" radius="md" withBorder>
+            <Stack gap="xs">
+              <Group gap="xs">
+                <Badge color="teal" variant="light">
+                  {family.displayName}
+                </Badge>
+                <Badge color="gray" variant="light">
+                  {videoLab.currentMode}
+                </Badge>
+              </Group>
+              {family.summary ? (
+                <Text c="dimmed" size="sm">
+                  {family.summary}
+                </Text>
+              ) : null}
+              {familyModes.length ? (
+                <Group gap="xs">
+                  {familyModes.map((mode) => (
+                    <Badge
+                      color={mode === videoLab.currentMode ? 'teal' : 'gray'}
+                      key={mode}
+                      variant={mode === videoLab.currentMode ? 'filled' : 'light'}
+                    >
+                      {mode}
+                    </Badge>
+                  ))}
+                </Group>
+              ) : null}
+            </Stack>
+          </Card>
+        ) : null}
 
         <Textarea
           autosize
@@ -263,6 +299,12 @@ export function VideoRequestForm({
           </>
         )}
 
+        {familyIssues.length ? (
+          <Alert color="yellow" title="Model-family validation">
+            {familyIssues[0]?.message}
+          </Alert>
+        ) : null}
+
         {videoLab.requestError ? (
           <Alert color="red" title="Video request failed">
             {videoLab.requestError}
@@ -273,7 +315,7 @@ export function VideoRequestForm({
           data-testid="video-submit"
           leftSection={<IconVideo size={16} />}
           loading={videoLab.generateMutation.isPending}
-          onClick={() => videoLab.generateMutation.mutate()}
+          onClick={() => videoLab.generateMutation.mutate(undefined)}
         >
           {videoLab.references.length ? 'Generate video from image' : 'Generate video'}
         </Button>

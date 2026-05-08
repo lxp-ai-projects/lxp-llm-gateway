@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "dependencies": {
+    "@lxp/contracts": "workspace:*",
     "@lxp/domain": "workspace:*",
+    "@lxp/model-family-capabilities": "workspace:*",
     "@mantine/core": "^8.3.6",
     "@mantine/hooks": "^8.3.6",
     "@tabler/icons-react": "^3.34.1",

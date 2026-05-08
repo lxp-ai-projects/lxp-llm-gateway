@@ -1,10 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import {
+  normalizeVideoGenerationMode,
+  validateVideoRequestAgainstFamily,
+} from '@lxp/model-family-capabilities';
 
 import { gatewayApiClient, gatewayApiUrl } from '../../lib/api-client';
 import type {
   GatewayImageAssetSummary,
   GatewayVideoGenerationJob,
+  GatewayVideoRetryRequest,
+  GatewayVideoReference,
   VideoModelSummary,
 } from '../../lib/api-client.types';
 import { createClientId } from '../../lib/id';
@@ -108,6 +114,7 @@ export function useVideoLab() {
     );
   const selectedModel = models.find((model) => model.id === modelId);
   const capabilities = selectedModel?.capabilities;
+  const family = selectedModel?.family ?? capabilities?.family;
   const maxReferenceImages = Math.max(
     1,
     capabilities?.maxReferenceImagesPerRequest ?? 1,
@@ -116,7 +123,71 @@ export function useVideoLab() {
     capabilities?.supportsVideoReferenceImages !== false;
   const supportsAudioGeneration =
     capabilities?.supportsVideoAudioGeneration === true;
+  const currentMode = normalizeVideoGenerationMode({
+    referenceImages: references.map<GatewayVideoReference>((reference) =>
+      reference.kind === 'asset'
+        ? {
+            type: 'asset',
+            assetId: reference.assetId,
+          }
+        : {
+            type: 'image_url',
+            url: reference.url,
+          },
+    ),
+    frameImages: [],
+  });
+  const familyValidation = validateVideoRequestAgainstFamily(
+    {
+      model: modelId || undefined,
+      prompt,
+      durationSeconds: parseNumericValue(durationSeconds),
+      aspectRatio: aspectRatio || undefined,
+      resolution: resolution || undefined,
+      size: size || undefined,
+      generateAudio: supportsAudioGeneration ? generateAudio : undefined,
+      providerOptions: undefined,
+      referenceImages: references.map<GatewayVideoReference>((reference) =>
+        reference.kind === 'asset'
+          ? {
+              type: 'asset',
+              assetId: reference.assetId,
+            }
+          : {
+              type: 'image_url',
+              url: reference.url,
+            },
+      ),
+      frameImages: [],
+    },
+    family,
+  );
   const activeJob = resolveActiveJob(submittedJob, activeJobQuery.data);
+
+  function buildRequestFromForm(): GatewayVideoRetryRequest {
+    return {
+      providerId:
+        selectedProvider?.providerId as GatewayVideoRetryRequest['providerId'],
+      model: modelId,
+      prompt: prompt.trim(),
+      durationSeconds: parseNumericValue(durationSeconds),
+      aspectRatio: aspectRatio || undefined,
+      resolution: resolution || undefined,
+      size: size || undefined,
+      generateAudio: supportsAudioGeneration ? generateAudio : undefined,
+      referenceImages: references.map((reference) =>
+        reference.kind === 'asset'
+          ? {
+              type: 'asset' as const,
+              assetId: reference.assetId,
+            }
+          : {
+              type: 'image_url' as const,
+              url: reference.url,
+            },
+      ),
+    };
+  }
 
   useEffect(() => {
     if (providerId || !providers.length) {
@@ -198,42 +269,58 @@ export function useVideoLab() {
   }, [activeJobQuery.data, queryClient]);
 
   const generateMutation = useMutation({
-    mutationFn: async () => {
-      const trimmedPrompt = prompt.trim();
-      if (!trimmedPrompt) {
+    mutationFn: async (requestOverride?: GatewayVideoRetryRequest) => {
+      const request =
+        sanitizeRetryRequest(requestOverride) ?? buildRequestFromForm();
+
+      if (!request.prompt.trim()) {
         throw new Error('A prompt is required.');
       }
 
-      if (!modelId) {
+      if (!request.model?.trim()) {
         throw new Error('A video model must be selected.');
       }
 
-      if (references.length > 0 && !supportsReferenceImages) {
+      const retryProviderId =
+        request.providerId ??
+        (selectedProvider?.providerId as GatewayVideoRetryRequest['providerId']);
+      const retryProvider = providers.find(
+        (provider) => provider.providerId === retryProviderId,
+      );
+      const retryModel = retryProvider?.models.find(
+        (model) => model.id === request.model,
+      );
+      const retryCapabilities = retryModel?.capabilities;
+      const retrySupportsReferenceImages =
+        retryCapabilities?.supportsVideoReferenceImages !== false;
+      const retrySupportsAudioGeneration =
+        retryCapabilities?.supportsVideoAudioGeneration === true;
+      const retryFamily = retryModel?.family ?? retryCapabilities?.family;
+      const retryFamilyValidation = validateVideoRequestAgainstFamily(
+        request,
+        retryFamily,
+      );
+
+      if ((request.referenceImages?.length ?? 0) > 0 && !retrySupportsReferenceImages) {
         throw new Error('This model does not support reference images.');
       }
 
-      const parsedDuration = Number.parseInt(durationSeconds, 10);
+      if (retryFamily && !retryFamilyValidation.ok) {
+        throw new Error(
+          retryFamilyValidation.issues[0]?.message ??
+            'This request is not supported by the selected model family.',
+        );
+      }
+
       return gatewayApiClient.generateVideo({
-        providerId: providerId || undefined,
-        model: modelId,
+        ...request,
+        providerId: retryProviderId,
+        model: request.model,
         idempotencyKey: createClientId(),
-        prompt: trimmedPrompt,
-        durationSeconds: Number.isFinite(parsedDuration) ? parsedDuration : undefined,
-        aspectRatio: aspectRatio || undefined,
-        resolution: resolution || undefined,
-        size: size || undefined,
-        generateAudio: supportsAudioGeneration ? generateAudio : undefined,
-        referenceImages: references.map((reference) =>
-          reference.kind === 'asset'
-            ? {
-                type: 'asset' as const,
-                assetId: reference.assetId,
-              }
-            : {
-                type: 'image_url' as const,
-                url: reference.url,
-              },
-        ),
+        prompt: request.prompt.trim(),
+        generateAudio: retrySupportsAudioGeneration
+          ? request.generateAudio
+          : undefined,
       });
     },
     onSuccess: (job) => {
@@ -265,6 +352,22 @@ export function useVideoLab() {
   const uploadMutation = useMutation({
     mutationFn: (payload: { dataUrl: string; label?: string }) =>
       gatewayApiClient.uploadImageAsset(payload),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (jobId: string) => gatewayApiClient.deleteVideoJob(jobId),
+    onSuccess: (_result, jobId) => {
+      setRequestError(null);
+      setSubmittedJob((current) => (current?.id === jobId ? null : current));
+      setActiveJobId((current) => (current === jobId ? null : current));
+      void queryClient.invalidateQueries({ queryKey: ['video-history'] });
+      void queryClient.invalidateQueries({ queryKey: ['video-job', jobId] });
+    },
+    onError: (error) => {
+      setRequestError(
+        error instanceof Error ? error.message : 'The delete request failed.',
+      );
+    },
   });
 
   async function handleFileSelection(fileList: FileList | null) {
@@ -333,6 +436,43 @@ export function useVideoLab() {
     setActiveJobId(job.id);
   }
 
+  function applyRetryRequestToForm(request: GatewayVideoRetryRequest | undefined) {
+    if (!request) {
+      return;
+    }
+
+    setRequestError(null);
+    setProviderId(request.providerId ?? '');
+    setModelId(request.model ?? '');
+    setPrompt(request.prompt ?? '');
+    setDurationSeconds(
+      typeof request.durationSeconds === 'number'
+        ? String(request.durationSeconds)
+        : '',
+    );
+    setAspectRatio(request.aspectRatio ?? '');
+    setResolution(request.resolution ?? '');
+    setSize(request.size ?? '');
+    setGenerateAudio(request.generateAudio ?? false);
+    setReferenceUrl('');
+    setReferences(
+      mapRetryReferences(request.referenceImages, assetsQuery.data?.items ?? []),
+    );
+  }
+
+  async function retryJob(job: GatewayVideoGenerationJob) {
+    const retryRequest = sanitizeRetryRequest(job.request);
+    if (!retryRequest) {
+      setRequestError(
+        'This job cannot be retried because its request snapshot is unavailable.',
+      );
+      return;
+    }
+
+    applyRetryRequestToForm(retryRequest);
+    await generateMutation.mutateAsync(retryRequest);
+  }
+
   const mediaUrl = (value: string | undefined) =>
     value ? resolveGatewayMediaUrl(value) : undefined;
 
@@ -343,6 +483,9 @@ export function useVideoLab() {
     selectedProvider,
     selectedModel,
     capabilities,
+    family,
+    currentMode,
+    familyValidation,
     providerId,
     setProviderId,
     modelId,
@@ -375,6 +518,7 @@ export function useVideoLab() {
     activeJobQuery,
     generateMutation,
     cancelMutation,
+    deleteMutation,
     uploadMutation,
     supportsReferenceImages,
     supportsAudioGeneration,
@@ -384,8 +528,15 @@ export function useVideoLab() {
     addReferenceAsset,
     removeReference,
     selectHistoryJob,
+    applyRetryRequestToForm,
+    retryJob,
     mediaUrl,
   };
+}
+
+function parseNumericValue(value: string) {
+  const parsedValue = Number.parseInt(value, 10);
+  return Number.isFinite(parsedValue) ? parsedValue : undefined;
 }
 
 function mapAssetReference(asset: GatewayImageAssetSummary): VideoReferenceDraft {
@@ -396,6 +547,65 @@ function mapAssetReference(asset: GatewayImageAssetSummary): VideoReferenceDraft
     label: asset.label ?? 'Gateway image asset',
     previewUrl: resolveGatewayMediaUrl(asset.contentUrl),
     sourceType: asset.sourceType,
+  };
+}
+
+function mapRetryReferences(
+  references: GatewayVideoRetryRequest['referenceImages'],
+  assets: GatewayImageAssetSummary[],
+): VideoReferenceDraft[] {
+  return (references ?? []).map((reference) =>
+    reference.type === 'asset'
+      ? mapRetryAssetReference(reference.assetId, assets)
+      : {
+          id: createClientId(),
+          kind: 'image_url',
+          url: reference.url,
+          label: reference.url,
+          previewUrl: reference.url,
+        },
+  );
+}
+
+function mapRetryAssetReference(
+  assetId: string,
+  assets: GatewayImageAssetSummary[],
+): VideoReferenceDraft {
+  const asset = assets.find((candidate) => candidate.id === assetId);
+  if (asset) {
+    return mapAssetReference(asset);
+  }
+
+  return {
+    id: createClientId(),
+    kind: 'asset',
+    assetId,
+    label: `Gateway image asset ${assetId}`,
+    previewUrl: '',
+    sourceType: 'generated',
+  };
+}
+
+function sanitizeRetryRequest(
+  request: GatewayVideoRetryRequest | undefined,
+): GatewayVideoRetryRequest | undefined {
+  if (!request?.prompt?.trim()) {
+    return undefined;
+  }
+
+  return {
+    providerId: request.providerId,
+    model: request.model,
+    prompt: request.prompt,
+    durationSeconds: request.durationSeconds,
+    aspectRatio: request.aspectRatio,
+    resolution: request.resolution,
+    size: request.size,
+    generateAudio: request.generateAudio,
+    seed: request.seed,
+    frameImages: request.frameImages,
+    referenceImages: request.referenceImages,
+    providerOptions: request.providerOptions,
   };
 }
 

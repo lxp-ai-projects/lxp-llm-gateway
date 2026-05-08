@@ -114,9 +114,15 @@ importers:
 
   apps/admin-web:
     dependencies:
+      '@lxp/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@lxp/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@lxp/model-family-capabilities':
+        specifier: workspace:*
+        version: link:../../packages/model-family-capabilities
       '@mantine/core':
         specifier: ^8.3.6
         version: 8.3.18(@mantine/hooks@8.3.18(react@19.2.5))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -178,6 +184,9 @@ importers:
       '@lxp/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@lxp/model-family-capabilities':
+        specifier: workspace:*
+        version: link:../../packages/model-family-capabilities
       '@lxp/provider-anthropic':
         specifier: workspace:*
         version: link:../../packages/provider-anthropic
@@ -287,6 +296,19 @@ importers:
 
   packages/domain: {}
 
+  packages/model-family-capabilities:
+    dependencies:
+      '@lxp/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@lxp/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+
   packages/provider-anthropic:
     dependencies:
       '@lxp/contracts':
@@ -388,6 +410,12 @@ importers:
       '@lxp/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@lxp/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@lxp/model-family-capabilities':
+        specifier: workspace:*
+        version: link:../model-family-capabilities
       '@lxp/provider-sdk':
         specifier: workspace:*
         version: link:../provider-sdk
@@ -436,6 +464,9 @@ importers:
       '@lxp/domain':
         specifier: workspace:*
         version: link:../domain
+      '@lxp/model-family-capabilities':
+        specifier: workspace:*
+        version: link:../model-family-capabilities
       '@lxp/provider-sdk':
         specifier: workspace:*
         version: link:../provider-sdk

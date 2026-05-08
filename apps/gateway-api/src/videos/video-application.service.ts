@@ -11,9 +11,12 @@ import type {
   GatewayVideoCatalogResponse,
   GatewayVideoGenerationJob,
   GatewayVideoGenerationRequest,
+  GatewayVideoRetryRequest,
   GatewayVideoReference,
 } from '@lxp/contracts';
 import type { ProviderId } from '@lxp/domain';
+import { validateVideoRequestAgainstFamily } from '@lxp/model-family-capabilities';
+import type { ProviderAccessConfig } from '@lxp/provider-sdk';
 import { Repository } from 'typeorm';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
@@ -119,6 +122,7 @@ export class VideoApplicationService {
               models: catalog.models.map((model) => ({
                 id: model.id,
                 displayName: model.displayName,
+                family: model.family,
                 capabilities: model.capabilities,
               })),
             },
@@ -240,11 +244,7 @@ export class VideoApplicationService {
             status: 'queued',
             providerJobId: null,
             idempotencyKey: request.idempotencyKey?.trim() || null,
-            requestPayload: {
-              ...request,
-              referenceImages: resolvedReferences,
-              frameImages: resolvedFrameImages,
-            },
+            requestPayload: this.buildStoredRequestPayload(request),
             sourceAssetId:
               mode === 'image_to_video'
                 ? this.extractPrimaryAssetId(request, resolvedReferences)
@@ -269,6 +269,22 @@ export class VideoApplicationService {
           provider.providerId,
         );
 
+      const modelCatalogEntry = await this.resolveVideoModelCatalogEntry(
+        provider,
+        request.model!,
+        authContext,
+        providerAccess,
+      );
+      if (modelCatalogEntry) {
+        const validation = validateVideoRequestAgainstFamily(
+          request,
+          modelCatalogEntry.family ?? modelCatalogEntry.capabilities.family,
+        );
+        if (!validation.ok) {
+          throw new BadRequestException(validation.issues[0]?.message);
+        }
+      }
+
       const providerResponse = await provider.submitVideoGeneration(
         {
           ...request,
@@ -291,7 +307,10 @@ export class VideoApplicationService {
           const job = await repository.findOneByOrFail({ id: internalJob.id });
           job.providerJobId = providerResponse.id;
           job.status = providerResponse.status;
-          job.providerMetadata = providerResponse.providerMetadata ?? null;
+          job.providerMetadata = {
+            ...(providerResponse.providerMetadata ?? {}),
+            credentialScopeUsed,
+          };
           job.submissionAttempts += 1;
           job.nextPollAfter =
             providerResponse.status === 'succeeded'
@@ -497,6 +516,58 @@ export class VideoApplicationService {
     );
   }
 
+  async deleteJob(jobId: string, authContext: GatewayAuthContext) {
+    this.integrationClientScopeService.assertScope(authContext, 'video:generate');
+    const user = await this.resolveUser(
+      authContext.activeTenantId,
+      authContext.emailHash,
+    );
+    const job = await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) =>
+        manager.getRepository(MediaGenerationJobEntity).findOne({
+          where: {
+            id: jobId,
+            tenantId: authContext.activeTenantId,
+            userId: user.id,
+          },
+        }),
+    );
+    if (!job) {
+      throw new NotFoundException('Video generation job not found.');
+    }
+
+    if (!this.isTerminalStatus(job.status)) {
+      throw new BadRequestException(
+        'Only terminal video jobs can be deleted. Cancel the job first if it is still queued or running.',
+      );
+    }
+
+    const assets = await this.loadAssetsForJob(
+      authContext.activeTenantId,
+      user.id,
+      job.id,
+    );
+    for (const asset of assets) {
+      await this.mediaStorageService.deleteAsset(asset.storageKey);
+    }
+
+    await this.tenantRlsService.withTenantContext(
+      authContext.activeTenantId,
+      async (manager) => {
+        const assetRepository = manager.getRepository(MediaAssetEntity);
+        const jobRepository = manager.getRepository(MediaGenerationJobEntity);
+
+        for (const asset of assets) {
+          await assetRepository.delete({ id: asset.id });
+        }
+        await jobRepository.delete({ id: job.id });
+      },
+    );
+
+    return { deleted: true as const };
+  }
+
   async getAssetContent(
     assetId: string,
     authContext: GatewayAuthContext,
@@ -547,7 +618,7 @@ export class VideoApplicationService {
       return job;
     }
 
-    const { providerAccess } =
+    const { providerAccess, credentialScopeUsed } =
       await this.providerCredentialService.resolveProviderAccessWithSource(
         authContext,
         provider.providerId,
@@ -574,7 +645,11 @@ export class VideoApplicationService {
 
         current.lastPolledAt = new Date();
         current.pollAttempts += 1;
-        current.providerMetadata = providerJob.providerMetadata ?? null;
+        current.providerMetadata = {
+          ...(current.providerMetadata ?? {}),
+          credentialScopeUsed,
+          ...(providerJob.providerMetadata ?? {}),
+        };
         current.errorMessage = providerJob.error ?? current.errorMessage;
 
         if (providerJob.status === 'queued' || providerJob.status === 'running') {
@@ -809,6 +884,32 @@ export class VideoApplicationService {
     return requestedProviderId ?? 'openrouter';
   }
 
+  private async resolveVideoModelCatalogEntry(
+    provider: ReturnType<ProviderRegistryService['getProvider']>,
+    modelId: string,
+    authContext: GatewayAuthContext,
+    providerAccess: ProviderAccessConfig,
+  ) {
+    if (!provider.listVideoCatalog) {
+      return null;
+    }
+
+    try {
+      const catalog = await provider.listVideoCatalog({
+        requestId: randomUUID(),
+        userId: authContext.userId,
+        providerAccess,
+      });
+
+      return (
+        catalog.models.find((model) => model.id === modelId) ??
+        null
+      );
+    } catch {
+      return null;
+    }
+  }
+
   private computeNextPollAfter(pollAttempts: number): Date {
     const delayMs = Math.min(
       BASE_POLL_DELAY_MS * 2 ** Math.max(0, pollAttempts),
@@ -841,6 +942,7 @@ export class VideoApplicationService {
       cancelledAt: job.cancelledAt?.toISOString(),
       durationMs: this.computeJobDurationMs(job),
       error: job.errorMessage ?? undefined,
+      request: this.mapStoredRequestPayload(job.requestPayload),
       outputs: assets
         .sort((left, right) => left.outputIndex - right.outputIndex)
         .map((asset) => ({
@@ -858,6 +960,68 @@ export class VideoApplicationService {
           providerMetadata: asset.providerMetadata ?? undefined,
         })),
       providerMetadata: job.providerMetadata ?? undefined,
+    };
+  }
+
+  private buildStoredRequestPayload(
+    request: GatewayVideoGenerationRequest,
+  ): GatewayVideoRetryRequest {
+    return {
+      providerId: request.providerId,
+      model: request.model,
+      prompt: request.prompt,
+      durationSeconds: request.durationSeconds,
+      aspectRatio: request.aspectRatio,
+      resolution: request.resolution,
+      size: request.size,
+      generateAudio: request.generateAudio,
+      seed: request.seed,
+      frameImages: request.frameImages,
+      referenceImages: request.referenceImages,
+      providerOptions: request.providerOptions,
+    };
+  }
+
+  private mapStoredRequestPayload(
+    requestPayload: Record<string, unknown>,
+  ): GatewayVideoRetryRequest | undefined {
+    if (!requestPayload || typeof requestPayload !== 'object') {
+      return undefined;
+    }
+
+    const payload = requestPayload as Partial<GatewayVideoRetryRequest>;
+    if (!payload.prompt || typeof payload.prompt !== 'string') {
+      return undefined;
+    }
+
+    return {
+      providerId: payload.providerId,
+      model: payload.model,
+      prompt: payload.prompt,
+      durationSeconds:
+        typeof payload.durationSeconds === 'number'
+          ? payload.durationSeconds
+          : undefined,
+      aspectRatio: payload.aspectRatio,
+      resolution: payload.resolution,
+      size: payload.size,
+      generateAudio:
+        typeof payload.generateAudio === 'boolean'
+          ? payload.generateAudio
+          : undefined,
+      seed: typeof payload.seed === 'number' ? payload.seed : undefined,
+      frameImages: Array.isArray(payload.frameImages)
+        ? payload.frameImages
+        : undefined,
+      referenceImages: Array.isArray(payload.referenceImages)
+        ? payload.referenceImages
+        : undefined,
+      providerOptions:
+        payload.providerOptions &&
+        typeof payload.providerOptions === 'object' &&
+        !Array.isArray(payload.providerOptions)
+          ? payload.providerOptions
+          : undefined,
     };
   }
 

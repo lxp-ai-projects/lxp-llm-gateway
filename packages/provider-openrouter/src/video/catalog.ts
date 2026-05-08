@@ -2,6 +2,10 @@ import type {
   CanonicalVideoProviderCatalog,
   VideoModelDescriptor,
 } from '@lxp/provider-sdk';
+import {
+  attachKlingVideoFamilyToModel,
+  detectKlingVideoFamily,
+} from '@lxp/model-family-capabilities';
 
 export interface OpenRouterVideoModelRecord {
   id: string;
@@ -17,23 +21,6 @@ export interface OpenRouterVideoModelRecord {
   pricing_skus?: Record<string, string> | null;
 }
 
-const OPENROUTER_KNOWN_VIDEO_MODELS = [
-  {
-    id: 'google/veo-3.1',
-    displayName: 'Google: Veo 3.1',
-    generateAudio: true,
-    supportedAspectRatios: ['16:9'],
-    supportedDurations: [5, 8],
-    supportedFrameImages: ['first_frame', 'last_frame'],
-    supportedResolutions: ['720p'],
-    supportedSizes: [],
-    allowedPassthroughParameters: [],
-    pricingSkus: {
-      generate: '0.50',
-    },
-  },
-] as const;
-
 export function buildOpenRouterVideoCatalog(
   models: OpenRouterVideoModelRecord[],
 ): CanonicalVideoProviderCatalog {
@@ -46,27 +33,10 @@ export function buildOpenRouterVideoCatalog(
   };
 }
 
-export function buildKnownOpenRouterVideoCatalog(): CanonicalVideoProviderCatalog {
-  return buildOpenRouterVideoCatalog(
-    OPENROUTER_KNOWN_VIDEO_MODELS.map((model) => ({
-      id: model.id,
-      name: model.displayName,
-      generate_audio: model.generateAudio,
-      supported_aspect_ratios: [...model.supportedAspectRatios],
-      supported_durations: [...model.supportedDurations],
-      supported_frame_images: [...model.supportedFrameImages],
-      supported_resolutions: [...model.supportedResolutions],
-      supported_sizes: [...model.supportedSizes],
-      allowed_passthrough_parameters: [...model.allowedPassthroughParameters],
-      pricing_skus: { ...model.pricingSkus },
-    })),
-  );
-}
-
 export function toVideoModelDescriptor(
   model: OpenRouterVideoModelRecord,
 ): VideoModelDescriptor {
-  return {
+  const descriptor: VideoModelDescriptor = {
     id: model.id,
     displayName: model.name ?? model.canonical_slug ?? model.id,
     lifecycleStatus: 'active',
@@ -112,4 +82,24 @@ export function toVideoModelDescriptor(
       pricingSkus: model.pricing_skus ?? undefined,
     },
   };
+
+  if (
+    detectKlingVideoFamily({
+      id: model.id,
+      displayName: descriptor.displayName,
+      canonicalSlug: model.canonical_slug,
+    })
+  ) {
+    return attachKlingVideoFamilyToModel(descriptor, {
+      durations: model.supported_durations ?? undefined,
+      aspectRatios: model.supported_aspect_ratios ?? undefined,
+      resolutions: model.supported_resolutions ?? undefined,
+      frameTypes: model.supported_frame_images ?? undefined,
+      generateAudio: model.generate_audio ?? undefined,
+      allowedPassthroughParameters:
+        model.allowed_passthrough_parameters ?? undefined,
+    });
+  }
+
+  return descriptor;
 }

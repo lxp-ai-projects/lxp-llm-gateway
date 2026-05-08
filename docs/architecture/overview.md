@@ -53,6 +53,7 @@ It must not import provider-specific implementation details directly.
 
 - `contracts` contains transport-layer contracts
 - `domain` contains framework-agnostic domain concepts
+- `model-family-capabilities` contains reusable model-family detection, normalization, and validation logic
 - `provider-sdk` defines the provider integration seam
 - `provider-nanogpt` implements NanoGPT behind the seam
 - `provider-openrouter` implements OpenRouter behind the seam
@@ -96,6 +97,14 @@ Model catalog results may also carry capability-specific metadata needed by the 
 - provider-defined video durations, resolutions, supported frame-image types, passthrough allowances, and pricing hints
 
 `gateway-api` must orchestrate those surfaces without learning provider-specific endpoint rules.
+
+Reusable model-family semantics should also remain outside `gateway-api`.
+
+That means:
+
+- transport adapters own upstream HTTP behavior
+- `model-family-capabilities` owns reusable family semantics such as Kling video constraints
+- `gateway-api` consumes neutral metadata and validation results rather than provider-specific family branches
 
 Shared image-reference safety rules that apply across providers should live in the provider seam rather than being reimplemented independently in each adapter.
 
@@ -344,7 +353,7 @@ The current image-provider implementation pattern is now explicit across `provid
 
 That pattern is the reference architecture for future image-capable providers.
 
-The same pattern is the intended reference for future video-capable providers, with job submission, polling, and download services replacing synchronous image response handling where required.
+The same pattern now also applies to the current OpenRouter and NanoGPT video transports, with job submission, polling, and download services replacing synchronous image response handling where required.
 
 The intent is:
 

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { Injectable } from '@nestjs/common';
@@ -36,6 +36,23 @@ export class MediaStorageService {
 
   async readAsset(storageKey: string): Promise<Buffer> {
     return readFile(path.join(this.baseDir, storageKey));
+  }
+
+  async deleteAsset(storageKey: string): Promise<void> {
+    try {
+      await unlink(path.join(this.baseDir, storageKey));
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ) {
+        return;
+      }
+
+      throw error;
+    }
   }
 
   private resolveExtension(mimeType?: string | null): string {

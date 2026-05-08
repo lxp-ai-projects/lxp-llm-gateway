@@ -14,6 +14,7 @@
   "dependencies": {
     "@lxp/contracts": "workspace:*",
     "@lxp/domain": "workspace:*",
+    "@lxp/model-family-capabilities": "workspace:*",
     "@lxp/provider-sdk": "workspace:*"
   },
   "scripts": {
