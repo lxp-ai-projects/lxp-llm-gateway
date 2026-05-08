@@ -1,0 +1,21 @@
+{
+  "id": "kling-v30-pro",
+  "name": "Kling 3.0 Pro",
+  "category": "video",
+  "architecture": {
+    "input_modalities": ["text", "image"],
+    "output_modalities": ["video"]
+  },
+  "capabilities": {
+    "video_generation": true,
+    "text_to_video": true,
+    "audio_generation": true
+  },
+  "supported_parameters": {
+    "durations": [5, 10],
+    "aspect_ratios": ["16:9", "9:16", "1:1"],
+    "resolutions": ["720p", "1080p"],
+    "allowed_passthrough_parameters": ["negative_prompt", "cfg_scale"],
+    "max_reference_images": 1
+  }
+}

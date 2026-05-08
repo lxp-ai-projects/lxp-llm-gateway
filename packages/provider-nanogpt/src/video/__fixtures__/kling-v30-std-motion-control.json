@@ -1,0 +1,21 @@
+{
+  "id": "kling-v30-std-motion-control",
+  "name": "Kling 3.0 Standard Motion Control",
+  "category": "video",
+  "architecture": {
+    "input_modalities": ["image", "video"],
+    "output_modalities": ["video"]
+  },
+  "capabilities": {
+    "video_generation": true,
+    "image_to_video": true
+  },
+  "supported_parameters": {
+    "durations": [5, 10],
+    "aspect_ratios": ["16:9"],
+    "resolutions": ["720p", "1080p"],
+    "supported_modes": ["image-to-video"],
+    "allowed_passthrough_parameters": ["negative_prompt"],
+    "max_reference_images": 1
+  }
+}
