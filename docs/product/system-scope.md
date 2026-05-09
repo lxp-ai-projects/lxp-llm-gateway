@@ -102,11 +102,12 @@ The next planned capability expansion is:
 - deployment hardening if Open WebUI identity correlation evolves into a full shared-identity story across both UIs
 - broader provider-by-provider multimodal chat support for image attachments behind the existing seam
 - a reusable media-generation foundation that starts with OpenRouter-backed image-to-video and now also supports NanoGPT-backed Kling-family video routing while remaining text-to-video compatible at the seam
+- a reusable media-generation foundation that now supports OpenRouter-backed video, NanoGPT-backed video, and xAI native video behind the same provider seam
 - a reusable model-family capability layer so Kling-family video rules can be attached through OpenRouter and NanoGPT without duplicating them in `gateway-api`
 - a shared native Kling foundation inside model-family-capabilities, including conservative native specs, capability intersection, and diagnostics for provider gaps or unsafe defaults
 - asynchronous video jobs with normalized statuses, polling, result download, and ledger attribution
 - application-owned artifact ingestion so provider-owned video URLs are never exposed as durable frontend references
-- future direct video integrations such as xAI after the OpenRouter- and NanoGPT-backed pipelines are proven end to end
+- future direct video integrations beyond the current OpenRouter, NanoGPT, and xAI native paths after those pipelines are proven end to end
 
 Current image-provider posture is:
 

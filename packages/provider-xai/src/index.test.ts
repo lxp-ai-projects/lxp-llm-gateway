@@ -266,9 +266,44 @@ test('XaiProviderAdapter lists models from the xAI models endpoint', async () =>
       },
       {
         id: 'grok-imagine-video',
-        displayName: 'grok-imagine-video',
+        displayName: 'Grok Imagine Video',
         capabilities: {
-          supportsStreaming: true,
+          supportsStreaming: false,
+          supportsVideoGeneration: true,
+          supportsVideoReferenceImages: true,
+          supportsVideoAudioGeneration: false,
+          supportedVideoResolutions: [
+            {
+              value: '480p',
+              label: '480p',
+            },
+            {
+              value: '720p',
+              label: '720p',
+            },
+          ],
+          supportedVideoDurations: [
+            {
+              value: 5,
+              label: '5 seconds',
+            },
+            {
+              value: 10,
+              label: '10 seconds',
+            },
+            {
+              value: 15,
+              label: '15 seconds',
+            },
+          ],
+          maxGeneratedVideosPerRequest: 1,
+          maxReferenceImagesPerRequest: 7,
+          videoDefaults: {
+            durationSeconds: 5,
+            resolution: '480p',
+            videoCount: 1,
+          },
+          allowedVideoProviderParameters: ['xai'],
         },
       },
     ]);
@@ -308,6 +343,43 @@ test('XaiProviderAdapter exposes a normalized image catalog with the expected de
     assert.deepEqual(
       catalog.models.map((model) => model.id),
       ['grok-imagine-image', 'grok-imagine-image-pro'],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('XaiProviderAdapter exposes a normalized video catalog with the expected default model', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [{ id: 'grok-imagine-video' }],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new XaiProviderAdapterTestDouble();
+    const catalog = await adapter.listVideoCatalog?.({
+      requestId: 'request-video-catalog',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'xai-token',
+      },
+    });
+
+    assert.ok(catalog);
+    assert.equal(catalog.providerId, 'xai');
+    assert.equal(catalog.defaultModelId, 'grok-imagine-video');
+    assert.deepEqual(
+      catalog.models.map((model) => model.id),
+      ['grok-imagine-video'],
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -612,6 +684,146 @@ test('XaiProviderAdapter sends image generation requests to the xAI images endpo
     });
     assert.equal(response?.images[0]?.url, 'https://cdn.x.ai/generated-1.jpg');
     assert.equal(response?.images[0]?.revisedPrompt, 'expanded prompt');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('XaiProviderAdapter submits image-to-video requests to the xAI videos endpoint', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+
+    return new Response(
+      JSON.stringify({
+        request_id: 'video-request-123',
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new XaiProviderAdapterTestDouble();
+    const response = await adapter.submitVideoGeneration?.(
+      {
+        model: 'grok-imagine-video',
+        prompt: 'Animate the portrait with subtle motion',
+        durationSeconds: 5,
+        resolution: '480p',
+        referenceImages: [
+          {
+            type: 'image_url',
+            url: 'https://example.com/reference.png',
+          },
+        ],
+      },
+      {
+        requestId: 'request-video-submit',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'xai-token',
+        },
+      },
+    );
+
+    assert.equal(calls[0]?.url, 'https://api.x.ai/v1/videos/generations');
+    assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
+      model: 'grok-imagine-video',
+      prompt: 'Animate the portrait with subtle motion',
+      image: {
+        url: 'https://example.com/reference.png',
+      },
+      duration: 5,
+      resolution: '480p',
+    });
+    assert.equal(response?.status, 'queued');
+    assert.equal(response?.id, 'video-request-123');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('XaiProviderAdapter polls completed video jobs and downloads the provider artifact', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    const rawUrl = String(url);
+    calls.push({ url: rawUrl, init });
+
+    if (rawUrl === 'https://api.x.ai/v1/videos/video-request-123') {
+      return new Response(
+        JSON.stringify({
+          request_id: 'video-request-123',
+          status: 'done',
+          model: 'grok-imagine-video',
+          video: {
+            url: 'https://videos.x.ai/output.mp4',
+            duration: 9,
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    }
+
+    return new Response(new TextEncoder().encode('video-bytes'), {
+      status: 200,
+      headers: {
+        'content-type': 'video/mp4',
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const adapter = new XaiProviderAdapterTestDouble();
+    const job = await adapter.getVideoGenerationJob?.(
+      'video-request-123',
+      {
+        requestId: 'request-video-status',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'xai-token',
+        },
+        metadata: {
+          requestedModel: 'grok-imagine-video',
+          prompt: 'Animate the portrait with subtle motion',
+        },
+      },
+    );
+
+    assert.equal(job?.status, 'succeeded');
+    assert.equal(job?.outputs[0]?.contentUrl, 'https://videos.x.ai/output.mp4');
+
+    const stream = await adapter.downloadVideoOutput?.(
+      'video-request-123',
+      0,
+      {
+        requestId: 'request-video-download',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'xai-token',
+        },
+        metadata: {
+          requestedModel: 'grok-imagine-video',
+        },
+      },
+    );
+    const reader = stream?.getReader();
+    const firstChunk = await reader?.read();
+
+    assert.match(new TextDecoder().decode(firstChunk?.value), /video-bytes/);
+    assert.ok(calls.some((call) => call.url === 'https://api.x.ai/v1/videos/video-request-123'));
+    assert.ok(calls.some((call) => call.url === 'https://videos.x.ai/output.mp4'));
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -354,7 +354,7 @@ The current image-provider implementation pattern is now explicit across `provid
 
 That pattern is the reference architecture for future image-capable providers.
 
-The same pattern now also applies to the current OpenRouter and NanoGPT video transports, with job submission, polling, and download services replacing synchronous image response handling where required.
+The same pattern now also applies to the current OpenRouter, NanoGPT, and xAI native video transports, with job submission, polling, and download services replacing synchronous image response handling where required.
 
 The intent is:
 

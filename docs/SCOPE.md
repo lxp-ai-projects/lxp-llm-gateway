@@ -77,6 +77,12 @@ The next seam expansion is intentionally incremental:
 - keep backend contract stabilization ahead of any new workspace UI surface
 - avoid implementing OpenRouter, xAI direct, and other future video transports all at once
 
+That staged rollout has now advanced to three native video-capable provider packages behind the seam:
+
+- `packages/provider-openrouter` for OpenRouter video
+- `packages/provider-nanogpt` for NanoGPT video
+- `packages/provider-xai` for xAI native video
+
 The repository now treats multi-tenancy as a first-class architectural concern:
 
 - users remain global identities
@@ -292,6 +298,7 @@ Each package owns:
 - provider-specific integration logic
 - provider-owned image model catalogs and defaults
 - provider-scoped transport clients and capability handlers for image workflows
+- provider-scoped transport clients and capability handlers for asynchronous video workflows where implemented
 
 ## Critical Architecture Rule
 
@@ -329,6 +336,7 @@ export interface ProviderCapabilities {
   modelCatalog: boolean;
   imageGeneration: boolean;
   imageEditing: boolean;
+  videoGeneration: boolean;
 }
 
 export interface LlmProviderAdapter {
@@ -358,6 +366,22 @@ export interface LlmProviderAdapter {
     request: GatewayImageEditRequest,
     context: ProviderExecutionContext,
   ): Promise<GatewayImageGenerationResponse>;
+
+  submitVideoGeneration?(
+    request: GatewayVideoGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob>;
+
+  getVideoGenerationJob?(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob>;
+
+  downloadVideoOutput?(
+    jobId: string,
+    outputIndex: number,
+    context: ProviderExecutionContext,
+  ): Promise<ReadableStream>;
 }
 ```
 
@@ -412,6 +436,7 @@ That capability now supports:
 Current provider reality is capability-specific:
 
 - `xAI Grok` image models support generation and editing
+- `xAI Grok` now also exposes native asynchronous video generation behind `packages/provider-xai`
 - `Google Gemini` image models support generation and editing
 - `OpenAI GPT Image` supports generation and editing in the gateway through the shared seam
 - `OpenRouter` supports image generation and image editing through the shared seam, with provider-owned catalog metadata and capability reuse for known model families

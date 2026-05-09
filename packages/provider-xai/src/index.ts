@@ -5,6 +5,8 @@ import type {
   GatewayChatResponse,
   GatewayImageEditRequest,
   GatewayImageGenerationRequest,
+  GatewayVideoGenerationJob,
+  GatewayVideoGenerationRequest,
 } from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
@@ -15,6 +17,14 @@ import { buildXAiImageCatalog, buildXAiModelCatalog } from './image/catalog.js';
 import { XAiImageApiClient } from './image/api-client.js';
 import { XAiImageEditService } from './image/edit-service.js';
 import { XAiImageGenerationService } from './image/generation-service.js';
+import {
+  buildXAiVideoCatalog,
+  getXAiVideoModelDescriptor,
+  resolveXAiVideoModelCapabilities,
+  resolveXAiVideoModelDisplayName,
+} from './video/catalog.js';
+import { XAiVideoApiClient } from './video/api-client.js';
+import { XAiVideoGenerationService } from './video/generation-service.js';
 
 export class XaiProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -22,13 +32,16 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     modelCatalog: true,
     imageGeneration: true,
     imageEditing: true,
+    videoGeneration: true,
   } as const;
 
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
   private readonly imageApiClient: XAiImageApiClient;
+  private readonly videoApiClient: XAiVideoApiClient;
   private readonly imageGenerationService: XAiImageGenerationService;
   private readonly imageEditService: XAiImageEditService;
+  private readonly videoGenerationService: XAiVideoGenerationService;
 
   constructor(
     baseUrl = process.env.XAI_BASE_URL ?? 'https://api.x.ai/v1',
@@ -40,12 +53,19 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
       this.baseUrl,
       this.requestTimeoutMs,
     );
+    this.videoApiClient = new XAiVideoApiClient(
+      this.baseUrl,
+      this.requestTimeoutMs,
+    );
     this.imageGenerationService = new XAiImageGenerationService(
       this.imageApiClient,
     );
     this.imageEditService = new XAiImageEditService(
       this.imageApiClient,
       (hostname) => this.lookupHostname(hostname),
+    );
+    this.videoGenerationService = new XAiVideoGenerationService(
+      this.videoApiClient,
     );
   }
 
@@ -58,12 +78,39 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    return buildXAiModelCatalog(await this.imageApiClient.listModelIds(context));
+    const listedModelIds = await this.imageApiClient.listModelIds(context);
+    const imageModels = buildXAiModelCatalog(
+      listedModelIds.filter((modelId) => !getXAiVideoModelDescriptor(modelId)),
+    );
+    const knownModelIds = new Set(imageModels.map((model) => model.id));
+    const listedVideoModels = listedModelIds
+      .filter((modelId) => getXAiVideoModelDescriptor(modelId))
+      .map((modelId) => ({
+        id: modelId,
+        displayName: resolveXAiVideoModelDisplayName(modelId),
+        capabilities: resolveXAiVideoModelCapabilities(modelId),
+      }))
+      .filter((model) => !knownModelIds.has(model.id));
+
+    return [...imageModels, ...listedVideoModels];
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
     void context;
     return buildXAiImageCatalog(buildXAiModelCatalog([]));
+  }
+
+  async listVideoCatalog(context: ProviderExecutionContext) {
+    const listedModelIds = await this.videoApiClient.listModelIds(context);
+    const models = listedModelIds
+      .filter((modelId) => getXAiVideoModelDescriptor(modelId))
+      .map((modelId) => ({
+        id: modelId,
+        displayName: resolveXAiVideoModelDisplayName(modelId),
+        capabilities: resolveXAiVideoModelCapabilities(modelId),
+      }));
+
+    return buildXAiVideoCatalog(models);
   }
 
   async chat(
@@ -149,6 +196,50 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
   ) {
     return this.imageEditService.execute(request, context);
   }
+
+  async submitVideoGeneration(
+    request: GatewayVideoGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob> {
+    return this.videoGenerationService.submit(request, context);
+  }
+
+  async getVideoGenerationJob(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob> {
+    const requestedModel =
+      typeof context.metadata?.requestedModel === 'string'
+        ? context.metadata.requestedModel
+        : 'unknown-model';
+    const prompt =
+      typeof context.metadata?.prompt === 'string' ? context.metadata.prompt : '';
+
+    return this.videoGenerationService.getJob(
+      requestedModel,
+      jobId,
+      prompt,
+      context,
+    );
+  }
+
+  downloadVideoOutput = async (
+    jobId: string,
+    outputIndex: number,
+    context: ProviderExecutionContext,
+  ): Promise<ReadableStream<Uint8Array>> => {
+    const requestedModel =
+      typeof context.metadata?.requestedModel === 'string'
+        ? context.metadata.requestedModel
+        : 'unknown-model';
+
+    return this.videoGenerationService.downloadOutput(
+      requestedModel,
+      jobId,
+      outputIndex,
+      context,
+    );
+  };
 
   private dispatchChatRequest(
     request: GatewayChatRequest,
