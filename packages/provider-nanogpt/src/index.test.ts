@@ -1198,6 +1198,92 @@ test('buildNanoGptVideoCatalog normalizes explicit NanoGPT fixtures without inve
   assert.equal(veo?.capabilities.supportsVideoGeneration, true);
 });
 
+test('buildNanoGptVideoCatalog applies conservative Seedance document fallbacks when NanoGPT metadata is incomplete', () => {
+  const fixtures = [
+    loadNanoGptVideoFixture<Parameters<
+      typeof buildNanoGptVideoCatalog
+    >[0]['subscriptionModels'][number]>('seedance-1-0-pro-fast'),
+    loadNanoGptVideoFixture<Parameters<
+      typeof buildNanoGptVideoCatalog
+    >[0]['subscriptionModels'][number]>('seedance-1-5-pro'),
+    loadNanoGptVideoFixture<Parameters<
+      typeof buildNanoGptVideoCatalog
+    >[0]['subscriptionModels'][number]>('seedance-2-0-fast'),
+  ];
+  const catalog = buildNanoGptVideoCatalog({
+    subscriptionModels: fixtures,
+    paidModels: [],
+  });
+
+  const seedance10 = catalog.models.find((entry) => entry.id === 'seedance-1-0-pro-fast');
+  const seedance15 = catalog.models.find((entry) => entry.id === 'seedance-1-5-pro');
+  const seedance20 = catalog.models.find((entry) => entry.id === 'seedance-2-0-fast');
+
+  assert.ok(seedance10);
+  assert.ok(seedance15);
+  assert.ok(seedance20);
+
+  assert.equal(seedance10.capabilities.supportsVideoGeneration, true);
+  assert.equal(seedance10.capabilities.supportsVideoReferenceImages, true);
+  assert.equal(seedance10.capabilities.supportsVideoAudioGeneration, false);
+  assert.deepEqual(
+    seedance10.capabilities.supportedVideoAspectRatios?.map((entry) => entry.value),
+    ['16:9', '9:16', '1:1'],
+  );
+  assert.deepEqual(seedance10.capabilities.capabilityDiagnostics, []);
+
+  assert.equal(seedance15.capabilities.supportsVideoGeneration, true);
+  assert.equal(seedance15.capabilities.supportsVideoReferenceImages, true);
+  assert.equal(seedance15.capabilities.supportsVideoAudioGeneration, true);
+  assert.deepEqual(
+    seedance15.capabilities.supportedVideoAspectRatios?.map((entry) => entry.value),
+    ['16:9', '9:16', '4:3', '3:4', '1:1', '21:9'],
+  );
+  assert.deepEqual(seedance15.capabilities.capabilityDiagnostics, []);
+
+  assert.equal(seedance20.capabilities.supportsVideoGeneration, true);
+  assert.equal(seedance20.capabilities.supportsVideoReferenceImages, true);
+  assert.equal(seedance20.capabilities.supportsVideoAudioGeneration, true);
+  assert.deepEqual(
+    seedance20.capabilities.supportedVideoAspectRatios?.map((entry) => entry.value),
+    ['16:9', '9:16', '1:1'],
+  );
+  assert.deepEqual(seedance20.capabilities.capabilityDiagnostics, []);
+});
+
+test('buildNanoGptVideoCatalog parses the current NanoGPT seedance-video payload shape', () => {
+  const fixture = loadNanoGptVideoFixture<Parameters<
+    typeof buildNanoGptVideoCatalog
+  >[0]['subscriptionModels'][number]>('seedance-video');
+  const catalog = buildNanoGptVideoCatalog({
+    subscriptionModels: [fixture],
+    paidModels: [],
+  });
+
+  const model = catalog.models.find((entry) => entry.id === fixture.id);
+  assert.ok(model);
+  assert.equal(model.capabilities.supportsVideoGeneration, true);
+  assert.equal(model.capabilities.supportsVideoReferenceImages, true);
+  assert.equal(model.capabilities.maxReferenceImagesPerRequest, 1);
+  assert.equal(model.capabilities.supportsVideoAudioGeneration, false);
+  assert.deepEqual(
+    model.family?.video?.generationModes ?? [],
+    [],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedVideoDurations?.map((entry) => entry.value),
+    [5, 10],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedVideoAspectRatios?.map((entry) => entry.value),
+    ['16:9', '21:9', '4:3', '1:1', '3:4', '9:16'],
+  );
+  assert.deepEqual(
+    model.capabilities.supportedVideoResolutions?.map((entry) => entry.value),
+    ['480p', '1080p'],
+  );
+});
+
 test('NanoGptProviderAdapter submits image-to-video requests to the NanoGPT video endpoint', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];

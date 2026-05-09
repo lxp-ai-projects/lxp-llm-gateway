@@ -72,9 +72,9 @@ function toVideoModelDescriptor(
   model: NanoGptVideoModelRecord,
   requiresPaidAccess: boolean,
 ): VideoModelDescriptor {
-  const durations = parseNumericValues(model.supported_parameters?.durations);
-  const aspectRatios = model.supported_parameters?.aspect_ratios ?? [];
-  const resolutions = model.supported_parameters?.resolutions ?? [];
+  const durations = resolveNanoGptDurations(model);
+  const aspectRatios = resolveNanoGptAspectRatios(model);
+  const resolutions = resolveNanoGptResolutions(model);
   const sizes = model.supported_parameters?.sizes ?? [];
   const overrides = resolveNanoGptVideoOverrides(model);
   const resolvedModes = resolveNanoGptVideoGenerationModes(model, overrides);
@@ -232,6 +232,24 @@ function resolveNanoGptVideoOverrides(model: NanoGptVideoModelRecord) {
     /^kling-v26-(pro|std)$/.test(normalized) ||
     /^kling-v3-0-(pro|std)$/.test(normalized) ||
     /^kling-3-0-(pro|std)$/.test(normalized);
+  const isSeedance15Pro =
+    normalized === 'seedance-1-5-pro' ||
+    normalized === 'bytedance-seedance-1-5-pro';
+  const isSeedance20Series =
+    normalized === 'seedance-2-0' ||
+    normalized === 'seedance-2-0-fast' ||
+    normalized === 'dreamina-seedance-2-0' ||
+    normalized === 'dreamina-seedance-2-0-fast' ||
+    normalized === 'bytedance-seedance-2-0' ||
+    normalized === 'bytedance-seedance-2-0-fast';
+  const isSeedance10Series =
+    normalized === 'seedance-video' ||
+    normalized === 'seedance-1-0-lite' ||
+    normalized === 'seedance-1-0-pro' ||
+    normalized === 'seedance-1-0-pro-fast' ||
+    normalized === 'bytedance-seedance-1-0-lite' ||
+    normalized === 'bytedance-seedance-1-0-pro' ||
+    normalized === 'bytedance-seedance-1-0-pro-fast';
 
   if (isKling21ImageOnly) {
     return {
@@ -267,6 +285,45 @@ function resolveNanoGptVideoOverrides(model: NanoGptVideoModelRecord) {
       generationModes: ['text-to-video', 'image-to-video'] as VideoGenerationMode[],
       supportsReferenceImages: true,
       generateAudio: supportsNativeAudio,
+      allowedPassthroughParameters: ['negative_prompt', 'cfg_scale'],
+      maxReferenceImages: 1,
+    };
+  }
+
+  if (isSeedance15Pro) {
+    return {
+      durations: [5, 10],
+      aspectRatios: ['16:9', '9:16', '4:3', '3:4', '1:1', '21:9'],
+      resolutions: ['480p', '720p', '1080p'],
+      generationModes: ['text-to-video', 'image-to-video'] as VideoGenerationMode[],
+      supportsReferenceImages: true,
+      generateAudio: true,
+      allowedPassthroughParameters: ['negative_prompt', 'cfg_scale'],
+      maxReferenceImages: 1,
+    };
+  }
+
+  if (isSeedance20Series) {
+    return {
+      durations: [5, 10],
+      aspectRatios: ['16:9', '9:16', '1:1'],
+      resolutions: ['480p', '720p', '1080p'],
+      generationModes: ['text-to-video', 'image-to-video'] as VideoGenerationMode[],
+      supportsReferenceImages: true,
+      generateAudio: true,
+      allowedPassthroughParameters: ['negative_prompt', 'cfg_scale'],
+      maxReferenceImages: 1,
+    };
+  }
+
+  if (isSeedance10Series) {
+    return {
+      durations: [5, 10],
+      aspectRatios: ['16:9', '9:16', '1:1'],
+      resolutions: ['480p', '720p', '1080p'],
+      generationModes: ['text-to-video', 'image-to-video'] as VideoGenerationMode[],
+      supportsReferenceImages: true,
+      generateAudio: false,
       allowedPassthroughParameters: ['negative_prompt', 'cfg_scale'],
       maxReferenceImages: 1,
     };
@@ -363,7 +420,12 @@ function normalizeNanoGptGenerationMode(
     return 'text-to-video';
   }
 
-  if (normalized === 'image-to-video' || normalized === 'i2v') {
+  if (
+    normalized === 'image-to-video' ||
+    normalized === 'i2v' ||
+    normalized === 'first-frame-to-video' ||
+    normalized === 'first-frame-image-to-video'
+  ) {
     return 'image-to-video';
   }
 
@@ -597,6 +659,44 @@ function parseNumericValues(values: Array<number | string> | undefined) {
         : Number(String(value).trim().replace(/s$/i, '')),
     )
     .filter((value): value is number => Number.isFinite(value));
+}
+
+function resolveNanoGptDurations(model: NanoGptVideoModelRecord) {
+  const flatDurations = parseNumericValues(model.supported_parameters?.durations);
+  if (flatDurations.length) {
+    return flatDurations;
+  }
+
+  const options = model.supported_parameters?.parameters?.duration?.options;
+  return parseNumericValues(
+    options?.map((option) => option.value).filter((value) => value !== undefined) as
+      | Array<number | string>
+      | undefined,
+  );
+}
+
+function resolveNanoGptAspectRatios(model: NanoGptVideoModelRecord) {
+  const flatAspectRatios = model.supported_parameters?.aspect_ratios ?? [];
+  if (flatAspectRatios.length) {
+    return flatAspectRatios;
+  }
+
+  const options = model.supported_parameters?.parameters?.aspect_ratio?.options;
+  return (options ?? [])
+    .map((option) => option.value)
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+}
+
+function resolveNanoGptResolutions(model: NanoGptVideoModelRecord) {
+  const flatResolutions = model.supported_parameters?.resolutions ?? [];
+  if (flatResolutions.length) {
+    return flatResolutions;
+  }
+
+  const options = model.supported_parameters?.parameters?.resolution?.options;
+  return (options ?? [])
+    .map((option) => option.value)
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
 }
 
 function toPricingSkus(

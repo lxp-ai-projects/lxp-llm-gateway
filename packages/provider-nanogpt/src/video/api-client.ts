@@ -28,6 +28,18 @@ export interface NanoGptVideoModelRecord {
     supported_modes?: string[];
     allowed_passthrough_parameters?: string[];
     max_reference_images?: number;
+    parameters?: Record<
+      string,
+      {
+        type?: string;
+        default?: string | number | boolean | null;
+        options?: Array<{
+          value?: string | number | boolean | null;
+          label?: string;
+        }>;
+      }
+    >;
+    defaults?: Record<string, string | number | boolean | null>;
   };
   pricing?: Record<string, unknown>;
 }

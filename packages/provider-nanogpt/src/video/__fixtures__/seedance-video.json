@@ -1,0 +1,68 @@
+{
+  "id": "seedance-video",
+  "object": "model",
+  "created": 1749513600,
+  "owned_by": "doubao",
+  "name": "Seedance 1.0 Pro",
+  "description": "ByteDance's Seedance video generation model.",
+  "architecture": {
+    "modality": "text+image->video",
+    "input_modalities": ["text", "image"],
+    "output_modalities": ["video"]
+  },
+  "capabilities": {
+    "video_generation": true,
+    "text_to_video": true,
+    "image_to_video": true,
+    "video_to_video": false,
+    "audio_input": false,
+    "audio_generation": false,
+    "nsfw": false
+  },
+  "supported_parameters": {
+    "parameters": {
+      "resolution": {
+        "type": "select",
+        "label": "Resolution",
+        "default": "1080p",
+        "options": [
+          { "value": "480p", "label": "480p" },
+          { "value": "1080p", "label": "1080p" }
+        ]
+      },
+      "duration": {
+        "type": "select",
+        "label": "Duration",
+        "default": "5",
+        "options": [
+          { "value": "5", "label": "5 seconds (1x price)" },
+          { "value": "10", "label": "10 seconds (2x price)" }
+        ]
+      },
+      "aspect_ratio": {
+        "type": "select",
+        "label": "Aspect Ratio",
+        "default": "16:9",
+        "options": [
+          { "value": "16:9", "label": "Landscape (16:9)" },
+          { "value": "21:9", "label": "Ultrawide (21:9)" },
+          { "value": "4:3", "label": "Classic (4:3)" },
+          { "value": "1:1", "label": "Square (1:1)" },
+          { "value": "3:4", "label": "Portrait (3:4)" },
+          { "value": "9:16", "label": "Portrait (9:16)" }
+        ]
+      },
+      "camera_fixed": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "defaults": {
+      "resolution": "1080p",
+      "duration": "5",
+      "aspect_ratio": "16:9",
+      "camera_fixed": false
+    }
+  },
+  "category": "video"
+}

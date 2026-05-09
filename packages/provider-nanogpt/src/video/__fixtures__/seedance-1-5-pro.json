@@ -1,0 +1,12 @@
+{
+  "id": "seedance-1-5-pro",
+  "name": "Seedance 1.5 Pro",
+  "category": "video",
+  "capabilities": {
+    "video_generation": true
+  },
+  "supported_parameters": {
+    "durations": [5, 10],
+    "resolutions": ["480p", "720p", "1080p"]
+  }
+}
