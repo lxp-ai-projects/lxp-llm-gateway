@@ -326,12 +326,17 @@ export function VideoResultsPanel({
                       {output.assetId ? (
                         <Button
                           loading={videoLab.saveAssetMutation.isPending}
-                          onClick={() =>
+                          onClick={() => {
+                            const assetId = output.assetId;
+                            if (!assetId) {
+                              return;
+                            }
+
                             videoLab.saveAssetMutation.mutate({
-                              assetId: output.assetId,
+                              assetId,
                               saved: !output.saved,
-                            })
-                          }
+                            });
+                          }}
                           size="xs"
                           variant={output.saved ? 'filled' : 'light'}
                         >

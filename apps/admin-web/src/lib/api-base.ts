@@ -65,12 +65,12 @@ async function requestWithSessionRefresh<T>(
 
   try {
     const response = await fetch(url, {
-      credentials: 'include',
+      ...init,
+      credentials: init?.credentials ?? 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(init?.headers ?? {}),
       },
-      ...init,
       signal: init?.signal ?? controller.signal,
     }).finally(() => window.clearTimeout(timeoutId));
 
@@ -80,7 +80,7 @@ async function requestWithSessionRefresh<T>(
 
     if (!response.ok) {
       if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
-        await refreshBrowserSession();
+        await refreshBrowserSession(url);
         return requestWithSessionRefresh(url, init, true);
       }
 
@@ -104,13 +104,15 @@ async function requestWithSessionRefresh<T>(
   }
 }
 
-export async function refreshBrowserSession(): Promise<void> {
+export async function refreshBrowserSession(
+  preferredRequestUrl?: string,
+): Promise<void> {
   if (refreshInFlight) {
     return refreshInFlight;
   }
 
   refreshInFlight = (async () => {
-    const response = await fetch(`${adminApiUrl}/api/v1/auth/refresh`, {
+    const response = await fetch(resolveRefreshUrl(preferredRequestUrl), {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -154,6 +156,29 @@ function handleSessionRefreshFailure(message: string): void {
   window.location.assign(loginUrl.toString());
 }
 
+function resolveRefreshUrl(preferredRequestUrl?: string): string {
+  const refreshUrl = new URL(`${adminApiUrl}/api/v1/auth/refresh`);
+  if (!preferredRequestUrl) {
+    return refreshUrl.toString();
+  }
+
+  try {
+    const preferredUrl = new URL(preferredRequestUrl, window.location.origin);
+    const shouldPreferRequestHost =
+      refreshUrl.hostname !== preferredUrl.hostname &&
+      (isLoopbackHost(refreshUrl.hostname) || isLoopbackHost(preferredUrl.hostname));
+
+    if (shouldPreferRequestHost) {
+      refreshUrl.protocol = preferredUrl.protocol;
+      refreshUrl.hostname = preferredUrl.hostname;
+    }
+  } catch {
+    // Ignore malformed request URLs and fall back to the configured admin API origin.
+  }
+
+  return refreshUrl.toString();
+}
+
 export async function requestBlobWithSessionRefresh(
   url: string,
   init: RequestInit | undefined,
@@ -172,7 +197,7 @@ export async function requestBlobWithSessionRefresh(
 
   if (!response.ok) {
     if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
-      await refreshBrowserSession();
+      await refreshBrowserSession(url);
       return requestBlobWithSessionRefresh(url, init, true);
     }
 
@@ -210,7 +235,7 @@ export async function uploadFileWithSessionRefresh<T>(
 
   if (!response.ok) {
     if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
-      await refreshBrowserSession();
+      await refreshBrowserSession(url);
       return uploadFileWithSessionRefresh<T>(url, file, true);
     }
 
@@ -351,7 +376,7 @@ export async function chatStreamWithSessionRefresh(
 
   if (!response.ok) {
     if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
-      await refreshBrowserSession();
+      await refreshBrowserSession(chatUrl);
       return chatStreamWithSessionRefresh(payload, handlers, true);
     }
 

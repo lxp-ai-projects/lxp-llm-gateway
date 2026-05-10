@@ -32,7 +32,7 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     modelCatalog: true,
     imageGeneration: true,
     imageEditing: true,
-    videoGeneration: true,
+    videoGeneration: false,
   } as const;
 
   private readonly baseUrl: string;

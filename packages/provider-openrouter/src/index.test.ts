@@ -648,6 +648,13 @@ test('OpenRouterProviderAdapter sends image edit requests through chat completio
   }
 });
 
+test('OpenRouterProviderAdapter is not advertised as a video provider', () => {
+  const adapter = new OpenRouterProviderAdapter();
+
+  assert.equal(adapter.capabilities.videoGeneration, false);
+  assert.equal(adapter.capabilities.imageGeneration, true);
+});
+
 test('OpenRouterProviderAdapter exposes a video catalog', async () => {
   const originalFetch = globalThis.fetch;
 
@@ -871,8 +878,10 @@ test('OpenRouter video transport mapping remains independent from model family m
     aspect_ratio: '16:9',
     duration: 5,
     resolution: '720p',
-    input_references: [
+    frame_images: [
       {
+        type: 'image_url',
+        frame_type: 'first_frame',
         image_url: {
           url: 'https://example.com/reference.png',
         },
@@ -881,6 +890,38 @@ test('OpenRouter video transport mapping remains independent from model family m
     provider: {
       seed: 1234,
     },
+  });
+});
+
+test('OpenRouter video transport keeps generic single-reference models on input_references', async () => {
+  const payload = await buildOpenRouterVideoGenerationRequest({
+    model: 'google/veo-3.1',
+    prompt: 'Animate the still frame into a cinematic reveal',
+    durationSeconds: 5,
+    aspectRatio: '16:9',
+    resolution: '720p',
+    referenceImages: [
+      {
+        type: 'image_url',
+        url: 'https://example.com/reference.png',
+      },
+    ],
+  });
+
+  assert.deepEqual(payload, {
+    model: 'google/veo-3.1',
+    prompt: 'Animate the still frame into a cinematic reveal',
+    aspect_ratio: '16:9',
+    duration: 5,
+    resolution: '720p',
+    input_references: [
+      {
+        type: 'image_url',
+        image_url: {
+          url: 'https://example.com/reference.png',
+        },
+      },
+    ],
   });
 });
 

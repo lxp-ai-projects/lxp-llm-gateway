@@ -58,6 +58,39 @@ test('refreshBrowserSession shares an in-flight refresh request', async () => {
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
+test('request refreshes the browser session against the failed gateway hostname for loopback polling', async () => {
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(textResponse('{"message":"Access token is required."}', { status: 401 }))
+    .mockResolvedValueOnce(textResponse('', { status: 200 }))
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: 'video-job-1', status: 'queued' }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+  await expect(
+    request<{ id: string; status: string }>(
+      'http://127.0.0.1:3001/api/v1/videos/jobs/video-job-1',
+      { timeoutMs: 90000 },
+    ),
+  ).resolves.toEqual({
+    id: 'video-job-1',
+    status: 'queued',
+  });
+
+  expect(fetch).toHaveBeenNthCalledWith(
+    2,
+    'http://127.0.0.1:3002/api/v1/auth/refresh',
+    expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+    }),
+  );
+});
+
 test('refreshBrowserSession keeps non-timeout failures local without redirecting the browser', async () => {
   const assignMock = vi.fn();
   Object.defineProperty(window, 'location', {

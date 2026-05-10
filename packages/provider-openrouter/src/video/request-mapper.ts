@@ -1,27 +1,28 @@
 import type { CanonicalVideoGenerationRequest } from '@lxp/provider-sdk';
 import { resolveGatewayImageReference } from '@lxp/provider-sdk';
+import { detectKlingVideoFamily } from '@lxp/model-family-capabilities';
 
 export async function buildOpenRouterVideoGenerationRequest(
   request: CanonicalVideoGenerationRequest,
 ) {
-  const frame_images = request.frameImages
+  const requestedModel = request.model ?? '';
+  const resolvedFrameImages = request.frameImages
     ? await Promise.all(
-        request.frameImages.map(async (frame) => {
-          const resolved = await resolveGatewayImageReference(frame.image, {
-            mode: 'passthrough-url',
-          });
-
-          return {
-            frame_type: frame.frameType,
-            image_url: {
-              url: resolved.url,
-            },
-          };
-        }),
+        request.frameImages.map(async (frame) => ({
+          type: 'image_url' as const,
+          frame_type: frame.frameType,
+          image_url: {
+            url: (
+              await resolveGatewayImageReference(frame.image, {
+                mode: 'passthrough-url',
+              })
+            ).url,
+          },
+        })),
       )
-    : undefined;
+    : [];
 
-  const input_references = request.referenceImages
+  const resolvedReferences = request.referenceImages
     ? await Promise.all(
         request.referenceImages.map(async (image) => {
           const resolved = await resolveGatewayImageReference(image, {
@@ -29,13 +30,38 @@ export async function buildOpenRouterVideoGenerationRequest(
           });
 
           return {
+            type: 'image_url' as const,
             image_url: {
               url: resolved.url,
             },
           };
         }),
       )
-    : undefined;
+    : [];
+  const shouldPromoteSingleReferenceToFirstFrame =
+    resolvedFrameImages.length === 0 &&
+    resolvedReferences.length === 1 &&
+    detectKlingVideoFamily({
+      id: requestedModel,
+      displayName: requestedModel,
+      canonicalSlug: requestedModel,
+    });
+  const frame_images = shouldPromoteSingleReferenceToFirstFrame
+      ? [
+        {
+          type: 'image_url' as const,
+          frame_type: 'first_frame' as const,
+          image_url: resolvedReferences[0]!.image_url,
+        },
+      ]
+    : resolvedFrameImages.length
+      ? resolvedFrameImages
+      : undefined;
+  const input_references = shouldPromoteSingleReferenceToFirstFrame
+    ? undefined
+    : resolvedReferences.length
+      ? resolvedReferences
+      : undefined;
 
   return {
     model: request.model,
