@@ -1,3 +1,3 @@
-import type { useVideoLab } from './use-video-lab';
-
-export type ReturnTypeUseVideoLab = ReturnType<typeof useVideoLab>;
+export type ReturnTypeUseVideoLab = ReturnType<
+  typeof import('./use-video-lab').useVideoLab
+>;

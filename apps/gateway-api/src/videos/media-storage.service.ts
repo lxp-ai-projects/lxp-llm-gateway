@@ -9,6 +9,7 @@ export class MediaStorageService {
   private readonly baseDir = process.env.GATEWAY_MEDIA_STORAGE_DIR?.trim()
     ? path.resolve(process.env.GATEWAY_MEDIA_STORAGE_DIR)
     : path.resolve(process.cwd(), 'tmp', 'gateway-media');
+  private readonly resolvedBaseDir = path.resolve(this.baseDir);
 
   async writeVideoAsset(input: {
     tenantId: string;
@@ -21,8 +22,10 @@ export class MediaStorageService {
     sha256: string;
   }> {
     const extension = this.resolveExtension(input.mimeType);
-    const relativePath = path.join(input.tenantId, `${input.assetId}.${extension}`);
-    const absolutePath = path.join(this.baseDir, relativePath);
+    const tenantId = this.sanitizePathSegment(input.tenantId, 'tenantId');
+    const assetId = this.sanitizePathSegment(input.assetId, 'assetId');
+    const relativePath = path.join(tenantId, `${assetId}.${extension}`);
+    const absolutePath = this.resolveStoragePath(relativePath);
 
     await mkdir(path.dirname(absolutePath), { recursive: true });
     await writeFile(absolutePath, input.data);
@@ -35,12 +38,12 @@ export class MediaStorageService {
   }
 
   async readAsset(storageKey: string): Promise<Buffer> {
-    return readFile(path.join(this.baseDir, storageKey));
+    return readFile(this.resolveStoragePath(storageKey));
   }
 
   async deleteAsset(storageKey: string): Promise<void> {
     try {
-      await unlink(path.join(this.baseDir, storageKey));
+      await unlink(this.resolveStoragePath(storageKey));
     } catch (error) {
       if (
         typeof error === 'object' &&
@@ -65,5 +68,43 @@ export class MediaStorageService {
       default:
         return 'mp4';
     }
+  }
+
+  private resolveStoragePath(storageKey: string): string {
+    const normalizedStorageKey = storageKey.replace(/\\/g, '/');
+    const segments = normalizedStorageKey
+      .split('/')
+      .filter((segment) => segment.length > 0)
+      .map((segment) => this.sanitizePathSegment(segment, 'storageKey'));
+    const targetPath = path.resolve(this.resolvedBaseDir, ...segments);
+
+    if (
+      targetPath !== this.resolvedBaseDir &&
+      !targetPath.startsWith(`${this.resolvedBaseDir}${path.sep}`)
+    ) {
+      throw new Error('Resolved media storage path escapes the configured base directory.');
+    }
+
+    return targetPath;
+  }
+
+  private sanitizePathSegment(value: string, fieldName: string): string {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+      throw new Error(`${fieldName} is required.`);
+    }
+
+    if (
+      trimmedValue === '.' ||
+      trimmedValue === '..' ||
+      trimmedValue.includes('/') ||
+      trimmedValue.includes('\\') ||
+      /[<>:"|?*\x00-\x1f]/.test(trimmedValue)
+    ) {
+      throw new Error(`${fieldName} contains an invalid path segment.`);
+    }
+
+    return trimmedValue;
   }
 }

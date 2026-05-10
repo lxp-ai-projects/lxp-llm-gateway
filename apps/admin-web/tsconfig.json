@@ -5,7 +5,10 @@
     "jsx": "react-jsx",
     "paths": {
       "@lxp/contracts": ["../../packages/contracts/src/index.ts"],
-      "@lxp/domain": ["../../packages/domain/src/index.ts"]
+      "@lxp/domain": ["../../packages/domain/src/index.ts"],
+      "@lxp/model-family-capabilities": [
+        "../../packages/model-family-capabilities/src/index.ts"
+      ]
     },
     "types": ["vite/client"],
     "noEmit": true

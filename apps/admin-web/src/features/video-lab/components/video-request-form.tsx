@@ -385,6 +385,18 @@ export function VideoRequestForm({
 
               <Group justify="space-between" wrap="wrap">
                 <Group>
+                  <input
+                    accept="image/*"
+                    disabled={referenceLimitReached}
+                    hidden
+                    id="video-reference-upload-input"
+                    onChange={(event) => {
+                      void videoLab.handleFileSelection(event.currentTarget.files);
+                      event.currentTarget.value = '';
+                    }}
+                    ref={videoLab.fileInputRef}
+                    type="file"
+                  />
                   <Button
                     component="label"
                     data-testid="video-upload-reference"
