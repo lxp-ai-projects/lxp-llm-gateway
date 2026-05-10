@@ -9,6 +9,12 @@ export default defineConfig({
       '@lxp/domain': fileURLToPath(
         new URL('../../packages/domain/src/index.ts', import.meta.url),
       ),
+      '@lxp/model-family-capabilities': fileURLToPath(
+        new URL(
+          '../../packages/model-family-capabilities/src/index.ts',
+          import.meta.url,
+        ),
+      ),
     },
   },
   server: {
