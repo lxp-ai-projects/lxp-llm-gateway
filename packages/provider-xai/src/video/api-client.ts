@@ -1,4 +1,7 @@
-import type { ProviderExecutionContext } from '@lxp/provider-sdk';
+import {
+  validatePublicHttpsImageUrl,
+  type ProviderExecutionContext,
+} from '@lxp/provider-sdk';
 
 export interface XAiVideoGenerationAcceptedPayload {
   request_id?: string;
@@ -20,6 +23,9 @@ export class XAiVideoApiClient {
   constructor(
     private readonly baseUrl: string,
     private readonly requestTimeoutMs: number,
+    private readonly lookupHostname: (
+      hostname: string,
+    ) => Promise<Array<{ address: string; family: number }>>,
   ) {}
 
   async listModelIds(context: ProviderExecutionContext): Promise<string[]> {
@@ -68,11 +74,12 @@ export class XAiVideoApiClient {
   }
 
   downloadVideoContent(context: ProviderExecutionContext, url: string) {
+    const validatedUrl = this.validateVideoArtifactUrl(url);
+
     return this.fetchWithTimeout(
-      url,
+      validatedUrl,
       {
         method: 'GET',
-        headers: this.resolveHeaders(context),
       },
       this.requestTimeoutMs,
     );
@@ -115,6 +122,21 @@ export class XAiVideoApiClient {
     }
 
     return headers;
+  }
+
+  private async validateVideoArtifactUrl(rawUrl: string): Promise<string> {
+    const parsedUrl = await validatePublicHttpsImageUrl(rawUrl, {
+      lookupHostname: this.lookupHostname,
+    });
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    if (hostname !== 'x.ai' && !hostname.endsWith('.x.ai')) {
+      throw new Error(
+        'xAI video download URLs must be owned by x.ai or a trusted x.ai subdomain.',
+      );
+    }
+
+    return parsedUrl.toString();
   }
 
   private async fetchWithTimeout(
