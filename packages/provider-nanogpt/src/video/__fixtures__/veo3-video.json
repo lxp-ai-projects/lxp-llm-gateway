@@ -1,0 +1,19 @@
+{
+  "id": "veo3-video",
+  "name": "Veo 3 Video",
+  "category": "video",
+  "architecture": {
+    "input_modalities": ["text"],
+    "output_modalities": ["video"]
+  },
+  "capabilities": {
+    "video_generation": true,
+    "text_to_video": true
+  },
+  "supported_parameters": {
+    "durations": [5, 10],
+    "aspect_ratios": ["16:9"],
+    "resolutions": ["720p", "1080p"],
+    "supported_modes": ["text-to-video"]
+  }
+}

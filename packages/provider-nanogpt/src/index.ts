@@ -5,6 +5,8 @@ import type {
   GatewayChatResponse,
   GatewayImageEditRequest,
   GatewayImageGenerationRequest,
+  GatewayVideoGenerationJob,
+  GatewayVideoGenerationRequest,
 } from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
@@ -25,6 +27,9 @@ import {
   buildNanoGptImageGenerationRequest,
 } from './image/request-mapper.js';
 import { mapNanoGptImageResponse } from './image/response-mapper.js';
+import { NanoGptVideoApiClient } from './video/api-client.js';
+import { buildNanoGptVideoCatalog } from './video/catalog.js';
+import { NanoGptVideoGenerationService } from './video/generation-service.js';
 
 export class NanoGptProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -32,11 +37,14 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     modelCatalog: true,
     imageGeneration: true,
     imageEditing: true,
+    videoGeneration: true,
   } as const;
 
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
   private readonly imageApiClient: NanoGptImageApiClient;
+  private readonly videoApiClient: NanoGptVideoApiClient;
+  private readonly videoGenerationService: NanoGptVideoGenerationService;
 
   constructor(
     baseUrl = process.env.NANOGPT_BASE_URL ?? 'https://nano-gpt.com/api/v1',
@@ -52,6 +60,13 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     this.imageApiClient = new NanoGptImageApiClient(
       this.baseUrl,
       imageRequestTimeoutMs,
+    );
+    this.videoApiClient = new NanoGptVideoApiClient(
+      this.baseUrl,
+      imageRequestTimeoutMs,
+    );
+    this.videoGenerationService = new NanoGptVideoGenerationService(
+      this.videoApiClient,
     );
   }
 
@@ -107,6 +122,29 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     }
 
     return buildNanoGptImageCatalog({
+      subscriptionModels: subscriptionCatalog?.data ?? [],
+      paidModels: paidCatalog?.data ?? [],
+      allModels: canonicalCatalog?.data ?? [],
+    });
+  }
+
+  async listVideoCatalog(context: ProviderExecutionContext) {
+    const [canonicalCatalog, subscriptionCatalog, paidCatalog] =
+      await Promise.all([
+        this.videoApiClient.listVideoModels(context, '/video-models').catch(() => null),
+        this.videoApiClient
+          .listVideoModels(context, '/subscription/v1/video-models')
+          .catch(() => null),
+        this.videoApiClient
+          .listVideoModels(context, '/paid/v1/video-models')
+          .catch(() => null),
+      ]);
+
+    if (!canonicalCatalog && !subscriptionCatalog && !paidCatalog) {
+      throw new Error('NanoGPT video catalog lookup failed for all known endpoints.');
+    }
+
+    return buildNanoGptVideoCatalog({
       subscriptionModels: subscriptionCatalog?.data ?? [],
       paidModels: paidCatalog?.data ?? [],
       allModels: canonicalCatalog?.data ?? [],
@@ -255,6 +293,50 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     return mapNanoGptImageResponse(model.id, context, payload);
   }
 
+  async submitVideoGeneration(
+    request: GatewayVideoGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob> {
+    return this.videoGenerationService.submit(request, context);
+  }
+
+  async getVideoGenerationJob(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob> {
+    const requestedModel =
+      typeof context.metadata?.requestedModel === 'string'
+        ? context.metadata.requestedModel
+        : 'unknown-model';
+    const prompt =
+      typeof context.metadata?.prompt === 'string' ? context.metadata.prompt : '';
+
+    return this.videoGenerationService.getJob(
+      requestedModel,
+      jobId,
+      prompt,
+      context,
+    );
+  }
+
+  downloadVideoOutput = async (
+    jobId: string,
+    outputIndex: number,
+    context: ProviderExecutionContext,
+  ): Promise<ReadableStream<Uint8Array>> => {
+    const requestedModel =
+      typeof context.metadata?.requestedModel === 'string'
+        ? context.metadata.requestedModel
+        : 'unknown-model';
+
+    return this.videoGenerationService.downloadOutput(
+      requestedModel,
+      jobId,
+      outputIndex,
+      context,
+    );
+  };
+
   private dispatchChatRequest(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -363,3 +445,4 @@ function isNanoGptZaiThinkingModel(model: string | undefined): boolean {
     model,
   );
 }
+

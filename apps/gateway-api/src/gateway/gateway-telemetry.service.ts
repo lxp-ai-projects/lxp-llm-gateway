@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { GatewayChatResponse, GatewayImageGenerationResponse } from '@lxp/contracts';
+import type {
+  GatewayChatResponse,
+  GatewayImageGenerationResponse,
+  GatewayVideoGenerationJob,
+} from '@lxp/contracts';
 import type { EntityManager } from 'typeorm';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
@@ -103,6 +107,49 @@ export class GatewayTelemetryService {
         latencyMs: null,
         metadata: {
           promptLength: params.promptLength,
+        },
+      },
+      manager,
+    );
+  }
+
+  async reserveVideoUsageEvent(
+    params: {
+      authContext: GatewayAuthContext;
+      requestId: string;
+      providerId: string;
+      model: string;
+      promptLength: number;
+      sourceType: 'image_to_video' | 'text_to_video';
+    },
+    manager: EntityManager,
+  ): Promise<void> {
+    await this.writeUsageEvent(
+      {
+        tenantId: params.authContext.activeTenantId,
+        userId: params.authContext.userId,
+        userUuid: params.authContext.userUuid,
+        requestId: params.requestId,
+        operation: 'video_generation_submit',
+        capability: 'video',
+        providerId: params.providerId,
+        model: params.model,
+        identitySource: params.authContext.identitySource,
+        integrationClientId: params.authContext.integrationClientId ?? null,
+        apiKeyId: params.authContext.integrationClientKeyId ?? null,
+        credentialScopeUsed: null,
+        status: 'reserved',
+        errorCode: null,
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        reasoningTokens: null,
+        imageCount: null,
+        costEstimateUsd: null,
+        latencyMs: null,
+        metadata: {
+          promptLength: params.promptLength,
+          sourceType: params.sourceType,
         },
       },
       manager,
@@ -396,12 +443,157 @@ export class GatewayTelemetryService {
     );
   }
 
+  async recordVideoSuccess(params: {
+    authContext: GatewayAuthContext;
+    requestId: string;
+    providerId: string;
+    model: string;
+    route: string;
+    latencyMs: number;
+    promptLength: number;
+    credentialScopeUsed: UsageEventCredentialScopeUsed;
+    job: GatewayVideoGenerationJob;
+  }): Promise<void> {
+    await this.tenantRlsService.withTenantContext(
+      params.authContext.activeTenantId,
+      async (manager) => {
+        await manager.getRepository(AuditLogEntity).save({
+          tenantId: params.authContext.activeTenantId,
+          userId: params.authContext.userId,
+          userUuid: params.authContext.userUuid,
+          requestId: params.requestId,
+          route: params.route,
+          action: 'video_generation_submit',
+          providerId: params.providerId,
+          model: params.model,
+          identitySource: params.authContext.identitySource,
+          integrationClientId: params.authContext.integrationClientId ?? null,
+          status: 'success',
+          messageCount: 1,
+          messageCharacters: params.promptLength,
+          latencyMs: params.latencyMs,
+          errorCode: null,
+          errorMessage: null,
+          metadata: {
+            status: params.job.status,
+            outputCount: params.job.outputs.length,
+          },
+        } satisfies Partial<AuditLogEntity>);
+
+        await this.writeUsageEvent(
+          {
+            tenantId: params.authContext.activeTenantId,
+            userId: params.authContext.userId,
+            userUuid: params.authContext.userUuid,
+            requestId: params.requestId,
+            operation: 'video_generation_submit',
+            capability: 'video',
+            providerId: params.providerId,
+            model: params.model,
+            identitySource: params.authContext.identitySource,
+            integrationClientId: params.authContext.integrationClientId ?? null,
+            apiKeyId: params.authContext.integrationClientKeyId ?? null,
+            credentialScopeUsed: params.credentialScopeUsed,
+            status: 'success',
+            errorCode: null,
+            promptTokens: null,
+            completionTokens: null,
+            totalTokens: null,
+            reasoningTokens: null,
+            imageCount: null,
+            costEstimateUsd: this.extractVideoCostEstimateUsd(
+              params.job.providerMetadata,
+            ),
+            latencyMs: params.latencyMs,
+            metadata: params.job.providerMetadata ?? null,
+          },
+          manager,
+        );
+      },
+    );
+  }
+
+  async recordVideoFailure(params: {
+    authContext: GatewayAuthContext;
+    requestId: string;
+    providerId: string;
+    model: string;
+    route: string;
+    latencyMs: number;
+    promptLength: number;
+    credentialScopeUsed?: UsageEventCredentialScopeUsed;
+    error: string;
+    errorCode?: string;
+  }): Promise<void> {
+    await this.tenantRlsService.withTenantContext(
+      params.authContext.activeTenantId,
+      async (manager) => {
+        await manager.getRepository(AuditLogEntity).save({
+          tenantId: params.authContext.activeTenantId,
+          userId: params.authContext.userId,
+          userUuid: params.authContext.userUuid,
+          requestId: params.requestId,
+          route: params.route,
+          action: 'video_generation_submit',
+          providerId: params.providerId,
+          model: params.model,
+          identitySource: params.authContext.identitySource,
+          integrationClientId: params.authContext.integrationClientId ?? null,
+          status: 'failure',
+          messageCount: 1,
+          messageCharacters: params.promptLength,
+          latencyMs: params.latencyMs,
+          errorCode: params.errorCode ?? 'gateway_error',
+          errorMessage: params.error,
+          metadata: null,
+        } satisfies Partial<AuditLogEntity>);
+
+        await this.writeUsageEvent(
+          {
+            tenantId: params.authContext.activeTenantId,
+            userId: params.authContext.userId,
+            userUuid: params.authContext.userUuid,
+            requestId: params.requestId,
+            operation: 'video_generation_submit',
+            capability: 'video',
+            providerId: params.providerId,
+            model: params.model,
+            identitySource: params.authContext.identitySource,
+            integrationClientId: params.authContext.integrationClientId ?? null,
+            apiKeyId: params.authContext.integrationClientKeyId ?? null,
+            credentialScopeUsed: params.credentialScopeUsed ?? null,
+            status: 'error',
+            errorCode: params.errorCode ?? 'gateway_error',
+            promptTokens: null,
+            completionTokens: null,
+            totalTokens: null,
+            reasoningTokens: null,
+            imageCount: null,
+            costEstimateUsd: null,
+            latencyMs: params.latencyMs,
+            metadata: {
+              promptLength: params.promptLength,
+            },
+          },
+          manager,
+        );
+      },
+    );
+  }
+
   async recordBlockedByPolicy(params: {
     authContext: GatewayAuthContext;
     requestId: string;
     providerId: string;
     model: string;
-    operation: 'chat' | 'image_generation' | 'image_edit';
+    operation:
+      | 'chat'
+      | 'image_generation'
+      | 'image_edit'
+      | 'video_generation_submit'
+      | 'video_generation_poll'
+      | 'video_generation_download'
+      | 'video_generation_cancel';
     capability: UsageEventCapability;
     route: string;
     latencyMs: number;
@@ -430,7 +622,14 @@ export class GatewayTelemetryService {
     requestId: string;
     providerId: string;
     model: string;
-    operation: 'chat' | 'image_generation' | 'image_edit';
+    operation:
+      | 'chat'
+      | 'image_generation'
+      | 'image_edit'
+      | 'video_generation_submit'
+      | 'video_generation_poll'
+      | 'video_generation_download'
+      | 'video_generation_cancel';
     capability: UsageEventCapability;
     route: string;
     latencyMs: number;
@@ -457,7 +656,14 @@ export class GatewayTelemetryService {
   private async recordUsageEvent(params: {
     authContext: GatewayAuthContext;
     requestId: string;
-    operation: 'chat' | 'image_generation' | 'image_edit';
+    operation:
+      | 'chat'
+      | 'image_generation'
+      | 'image_edit'
+      | 'video_generation_submit'
+      | 'video_generation_poll'
+      | 'video_generation_download'
+      | 'video_generation_cancel';
     capability: UsageEventCapability;
     providerId: string;
     model: string;
@@ -570,5 +776,23 @@ export class GatewayTelemetryService {
     }
 
     return null;
+  }
+
+  private extractVideoCostEstimateUsd(
+    providerMetadata: Record<string, unknown> | null | undefined,
+  ): string | null {
+    if (!providerMetadata) {
+      return null;
+    }
+
+    const usage = providerMetadata['usage'];
+    if (usage && typeof usage === 'object' && usage !== null && 'cost' in usage) {
+      const cost = (usage as Record<string, unknown>).cost;
+      if (typeof cost === 'number' && Number.isFinite(cost)) {
+        return cost.toFixed(6);
+      }
+    }
+
+    return this.extractCostEstimateUsd(providerMetadata);
   }
 }

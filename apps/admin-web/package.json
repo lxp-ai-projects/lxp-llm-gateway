@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "dependencies": {
+    "@lxp/contracts": "workspace:*",
     "@lxp/domain": "workspace:*",
+    "@lxp/model-family-capabilities": "workspace:*",
     "@mantine/core": "^8.3.6",
     "@mantine/hooks": "^8.3.6",
     "@tabler/icons-react": "^3.34.1",
@@ -15,7 +17,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
-    "dev": "vite --host",
+    "dev": "vite --host --port 3003 --strictPort",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

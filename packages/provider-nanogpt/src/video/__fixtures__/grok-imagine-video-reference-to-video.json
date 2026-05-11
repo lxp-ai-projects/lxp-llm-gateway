@@ -1,0 +1,20 @@
+{
+  "id": "grok-imagine-video-reference-to-video",
+  "name": "Grok Imagine Video Reference to Video",
+  "category": "video",
+  "architecture": {
+    "input_modalities": ["image"],
+    "output_modalities": ["video"]
+  },
+  "capabilities": {
+    "video_generation": true,
+    "reference_to_video": true
+  },
+  "supported_parameters": {
+    "durations": [5],
+    "aspect_ratios": ["16:9"],
+    "resolutions": ["720p"],
+    "supported_modes": ["reference-to-video"],
+    "max_reference_images": 4
+  }
+}

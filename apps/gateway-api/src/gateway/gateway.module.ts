@@ -28,6 +28,7 @@ import { OpenAiCompatibleController } from '../openai-compatible/openai-compatib
 import { OpenAiCompatibleService } from '../openai-compatible/openai-compatible.service';
 import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
 import { ProviderCredentialService } from './provider-credential.service';
+import { ProviderRegistryBootstrapService } from './provider-registry-bootstrap.service';
 import { ProviderRegistryService } from './provider-registry.service';
 import { TenantProviderConfigurationService } from './tenant-provider-configuration.service';
 import { GatewayTelemetryService } from './gateway-telemetry.service';
@@ -47,8 +48,13 @@ import { EncryptionService } from '../security/encryption.service';
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
+import { MediaAssetEntity } from '../persistence/entities/media-asset.entity';
+import { MediaGenerationJobEntity } from '../persistence/entities/media-generation-job.entity';
 import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { TenantPolicyService } from './tenant-policy.service';
+import { VideosController } from '../videos.controller';
+import { MediaStorageService } from '../videos/media-storage.service';
+import { VideoApplicationService } from '../videos/video-application.service';
 
 @Module({
   imports: [
@@ -68,6 +74,8 @@ import { TenantPolicyService } from './tenant-policy.service';
       ImageAssetEntity,
       ImageJobEntity,
       ImageJobResultEntity,
+      MediaAssetEntity,
+      MediaGenerationJobEntity,
     ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -80,6 +88,7 @@ import { TenantPolicyService } from './tenant-policy.service';
     GatewayController,
     ModelsController,
     ImagesController,
+    VideosController,
     OpenAiCompatibleController,
   ],
   providers: [
@@ -91,10 +100,13 @@ import { TenantPolicyService } from './tenant-policy.service';
     TenantModelAccessRuleService,
     OpenAiCompatibleService,
     ProviderCredentialService,
+    ProviderRegistryBootstrapService,
     ProviderRegistryService,
     TenantProviderConfigurationService,
     TenantPolicyService,
     ImageApplicationService,
+    VideoApplicationService,
+    MediaStorageService,
     TenantRlsService,
     EncryptionService,
     {

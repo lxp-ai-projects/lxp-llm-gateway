@@ -22,6 +22,7 @@ import {
   IconLogout,
   IconMessageCircleCog,
   IconPhoto,
+  IconVideo,
   IconShield,
   IconBuildingEstate,
   IconUserCircle,
@@ -78,6 +79,12 @@ const navigationItems: NavigationItem[] = [
     label: 'Image Lab',
     to: '/app/images',
     icon: IconPhoto,
+    group: 'workspace',
+  },
+  {
+    label: 'Video Lab',
+    to: '/app/videos',
+    icon: IconVideo,
     group: 'workspace',
   },
   {

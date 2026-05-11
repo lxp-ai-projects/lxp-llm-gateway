@@ -1,0 +1,23 @@
+{
+  "id": "kling-v26-std",
+  "name": "Kling 2.6 Standard",
+  "category": "video",
+  "architecture": {
+    "input_modalities": ["text", "image"],
+    "output_modalities": ["video"]
+  },
+  "capabilities": {
+    "video_generation": true,
+    "text_to_video": true,
+    "image_to_video": true,
+    "audio_generation": true
+  },
+  "supported_parameters": {
+    "durations": [5, 10],
+    "aspect_ratios": ["16:9", "9:16", "1:1"],
+    "resolutions": ["720p", "1080p"],
+    "supported_modes": ["text-to-video", "image-to-video"],
+    "allowed_passthrough_parameters": ["negative_prompt", "cfg_scale"],
+    "max_reference_images": 1
+  }
+}

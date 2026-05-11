@@ -13,14 +13,17 @@
   },
   "dependencies": {
     "@lxp/contracts": "workspace:*",
+    "@lxp/domain": "workspace:*",
+    "@lxp/model-family-capabilities": "workspace:*",
     "@lxp/provider-sdk": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "lint": "eslint src --ext .ts",
-    "pretest": "pnpm --filter @lxp/domain build && pnpm --filter @lxp/contracts build && pnpm --filter @lxp/provider-sdk build",
+    "pretest": "pnpm --filter @lxp/domain build && pnpm --filter @lxp/contracts build && pnpm --filter @lxp/provider-sdk build && pnpm --filter @lxp/model-family-capabilities build",
     "test": "tsx --test src/index.test.ts src/image/model-policy.test.ts",
+    "pretypecheck": "pnpm --filter @lxp/domain build && pnpm --filter @lxp/contracts build && pnpm --filter @lxp/provider-sdk build && pnpm --filter @lxp/model-family-capabilities build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

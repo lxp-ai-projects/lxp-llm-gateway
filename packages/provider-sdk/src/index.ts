@@ -4,12 +4,15 @@ import type {
   GatewayImageEditRequest,
   GatewayImageGenerationRequest,
   GatewayImageGenerationResponse,
+  GatewayVideoGenerationJob,
+  GatewayVideoGenerationRequest,
 } from '@lxp/contracts';
 import type {
   ImageProviderCatalog,
   ModelCapability,
   ProviderCapabilities,
   ProviderId,
+  VideoProviderCatalog,
 } from '@lxp/domain';
 
 export interface ProviderAccessConfig {
@@ -22,6 +25,7 @@ export interface ProviderExecutionContext {
   requestId: string;
   userId: string;
   providerAccess: ProviderAccessConfig;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ProviderModel {
@@ -50,6 +54,10 @@ export interface LlmProviderAdapter {
     context: ProviderExecutionContext,
   ): Promise<ImageProviderCatalog>;
 
+  listVideoCatalog?(
+    context: ProviderExecutionContext,
+  ): Promise<VideoProviderCatalog>;
+
   countTextTokens?(
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
@@ -76,6 +84,27 @@ export interface LlmProviderAdapter {
     request: GatewayImageEditRequest,
     context: ProviderExecutionContext,
   ): Promise<GatewayImageGenerationResponse>;
+
+  submitVideoGeneration?(
+    request: GatewayVideoGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob>;
+
+  getVideoGenerationJob?(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob>;
+
+  downloadVideoOutput?(
+    jobId: string,
+    outputIndex: number,
+    context: ProviderExecutionContext,
+  ): Promise<ReadableStream<Uint8Array>>;
+
+  cancelVideoGeneration?(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<void>;
 }
 
 export {
@@ -94,6 +123,15 @@ export type {
   ImageModelDescriptor,
   ImageModelLifecycleStatus,
 } from './image-contracts.js';
+export type {
+  CanonicalVideoGenerationJob,
+  CanonicalVideoGenerationRequest,
+  CanonicalVideoOutput,
+  CanonicalVideoProviderCatalog,
+  GatewayVideoCatalogProviderDescriptor,
+  VideoModelDescriptor,
+  VideoModelLifecycleStatus,
+} from './video-contracts.js';
 export {
   buildProviderHttpError,
   buildProviderImageHttpError,
@@ -114,3 +152,32 @@ export {
   createJsonResponse,
   readStreamAsText,
 } from './provider-testkit.js';
+
+export interface VideoProviderAdapter {
+  readonly providerId: ProviderId;
+
+  listVideoCatalog?(
+    context: ProviderExecutionContext,
+  ): Promise<VideoProviderCatalog>;
+
+  submitVideoGeneration(
+    request: GatewayVideoGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob>;
+
+  getVideoGenerationJob(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob>;
+
+  downloadVideoOutput(
+    jobId: string,
+    outputIndex: number,
+    context: ProviderExecutionContext,
+  ): Promise<ReadableStream<Uint8Array>>;
+
+  cancelVideoGeneration?(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<void>;
+}

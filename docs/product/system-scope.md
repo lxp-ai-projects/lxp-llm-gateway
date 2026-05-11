@@ -18,6 +18,7 @@
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
 - Phase 2 provider-seam expansion for image generation, image editing, and provider-owned image catalogs
+- the next provider-seam expansion for asynchronous video generation and provider-owned video catalogs
 - normalized multimodal chat content in the shared seam for text and `image_url` blocks
 
 ## Out of Scope for Phase 1
@@ -87,6 +88,8 @@ Phase 2 should assume:
 - new provider capabilities should extend `packages/provider-sdk`, not bypass it
 - image history, save state, and gateway-managed reference assets belong in the application layer, not in provider packages
 - image-provider packages should stay thin at the adapter boundary and split image concerns into provider catalog, model policy, transport client, request mapper, response mapper, and generation/edit services
+- video-provider packages should follow the same boundary rule, with asynchronous job services replacing synchronous image-response assumptions where needed
+- reusable model-family rules should stay separate from transport adapters so OpenRouter, NanoGPT, and future native providers can share them without transport inheritance
 
 The next planned capability expansion is:
 
@@ -98,6 +101,13 @@ The next planned capability expansion is:
 - paginated image job history and reusable saved/generated assets for operators
 - deployment hardening if Open WebUI identity correlation evolves into a full shared-identity story across both UIs
 - broader provider-by-provider multimodal chat support for image attachments behind the existing seam
+- a reusable media-generation foundation that starts with OpenRouter-backed image-to-video and now also supports NanoGPT-backed Kling-family video routing while remaining text-to-video compatible at the seam
+- a reusable media-generation foundation that now supports OpenRouter-backed video, NanoGPT-backed video, and xAI native video behind the same provider seam
+- a reusable model-family capability layer so Kling-family video rules can be attached through OpenRouter and NanoGPT without duplicating them in `gateway-api`
+- a shared native Kling foundation inside model-family-capabilities, including conservative native specs, capability intersection, and diagnostics for provider gaps or unsafe defaults
+- asynchronous video jobs with normalized statuses, polling, result download, and ledger attribution
+- application-owned artifact ingestion so provider-owned video URLs are never exposed as durable frontend references
+- future direct video integrations beyond the current OpenRouter, NanoGPT, and xAI native paths after those pipelines are proven end to end
 
 Current image-provider posture is:
 
@@ -140,3 +150,5 @@ Current Open WebUI posture is:
 - provider model listing and image catalog exposure are now filtered through tenant model-access rules before they are returned to callers
 - image asset access and image job persistence now also run behind a database-level tenant backstop through transaction-scoped `app.tenant_id` plus PostgreSQL RLS
 - BYOK credential reads and writes now also run behind a database-level tenant backstop through transaction-scoped `app.tenant_id` plus PostgreSQL RLS
+
+

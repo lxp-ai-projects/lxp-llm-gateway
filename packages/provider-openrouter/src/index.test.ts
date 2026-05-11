@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { OpenRouterProviderAdapter } from './index';
+import { buildOpenRouterVideoGenerationRequest } from './video/request-mapper.js';
 
 test('OpenRouterProviderAdapter sends an OpenAI-compatible chat completions request', async () => {
   const originalFetch = globalThis.fetch;
@@ -646,3 +647,281 @@ test('OpenRouterProviderAdapter sends image edit requests through chat completio
     globalThis.fetch = originalFetch;
   }
 });
+
+test('OpenRouterProviderAdapter is not advertised as a video provider', () => {
+  const adapter = new OpenRouterProviderAdapter();
+
+  assert.equal(adapter.capabilities.videoGeneration, false);
+  assert.equal(adapter.capabilities.imageGeneration, true);
+});
+
+test('OpenRouterProviderAdapter exposes a video catalog', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'kling/kling-2.1-master',
+            canonical_slug: 'kling-2.1-master',
+            name: 'Kling 2.1 Master',
+            generate_audio: true,
+            supported_aspect_ratios: ['16:9', '9:16'],
+            supported_durations: [5, 10],
+            supported_frame_images: ['first_frame', 'last_frame'],
+            supported_resolutions: ['720p', '1080p'],
+            supported_sizes: null,
+            allowed_passthrough_parameters: ['seed'],
+            pricing_skus: {
+              generate: '0.80',
+            },
+          },
+          {
+            id: 'google/veo-3.1',
+            name: 'Veo 3.1',
+            generate_audio: true,
+            supported_aspect_ratios: ['16:9'],
+            supported_durations: [5, 8],
+            supported_frame_images: ['first_frame', 'last_frame'],
+            supported_resolutions: ['720p'],
+            supported_sizes: null,
+            allowed_passthrough_parameters: ['seed'],
+            pricing_skus: {
+              generate: '0.50',
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    const catalog = await adapter.listVideoCatalog?.({
+      requestId: 'req-video-catalog',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'openrouter-secret-token',
+      },
+    });
+
+    assert.ok(catalog);
+    assert.equal(catalog?.providerId, 'openrouter');
+    assert.equal(catalog?.defaultModelId, 'kling/kling-2.1-master');
+    assert.equal(catalog?.models[0]?.capabilities.supportsVideoGeneration, true);
+    assert.equal(catalog?.models[0]?.capabilities.supportsVideoAudioGeneration, false);
+    assert.ok(
+      catalog?.models[0]?.capabilities.capabilityDiagnostics?.some(
+        (diagnostic) => diagnostic.code === 'provider_claims_capability_unknown_to_native_spec',
+      ),
+    );
+    assert.deepEqual(
+      catalog?.models[0]?.capabilities.supportedVideoFrameTypes,
+      ['first_frame', 'last_frame'],
+    );
+    assert.equal(catalog?.models[0]?.family?.profileId, 'kling-video-family');
+    assert.equal(catalog?.models[0]?.capabilities.family?.familyId, 'kling');
+    assert.deepEqual(
+      catalog?.models[0]?.family?.video?.durationConstraint?.allowedValues,
+      [5, 10],
+    );
+
+    const nonKlingModel = catalog?.models.find((model) => model.id === 'google/veo-3.1');
+    assert.ok(nonKlingModel);
+    assert.equal(nonKlingModel?.family, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouterProviderAdapter submits and polls a video generation job', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (url, init) => {
+    calls.push({
+      url: String(url),
+      init,
+    });
+
+    if (String(url).endsWith('/videos')) {
+      return new Response(
+        JSON.stringify({
+          id: 'job-abc123',
+          polling_url: '/api/v1/videos/job-abc123',
+          status: 'pending',
+          generation_id: 'gen-xyz789',
+        }),
+        {
+          status: 202,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        id: 'job-abc123',
+        polling_url: '/api/v1/videos/job-abc123',
+        status: 'completed',
+        generation_id: 'gen-xyz789',
+        unsigned_urls: ['https://provider.example/video.mp4'],
+        usage: {
+          cost: 0.5,
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    const submitted = await adapter.submitVideoGeneration?.(
+      {
+        model: 'google/veo-3.1',
+        prompt: 'Animate this product photo into a reveal shot',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        resolution: '720p',
+        referenceImages: [
+          {
+            type: 'image_url',
+            url: 'https://example.com/reference.png',
+          },
+        ],
+      },
+      {
+        requestId: 'req-video-submit',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'openrouter-secret-token',
+        },
+      },
+    );
+
+    assert.ok(submitted);
+    assert.equal(submitted?.status, 'queued');
+    assert.equal(calls[0]?.url, 'https://openrouter.ai/api/v1/videos');
+
+    const payload = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
+      duration?: number;
+      aspect_ratio?: string;
+      resolution?: string;
+      input_references?: Array<{ image_url: { url: string } }>;
+    };
+    assert.equal(payload.duration, 5);
+    assert.equal(payload.aspect_ratio, '16:9');
+    assert.equal(payload.resolution, '720p');
+    assert.equal(
+      payload.input_references?.[0]?.image_url.url,
+      'https://example.com/reference.png',
+    );
+
+    const polled = await adapter.getVideoGenerationJob?.('job-abc123', {
+      requestId: 'req-video-submit',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'openrouter-secret-token',
+      },
+      metadata: {
+        requestedModel: 'google/veo-3.1',
+        prompt: 'Animate this product photo into a reveal shot',
+      },
+    });
+
+    assert.ok(polled);
+    assert.equal(polled?.status, 'succeeded');
+    assert.equal(polled?.outputs[0]?.contentUrl, 'https://provider.example/video.mp4');
+    assert.equal(
+      (polled?.providerMetadata?.usage as { cost?: number } | undefined)?.cost,
+      0.5,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouter video transport mapping remains independent from model family metadata', async () => {
+  const payload = await buildOpenRouterVideoGenerationRequest({
+    model: 'kling/kling-2.1-master',
+    prompt: 'Animate the still frame into a cinematic reveal',
+    durationSeconds: 5,
+    aspectRatio: '16:9',
+    resolution: '720p',
+    providerOptions: {
+      seed: 1234,
+    },
+    referenceImages: [
+      {
+        type: 'image_url',
+        url: 'https://example.com/reference.png',
+      },
+    ],
+  });
+
+  assert.deepEqual(payload, {
+    model: 'kling/kling-2.1-master',
+    prompt: 'Animate the still frame into a cinematic reveal',
+    aspect_ratio: '16:9',
+    duration: 5,
+    resolution: '720p',
+    frame_images: [
+      {
+        type: 'image_url',
+        frame_type: 'first_frame',
+        image_url: {
+          url: 'https://example.com/reference.png',
+        },
+      },
+    ],
+    provider: {
+      seed: 1234,
+    },
+  });
+});
+
+test('OpenRouter video transport keeps generic single-reference models on input_references', async () => {
+  const payload = await buildOpenRouterVideoGenerationRequest({
+    model: 'google/veo-3.1',
+    prompt: 'Animate the still frame into a cinematic reveal',
+    durationSeconds: 5,
+    aspectRatio: '16:9',
+    resolution: '720p',
+    referenceImages: [
+      {
+        type: 'image_url',
+        url: 'https://example.com/reference.png',
+      },
+    ],
+  });
+
+  assert.deepEqual(payload, {
+    model: 'google/veo-3.1',
+    prompt: 'Animate the still frame into a cinematic reveal',
+    aspect_ratio: '16:9',
+    duration: 5,
+    resolution: '720p',
+    input_references: [
+      {
+        type: 'image_url',
+        image_url: {
+          url: 'https://example.com/reference.png',
+        },
+      },
+    ],
+  });
+});
+

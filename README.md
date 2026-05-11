@@ -169,7 +169,55 @@ This project does not auto-create tables at application startup.
 
 The database schema is initialized through TypeORM migrations, so the migration step is required before using `admin-api` or `gateway-api` against a fresh database.
 
-### 3. Start the applications
+### 3. Start the runtime apps
+
+Recommended monorepo startup from the repository root:
+
+```bash
+pnpm dev
+```
+
+```powershell
+pnpm.cmd dev
+```
+
+This startup path:
+
+- checks that ports `3001`, `3002`, and `3003` are available
+- builds the shared dependencies required by the runtime apps
+- starts only the three runtime apps
+- uses Turbo filters instead of `turbo run dev --parallel`
+- uses `--concurrency=4` because Turbo 2.9.x requires more than 3 slots for 3 persistent tasks
+
+Runtime apps started by `pnpm dev`:
+
+- `@lxp/gateway-api` on `3001`
+- `@lxp/admin-api` on `3002`
+- `@lxp/admin-web` on `3003`
+
+Shared packages are not started as long-running `dev` processes by the root script.
+
+Audit which workspace packages currently expose a `dev` script:
+
+```bash
+pnpm dev:audit
+```
+
+```powershell
+pnpm.cmd dev:audit
+```
+
+Validate that the root runtime dev graph still targets only the three runtime apps:
+
+```bash
+pnpm dev:validate
+```
+
+```powershell
+pnpm.cmd dev:validate
+```
+
+If you want to start the runtime apps individually, use:
 
 Start `admin-api`:
 
@@ -200,6 +248,36 @@ pnpm --filter @lxp/admin-web dev
 ```powershell
 pnpm.cmd --filter @lxp/admin-web dev
 ```
+
+### 3.1 Troubleshooting occupied ports
+
+Check whether the required runtime ports are free:
+
+```bash
+pnpm dev:check
+```
+
+```powershell
+pnpm.cmd dev:check
+```
+
+Reset the three expected local runtime ports on Windows PowerShell:
+
+```powershell
+pnpm.cmd dev:reset-ports
+```
+
+Inspect the targeted Turbo graph used for runtime startup:
+
+```bash
+pnpm exec turbo run dev --filter=@lxp/admin-web --dry=json
+```
+
+```powershell
+pnpm.cmd exec turbo run dev --filter=@lxp/admin-web --dry=json
+```
+
+`turbo run dev --filter=@lxp/admin-web --concurrency=3` is not valid with Turbo 2.9.x for this setup because `admin-web`, `gateway-api`, and `admin-api` are all persistent tasks. Use `--concurrency=4` or `pnpm dev`.
 
 ### 4. Manual endpoint testing
 

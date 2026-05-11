@@ -53,6 +53,7 @@ It must not import provider-specific implementation details directly.
 
 - `contracts` contains transport-layer contracts
 - `domain` contains framework-agnostic domain concepts
+- `model-family-capabilities` contains reusable model-family detection, normalization, and validation logic
 - `provider-sdk` defines the provider integration seam
 - `provider-nanogpt` implements NanoGPT behind the seam
 - `provider-openrouter` implements OpenRouter behind the seam
@@ -76,6 +77,10 @@ The seam should expose explicit surfaces for:
 - image provider catalog listing
 - image generation
 - image editing with reference images
+- video provider catalog listing
+- video job submission
+- video job polling
+- video result download
 
 For chat, that shared seam now also carries normalized message content in either of these forms:
 
@@ -89,8 +94,18 @@ Model catalog results may also carry capability-specific metadata needed by the 
 - provider-defined supported image response formats and resolutions
 - provider-defined output formats, background modes, fidelity levels, quality presets, and compression ranges
 - provider-defined request limits such as max generated images or max reference images
+- provider-defined video durations, resolutions, supported frame-image types, passthrough allowances, and pricing hints
 
 `gateway-api` must orchestrate those surfaces without learning provider-specific endpoint rules.
+
+Reusable model-family semantics should also remain outside `gateway-api`.
+
+That means:
+
+- transport adapters own upstream HTTP behavior
+- `model-family-capabilities` owns reusable family semantics such as Kling video constraints
+- model-family-capabilities now also owns the conservative native Kling foundation and the projection/intersection logic consumed by aggregator video transports
+- `gateway-api` consumes neutral metadata and validation results rather than provider-specific family branches
 
 Shared image-reference safety rules that apply across providers should live in the provider seam rather than being reimplemented independently in each adapter.
 
@@ -124,6 +139,12 @@ The tenant boundary is now modeled explicitly:
 - `integration_clients` and `api_keys` now also use PostgreSQL row-level security, with technical-client key lookup bootstrapped through a transaction-scoped `app.api_key_hash` before the gateway narrows the session to `app.tenant_id`
 - `image_assets`, `image_jobs`, and `image_job_results` now also use PostgreSQL row-level security, with image reads and writes executed inside transaction-scoped tenant context
 - `user_provider_credentials` now also uses PostgreSQL row-level security, with both `gateway-api` runtime resolution and `admin-api` credential management executing inside transaction-scoped tenant context
+
+The next media-generation persistence step is intentionally separate from the current image tables:
+
+- video outputs must not be stored as database blobs or data URLs
+- application-owned media tables should store metadata and storage references only
+- generated video files belong in dedicated storage outside Postgres
 
 Redis is used for short-lived auth and operational state such as:
 
@@ -235,6 +256,8 @@ The same posture now applies when `gateway-api` is called through the OpenAI-com
 
 The seam now supports image generation, image editing, and image-provider catalog listing through the shared adapter surface.
 
+The next media-generation capability is asynchronous video generation behind the same seam.
+
 The seam also now supports normalized multimodal chat inputs so that OpenAI-compatible clients can send image attachments without pushing client-specific payload rules into `gateway-api`.
 
 That expansion should preserve the current boundary by extending `provider-sdk` with explicit capability contracts instead of adding provider-specific branching in `gateway-api`.
@@ -242,11 +265,25 @@ That expansion should preserve the current boundary by extending `provider-sdk` 
 The architectural direction is:
 
 - keep chat and image workflows as separate capability methods
+- keep asynchronous video workflows as explicit capability methods rather than forcing them into synchronous image-style contracts
 - keep multimodal chat content normalized at the seam instead of teaching `gateway-api` OpenAI-, Anthropic-, or provider-native attachment payload shapes
 - keep capability support explicit per adapter rather than inferred from provider id
 - allow model catalogs to remain provider-owned, capability-aware, and able to expose normalized capability metadata such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, fidelity controls, compression ranges, lifecycle state, and request limits
 - allow image requests to carry prompt text plus zero or more reference images
 - keep provider-specific payload mapping inside provider packages
+
+For video generation specifically, the application boundary should assume:
+
+- a submit phase that returns a job immediately
+- polling or webhook completion at the provider edge
+- application-owned persistence of job state transitions
+- application-owned storage of downloadable output metadata
+- application-owned download and history APIs for the frontend
+- image-to-video as the first MVP path, with text-to-video preserved as a compatible request shape
+- provider artifact URLs used only as transient ingestion inputs, never as durable frontend references
+- idempotent submission and retry behavior so duplicate upstream jobs are not created once a provider job id is recorded
+- bounded retry, exponential backoff, and terminal-state protection for pollers
+- cancellation normalized in gateway state, with provider-side cancellation remaining best-effort when unsupported or partial
 
 Reference images should be passed through the seam in normalized forms such as:
 
@@ -293,6 +330,9 @@ The application layer now owns:
 - image job persistence and paginated history
 - save state for generated assets
 - resolution of gateway-managed asset references into provider-consumable image inputs before provider dispatch
+- future media-job persistence and media-asset storage orchestration for asynchronous video flows
+- the policy that video files are stored outside Postgres while metadata remains tenant-scoped and queryable
+- ingestion of successful provider artifacts into application-owned storage before any durable asset reference is returned to callers
 
 Provider adapters remain responsible only for:
 
@@ -313,6 +353,8 @@ The current image-provider implementation pattern is now explicit across `provid
 - a thin adapter that orchestrates those pieces and exposes only the shared seam
 
 That pattern is the reference architecture for future image-capable providers.
+
+The same pattern now also applies to the current OpenRouter, NanoGPT, and xAI native video transports, with job submission, polling, and download services replacing synchronous image response handling where required.
 
 The intent is:
 
@@ -366,3 +408,5 @@ That UI should remain behind the same backend boundaries already used for chat:
 - `admin-web` should talk to application APIs, not directly to providers
 - provider credential reuse should follow the existing BYOK model
 - reference image upload, prompting, result display, save actions, and history pagination should be capability-specific UI concerns, not provider-specific page logic
+
+

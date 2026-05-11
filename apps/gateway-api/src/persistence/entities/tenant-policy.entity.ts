@@ -44,6 +44,12 @@ export class TenantPolicyEntity {
   @Column({ name: 'image_requests_per_month', type: 'integer', nullable: true })
   imageRequestsPerMonth!: number | null;
 
+  @Column({ name: 'video_requests_per_month', type: 'integer', nullable: true })
+  videoRequestsPerMonth!: number | null;
+
+  @Column({ name: 'max_concurrent_video_jobs', type: 'integer', nullable: true })
+  maxConcurrentVideoJobs!: number | null;
+
   @Column({ name: 'max_input_tokens', type: 'integer', nullable: true })
   maxInputTokens!: number | null;
 

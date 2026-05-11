@@ -68,6 +68,21 @@ Phase 1 does not include:
 - event-driven workers
 - speculative subsystems beyond the current control-plane and gateway needs
 
+The next seam expansion is intentionally incremental:
+
+- introduce a reusable media-generation foundation in the shared seam
+- land asynchronous video generation behind that seam starting with OpenRouter Video and then extending the same transport pattern to NanoGPT video
+- prove image-to-video first while keeping text-to-video compatibility in the shared contracts
+- introduce a reusable model-family capability layer so shared family rules such as Kling video do not get duplicated across aggregators
+- keep backend contract stabilization ahead of any new workspace UI surface
+- avoid implementing OpenRouter, xAI direct, and other future video transports all at once
+
+That staged rollout has now advanced to three native video-capable provider packages behind the seam:
+
+- `packages/provider-openrouter` for OpenRouter video
+- `packages/provider-nanogpt` for NanoGPT video
+- `packages/provider-xai` for xAI native video
+
 The repository now treats multi-tenancy as a first-class architectural concern:
 
 - users remain global identities
@@ -223,6 +238,7 @@ Transport-level contracts shared across applications:
 - error payloads
 - auth payloads
 - frontend-backend API shapes
+- media-generation transport contracts for asynchronous video workflows
 
 ### `packages/domain`
 
@@ -232,6 +248,7 @@ Pure domain concepts that are not tied to NestJS or React:
 - capability models
 - routing concepts
 - execution context types
+- media-generation concepts such as shared async job states and video model capability metadata
 
 ### `packages/provider-sdk`
 
@@ -241,12 +258,15 @@ Provider abstraction seam:
 - normalized provider result types
 - shared provider execution contracts
 - capability-oriented contracts for chat, model catalog, image generation, and image editing
+- capability-oriented contracts for asynchronous video generation
 - provider-owned model metadata for capability-specific constraints such as supported image aspect ratios, response formats, resolutions, output formats, quality presets, background modes, input fidelity, compression ranges, and request limits
+- provider-owned video metadata for capability-specific constraints such as supported durations, aspect ratios, resolutions, frame-image support, passthrough parameters, and pricing hints
+- reusable model-family metadata and validation that can be consumed by more than one transport adapter
 - provider access configuration that can represent:
   - bearer-token providers such as `NanoGPT` and `OpenRouter`
   - endpoint-based providers such as `Ollama`
 
-The seam should evolve by adding new capability contracts, not by teaching `gateway-api` provider-specific image endpoints or payload formats.
+The seam should evolve by adding new capability contracts, not by teaching `gateway-api` provider-specific image or video endpoints or payload formats.
 
 Current provider posture for the newest additions is intentionally mixed by capability:
 
@@ -278,6 +298,7 @@ Each package owns:
 - provider-specific integration logic
 - provider-owned image model catalogs and defaults
 - provider-scoped transport clients and capability handlers for image workflows
+- provider-scoped transport clients and capability handlers for asynchronous video workflows where implemented
 
 ## Critical Architecture Rule
 
@@ -315,6 +336,7 @@ export interface ProviderCapabilities {
   modelCatalog: boolean;
   imageGeneration: boolean;
   imageEditing: boolean;
+  videoGeneration: boolean;
 }
 
 export interface LlmProviderAdapter {
@@ -344,6 +366,22 @@ export interface LlmProviderAdapter {
     request: GatewayImageEditRequest,
     context: ProviderExecutionContext,
   ): Promise<GatewayImageGenerationResponse>;
+
+  submitVideoGeneration?(
+    request: GatewayVideoGenerationRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob>;
+
+  getVideoGenerationJob?(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayVideoGenerationJob>;
+
+  downloadVideoOutput?(
+    jobId: string,
+    outputIndex: number,
+    context: ProviderExecutionContext,
+  ): Promise<ReadableStream>;
 }
 ```
 
@@ -398,6 +436,7 @@ That capability now supports:
 Current provider reality is capability-specific:
 
 - `xAI Grok` image models support generation and editing
+- `xAI Grok` now also exposes native asynchronous video generation behind `packages/provider-xai`
 - `Google Gemini` image models support generation and editing
 - `OpenAI GPT Image` supports generation and editing in the gateway through the shared seam
 - `OpenRouter` supports image generation and image editing through the shared seam, with provider-owned catalog metadata and capability reuse for known model families
@@ -468,6 +507,17 @@ The current policy and limit posture is intentionally incremental:
 
 The current Phase 2 seam expansion already includes image generation and image editing, with provider-owned model metadata available for UI constraints such as aspect ratio selection, output format, transparency/background handling, input fidelity, and compression controls.
 
+The next capability slice after that is media-generation expansion for asynchronous video jobs, starting with OpenRouter Video, then NanoGPT Video, and preserving the same seam rule.
+
+For the current NanoGPT video stabilization pass, image-to-video routability must stay conservative:
+
+- expose `image-to-video` only when the normalized provider profile makes that mode explicit
+- require known input semantics before treating a catalog entry as routable
+- keep specialized variants such as motion-control, extend, edit, and lip-sync visible in the catalog if needed, but not routable through the current NanoGPT transport unless request mapping is explicitly implemented
+- prefer provider-declared `supported_parameters.supported_modes`, then explicit provider metadata, and only use Kling-family heuristics as a last-resort fallback when NanoGPT does not return exploitable data
+- treat Kling-family effective capabilities as the intersection of native family rules, provider live metadata, transport coverage, and gateway mapper coverage
+- keep the current hardening pass at the native-foundation level only: model-family-capabilities owns shared Kling native specs and projection logic, while a native provider-kling route remains a follow-up
+
 The current implementation now also includes:
 
 - a canonical image provider catalog contract returned by `gateway-api`
@@ -481,3 +531,5 @@ The current implementation now also includes:
 - trusted internal caller support that can correlate Open WebUI requests to existing gateway users by forwarded email header when explicitly configured
 
 That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.
+
+

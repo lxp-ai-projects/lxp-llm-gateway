@@ -7,6 +7,8 @@ import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
 import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
+import { MediaAssetEntity } from '../persistence/entities/media-asset.entity';
+import { MediaGenerationJobEntity } from '../persistence/entities/media-generation-job.entity';
 import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
 import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
@@ -90,6 +92,8 @@ function getBaseDataSourceOptions(): DataSourceOptions {
       ImageAssetEntity,
       ImageJobEntity,
       ImageJobResultEntity,
+      MediaAssetEntity,
+      MediaGenerationJobEntity,
     ],
     synchronize: false,
   };
