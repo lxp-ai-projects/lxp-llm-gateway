@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-import * as test from 'node:test';
+import test from 'node:test';
 
 import { SuperAdminBootstrapService } from './super-admin-bootstrap.service';
 
@@ -93,6 +93,7 @@ test('SuperAdminBootstrapService assigns super_admin to configured existing user
 
   await withEnv(
     {
+      LXP_ALLOW_ENV_SUPER_ADMIN_BOOTSTRAP: 'true',
       LXP_SUPER_ADMIN_EMAILS: 'patrick@example.com',
     },
     async () => {
@@ -137,6 +138,7 @@ test('SuperAdminBootstrapService is idempotent for configured users', async () =
 
   await withEnv(
     {
+      LXP_ALLOW_ENV_SUPER_ADMIN_BOOTSTRAP: 'true',
       LXP_SUPER_ADMIN_EMAILS: 'patrick@example.com',
     },
     async () => {
@@ -149,4 +151,41 @@ test('SuperAdminBootstrapService is idempotent for configured users', async () =
   );
 
   assert.equal(userRoleRepository.data.length, 1);
+});
+
+test('SuperAdminBootstrapService stays inactive unless env bootstrap is explicitly enabled', async () => {
+  const userRepository = createRepositoryMock([
+    {
+      id: 'user-1',
+      emailHash: 'hash:patrick@example.com',
+    },
+  ]);
+  const roleRepository = createRepositoryMock([
+    {
+      id: 'role-1',
+      name: 'super_admin',
+    },
+  ]);
+  const userRoleRepository = createRepositoryMock<
+    { id?: string; userId: string; roleId: string }
+  >([]);
+
+  const service = new SuperAdminBootstrapService(
+    userRepository as never,
+    roleRepository as never,
+    userRoleRepository as never,
+    createEmailProtectionService() as never,
+  );
+
+  await withEnv(
+    {
+      LXP_ALLOW_ENV_SUPER_ADMIN_BOOTSTRAP: 'false',
+      LXP_SUPER_ADMIN_EMAILS: 'patrick@example.com',
+    },
+    async () => {
+      await service.onApplicationBootstrap();
+    },
+  );
+
+  assert.equal(userRoleRepository.data.length, 0);
 });

@@ -75,65 +75,21 @@ Image-model compatibility by provider is documented in:
 - UI Foundation: Mantine with custom theme
 - Workspace: pnpm, turbo, TypeScript
 
-## Local Secrets
+## First-Time Setup
 
-Generate local secrets for `apps/admin-api/.env` and `apps/gateway-api/.env`.
+The recommended install path is now:
 
-### Bash
+1. generate the root `.env` with `pnpm setup:init`
+2. run TypeORM migrations
+3. start the apps with `pnpm dev`
+4. open the setup wizard at `/setup`
 
-Generate a base64 32-byte key:
+The CLI prepares technical secrets and runtime URLs.
+The setup wizard creates application data such as the first super admin, first tenant, provider credentials, and optional Open WebUI integration bootstrap.
 
-```bash
-openssl rand -base64 32
-```
+Full guide:
 
-Generate a strong cookie or JWT secret:
-
-```bash
-openssl rand -hex 32
-```
-
-Suggested usage:
-
-- `LXP_ENCRYPTION_MASTER_KEY`: `openssl rand -base64 32`
-- `LXP_EMAIL_LOOKUP_KEY`: `openssl rand -base64 32`
-- `LXP_COOKIE_SECRET`: `openssl rand -hex 32`
-- `LXP_JWT_PRIVATE_KEY`: use a generated private key or a strong secret for local development
-
-Generate an RSA private key for local JWT signing:
-
-```bash
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
-```
-
-### Windows PowerShell
-
-Generate a base64 32-byte key:
-
-```powershell
-[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
-```
-
-Generate a strong cookie or JWT secret:
-
-```powershell
--join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })
-```
-
-Suggested usage:
-
-- `LXP_ENCRYPTION_MASTER_KEY`: base64 32-byte key
-- `LXP_EMAIL_LOOKUP_KEY`: base64 32-byte key
-- `LXP_COOKIE_SECRET`: hex or equivalent strong random secret
-- `LXP_JWT_PRIVATE_KEY`: use a generated private key or a strong secret for local development
-
-Generate an RSA private key for local JWT signing:
-
-```powershell
-ssh-keygen -t rsa -b 2048 -m PEM -f jwt-private.pem -N '""'
-```
-
-Do not commit generated secret values.
+- [docs/delivery/first-install.md](docs/delivery/first-install.md)
 
 ## Local Run
 
@@ -151,25 +107,52 @@ Windows PowerShell:
 docker compose -f infra/compose/docker-compose.dev.yml up -d
 ```
 
-### 2. Run database migrations
+### 2. Generate and validate the root `.env`
 
 From the repository root:
 
 ```bash
-pnpm --filter @lxp/admin-api migration:run
+pnpm setup:init
+```
+
+```powershell
+pnpm.cmd setup:init
+```
+
+Validate the generated file:
+
+```bash
+pnpm setup:doctor
+```
+
+```powershell
+pnpm.cmd setup:doctor
+```
+
+The CLI prints the setup URL and raw setup token once.
+Only `LXP_SETUP_TOKEN_HASH` is persisted to the root `.env`.
+
+### 3. Run database migrations
+
+From the repository root:
+
+```bash
+pnpm db:migration:admin
+pnpm db:migration:gateway
 ```
 
 Windows PowerShell:
 
 ```powershell
-pnpm.cmd --filter @lxp/admin-api migration:run
+pnpm.cmd db:migration:admin
+pnpm.cmd db:migration:gateway
 ```
 
 This project does not auto-create tables at application startup.
 
 The database schema is initialized through TypeORM migrations, so the migration step is required before using `admin-api` or `gateway-api` against a fresh database.
 
-### 3. Start the runtime apps
+### 4. Start the runtime apps
 
 Recommended monorepo startup from the repository root:
 
@@ -249,7 +232,25 @@ pnpm --filter @lxp/admin-web dev
 pnpm.cmd --filter @lxp/admin-web dev
 ```
 
-### 3.1 Troubleshooting occupied ports
+### 5. Complete the setup wizard
+
+Open:
+
+```text
+http://localhost:3003/setup
+```
+
+Use the setup token printed by `pnpm setup:init`.
+
+On success, the wizard creates the first super admin, first tenant, initial tenant policy, encrypted provider credentials, and optionally an Open WebUI integration key returned once.
+
+After setup completes, use:
+
+```text
+http://localhost:3003/login
+```
+
+### 5.1 Troubleshooting occupied ports
 
 Check whether the required runtime ports are free:
 

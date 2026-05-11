@@ -3,6 +3,7 @@ import type { DataSourceOptions } from 'typeorm';
 
 import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
 import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
+import { InstallationStateEntity } from '../persistence/entities/installation-state.entity';
 import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { RoleEntity } from '../persistence/entities/role.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
@@ -111,6 +112,7 @@ function getBaseDataSourceOptions(): DataSourceOptions {
       TenantProviderConfigurationEntity,
       UsageEventEntity,
       UserProviderCredentialEntity,
+      InstallationStateEntity,
     ],
     synchronize: false,
   };

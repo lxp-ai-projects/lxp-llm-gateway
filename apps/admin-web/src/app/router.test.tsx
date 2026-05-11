@@ -8,6 +8,7 @@ test('router declares the public and protected application routes', () => {
 
   expect(rootRoute).toBeDefined();
   expect(router.routes.some((route) => route.path === '/login')).toBe(true);
+  expect(router.routes.some((route) => route.path === '/setup')).toBe(true);
   expect(router.routes.some((route) => route.path === '/terms')).toBe(true);
   expect(router.routes.some((route) => route.path === '/privacy')).toBe(true);
   expect(router.routes.some((route) => route.path === '/register')).toBe(true);

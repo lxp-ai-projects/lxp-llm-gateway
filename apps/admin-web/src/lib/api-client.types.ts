@@ -9,6 +9,98 @@ export type RuntimeConfig = {
   supportedProviders: Array<{ providerId: string; displayName: string }>;
 };
 
+export type PublicSetupStatus = {
+  setupRequired: boolean;
+  setupCompleted: boolean;
+  tokenRequired: boolean;
+  version: string | null;
+};
+
+export type SetupProviderCredentialInput = {
+  providerId: string;
+  label: string;
+  apiToken?: string;
+  baseUrl?: string;
+  defaultTextModel?: string;
+  defaultImageModel?: string;
+};
+
+export type SetupTenantPolicyInput = {
+  monthlyBudgetUsd?: string;
+  requestsPerMinute?: number;
+  tokensPerMinute?: number;
+  monthlyTokenLimit?: number;
+  imageRequestsPerMonth?: number;
+  maxInputTokens?: number;
+  maxOutputTokens?: number;
+  allowPromptLogging?: boolean;
+  allowResponseLogging?: boolean;
+  retentionDays?: number;
+};
+
+export type SetupOpenWebUiInput = {
+  enabled: boolean;
+  clientId?: string;
+  displayName?: string;
+  applicationId?: string;
+  apiKeyLabel?: string;
+  createApiKey?: boolean;
+  trustedForwardedIdentityEnabled?: boolean;
+  scopes?: string[];
+};
+
+export type SetupBootstrapInput = {
+  superAdmin: {
+    email: string;
+    password: string;
+    displayName: string;
+  };
+  tenant: {
+    slug: string;
+    displayName: string;
+    allowUserCredentialOverride?: boolean;
+  };
+  providerCredentials?: SetupProviderCredentialInput[];
+  tenantPolicy?: SetupTenantPolicyInput;
+  openWebUi?: SetupOpenWebUiInput;
+};
+
+export type SetupBootstrapResult = {
+  setupCompleted: true;
+  tenant: {
+    id: string;
+    slug: string;
+    displayName: string;
+  };
+  superAdmin: {
+    userUuid: string;
+    email: string;
+    displayName: string;
+  };
+  openWebUi: null | {
+    clientId: string;
+    displayName: string;
+    applicationId: string;
+    scopes: string[];
+    trustedForwardedIdentityEnabled: boolean;
+    apiKey: string | null;
+  };
+};
+
+export type SetupProviderTestInput = {
+  providerId: string;
+  apiKey?: string;
+  baseUrl?: string;
+};
+
+export type SetupProviderTestResult = {
+  success: boolean;
+  providerId: string;
+  modelTested: string | null;
+  errorCode?: string;
+  errorMessage?: string;
+};
+
 export type SessionTenantSummary = {
   id: string;
   slug: string;

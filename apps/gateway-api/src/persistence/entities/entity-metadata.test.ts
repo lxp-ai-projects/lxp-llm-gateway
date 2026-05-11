@@ -4,6 +4,7 @@ import test from 'node:test';
 import { ImageAssetEntity } from './image-asset.entity';
 import { ImageJobEntity } from './image-job.entity';
 import { ImageJobResultEntity } from './image-job-result.entity';
+import { InstallationStateEntity } from './installation-state.entity';
 import { ProviderEntity } from './provider.entity';
 import { UserProviderCredentialEntity } from './user-provider-credential.entity';
 import { UserEntity } from './user.entity';
@@ -62,6 +63,11 @@ test('gateway persistence entities can be instantiated with expected fields', ()
   jobResult.resultIndex = 0;
   jobResult.revisedPrompt = 'A moonlit forest in watercolor';
 
+  const installationState = new InstallationStateEntity();
+  installationState.id = 'global';
+  installationState.status = 'PENDING';
+  installationState.appVersion = '0.1.0';
+
   assert.equal(provider.providerId, 'nanogpt');
   assert.equal(user.userUuid, 'public-user-uuid');
   assert.equal(credential.providerId, provider.id);
@@ -71,4 +77,5 @@ test('gateway persistence entities can be instantiated with expected fields', ()
   assert.equal(job.userId, user.id);
   assert.equal(job.startedAt?.toISOString(), '2026-04-27T12:00:00.000Z');
   assert.equal(jobResult.assetId, asset.id);
+  assert.equal(installationState.status, 'PENDING');
 });

@@ -5,6 +5,7 @@ import { DataType, newDb } from 'pg-mem';
 
 import { ProviderEntity } from './entities/provider.entity';
 import { RoleEntity } from './entities/role.entity';
+import { InstallationStateEntity } from './entities/installation-state.entity';
 import { TenantEntity } from './entities/tenant.entity';
 import { TenantMembershipEntity } from './entities/tenant-membership.entity';
 import { TenantModelAccessRuleEntity } from './entities/tenant-model-access-rule.entity';
@@ -51,6 +52,7 @@ test('database entity graph initializes against a Postgres-compatible in-memory 
       TenantPolicyEntity,
       ProviderEntity,
       UserProviderCredentialEntity,
+      InstallationStateEntity,
     ],
     synchronize: true,
   });
@@ -151,6 +153,7 @@ test('provider credential uniqueness stays isolated by tenant, user, and scope',
       TenantPolicyEntity,
       ProviderEntity,
       UserProviderCredentialEntity,
+      InstallationStateEntity,
     ],
     synchronize: true,
   });

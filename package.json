@@ -18,6 +18,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
+    "setup:init": "pnpm --filter @lxp/cli-setup build && node ./packages/cli-setup/dist/index.js init",
+    "setup:doctor": "pnpm --filter @lxp/cli-setup build && node ./packages/cli-setup/dist/index.js doctor",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "db:migration": "pnpm run db:migration:admin && pnpm run db:migration:gateway",

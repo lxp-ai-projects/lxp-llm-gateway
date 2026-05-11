@@ -11,6 +11,8 @@ import {
 import { AppShellLayout } from '../components/app-shell-layout';
 import { AuthGuard } from '../components/auth-guard';
 import { RoleGuard } from '../components/role-guard';
+import { useSession } from '../lib/use-session';
+import { useSetupStatus } from '../lib/use-setup-status';
 
 const DashboardPage = lazy(async () =>
   import('../pages/dashboard-page').then((module) => ({
@@ -85,6 +87,11 @@ const ForgotPasswordPage = lazy(async () =>
     default: module.ForgotPasswordPage,
   })),
 );
+const SetupPage = lazy(async () =>
+  import('../pages/setup-page').then((module) => ({
+    default: module.SetupPage,
+  })),
+);
 
 function withSuspense(node: ReactNode) {
   return <Suspense fallback={<Loader color="teal" mt="xl" />}>{node}</Suspense>;
@@ -119,10 +126,36 @@ function RouteErrorPage() {
   );
 }
 
+function RootEntryGate() {
+  const setupStatusQuery = useSetupStatus();
+  const sessionQuery = useSession({
+    enabled: setupStatusQuery.data?.setupRequired !== true,
+  });
+
+  if (setupStatusQuery.isPending) {
+    return <Loader color="teal" mt="xl" />;
+  }
+
+  if (setupStatusQuery.data?.setupRequired) {
+    return <Navigate to="/setup" replace />;
+  }
+
+  if (sessionQuery.isPending) {
+    return <Loader color="teal" mt="xl" />;
+  }
+
+  return <Navigate to={sessionQuery.data ? '/app' : '/login'} replace />;
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/app" replace />,
+    element: <RootEntryGate />,
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: '/setup',
+    element: withSuspense(<SetupPage />),
     errorElement: <RouteErrorPage />,
   },
   {

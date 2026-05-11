@@ -10,12 +10,14 @@ import {
   SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
 } from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
+import { useSetupStatus } from '../lib/use-setup-status';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const runtimeConfigQuery = useRuntimeConfig();
+  const setupStatusQuery = useSetupStatus();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
@@ -34,6 +36,12 @@ export function LoginPage() {
     setSessionTimeoutMessage(message);
     window.sessionStorage.removeItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY);
   }, []);
+
+  useEffect(() => {
+    if (setupStatusQuery.data?.setupRequired) {
+      navigate('/setup', { replace: true });
+    }
+  }, [navigate, setupStatusQuery.data?.setupRequired]);
 
   const loginMutation = useMutation({
     mutationFn: () => adminApiClient.login({ email, password }),

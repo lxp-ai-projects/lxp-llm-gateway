@@ -24,6 +24,7 @@ import { TenantModelAccessRuleEntity } from './persistence/entities/tenant-model
 import { TenantProviderConfigurationEntity } from './persistence/entities/tenant-provider-configuration.entity';
 import { TenantPolicyEntity } from './persistence/entities/tenant-policy.entity';
 import { UsageEventEntity } from './persistence/entities/usage-event.entity';
+import { InstallationStateEntity } from './persistence/entities/installation-state.entity';
 import { UserProviderCredentialEntity } from './persistence/entities/user-provider-credential.entity';
 import { TenantRlsService } from './persistence/tenant-rls.service';
 import { EmailProtectionService } from './security/email-protection.service';
@@ -32,6 +33,12 @@ import { PasswordService } from './security/password.service';
 import { AdminService } from './admin/admin.service';
 import { ConversationTransferController } from './conversation-transfer/conversation-transfer.controller';
 import { ConversationTransferService } from './conversation-transfer/conversation-transfer.service';
+import { SetupController } from './setup/setup.controller';
+import { SetupAccessService } from './setup/setup-access.service';
+import { SetupBootstrapService } from './setup/setup-bootstrap.service';
+import { SetupStatusBootstrapService } from './setup/setup-status-bootstrap.service';
+import { SetupStatusService } from './setup/setup-status.service';
+import { SetupTokenGuard } from './setup/setup-token.guard';
 
 @Module({
   imports: [
@@ -57,6 +64,7 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
       TenantPolicyEntity,
       UsageEventEntity,
       UserProviderCredentialEntity,
+      InstallationStateEntity,
     ]),
     AuthModule,
   ],
@@ -65,6 +73,7 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
     HealthController,
     PublicConfigController,
     ConversationTransferController,
+    SetupController,
   ],
   providers: [
     EncryptionService,
@@ -74,6 +83,11 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
     SuperAdminBootstrapService,
     AdminService,
     ConversationTransferService,
+    SetupAccessService,
+    SetupBootstrapService,
+    SetupStatusService,
+    SetupStatusBootstrapService,
+    SetupTokenGuard,
   ],
 })
 export class AppModule {}

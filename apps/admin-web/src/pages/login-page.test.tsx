@@ -20,6 +20,17 @@ vi.mock('../lib/use-runtime-config', () => ({
   }),
 }));
 
+vi.mock('../lib/use-setup-status', () => ({
+  useSetupStatus: () => ({
+    data: {
+      setupRequired: false,
+      setupCompleted: true,
+      tokenRequired: true,
+      version: '0.1.0',
+    },
+  }),
+}));
+
 vi.mock('../lib/api-client', () => ({
   SESSION_TIMEOUT_MESSAGE_STORAGE_KEY: sessionTimeoutStorageKey,
   adminApiClient: {

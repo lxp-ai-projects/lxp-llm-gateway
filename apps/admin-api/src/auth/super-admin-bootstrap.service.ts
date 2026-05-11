@@ -35,6 +35,10 @@ export class SuperAdminBootstrapService implements OnApplicationBootstrap {
   }
 
   private async syncConfiguredSuperAdmins(): Promise<void> {
+    if (!this.isEnvBootstrapEnabled()) {
+      return;
+    }
+
     const configuredHashes = this.getConfiguredSuperAdminEmailHashes();
     if (!configuredHashes.size) {
       return;
@@ -85,6 +89,10 @@ export class SuperAdminBootstrapService implements OnApplicationBootstrap {
   }
 
   private getConfiguredSuperAdminEmailHashes(): Set<string> {
+    if (!this.isEnvBootstrapEnabled()) {
+      return new Set();
+    }
+
     const configuredEmails = (process.env.LXP_SUPER_ADMIN_EMAILS ?? '')
       .split(',')
       .map((value) => value.trim())
@@ -94,6 +102,13 @@ export class SuperAdminBootstrapService implements OnApplicationBootstrap {
       configuredEmails.map(
         (email) => this.emailProtectionService.protect(email).emailHash,
       ),
+    );
+  }
+
+  private isEnvBootstrapEnabled(): boolean {
+    return (
+      (process.env.LXP_ALLOW_ENV_SUPER_ADMIN_BOOTSTRAP ?? '').toLowerCase() ===
+      'true'
     );
   }
 }

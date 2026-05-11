@@ -40,12 +40,19 @@ It must not import provider-specific implementation details directly.
 - login, refresh, logout, and session resolution
 - users and role-aware admin workflows
 - super-admin tenant control workflows
+- first-time setup status and transactional setup bootstrap
 - encrypted provider credential writes and resets
 - runtime config for the SPA
 - conversation import and export support
 - control-plane health and settings surfaces
 
 `admin-api` is the durable source of truth for control-plane identity and secret administration.
+
+The first-install posture now splits responsibilities deliberately:
+
+- `packages/cli-setup` prepares the root `.env` and stores only `LXP_SETUP_TOKEN_HASH`
+- `admin-api` owns `installation_state`, public setup status, and the final transactional bootstrap
+- `gateway-api` may expose only non-persistent live provider credential tests while setup remains open
 
 `admin-web` is the operator-facing SPA for both administrator and end-user control-plane workflows.
 
@@ -54,6 +61,7 @@ It must not import provider-specific implementation details directly.
 - `contracts` contains transport-layer contracts
 - `domain` contains framework-agnostic domain concepts
 - `model-family-capabilities` contains reusable model-family detection, normalization, and validation logic
+- `cli-setup` contains the first-time installation CLI for root env generation and validation
 - `provider-sdk` defines the provider integration seam
 - `provider-nanogpt` implements NanoGPT behind the seam
 - `provider-openrouter` implements OpenRouter behind the seam

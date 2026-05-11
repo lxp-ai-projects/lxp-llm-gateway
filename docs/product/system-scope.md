@@ -20,6 +20,7 @@
 - Phase 2 provider-seam expansion for image generation, image editing, and provider-owned image catalogs
 - the next provider-seam expansion for asynchronous video generation and provider-owned video catalogs
 - normalized multimodal chat content in the shared seam for text and `image_url` blocks
+- a first-time setup foundation with a root `.env`, token-guarded setup endpoints, and a dedicated setup CLI package
 
 ## Out of Scope for Phase 1
 
@@ -65,7 +66,9 @@ The repository now contains:
 - tenant-aware technical client auth with an initial PostgreSQL RLS slice on `integration_clients` and `api_keys`
 - tenant-aware image storage and history with an initial PostgreSQL RLS slice on `image_assets`, `image_jobs`, and `image_job_results`
 - tenant-aware BYOK credential management with a PostgreSQL RLS slice on `user_provider_credentials`
+- a singleton `installation_state` plus guarded `setup/status`, `setup/bootstrap`, and provider-test setup flows for first install
 - an initial `super_admin` tenant administration surface for cross-tenant listing, tenant policy editing, and membership visibility
+- a small `packages/cli-setup` package that can generate and validate the root `.env` required by the setup wizard
 - tenant policy editing is now available in the `super_admin` tenant-control surface, while the current limiter remains intentionally app-level rather than globally distributed
 - shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai behind `packages/provider-sdk`

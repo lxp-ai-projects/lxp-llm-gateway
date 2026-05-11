@@ -37,10 +37,13 @@ import type {
   AdminUserSummary,
   AdminUpdateUserInput,
   ChatTransferConversation,
+  PublicSetupStatus,
   ProviderCredentialSummary,
   ProviderSettingsSummary,
   RuntimeConfig,
   SessionUser,
+  SetupBootstrapInput,
+  SetupBootstrapResult,
 } from './api-client.types';
 
 export const adminApiClient = {
@@ -57,6 +60,24 @@ export const adminApiClient = {
         supportedProviders: [...SUPPORTED_PROVIDERS],
       };
     }
+  },
+
+  async getSetupStatus(): Promise<PublicSetupStatus> {
+    return request<PublicSetupStatus>(`${adminApiUrl}/api/v1/setup/status`);
+  },
+
+  async bootstrapSetup(
+    setupToken: string,
+    payload: SetupBootstrapInput,
+  ): Promise<SetupBootstrapResult> {
+    return request<SetupBootstrapResult>(`${adminApiUrl}/api/v1/setup/bootstrap`, {
+      method: 'POST',
+      headers: {
+        'X-Setup-Token': setupToken,
+      },
+      body: JSON.stringify(payload),
+      timeoutMs: 120000,
+    });
   },
 
   async getSession(): Promise<SessionUser | null> {

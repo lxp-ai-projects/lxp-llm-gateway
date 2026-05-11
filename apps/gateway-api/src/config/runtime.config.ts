@@ -6,6 +6,7 @@ import { AuditLogEntity } from '../persistence/entities/audit-log.entity';
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
+import { InstallationStateEntity } from '../persistence/entities/installation-state.entity';
 import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
 import { MediaAssetEntity } from '../persistence/entities/media-asset.entity';
 import { MediaGenerationJobEntity } from '../persistence/entities/media-generation-job.entity';
@@ -94,6 +95,7 @@ function getBaseDataSourceOptions(): DataSourceOptions {
       ImageJobResultEntity,
       MediaAssetEntity,
       MediaGenerationJobEntity,
+      InstallationStateEntity,
     ],
     synchronize: false,
   };

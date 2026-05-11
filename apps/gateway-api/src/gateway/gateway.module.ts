@@ -48,10 +48,15 @@ import { EncryptionService } from '../security/encryption.service';
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { ImageJobEntity } from '../persistence/entities/image-job.entity';
 import { ImageJobResultEntity } from '../persistence/entities/image-job-result.entity';
+import { InstallationStateEntity } from '../persistence/entities/installation-state.entity';
 import { MediaAssetEntity } from '../persistence/entities/media-asset.entity';
 import { MediaGenerationJobEntity } from '../persistence/entities/media-generation-job.entity';
 import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { TenantPolicyService } from './tenant-policy.service';
+import { SetupController } from '../setup/setup.controller';
+import { SetupAccessService } from '../setup/setup-access.service';
+import { SetupProviderTestService } from '../setup/setup-provider-test.service';
+import { SetupTokenGuard } from '../setup/setup-token.guard';
 import { VideosController } from '../videos.controller';
 import { MediaStorageService } from '../videos/media-storage.service';
 import { VideoApplicationService } from '../videos/video-application.service';
@@ -76,6 +81,7 @@ import { VideoApplicationService } from '../videos/video-application.service';
       ImageJobResultEntity,
       MediaAssetEntity,
       MediaGenerationJobEntity,
+      InstallationStateEntity,
     ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -90,6 +96,7 @@ import { VideoApplicationService } from '../videos/video-application.service';
     ImagesController,
     VideosController,
     OpenAiCompatibleController,
+    SetupController,
   ],
   providers: [
     GatewayAuthService,
@@ -104,6 +111,9 @@ import { VideoApplicationService } from '../videos/video-application.service';
     ProviderRegistryService,
     TenantProviderConfigurationService,
     TenantPolicyService,
+    SetupAccessService,
+    SetupProviderTestService,
+    SetupTokenGuard,
     ImageApplicationService,
     VideoApplicationService,
     MediaStorageService,

@@ -23,6 +23,8 @@ import type {
   GatewayVideoHistoryResponse,
   GatewayVideoFrameImageReference,
   GatewayVideoReference,
+  SetupProviderTestInput,
+  SetupProviderTestResult,
 } from './api-client.types';
 
 const IMAGE_REQUEST_TIMEOUT_MS = 300000;
@@ -53,6 +55,23 @@ export const gatewayApiClient = {
       : `${gatewayApiUrl}/api/v1/models`;
 
     return request(endpoint);
+  },
+
+  async testSetupProvider(
+    setupToken: string,
+    payload: SetupProviderTestInput,
+  ): Promise<SetupProviderTestResult> {
+    return request<SetupProviderTestResult>(
+      `${gatewayApiUrl}/api/v1/setup/providers/test`,
+      {
+        method: 'POST',
+        headers: {
+          'X-Setup-Token': setupToken,
+        },
+        body: JSON.stringify(payload),
+        timeoutMs: 30000,
+      },
+    );
   },
 
   async chat(payload: {

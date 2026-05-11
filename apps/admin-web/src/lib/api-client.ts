@@ -59,4 +59,8 @@ export type {
   ProviderSettingsSummary,
   RuntimeConfig,
   SessionUser,
+  PublicSetupStatus,
+  SetupBootstrapInput,
+  SetupBootstrapResult,
+  SetupProviderTestResult,
 } from './api-client.types';

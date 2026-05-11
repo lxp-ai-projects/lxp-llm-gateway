@@ -12,6 +12,7 @@ The repository must provide:
 - an OpenAI-compatible gateway facade for trusted internal clients such as Open WebUI
 - an admin API for control-plane operations
 - an admin web application for management workflows
+- a setup foundation for first-time installation, with env bootstrap handled outside the browser
 - shared packages for contracts, domain concepts, and provider integration seams
 
 ## Delivery Philosophy
@@ -34,6 +35,7 @@ Phase 1 includes:
 - an operational `gateway-api`
 - an operational `admin-api`
 - an operational `admin-web`
+- an operational first-time setup foundation based on a root `.env`, guarded setup endpoints, and a small setup CLI
 - a provider abstraction layer kept behind `provider-sdk`
 - a single provider implementation: `NanoGPT`
 - Postgres persistence for users, roles, and encrypted provider credentials
