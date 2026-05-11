@@ -73,8 +73,8 @@ export class XAiVideoApiClient {
     );
   }
 
-  downloadVideoContent(context: ProviderExecutionContext, url: string) {
-    const validatedUrl = this.validateVideoArtifactUrl(url);
+  async downloadVideoContent(context: ProviderExecutionContext, url: string) {
+    const validatedUrl = await this.validateVideoArtifactUrl(url);
 
     return this.fetchWithTimeout(
       validatedUrl,

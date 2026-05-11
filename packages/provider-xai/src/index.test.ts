@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { XaiProviderAdapter } from './index';
+import { XAiVideoApiClient } from './video/api-client.js';
 
 class XaiProviderAdapterTestDouble extends XaiProviderAdapter {
   constructor(
@@ -824,6 +825,93 @@ test('XaiProviderAdapter polls completed video jobs and downloads the provider a
     assert.match(new TextDecoder().decode(firstChunk?.value), /video-bytes/);
     assert.ok(calls.some((call) => call.url === 'https://api.x.ai/v1/videos/video-request-123'));
     assert.ok(calls.some((call) => call.url === 'https://videos.x.ai/output.mp4'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('XAiVideoApiClient downloads only trusted x.ai video artifacts without forwarding auth headers', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+
+    return new Response(new TextEncoder().encode('video-bytes'), {
+      status: 200,
+      headers: {
+        'content-type': 'video/mp4',
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new XAiVideoApiClient(
+      'https://api.x.ai/v1',
+      90_000,
+      async () => [{ address: '93.184.216.34', family: 4 }],
+    );
+
+    const response = await client.downloadVideoContent(
+      {
+        requestId: 'request-video-download',
+        userId: 'user-1',
+        providerAccess: {
+          apiKey: 'xai-token',
+          headers: {
+            authorization: 'Bearer custom-token',
+          },
+        },
+      },
+      'https://videos.x.ai/output.mp4',
+    );
+    const reader = response.body?.getReader();
+    const firstChunk = await reader?.read();
+
+    assert.match(new TextDecoder().decode(firstChunk?.value), /video-bytes/);
+    assert.equal(calls[0]?.url, 'https://videos.x.ai/output.mp4');
+    assert.equal(calls[0]?.init?.headers, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('XAiVideoApiClient rejects non-x.ai video artifact URLs before downloading', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+
+    return new Response(new TextEncoder().encode('video-bytes'), {
+      status: 200,
+      headers: {
+        'content-type': 'video/mp4',
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new XAiVideoApiClient(
+      'https://api.x.ai/v1',
+      90_000,
+      async () => [{ address: '93.184.216.34', family: 4 }],
+    );
+
+    await assert.rejects(
+      () =>
+        client.downloadVideoContent(
+          {
+            requestId: 'request-video-download',
+            userId: 'user-1',
+            providerAccess: {
+              apiKey: 'xai-token',
+            },
+          },
+          'https://example.com/output.mp4',
+        ),
+      /xAI video download URLs must be owned by x\.ai or a trusted x\.ai subdomain\./,
+    );
+
+    assert.equal(calls.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }

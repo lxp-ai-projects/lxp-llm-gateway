@@ -56,6 +56,7 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
     this.videoApiClient = new XAiVideoApiClient(
       this.baseUrl,
       this.requestTimeoutMs,
+      (hostname) => this.lookupHostname(hostname),
     );
     this.imageGenerationService = new XAiImageGenerationService(
       this.imageApiClient,
