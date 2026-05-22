@@ -54,6 +54,11 @@ The first-install posture now splits responsibilities deliberately:
 - `admin-api` owns `installation_state`, public setup status, and the final transactional bootstrap
 - `gateway-api` may expose only non-persistent live provider credential tests while setup remains open
 
+The supported delivery paths now include:
+
+- a local workspace path driven by `pnpm setup:init`, TypeORM migrations, and `pnpm dev`
+- a self-hosted Docker Compose path driven by the same root `.env`, published runtime images, and the same `/setup` wizard
+
 `admin-web` is the operator-facing SPA for both administrator and end-user control-plane workflows.
 
 ### Shared Packages

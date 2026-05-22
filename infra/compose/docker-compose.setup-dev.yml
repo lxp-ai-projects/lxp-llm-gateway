@@ -1,0 +1,137 @@
+name: lxp-llm-gateway-setup-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: lxp_gateway
+      POSTGRES_USER: lxp_gateway
+      POSTGRES_PASSWORD: change-me
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lxp_gateway -d lxp_gateway']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - '3004:8080'
+    environment:
+      HOST: 0.0.0.0
+      WEBUI_NAME: LXP Gateway Lab
+      ENABLE_OLLAMA_API: 'false'
+      ENABLE_OPENAI_API: 'true'
+      # Local lab posture only. This lets Open WebUI show the gateway's
+      # returned model list even for non-admin Open WebUI accounts.
+      BYPASS_MODEL_ACCESS_CONTROL: 'true'
+      OPENAI_API_BASE_URL: http://gateway-api:3001/api/v1/openai
+      OPENAI_API_KEY: ${LXP_OPENAI_COMPAT_API_KEY:-change-me}
+      # Local trusted correlation. Keep this enabled only in controlled dev.
+      ENABLE_FORWARD_USER_INFO_HEADERS: 'true'
+      AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST: 15
+    volumes:
+      - open_webui_data:/app/backend/data
+
+  admin-api:
+    build:
+      context: ../..
+      dockerfile: apps/admin-api/Dockerfile
+    #image: ghcr.io/lxp-ai-projects/admin-api:latest
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      admin-api-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "3002:3002"
+
+  admin-api-migrate:
+    build:
+      context: ../..
+      dockerfile: apps/admin-api/Dockerfile
+    restart: "no"
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: ["pnpm", "--filter", "@lxp/admin-api", "migration:run"]
+
+  gateway-api:
+    build:
+      context: ../..
+      dockerfile: apps/gateway-api/Dockerfile
+    #image: ghcr.io/lxp-ai-projects/gateway-api:latest
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      gateway-api-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "3001:3001"
+
+  gateway-api-migrate:
+    build:
+      context: ../..
+      dockerfile: apps/gateway-api/Dockerfile
+    restart: "no"
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      admin-api-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: ["pnpm", "--filter", "@lxp/gateway-api", "migration:run"]
+
+  admin-web:
+    build:
+      context: ../..
+      dockerfile: apps/admin-web/Dockerfile
+    #image: ghcr.io/lxp-ai-projects/admin-web:latest
+    restart: unless-stopped
+    depends_on:
+      - admin-api
+      - gateway-api
+    ports:
+      - "3003:80"
+
+volumes:
+  postgres_data:
+  open_webui_data:

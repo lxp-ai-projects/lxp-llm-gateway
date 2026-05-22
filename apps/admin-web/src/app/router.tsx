@@ -109,15 +109,20 @@ function RouteErrorPage() {
     <Stack gap="md" maw={640} mx="auto" mt="xl" p="lg">
       <Title order={2}>Application Error</Title>
       <Text c="dimmed">
-        The page could not finish loading. This often happens when the local
-        dev servers are down or running on unexpected ports.
+        The page could not finish loading because one of the required services
+        is unavailable or responding on an unexpected port.
       </Text>
       <Alert color="red" title="Details">
         {message}
       </Alert>
       <Text size="sm">
         Check that `gateway-api` is on `3001`, `admin-api` is on `3002`, and
-        `admin-web` is on `3003`, then reload the page.
+        `admin-web` is on `3003`, or start the local stack with `docker compose
+        -f infra/compose/docker-compose.dev.yml up -d`, then reload the page.
+      </Text>
+      <Text size="sm" c="dimmed">
+        If you are following the self-hosted install path, confirm the published
+        images and root `.env` before opening `/setup`.
       </Text>
       <Anchor href="/" underline="hover">
         Return to the app entrypoint

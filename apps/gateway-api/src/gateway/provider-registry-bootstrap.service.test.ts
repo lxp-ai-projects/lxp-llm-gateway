@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { LlmProviderAdapter } from '@lxp/provider-sdk';
+import { QueryFailedError } from 'typeorm';
 
 import { ProviderRegistryBootstrapService } from './provider-registry-bootstrap.service';
 
@@ -89,4 +90,21 @@ test('ProviderRegistryBootstrapService leaves existing provider rows untouched',
   assert.equal(providers.length, 1);
   assert.equal(providers[0]?.displayName, 'NanoGPT Custom');
   assert.equal(providers[0]?.status, 'disabled');
+});
+
+test('ProviderRegistryBootstrapService skips bootstrap when the providers table is missing', async () => {
+  const repository = {
+    async find(): Promise<never[]> {
+      throw new QueryFailedError('SELECT 1', [], { code: '42P01' } as never);
+    },
+    async save(): Promise<never[]> {
+      throw new Error('not used');
+    },
+  };
+  const service = new ProviderRegistryBootstrapService(
+    repository as never,
+    new FakeProviderRegistryService([createProvider('nanogpt')]) as never,
+  );
+
+  await service.onApplicationBootstrap();
 });

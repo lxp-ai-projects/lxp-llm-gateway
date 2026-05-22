@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
@@ -128,6 +129,6 @@ export function buildTypeOrmOptions(): TypeOrmModuleOptions {
 export function buildDataSourceOptions(): DataSourceOptions {
   return {
     ...getBaseDataSourceOptions(),
-    migrations: ['src/persistence/migrations/*.ts'],
+    migrations: [path.join(__dirname, '..', 'persistence', 'migrations', '*.{js,ts}')],
   };
 }

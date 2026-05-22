@@ -1,6 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-import { INSTALLATION_STATE_SINGLETON_ID } from '../entities/installation-state.entity';
+const INSTALLATION_STATE_SINGLETON_ID = 'singleton';
 
 export class AddInstallationState1713000000018
   implements MigrationInterface

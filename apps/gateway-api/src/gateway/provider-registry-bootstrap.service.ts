@@ -18,37 +18,72 @@ export class ProviderRegistryBootstrapService
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    const registeredProviders = this.providerRegistry.listProviders();
-    if (!registeredProviders.length) {
-      return;
+    try {
+      const registeredProviders = this.providerRegistry.listProviders();
+      if (!registeredProviders.length) {
+        return;
+      }
+
+      const existingProviders = await this.providerRepository.find();
+      const existingByProviderId = new Map(
+        existingProviders.map((provider) => [provider.providerId, provider]),
+      );
+
+      const missingProviders = registeredProviders.filter(
+        (provider) => !existingByProviderId.has(provider.providerId),
+      );
+      if (!missingProviders.length) {
+        return;
+      }
+
+      await this.providerRepository.save(
+        missingProviders.map((provider) => ({
+          providerId: provider.providerId,
+          displayName: formatProviderDisplayName(provider.providerId),
+          status: 'active' as const,
+        })),
+      );
+
+      this.logger.log(
+        `Registered ${missingProviders.length} missing provider row(s): ${missingProviders
+          .map((provider) => provider.providerId)
+          .join(', ')}`,
+      );
+    } catch (error) {
+      if (isMissingRelationError(error)) {
+        this.logger.warn(
+          'Skipping provider registry bootstrap because the providers table is not ready yet.',
+        );
+        return;
+      }
+
+      throw error;
     }
-
-    const existingProviders = await this.providerRepository.find();
-    const existingByProviderId = new Map(
-      existingProviders.map((provider) => [provider.providerId, provider]),
-    );
-
-    const missingProviders = registeredProviders.filter(
-      (provider) => !existingByProviderId.has(provider.providerId),
-    );
-    if (!missingProviders.length) {
-      return;
-    }
-
-    await this.providerRepository.save(
-      missingProviders.map((provider) => ({
-        providerId: provider.providerId,
-        displayName: formatProviderDisplayName(provider.providerId),
-        status: 'active' as const,
-      })),
-    );
-
-    this.logger.log(
-      `Registered ${missingProviders.length} missing provider row(s): ${missingProviders
-        .map((provider) => provider.providerId)
-        .join(', ')}`,
-    );
   }
+}
+
+function isMissingRelationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: unknown;
+    message?: unknown;
+    driverError?: {
+      code?: unknown;
+      message?: unknown;
+    };
+  };
+  const errorCode = candidate.driverError?.code ?? candidate.code;
+  const errorMessage =
+    candidate.driverError?.message ?? candidate.message ?? '';
+
+  return (
+    errorCode === '42P01' ||
+    (typeof errorMessage === 'string' &&
+      errorMessage.includes('relation "providers" does not exist'))
+  );
 }
 
 function formatProviderDisplayName(providerId: string): string {

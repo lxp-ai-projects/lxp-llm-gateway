@@ -126,6 +126,9 @@ export function SetupPage() {
       })),
     [runtimeConfigQuery.data?.supportedProviders],
   );
+  const serviceUnavailable =
+    setupStatusQuery.isError || runtimeConfigQuery.isError;
+  const serviceUnavailableMessage = setupStatusQuery.error?.message ?? runtimeConfigQuery.error?.message;
 
   useEffect(() => {
     if (tenantSlugTouched) {
@@ -242,6 +245,57 @@ export function SetupPage() {
         <Group justify="center" py="xl">
           <Loader color="teal" />
         </Group>
+      </Container>
+    );
+  }
+
+  if (serviceUnavailable) {
+    return (
+      <Container size="md" py="xl">
+        <Card radius="xl" p="xl" withBorder>
+          <Stack gap="md">
+            <Group gap="sm">
+              <IconAlertTriangle size={20} />
+              <Title order={2}>Setup services are offline</Title>
+            </Group>
+            <Text c="dimmed">
+              The setup wizard could not reach one or more required services.
+              Verify that `gateway-api`, `admin-api`, and the supporting
+              infrastructure are running, then open the setup page again.
+            </Text>
+            <Alert color="yellow" title="Check the local stack">
+              <Stack gap="xs">
+                <Text size="sm">
+                  If you are running the repository locally, start the stack
+                  with:
+                </Text>
+                <Text ff="monospace" size="sm">
+                  docker compose -f infra/compose/docker-compose.dev.yml up -d
+                </Text>
+                <Text size="sm">
+                  Then confirm the runtime ports are available:
+                  `gateway-api` on `3001`, `admin-api` on `3002`, and
+                  `admin-web` on `3003`.
+                </Text>
+              </Stack>
+            </Alert>
+            {serviceUnavailableMessage ? (
+              <Alert color="red" title="Details">
+                {serviceUnavailableMessage}
+              </Alert>
+            ) : null}
+            <Text size="sm" c="dimmed">
+              If you are installing with Docker Compose instead of the local
+              workspace, use the self-hosted install guide and confirm the
+              published images plus root `.env` are present.
+            </Text>
+            <Group>
+              <Button variant="light" onClick={() => window.location.reload()}>
+                Retry
+              </Button>
+            </Group>
+          </Stack>
+        </Card>
       </Container>
     );
   }

@@ -290,8 +290,6 @@ importers:
 
   packages/cli-setup: {}
 
-  packages/cli-setup: {}
-
   packages/contracts:
     dependencies:
       '@lxp/domain':

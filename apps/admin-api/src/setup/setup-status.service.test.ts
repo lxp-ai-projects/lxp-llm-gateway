@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { QueryFailedError } from 'typeorm';
+
 import {
   INSTALLATION_STATE_SINGLETON_ID,
   type InstallationStateEntity,
@@ -173,4 +175,36 @@ test('SetupStatusService upgrades an existing pending singleton to completed for
   assert.equal(status.setupCompleted, true);
   assert.equal(installationStateRepository.data[0]?.status, 'COMPLETED');
   assert.equal(installationStateRepository.data[0]?.completedByUserId, 'user-1');
+});
+
+test('SetupStatusService falls back to setup-required when the installation_state table is missing', async () => {
+  const missingRelationError = new QueryFailedError(
+    'SELECT 1',
+    [],
+    { code: '42P01' } as never,
+  );
+  const installationStateRepository = {
+    async findOne(): Promise<InstallationStateEntity | null> {
+      throw missingRelationError;
+    },
+    async save(value: InstallationStateEntity): Promise<InstallationStateEntity> {
+      return value;
+    },
+  };
+  const roleRepository = createRepositoryMock([]);
+  const userRoleRepository = createRepositoryMock([]);
+  const service = new SetupStatusService(
+    installationStateRepository as never,
+    roleRepository as never,
+    userRoleRepository as never,
+  );
+
+  const status = await service.getPublicSetupStatus();
+
+  assert.deepEqual(status, {
+    setupRequired: true,
+    setupCompleted: false,
+    tokenRequired: true,
+    version: process.env.npm_package_version ?? null,
+  });
 });

@@ -36,6 +36,7 @@ Phase 1 includes:
 - an operational `admin-api`
 - an operational `admin-web`
 - an operational first-time setup foundation based on a root `.env`, guarded setup endpoints, and a small setup CLI
+- a documented self-hosted installation path for both local repo runtime and Docker Compose runtime
 - a provider abstraction layer kept behind `provider-sdk`
 - a single provider implementation: `NanoGPT`
 - Postgres persistence for users, roles, and encrypted provider credentials

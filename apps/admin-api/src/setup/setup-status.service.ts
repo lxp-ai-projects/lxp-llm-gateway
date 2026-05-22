@@ -62,7 +62,21 @@ export class SetupStatusService {
   }
 
   async getPublicSetupStatus(): Promise<PublicSetupStatus> {
-    const state = await this.ensureInstallationState();
+    let state: InstallationStateEntity;
+    try {
+      state = await this.ensureInstallationState();
+    } catch (error) {
+      if (isMissingRelationError(error)) {
+        return {
+          setupRequired: true,
+          setupCompleted: false,
+          tokenRequired: true,
+          version: this.resolveAppVersion(),
+        };
+      }
+
+      throw error;
+    }
     const setupCompleted = state.status === 'COMPLETED';
 
     return {
@@ -94,4 +108,28 @@ export class SetupStatusService {
     const version = process.env.npm_package_version?.trim();
     return version && version.length > 0 ? version : null;
   }
+}
+
+function isMissingRelationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: unknown;
+    message?: unknown;
+    driverError?: {
+      code?: unknown;
+      message?: unknown;
+    };
+  };
+  const errorCode = candidate.driverError?.code ?? candidate.code;
+  const errorMessage =
+    candidate.driverError?.message ?? candidate.message ?? '';
+
+  return (
+    errorCode === '42P01' ||
+    (typeof errorMessage === 'string' &&
+      errorMessage.includes('relation "installation_state" does not exist'))
+  );
 }

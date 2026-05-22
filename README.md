@@ -90,6 +90,7 @@ The setup wizard creates application data such as the first super admin, first t
 Full guide:
 
 - [docs/delivery/first-install.md](docs/delivery/first-install.md)
+- [docs/delivery/docker-install.md](docs/delivery/docker-install.md)
 
 ## Local Run
 
