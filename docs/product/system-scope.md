@@ -14,6 +14,8 @@
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai
 - user, role, and provider credential foundations
 - local development infrastructure
+- a Docker Compose based local quickstart foundation for beta testers and first local runs
+- a separate VPS deployment foundation for production-like single-host installs
 - a first local Open WebUI integration path against `gateway-api`
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
@@ -71,6 +73,7 @@ The repository now contains:
 - working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai behind `packages/provider-sdk`
 - frontend feature modules under `src/features/*`
 - CI quality gates for typecheck, test, and build
+- a local quickstart path that keeps Docker Compose as the runtime entrypoint and avoids a setup-only framework
 - an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
 - operator-configurable gateway defaults for both chat and image generation/editing, with separate provider/model pairs
 - a local Open WebUI use case that is intentionally trusted and compose-driven

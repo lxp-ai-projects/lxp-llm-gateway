@@ -17,6 +17,12 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.js
 COPY apps ./apps
 COPY packages ./packages
 
+ARG VITE_ADMIN_API_URL=http://localhost:3002
+ARG VITE_GATEWAY_API_URL=http://localhost:3001
+
+ENV VITE_ADMIN_API_URL=$VITE_ADMIN_API_URL
+ENV VITE_GATEWAY_API_URL=$VITE_GATEWAY_API_URL
+
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @lxp/admin-web... build
 

@@ -1,4 +1,26 @@
-# Open WebUI Proxy Contract
+# Proxy Contract
+
+This folder contains reverse-proxy examples for two deployment shapes:
+
+- the core `lxp-llm-gateway` product on a VPS
+- the optional `Open WebUI -> lxp-llm-gateway` trusted integration
+
+## Core Product Proxy Examples
+
+For the core VPS install, the simplest supported shape is:
+
+- `admin.example.com` -> `admin-web` on `127.0.0.1:3003`
+- `admin.example.com/api/v1/*` -> `admin-api` on `127.0.0.1:3002`
+- `gateway.example.com` -> `gateway-api` on `127.0.0.1:3001`
+
+Example files:
+
+- [caddy/lxp-gateway.Caddyfile.example](./caddy/lxp-gateway.Caddyfile.example)
+- [nginx/lxp-gateway.conf.example](./nginx/lxp-gateway.conf.example)
+
+That split keeps the public entrypoint simple and matches the recommended values in the VPS env template.
+
+## Open WebUI Proxy Contract
 
 These examples document the supported production trust boundary for `Open WebUI -> lxp-llm-gateway`.
 
@@ -12,8 +34,10 @@ The intended posture is:
 
 The example files in this folder are:
 
+- [caddy/lxp-gateway.Caddyfile.example](./caddy/lxp-gateway.Caddyfile.example)
 - [caddy/open-webui.Caddyfile.example](./caddy/open-webui.Caddyfile.example)
 - [caddy/open-webui.forward-auth.Caddyfile.example](./caddy/open-webui.forward-auth.Caddyfile.example)
+- [nginx/lxp-gateway.conf.example](./nginx/lxp-gateway.conf.example)
 - [nginx/open-webui.conf.example](./nginx/open-webui.conf.example)
 - [nginx/open-webui.auth-request.conf.example](./nginx/open-webui.auth-request.conf.example)
 

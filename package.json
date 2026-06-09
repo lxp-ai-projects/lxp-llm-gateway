@@ -22,7 +22,12 @@
     "format:write": "prettier --write .",
     "db:migration": "pnpm run db:migration:admin && pnpm run db:migration:gateway",
     "db:migration:admin": "pnpm --filter @lxp/admin-api migration:run",
-    "db:migration:gateway": "pnpm --filter @lxp/gateway-api migration:run"
+    "db:migration:gateway": "pnpm --filter @lxp/gateway-api migration:run",
+    "setup:vps:env:linux": "bash ./scripts/generate-vps-env.sh",
+    "setup:vps:env:powershell": "powershell -ExecutionPolicy Bypass -File ./scripts/Generate-VpsEnv.ps1",
+    "setup:quickstart": "node ./scripts/setup-quickstart.mjs up",
+    "setup:quickstart:down": "node ./scripts/setup-quickstart.mjs down",
+    "setup:quickstart:logs": "node ./scripts/setup-quickstart.mjs logs"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
