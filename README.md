@@ -181,7 +181,7 @@ If you use PowerShell instead of Bash to prepare the env file:
 powershell -ExecutionPolicy Bypass -File ./scripts/Generate-VpsEnv.ps1 `
   -AdminDomain admin.example.com `
   -GatewayDomain gateway.example.com `
-  -DefaultUserEmail ops@example.com
+  -DefaultUserEmail admin@example.com
 ```
 
 ## Local Secrets
