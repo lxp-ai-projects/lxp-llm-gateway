@@ -1,0 +1,181 @@
+name: lxp-llm-gateway-vps
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${LXP_VPS_POSTGRES_DB}
+      POSTGRES_USER: ${LXP_VPS_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${LXP_VPS_POSTGRES_PASSWORD}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres_vps_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  admin-api-migrate:
+    build:
+      context: ../..
+      dockerfile: apps/admin-api/Dockerfile
+      target: build
+    environment: &admin_api_environment
+      NODE_ENV: production
+      PORT: 3002
+      APP_HOST: 0.0.0.0
+      ADMIN_WEB_ORIGIN: ${LXP_VPS_ADMIN_WEB_ORIGIN}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${LXP_VPS_POSTGRES_DB}
+      DATABASE_USER: ${LXP_VPS_POSTGRES_USER}
+      DATABASE_PASSWORD: ${LXP_VPS_POSTGRES_PASSWORD}
+      DATABASE_SSL: ${LXP_VPS_DATABASE_SSL}
+      REDIS_URL: redis://redis:6379
+      LXP_ENCRYPTION_MASTER_KEY: ${LXP_VPS_ENCRYPTION_MASTER_KEY}
+      LXP_ENCRYPTION_KEY_VERSION: ${LXP_VPS_ENCRYPTION_KEY_VERSION}
+      LXP_EMAIL_LOOKUP_KEY: ${LXP_VPS_EMAIL_LOOKUP_KEY}
+      LXP_REQUEST_BODY_LIMIT: ${LXP_VPS_REQUEST_BODY_LIMIT}
+      LXP_COOKIE_SECRET: ${LXP_VPS_COOKIE_SECRET}
+      LXP_JWT_PRIVATE_KEY: ${LXP_VPS_JWT_PRIVATE_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['pnpm', '--filter', '@lxp/admin-api', 'migration:run']
+    restart: 'no'
+
+  gateway-api-migrate:
+    build:
+      context: ../..
+      dockerfile: apps/gateway-api/Dockerfile
+      target: build
+    environment: &gateway_api_environment
+      NODE_ENV: production
+      PORT: 3001
+      APP_HOST: 0.0.0.0
+      ADMIN_WEB_ORIGIN: ${LXP_VPS_ADMIN_WEB_ORIGIN}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${LXP_VPS_POSTGRES_DB}
+      DATABASE_USER: ${LXP_VPS_POSTGRES_USER}
+      DATABASE_PASSWORD: ${LXP_VPS_POSTGRES_PASSWORD}
+      DATABASE_SSL: ${LXP_VPS_DATABASE_SSL}
+      LXP_ENCRYPTION_MASTER_KEY: ${LXP_VPS_ENCRYPTION_MASTER_KEY}
+      LXP_EMAIL_LOOKUP_KEY: ${LXP_VPS_EMAIL_LOOKUP_KEY}
+      LXP_ENCRYPTION_KEY_VERSION: ${LXP_VPS_ENCRYPTION_KEY_VERSION}
+      LXP_JWT_PRIVATE_KEY: ${LXP_VPS_JWT_PRIVATE_KEY}
+      LXP_COOKIE_SECRET: ${LXP_VPS_COOKIE_SECRET}
+      LXP_REQUEST_BODY_LIMIT: ${LXP_VPS_REQUEST_BODY_LIMIT}
+      LXP_OPENAI_COMPAT_API_KEY: ${LXP_VPS_OPENAI_COMPAT_API_KEY}
+      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: ${LXP_VPS_OPENAI_COMPAT_DEFAULT_USER_EMAIL}
+      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: ${LXP_VPS_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED}
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: ${LXP_VPS_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER}
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS: ${LXP_VPS_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS}
+      LXP_OPENAI_COMPAT_DEBUG: ${LXP_VPS_OPENAI_COMPAT_DEBUG}
+      NANOGPT_BASE_URL: ${LXP_VPS_NANOGPT_BASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      admin-api-migrate:
+        condition: service_completed_successfully
+    command: ['pnpm', '--filter', '@lxp/gateway-api', 'migration:run']
+    restart: 'no'
+
+  admin-api:
+    build:
+      context: ../..
+      dockerfile: apps/admin-api/Dockerfile
+    restart: unless-stopped
+    environment: *admin_api_environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      admin-api-migrate:
+        condition: service_completed_successfully
+    ports:
+      - '127.0.0.1:3002:3002'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3002/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  gateway-api:
+    build:
+      context: ../..
+      dockerfile: apps/gateway-api/Dockerfile
+    restart: unless-stopped
+    environment: *gateway_api_environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway-api-migrate:
+        condition: service_completed_successfully
+    ports:
+      - '127.0.0.1:3001:3001'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  admin-web:
+    build:
+      context: ../..
+      dockerfile: apps/admin-web/Dockerfile
+      args:
+        VITE_ADMIN_API_URL: ${LXP_VPS_ADMIN_API_PUBLIC_URL}
+        VITE_GATEWAY_API_URL: ${LXP_VPS_GATEWAY_API_PUBLIC_URL}
+    restart: unless-stopped
+    depends_on:
+      admin-api:
+        condition: service_healthy
+      gateway-api:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:3003:80'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q -O - http://127.0.0.1/ >/dev/null 2>&1 || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  postgres_vps_data:
