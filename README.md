@@ -58,10 +58,10 @@ The repository now includes:
 
 ## Provider Support
 
-| Status              | Meaning                                                                                                                                      | Current providers                                                                                              |
-|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| `Tested (QA)`       | Tested by the development team and currently confirmed to work in `lxp-llm-gateway`.                                                         | Anthropic Claude, Deepseek, Google Gemini, Groq, Moonshot, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok, z.AI |
-| `Not yet QA'd`      | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. |                                                                                                                |
+| Status         | Meaning                                                                                                                                      | Current providers                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `Tested (QA)`  | Tested by the development team and currently confirmed to work in `lxp-llm-gateway`.                                                         | Anthropic Claude, Deepseek, Google Gemini, Groq, Moonshot, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok, z.AI |
+| `Not yet QA'd` | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. |                                                                                                                |
 
 Image-model compatibility by provider is documented in:
 
@@ -95,6 +95,8 @@ This quickstart path:
 - starts Postgres and Redis
 - runs admin and gateway migrations
 - starts `admin-api`, `gateway-api`, and `admin-web` in Docker
+- defaults the OpenAI-compatible service user to `admin@example.com` so the
+  first bootstrap path stays coherent
 
 Quickstart URLs:
 
@@ -124,7 +126,7 @@ cd lxp-llm-gateway
 
 LXP_VPS_ADMIN_DOMAIN=admin.example.com \
 LXP_VPS_GATEWAY_DOMAIN=gateway.example.com \
-LXP_VPS_DEFAULT_USER_EMAIL=ops@example.com \
+LXP_VPS_DEFAULT_USER_EMAIL=admin@example.com \
 bash ./scripts/generate-vps-env.sh
 
 docker compose --env-file .env.lxp-gateway.vps -f infra/compose/docker-compose.vps.yml up -d --build

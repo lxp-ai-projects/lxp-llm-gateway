@@ -31,6 +31,7 @@ WORKDIR /app
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/package.json ./package.json
 COPY --from=build /repo/apps/admin-api/package.json ./apps/admin-api/package.json
+COPY --from=build /repo/apps/admin-api/node_modules ./apps/admin-api/node_modules
 COPY --from=build /repo/apps/admin-api/dist ./apps/admin-api/dist
 COPY --from=build /repo/packages ./packages
 

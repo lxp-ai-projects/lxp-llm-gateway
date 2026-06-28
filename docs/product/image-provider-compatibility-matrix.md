@@ -2,11 +2,11 @@
 
 This matrix reflects the image capabilities encoded in the current provider image catalogs:
 
-- [packages/provider-google/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-google/src/image/catalog.ts)
-- [packages/provider-nanogpt/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-nanogpt/src/image/catalog.ts)
-- [packages/provider-openrouter/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-openrouter/src/image/catalog.ts)
-- [packages/provider-openai/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-openai/src/image/catalog.ts)
-- [packages/provider-xai/src/image/catalog.ts](/C:/Data/Workspace/TypeScript/lxp-llm-gateway/packages/provider-xai/src/image/catalog.ts)
+- [packages/provider-google/src/image/catalog.ts](../../packages/provider-google/src/image/catalog.ts)
+- [packages/provider-nanogpt/src/image/catalog.ts](../../packages/provider-nanogpt/src/image/catalog.ts)
+- [packages/provider-openrouter/src/image/catalog.ts](../../packages/provider-openrouter/src/image/catalog.ts)
+- [packages/provider-openai/src/image/catalog.ts](../../packages/provider-openai/src/image/catalog.ts)
+- [packages/provider-xai/src/image/catalog.ts](../../packages/provider-xai/src/image/catalog.ts)
 
 Scope notes:
 
@@ -22,38 +22,38 @@ QA legend:
 
 ## Summary
 
-| Provider | Image models/families documented in code | Generation | Editing | Notes |
-|---|---|---:|---:|---|
-| `OpenAI` | 5 | Yes | Yes | GPT Image capability set with background, quality, moderation, output format, and compression |
-| `Google Gemini` | 3 | Yes | Yes | `Nano Banana` family with aspect ratio support |
-| `xAI Grok` | 2 | Yes | Yes | `Grok Imagine` family with aspect ratio support |
-| `NanoGPT` | Multiple known families | Yes | Mixed by model | Dynamic catalog with family-specific overrides for OpenAI-, Gemini-, BytePlus-, Alibaba-, and Qwen-aligned models |
-| `Open Router` | 17 known models in local catalog | Yes | Mixed by model | Known image catalog reused across OpenAI-, Gemini-, ByteDance-, Sourceful-, and Black Forest Labs-aligned families, plus `openrouter/auto` |
+| Provider        | Image models/families documented in code | Generation |        Editing | Notes                                                                                                                                      |
+| --------------- | ---------------------------------------- | ---------: | -------------: | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OpenAI`        | 5                                        |        Yes |            Yes | GPT Image capability set with background, quality, moderation, output format, and compression                                              |
+| `Google Gemini` | 3                                        |        Yes |            Yes | `Nano Banana` family with aspect ratio support                                                                                             |
+| `xAI Grok`      | 2                                        |        Yes |            Yes | `Grok Imagine` family with aspect ratio support                                                                                            |
+| `NanoGPT`       | Multiple known families                  |        Yes | Mixed by model | Dynamic catalog with family-specific overrides for OpenAI-, Gemini-, BytePlus-, Alibaba-, and Qwen-aligned models                          |
+| `Open Router`   | 17 known models in local catalog         |        Yes | Mixed by model | Known image catalog reused across OpenAI-, Gemini-, ByteDance-, Sourceful-, and Black Forest Labs-aligned families, plus `openrouter/auto` |
 
 ## OpenAI
 
-| Model | QA status | Lifecycle | Gen | Edit | Response format | Resolution | Max outputs | Max refs | Notable options |
-|---|---|---|---:|---:|---|---|---:|---:|---|
-| `gpt-image-2` | Tested (QA) | `active` | Yes | Yes | `b64_json` | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 10 | 16 | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
-| `gpt-image-1.5` | Tested (QA) | `active` | Yes | Yes | `b64_json` | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 10 | 16 | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
-| `gpt-image-1` | Tested (QA) | `active` | Yes | Yes | `b64_json` | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 10 | 16 | Same as above plus `inputFidelity` |
-| `gpt-image-1-mini` | Not yet QA'd | `preview` | Yes | Yes | `b64_json` | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 10 | 16 | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
-| `chatgpt-image-latest` | Not yet QA'd | `active` | Yes | Yes | `b64_json` | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 10 | 16 | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
+| Model                  | QA status    | Lifecycle | Gen | Edit | Response format | Resolution                                    | Max outputs | Max refs | Notable options                                                            |
+| ---------------------- | ------------ | --------- | --: | ---: | --------------- | --------------------------------------------- | ----------: | -------: | -------------------------------------------------------------------------- |
+| `gpt-image-2`          | Tested (QA)  | `active`  | Yes |  Yes | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` |          10 |       16 | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
+| `gpt-image-1.5`        | Tested (QA)  | `active`  | Yes |  Yes | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` |          10 |       16 | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
+| `gpt-image-1`          | Tested (QA)  | `active`  | Yes |  Yes | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` |          10 |       16 | Same as above plus `inputFidelity`                                         |
+| `gpt-image-1-mini`     | Not yet QA'd | `preview` | Yes |  Yes | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` |          10 |       16 | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
+| `chatgpt-image-latest` | Not yet QA'd | `active`  | Yes |  Yes | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` |          10 |       16 | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
 
 ## Google Gemini
 
-| Model | QA status | Display name | Lifecycle | Gen | Edit | Response format | Aspect ratios | Resolution | Max refs | Notes |
-|---|---|---|---|---:|---:|---|---|---|---:|---|
-| `gemini-2.5-flash-image` | Tested (QA) | `Nano Banana` | `active` | Yes | Yes | `b64_json` | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K` | not set in catalog | Default `aspectRatio: 1:1` |
-| `gemini-3-pro-image-preview` | Tested (QA) | `Nano Banana Pro` | `preview` | Yes | Yes | `b64_json` | Same as above | `1K`, `2K`, `4K` | 14 | Default `aspectRatio: 1:1` |
-| `gemini-3.1-flash-image-preview` | Tested (QA) | `Nano Banana 2` | `preview` | Yes | Yes | `b64_json` | Same as above | `512`, `1K`, `2K`, `4K` | 14 | Default `aspectRatio: 1:1` |
+| Model                            | QA status   | Display name      | Lifecycle | Gen | Edit | Response format | Aspect ratios                                                           | Resolution              |           Max refs | Notes                      |
+| -------------------------------- | ----------- | ----------------- | --------- | --: | ---: | --------------- | ----------------------------------------------------------------------- | ----------------------- | -----------------: | -------------------------- |
+| `gemini-2.5-flash-image`         | Tested (QA) | `Nano Banana`     | `active`  | Yes |  Yes | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K`                    | not set in catalog | Default `aspectRatio: 1:1` |
+| `gemini-3-pro-image-preview`     | Tested (QA) | `Nano Banana Pro` | `preview` | Yes |  Yes | `b64_json`      | Same as above                                                           | `1K`, `2K`, `4K`        |                 14 | Default `aspectRatio: 1:1` |
+| `gemini-3.1-flash-image-preview` | Tested (QA) | `Nano Banana 2`   | `preview` | Yes |  Yes | `b64_json`      | Same as above                                                           | `512`, `1K`, `2K`, `4K` |                 14 | Default `aspectRatio: 1:1` |
 
 ## xAI Grok
 
-| Model | QA status | Lifecycle | Gen | Edit | Response formats | Aspect ratios | Resolution | Max outputs | Max refs | Notes |
-|---|---|---|---:|---:|---|---|---|---:|---:|---|
-| `grok-imagine-image` | Tested (QA) | `active` | Yes | Yes | `url`, `b64_json` | `auto`, `1:1`, `16:9`, `9:16`, `4:3`, `3:4`, `3:2`, `2:3`, `2:1`, `1:2`, `19.5:9`, `9:19.5`, `20:9`, `9:20` | `1k`, `2k` | 4 | 5 | Default `aspectRatio: auto`, default response format `url` |
-| `grok-imagine-image-pro` | Tested (QA) | `active` | Yes | Yes | `url`, `b64_json` | Same as above | `1k`, `2k` | 4 | 5 | Same capability set as base model |
+| Model                    | QA status   | Lifecycle | Gen | Edit | Response formats  | Aspect ratios                                                                                               | Resolution | Max outputs | Max refs | Notes                                                      |
+| ------------------------ | ----------- | --------- | --: | ---: | ----------------- | ----------------------------------------------------------------------------------------------------------- | ---------- | ----------: | -------: | ---------------------------------------------------------- |
+| `grok-imagine-image`     | Tested (QA) | `active`  | Yes |  Yes | `url`, `b64_json` | `auto`, `1:1`, `16:9`, `9:16`, `4:3`, `3:4`, `3:2`, `2:3`, `2:1`, `1:2`, `19.5:9`, `9:19.5`, `20:9`, `9:20` | `1k`, `2k` |           4 |        5 | Default `aspectRatio: auto`, default response format `url` |
+| `grok-imagine-image-pro` | Tested (QA) | `active`  | Yes |  Yes | `url`, `b64_json` | Same as above                                                                                               | `1k`, `2k` |           4 |        5 | Same capability set as base model                          |
 
 ## NanoGPT
 
@@ -66,7 +66,7 @@ NanoGPT is special in this repository:
 ### NanoGPT families aligned to OpenAI
 
 | NanoGPT family / ids               | QA status    | Source alignment              | Gen | Edit | Response format | Resolution                                    | Max outputs | Max refs | Notable options                                                            |
-|------------------------------------|--------------|-------------------------------|-----|------|-----------------|-----------------------------------------------|-------------|----------|----------------------------------------------------------------------------|
+| ---------------------------------- | ------------ | ----------------------------- | --- | ---- | --------------- | --------------------------------------------- | ----------- | -------- | -------------------------------------------------------------------------- |
 | `gpt-image-2`                      | Tested (QA)  | OpenAI `GPT Image 2`          | Yes | Yes  | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 10          | 16       | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
 | `gpt-image-1.5` and aliases        | Tested (QA)  | OpenAI `GPT Image 1.5`        | Yes | Yes  | `b64_json`      | Same as above                                 | 10          | 16       | Same as above                                                              |
 | `gpt-image-1`                      | Tested (QA)  | OpenAI `GPT Image 1`          | Yes | Yes  | `b64_json`      | Same as above                                 | 10          | 16       | Same as above plus `inputFidelity`                                         |
@@ -76,7 +76,7 @@ NanoGPT is special in this repository:
 ### NanoGPT families aligned to Google Gemini
 
 | NanoGPT family / ids                                               | QA status    | Source alignment           | Gen | Edit | Response format | Aspect ratios                                                           | Resolution              | Max refs | Notes                      |
-|--------------------------------------------------------------------|--------------|----------------------------|-----|------|-----------------|-------------------------------------------------------------------------|-------------------------|----------|----------------------------|
+| ------------------------------------------------------------------ | ------------ | -------------------------- | --- | ---- | --------------- | ----------------------------------------------------------------------- | ----------------------- | -------- | -------------------------- |
 | `nano-banana`, `nano-banana-edit`, `gemini-flash-edit`             | Tested (QA)  | Google `Nano Banana`       | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K`                    | 5        | Default `aspectRatio: 1:1` |
 | `nano-banana-2`, `nano-banana-2-fast`                              | Tested (QA)  | Google `Nano Banana 2`     | Yes | Yes  | `b64_json`      | Same as above                                                           | `512`, `1K`, `2K`, `4K` | 14       | Default resolution `512`   |
 | `nano-banana-pro`, `nano-banana-pro-edit`, `nano-banana-pro-ultra` | Tested (QA)  | Google `Nano Banana Pro`   | Yes | Yes  | `b64_json`      | Same as above                                                           | `1K`, `2K`, `4K`        | 14       | Default `aspectRatio: 1:1` |
@@ -85,7 +85,7 @@ NanoGPT is special in this repository:
 ### NanoGPT BytePlus, Alibaba, and Qwen families
 
 | NanoGPT family / ids                                                                                                        | QA status   | Lifecycle in local catalog | Gen               | Edit              | Response formats  | Resolution                              | Max outputs       | Max refs | Notes                                                                |
-|-----------------------------------------------------------------------------------------------------------------------------|-------------|----------------------------|-------------------|-------------------|-------------------|-----------------------------------------|-------------------|----------|----------------------------------------------------------------------|
+| --------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------------------- | ----------------- | ----------------- | ----------------- | --------------------------------------- | ----------------- | -------- | -------------------------------------------------------------------- |
 | `seedream-4-0-250828`, `seedream-4.0`, `seedream-4-5-251128`, `seedream-4.5`, `seedream-5-0-lite-260128`, `seedream-5-lite` | Tested (QA) | dynamic/local override     | Yes               | Yes               | `url`, `b64_json` | `1K`, `2K`, `4K`                        | 15                | 10       | Seedream image-set rule: combined references + outputs limited to 15 |
 | `seedream-3-0-t2i-250415`, `seedream-3.0`                                                                                   | Tested (QA) | dynamic/local override     | Yes               | No                | `url`, `b64_json` | `2K`                                    | 1                 | n/a      | Generation-only                                                      |
 | `seededit-3-0-i2i-250628`, `seededit-3.0`                                                                                   | Tested (QA) | dynamic/local override     | No                | Yes               | `url`, `b64_json` | inherited/minimal                       | 1                 | 1        | Edit-only                                                            |
@@ -104,30 +104,30 @@ Open Router is special in this repository:
 
 ### Open Router models aligned to OpenAI
 
-| Open Router model / ids     | QA status    | Source alignment           | Gen | Edit | Response format | Resolution                                    | Max refs | Notable options                                                            |
-|-----------------------------|--------------|----------------------------|-----|------|-----------------|-----------------------------------------------|----------|----------------------------------------------------------------------------|
-| `openai/gpt-5.4-image-2`    | Not yet QA'd | OpenAI `GPT-5.4 Image 2`   | Yes | Yes  | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 16       | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
-| `openai/gpt-5-image`        | Not yet QA'd | OpenAI `GPT-5 Image`       | Yes | Yes  | `b64_json`      | Same as above                                 | 16       | Same as above plus `inputFidelity`                                         |
-| `openai/gpt-5-image-mini`   | Not yet QA'd | OpenAI `GPT-5 Image Mini`  | Yes | Yes  | `b64_json`      | Same as above                                 | 16       | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
+| Open Router model / ids   | QA status    | Source alignment          | Gen | Edit | Response format | Resolution                                    | Max refs | Notable options                                                            |
+| ------------------------- | ------------ | ------------------------- | --- | ---- | --------------- | --------------------------------------------- | -------- | -------------------------------------------------------------------------- |
+| `openai/gpt-5.4-image-2`  | Not yet QA'd | OpenAI `GPT-5.4 Image 2`  | Yes | Yes  | `b64_json`      | `auto`, `1024x1024`, `1536x1024`, `1024x1536` | 16       | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
+| `openai/gpt-5-image`      | Not yet QA'd | OpenAI `GPT-5 Image`      | Yes | Yes  | `b64_json`      | Same as above                                 | 16       | Same as above plus `inputFidelity`                                         |
+| `openai/gpt-5-image-mini` | Not yet QA'd | OpenAI `GPT-5 Image Mini` | Yes | Yes  | `b64_json`      | Same as above                                 | 16       | `background`, `quality`, `moderation`, `outputFormat`, `outputCompression` |
 
 ### Open Router models aligned to Google Gemini
 
-| Open Router model / ids               | QA status    | Source alignment              | Gen | Edit | Response format | Aspect ratios                                                           | Resolution              | Max refs | Notes                      |
-|---------------------------------------|--------------|-------------------------------|-----|------|-----------------|-------------------------------------------------------------------------|-------------------------|----------|----------------------------|
-| `google/gemini-2.5-flash-image`       | Not yet QA'd | Google `Nano Banana`          | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K`                    | not set in catalog | Default `aspectRatio: 1:1` |
-| `google/gemini-3-pro-image-preview`   | Not yet QA'd | Google `Nano Banana Pro`      | Yes | Yes  | `b64_json`      | Same as above                                                           | `1K`, `2K`, `4K`        | 14       | Default `aspectRatio: 1:1` |
-| `google/gemini-3.1-flash-image-preview` | Not yet QA'd | Google `Nano Banana 2`      | Yes | Yes  | `b64_json`      | Same as above                                                           | `512`, `1K`, `2K`, `4K` | 14       | Default resolution `512`   |
+| Open Router model / ids                 | QA status    | Source alignment         | Gen | Edit | Response format | Aspect ratios                                                           | Resolution              | Max refs           | Notes                      |
+| --------------------------------------- | ------------ | ------------------------ | --- | ---- | --------------- | ----------------------------------------------------------------------- | ----------------------- | ------------------ | -------------------------- |
+| `google/gemini-2.5-flash-image`         | Not yet QA'd | Google `Nano Banana`     | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K`                    | not set in catalog | Default `aspectRatio: 1:1` |
+| `google/gemini-3-pro-image-preview`     | Not yet QA'd | Google `Nano Banana Pro` | Yes | Yes  | `b64_json`      | Same as above                                                           | `1K`, `2K`, `4K`        | 14                 | Default `aspectRatio: 1:1` |
+| `google/gemini-3.1-flash-image-preview` | Not yet QA'd | Google `Nano Banana 2`   | Yes | Yes  | `b64_json`      | Same as above                                                           | `512`, `1K`, `2K`, `4K` | 14                 | Default resolution `512`   |
 
 ### Open Router ByteDance, Sourceful, Black Forest Labs, and auto-router models
 
-| Open Router model / ids                                                                                        | QA status | Lifecycle in local catalog | Gen | Edit | Response format | Aspect ratios                                                           | Resolution          | Max refs           | Notes                                                      |
-|----------------------------------------------------------------------------------------------------------------|-----------|----------------------------|-----|------|-----------------|-------------------------------------------------------------------------|---------------------|--------------------|------------------------------------------------------------|
-| `bytedance-seed/seedream-4.5`                                                                                  | Yes       | `active`                   | Yes | Yes  | `b64_json`      | not set in catalog                                                      | `1K`, `2K`, `4K`    | 10                 | ByteDance-aligned capability reuse                         |
-| `sourceful/riverflow-v2-fast`, `sourceful/riverflow-v2-fast-preview`                                           | No        | mixed: `active`, `preview` | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K`, `2K`          | not set in catalog | Default `aspectRatio: 1:1`                                 |
-| `sourceful/riverflow-v2-pro`, `sourceful/riverflow-v2-max-preview`, `sourceful/riverflow-v2-standard-preview`  | Yes       | mixed: `active`, `preview` | Yes | Yes  | `b64_json`      | Same as above                                                           | `1K`, `2K`, `4K`    | not set in catalog | Default `aspectRatio: 1:1`                                 |
-| `black-forest-labs/flux.2-pro`, `black-forest-labs/flux.2-flex`, `black-forest-labs/flux.2-max`                | Yes       | `active`                   | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1MP`, `2MP`, `4MP` | not set in catalog | Default resolution `4MP`                                   |
-| `black-forest-labs/flux.2-klein-4b`                                                                            | No        | `active`                   | Yes | No   | `b64_json`      | Same as above                                                           | `1MP`, `2MP`, `4MP` | n/a                | Default resolution `1MP`; generation-only in local catalog |
-| `openrouter/auto`                                                                                              | No        | `active`                   | Yes | Yes  | `b64_json`      | not set in catalog                                                      | not set in catalog  | not set in catalog | Router entrypoint with generic defaults only               |
+| Open Router model / ids                                                                                       | QA status | Lifecycle in local catalog | Gen | Edit | Response format | Aspect ratios                                                           | Resolution          | Max refs           | Notes                                                      |
+| ------------------------------------------------------------------------------------------------------------- | --------- | -------------------------- | --- | ---- | --------------- | ----------------------------------------------------------------------- | ------------------- | ------------------ | ---------------------------------------------------------- |
+| `bytedance-seed/seedream-4.5`                                                                                 | Yes       | `active`                   | Yes | Yes  | `b64_json`      | not set in catalog                                                      | `1K`, `2K`, `4K`    | 10                 | ByteDance-aligned capability reuse                         |
+| `sourceful/riverflow-v2-fast`, `sourceful/riverflow-v2-fast-preview`                                          | No        | mixed: `active`, `preview` | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1K`, `2K`          | not set in catalog | Default `aspectRatio: 1:1`                                 |
+| `sourceful/riverflow-v2-pro`, `sourceful/riverflow-v2-max-preview`, `sourceful/riverflow-v2-standard-preview` | Yes       | mixed: `active`, `preview` | Yes | Yes  | `b64_json`      | Same as above                                                           | `1K`, `2K`, `4K`    | not set in catalog | Default `aspectRatio: 1:1`                                 |
+| `black-forest-labs/flux.2-pro`, `black-forest-labs/flux.2-flex`, `black-forest-labs/flux.2-max`               | Yes       | `active`                   | Yes | Yes  | `b64_json`      | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` | `1MP`, `2MP`, `4MP` | not set in catalog | Default resolution `4MP`                                   |
+| `black-forest-labs/flux.2-klein-4b`                                                                           | No        | `active`                   | Yes | No   | `b64_json`      | Same as above                                                           | `1MP`, `2MP`, `4MP` | n/a                | Default resolution `1MP`; generation-only in local catalog |
+| `openrouter/auto`                                                                                             | No        | `active`                   | Yes | Yes  | `b64_json`      | not set in catalog                                                      | not set in catalog  | not set in catalog | Router entrypoint with generic defaults only               |
 
 ## Reading the matrix
 

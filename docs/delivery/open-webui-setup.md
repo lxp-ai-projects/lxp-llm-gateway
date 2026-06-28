@@ -44,7 +44,27 @@ This profile is intentionally permissive:
 - `ENABLE_FORWARD_USER_INFO_HEADERS=true`
 - trusted identity correlation is acceptable only because the whole machine is trusted
 
-### Start the stack
+### Fastest supported local path
+
+From the repository root:
+
+```bash
+pnpm setup:quickstart -- --open-webui
+```
+
+That path brings up `admin-api`, `gateway-api`, `admin-web`, and `Open WebUI`
+with the OpenAI-compatible base URL already wired to:
+
+```text
+http://localhost:3001/api/v1/openai
+```
+
+The generated quickstart env defaults
+`LXP_QUICKSTART_OPENAI_COMPAT_DEFAULT_USER_EMAIL` to `admin@example.com`, so
+the simplest first pass is to bootstrap that admin email and store the provider
+credential on that same user.
+
+### Alternate dev-compose path
 
 ```powershell
 docker compose -f infra/compose/docker-compose.dev.yml up -d postgres redis open-webui
@@ -86,7 +106,7 @@ The recommended posture is:
 
 Use the VPS compose overlay:
 
-```powershell
+```bash
 docker compose --env-file .env.open-webui.vps -f infra/compose/docker-compose.open-webui.vps.yml up -d
 ```
 
@@ -102,7 +122,7 @@ You can copy the template from [open-webui.vps.env.example](../../infra/compose/
 
 If you want a repo-native `oauth2-proxy` example as well, use:
 
-```powershell
+```bash
 docker compose --env-file .env.open-webui.oauth2-proxy.vps -f infra/compose/docker-compose.open-webui.oauth2-proxy.vps.yml up -d
 ```
 
@@ -342,7 +362,7 @@ Important:
 
 Use:
 
-```powershell
+```bash
 docker compose --env-file .env.open-webui.oauth2-proxy.vps -f infra/compose/docker-compose.open-webui.oauth2-proxy.vps.yml up -d
 ```
 

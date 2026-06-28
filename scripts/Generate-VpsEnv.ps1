@@ -3,7 +3,7 @@ param(
   [string]$OutputPath = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..')) '.env.lxp-gateway.vps'),
   [string]$AdminDomain = 'admin.example.com',
   [string]$GatewayDomain = 'gateway.example.com',
-  [string]$DefaultUserEmail = 'ops@example.com',
+  [string]$DefaultUserEmail = 'admin@example.com',
   [string]$PostgresDb = 'lxp_gateway',
   [string]$PostgresUser = 'lxp_gateway'
 )
@@ -18,7 +18,12 @@ function New-RandomHex {
   param([int]$ByteCount)
 
   $bytes = New-Object byte[] $ByteCount
-  [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+  $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+  try {
+    $rng.GetBytes($bytes)
+  } finally {
+    $rng.Dispose()
+  }
   return ($bytes | ForEach-Object { $_.ToString('x2') }) -join ''
 }
 
@@ -26,7 +31,12 @@ function New-RandomBase64 {
   param([int]$ByteCount)
 
   $bytes = New-Object byte[] $ByteCount
-  [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+  $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+  try {
+    $rng.GetBytes($bytes)
+  } finally {
+    $rng.Dispose()
+  }
   return [Convert]::ToBase64String($bytes)
 }
 
@@ -74,7 +84,11 @@ if ($parent -and -not (Test-Path -LiteralPath $parent)) {
   New-Item -ItemType Directory -Path $parent | Out-Null
 }
 
-Set-Content -LiteralPath $OutputPath -Value $content -Encoding utf8NoBOM
+[System.IO.File]::WriteAllText(
+  $OutputPath,
+  $content,
+  [System.Text.UTF8Encoding]::new($false)
+)
 
 Write-Host "Generated VPS env file: $OutputPath"
 Write-Host "Admin domain: https://$AdminDomain"

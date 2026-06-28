@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT_PATH="${1:-$ROOT_DIR/.env.lxp-gateway.vps}"
 ADMIN_DOMAIN="${LXP_VPS_ADMIN_DOMAIN:-admin.example.com}"
 GATEWAY_DOMAIN="${LXP_VPS_GATEWAY_DOMAIN:-gateway.example.com}"
-DEFAULT_USER_EMAIL="${LXP_VPS_DEFAULT_USER_EMAIL:-ops@example.com}"
+DEFAULT_USER_EMAIL="${LXP_VPS_DEFAULT_USER_EMAIL:-admin@example.com}"
 POSTGRES_DB="${LXP_VPS_POSTGRES_DB:-lxp_gateway}"
 POSTGRES_USER="${LXP_VPS_POSTGRES_USER:-lxp_gateway}"
 
