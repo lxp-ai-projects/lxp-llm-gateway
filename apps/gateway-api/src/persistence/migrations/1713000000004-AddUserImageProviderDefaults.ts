@@ -6,16 +6,16 @@ export class AddUserImageProviderDefaults1713000000004 implements MigrationInter
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE "users"
-      ADD COLUMN "default_image_provider_id" varchar(50),
-      ADD COLUMN "default_image_model" varchar(150)
+      ADD COLUMN IF NOT EXISTS "default_image_provider_id" varchar(50),
+      ADD COLUMN IF NOT EXISTS "default_image_model" varchar(150)
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE "users"
-      DROP COLUMN "default_image_model",
-      DROP COLUMN "default_image_provider_id"
+      DROP COLUMN IF EXISTS "default_image_model",
+      DROP COLUMN IF EXISTS "default_image_provider_id"
     `);
   }
 }

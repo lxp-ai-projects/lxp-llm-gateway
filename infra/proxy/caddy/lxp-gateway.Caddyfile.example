@@ -1,0 +1,29 @@
+admin.example.com {
+  encode gzip
+
+  @admin_api path /api/v1/*
+  reverse_proxy @admin_api 127.0.0.1:3002 {
+    header_up Host {host}
+    header_up X-Forwarded-Host {host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-For {remote}
+  }
+
+  reverse_proxy 127.0.0.1:3003 {
+    header_up Host {host}
+    header_up X-Forwarded-Host {host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-For {remote}
+  }
+}
+
+gateway.example.com {
+  encode gzip
+
+  reverse_proxy 127.0.0.1:3001 {
+    header_up Host {host}
+    header_up X-Forwarded-Host {host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-For {remote}
+  }
+}

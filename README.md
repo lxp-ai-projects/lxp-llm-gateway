@@ -58,10 +58,10 @@ The repository now includes:
 
 ## Provider Support
 
-| Status              | Meaning                                                                                                                                      | Current providers                                                                                              |
-|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| `Tested (QA)`       | Tested by the development team and currently confirmed to work in `lxp-llm-gateway`.                                                         | Anthropic Claude, Deepseek, Google Gemini, Groq, Moonshot, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok, z.AI |
-| `Not yet QA'd`      | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. |                                                                                                                |
+| Status         | Meaning                                                                                                                                      | Current providers                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `Tested (QA)`  | Tested by the development team and currently confirmed to work in `lxp-llm-gateway`.                                                         | Anthropic Claude, Deepseek, Google Gemini, Groq, Moonshot, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok, z.AI |
+| `Not yet QA'd` | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. |                                                                                                                |
 
 Image-model compatibility by provider is documented in:
 
@@ -74,6 +74,115 @@ Image-model compatibility by provider is documented in:
 - Frontend: React 19, Vite, React Router DOM, TanStack Query
 - UI Foundation: Mantine with custom theme
 - Workspace: pnpm, turbo, TypeScript
+
+## Quickstart
+
+The fastest local path is now:
+
+```bash
+pnpm setup:quickstart
+```
+
+Optional Open WebUI profile:
+
+```bash
+pnpm setup:quickstart -- --open-webui
+```
+
+This quickstart path:
+
+- generates a local quickstart env file if needed
+- starts Postgres and Redis
+- runs admin and gateway migrations
+- starts `admin-api`, `gateway-api`, and `admin-web` in Docker
+- defaults the OpenAI-compatible service user to `admin@example.com` so the
+  first bootstrap path stays coherent
+
+Quickstart URLs:
+
+- `http://localhost:3003` for `admin-web`
+- `http://localhost:3002/api/v1/health` for `admin-api`
+- `http://localhost:3001/api/v1/health` for `gateway-api`
+- `http://localhost:3004` for Open WebUI when enabled
+
+See [docs/setup/quickstart.md](docs/setup/quickstart.md) for the complete guide, bootstrap step, troubleshooting, and validation checklist.
+
+For a serious VPS deployment, use [docs/setup/vps.md](docs/setup/vps.md) instead of the quickstart path.
+That guide now includes Linux and PowerShell helpers for generating a coherent VPS `.env` file.
+
+## VPS Deploy
+
+For a production-like single-host VPS install, use:
+
+- [docs/setup/vps.md](docs/setup/vps.md)
+- [infra/compose/docker-compose.vps.yml](infra/compose/docker-compose.vps.yml)
+- [infra/proxy/caddy/lxp-gateway.Caddyfile.example](infra/proxy/caddy/lxp-gateway.Caddyfile.example)
+
+Minimal Linux path:
+
+```bash
+git clone https://github.com/lxp-ai-projects/lxp-llm-gateway.git
+cd lxp-llm-gateway
+
+LXP_VPS_ADMIN_DOMAIN=admin.example.com \
+LXP_VPS_GATEWAY_DOMAIN=gateway.example.com \
+LXP_VPS_DEFAULT_USER_EMAIL=admin@example.com \
+bash ./scripts/generate-vps-env.sh
+
+docker compose --env-file .env.lxp-gateway.vps -f infra/compose/docker-compose.vps.yml up -d --build
+```
+
+This creates a coherent `.env.lxp-gateway.vps`, runs migrations, and starts:
+
+- `postgres`
+- `redis`
+- `admin-api`
+- `gateway-api`
+- `admin-web`
+
+The stack binds to loopback only:
+
+- `127.0.0.1:3001` for `gateway-api`
+- `127.0.0.1:3002` for `admin-api`
+- `127.0.0.1:3003` for `admin-web`
+
+Recommended Caddy layout:
+
+- `admin.example.com` -> `admin-web` and `admin-api`
+- `gateway.example.com` -> `gateway-api`
+
+Start from:
+
+- [infra/proxy/caddy/lxp-gateway.Caddyfile.example](infra/proxy/caddy/lxp-gateway.Caddyfile.example)
+
+Then verify on the VPS:
+
+```bash
+curl http://127.0.0.1:3002/api/v1/health
+curl http://127.0.0.1:3001/api/v1/health
+curl http://127.0.0.1:3003
+```
+
+Bootstrap the first admin after the proxy is live:
+
+```bash
+curl -X POST https://admin.example.com/api/v1/bootstrap/admin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "ChangeMe123!",
+    "displayName": "First Admin"
+  }'
+```
+
+If you use PowerShell instead of Bash to prepare the env file:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ./scripts/Generate-VpsEnv.ps1 `
+  -AdminDomain admin.example.com `
+  -GatewayDomain gateway.example.com `
+  -DefaultUserEmail admin@example.com
+```
 
 ## Local Secrets
 

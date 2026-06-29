@@ -13,6 +13,14 @@ The platform separates the data plane from the control plane.
 
 The seam is evolving from a chat-only adapter into a capability-oriented provider surface.
 
+For local onboarding, the platform may also be started through an additive Docker Compose quickstart that brings up Postgres, Redis, migrations, `admin-api`, `gateway-api`, and `admin-web` together.
+
+That quickstart is an operator entrypoint only.
+
+It does not change the application boundaries and it does not move setup logic into a separate framework.
+
+For a more serious single-host deployment, the platform may also be started through a separate VPS-oriented Compose entrypoint that keeps the runtime services on loopback and expects a reverse proxy at the public edge.
+
 ## Boundary Rules
 
 ### Data Plane

@@ -14,6 +14,24 @@ The seam is capability-oriented.
 
 Chat, model catalog listing, image provider catalog listing, image generation, and image editing are separate provider capabilities behind the same boundary.
 
+## Current Implementation Note
+
+The current runtime composition in `apps/gateway-api` still imports concrete provider packages in its Nest module composition root in order to instantiate and register adapters.
+
+This means the current implementation preserves the seam in application services and registry usage, but not yet in the strictest possible dependency-reading of the gateway boundary.
+
+Factually:
+
+- `gateway-api` service-layer orchestration resolves providers through `LlmProviderAdapter`
+- `gateway-api` registry code stores and returns `LlmProviderAdapter`
+- `gateway-api` module composition still imports concrete adapters such as `@lxp/provider-nanogpt` and `@lxp/provider-openai`
+
+This is acceptable for now as a composition-root choice, but it should remain an explicit architecture review point rather than an unnoticed default.
+
+Future evaluation question:
+
+- should concrete provider registration remain in `gateway-api` composition, or move to a dedicated provider-runtime assembly layer so the gateway depends only on `provider-sdk` even at composition time?
+
 ## Rationale
 
 - provider-specific logic must not leak into the gateway application

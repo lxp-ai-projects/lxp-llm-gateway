@@ -54,6 +54,8 @@ Phase 1 includes:
   - `Moonshot / Kimi`
   - `Z.ai`
 - local development infrastructure with Redis or Valkey
+- a Docker Compose based local quickstart foundation that can start the runtime apps plus required infrastructure with minimal manual setup
+- a separate Docker Compose based VPS deployment foundation for production-like single-host installs
 - a first local integration use case with Open WebUI against the host-run gateway
 - an initial OpenAPI placeholder
 - basic CI-ready scripts for lint, build, and test

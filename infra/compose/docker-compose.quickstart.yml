@@ -1,0 +1,198 @@
+name: lxp-llm-gateway-quickstart
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${LXP_QUICKSTART_POSTGRES_DB}
+      POSTGRES_USER: ${LXP_QUICKSTART_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${LXP_QUICKSTART_POSTGRES_PASSWORD}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_quickstart_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  admin-api-migrate:
+    build:
+      context: ../..
+      dockerfile: apps/admin-api/Dockerfile
+      target: build
+    environment: &admin_api_environment
+      NODE_ENV: production
+      PORT: 3002
+      APP_HOST: 0.0.0.0
+      ADMIN_WEB_ORIGIN: ${LXP_QUICKSTART_ADMIN_WEB_ORIGIN}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${LXP_QUICKSTART_POSTGRES_DB}
+      DATABASE_USER: ${LXP_QUICKSTART_POSTGRES_USER}
+      DATABASE_PASSWORD: ${LXP_QUICKSTART_POSTGRES_PASSWORD}
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+      LXP_ENCRYPTION_MASTER_KEY: ${LXP_QUICKSTART_ENCRYPTION_MASTER_KEY}
+      LXP_ENCRYPTION_KEY_VERSION: ${LXP_QUICKSTART_ENCRYPTION_KEY_VERSION}
+      LXP_EMAIL_LOOKUP_KEY: ${LXP_QUICKSTART_EMAIL_LOOKUP_KEY}
+      LXP_REQUEST_BODY_LIMIT: 10mb
+      LXP_COOKIE_SECRET: ${LXP_QUICKSTART_COOKIE_SECRET}
+      LXP_JWT_PRIVATE_KEY: ${LXP_QUICKSTART_JWT_PRIVATE_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['pnpm', '--filter', '@lxp/admin-api', 'migration:run']
+    restart: 'no'
+
+  gateway-api-migrate:
+    build:
+      context: ../..
+      dockerfile: apps/gateway-api/Dockerfile
+      target: build
+    environment: &gateway_api_environment
+      NODE_ENV: production
+      PORT: 3001
+      APP_HOST: 0.0.0.0
+      ADMIN_WEB_ORIGIN: ${LXP_QUICKSTART_ADMIN_WEB_ORIGIN}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${LXP_QUICKSTART_POSTGRES_DB}
+      DATABASE_USER: ${LXP_QUICKSTART_POSTGRES_USER}
+      DATABASE_PASSWORD: ${LXP_QUICKSTART_POSTGRES_PASSWORD}
+      DATABASE_SSL: false
+      LXP_ENCRYPTION_MASTER_KEY: ${LXP_QUICKSTART_ENCRYPTION_MASTER_KEY}
+      LXP_EMAIL_LOOKUP_KEY: ${LXP_QUICKSTART_EMAIL_LOOKUP_KEY}
+      LXP_ENCRYPTION_KEY_VERSION: ${LXP_QUICKSTART_ENCRYPTION_KEY_VERSION}
+      LXP_JWT_PRIVATE_KEY: ${LXP_QUICKSTART_JWT_PRIVATE_KEY}
+      LXP_COOKIE_SECRET: ${LXP_QUICKSTART_COOKIE_SECRET}
+      LXP_REQUEST_BODY_LIMIT: 10mb
+      LXP_OPENAI_COMPAT_API_KEY: ${LXP_QUICKSTART_OPENAI_COMPAT_API_KEY}
+      LXP_OPENAI_COMPAT_DEFAULT_USER_EMAIL: ${LXP_QUICKSTART_OPENAI_COMPAT_DEFAULT_USER_EMAIL}
+      LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED: false
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADER: X-OpenWebUI-User-Email
+      LXP_OPENAI_COMPAT_TRUSTED_EMAIL_HEADERS: ''
+      LXP_OPENAI_COMPAT_DEBUG: false
+      NANOGPT_BASE_URL: https://nano-gpt.com/api/v1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      admin-api-migrate:
+        condition: service_completed_successfully
+    command: ['pnpm', '--filter', '@lxp/gateway-api', 'migration:run']
+    restart: 'no'
+
+  admin-api:
+    build:
+      context: ../..
+      dockerfile: apps/admin-api/Dockerfile
+    environment: *admin_api_environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      admin-api-migrate:
+        condition: service_completed_successfully
+    ports:
+      - '3002:3002'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3002/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  gateway-api:
+    build:
+      context: ../..
+      dockerfile: apps/gateway-api/Dockerfile
+    environment: *gateway_api_environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway-api-migrate:
+        condition: service_completed_successfully
+    ports:
+      - '3001:3001'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  admin-web:
+    build:
+      context: ../..
+      dockerfile: apps/admin-web/Dockerfile
+      args:
+        VITE_ADMIN_API_URL: ${LXP_QUICKSTART_ADMIN_API_PUBLIC_URL}
+        VITE_GATEWAY_API_URL: ${LXP_QUICKSTART_GATEWAY_API_PUBLIC_URL}
+    depends_on:
+      admin-api:
+        condition: service_healthy
+      gateway-api:
+        condition: service_healthy
+    ports:
+      - '3003:80'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q -O - http://127.0.0.1/ >/dev/null 2>&1 || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  open-webui:
+    profiles: ['open-webui']
+    image: ghcr.io/open-webui/open-webui:main
+    depends_on:
+      gateway-api:
+        condition: service_healthy
+    ports:
+      - '3004:8080'
+    environment:
+      HOST: 0.0.0.0
+      WEBUI_NAME: LXP Gateway Lab
+      ENABLE_OLLAMA_API: 'false'
+      ENABLE_OPENAI_API: 'true'
+      BYPASS_MODEL_ACCESS_CONTROL: 'true'
+      OPENAI_API_BASE_URL: http://gateway-api:3001/api/v1/openai
+      OPENAI_API_KEY: ${LXP_QUICKSTART_OPENAI_COMPAT_API_KEY}
+      ENABLE_FORWARD_USER_INFO_HEADERS: 'true'
+      AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST: 15
+    volumes:
+      - open_webui_quickstart_data:/app/backend/data
+
+volumes:
+  postgres_quickstart_data:
+  open_webui_quickstart_data:
