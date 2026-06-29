@@ -1121,7 +1121,7 @@ test('AdminService rejects storing a duplicate provider credential label', async
         label: 'primary',
         apiToken: 'another-secret-token',
       }),
-    /Unable to store the provider credential/,
+    /A credential already exists for this provider\/label/,
   );
 });
 
@@ -1160,7 +1160,7 @@ test('AdminService rejects updating a provider credential when the new label alr
           label: 'backup',
         },
       ),
-    /Unable to update the provider credential/,
+    /A credential already exists for this provider\/label/,
   );
 });
 

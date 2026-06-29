@@ -35,10 +35,23 @@ function resolveApiBaseUrl(
   return configuredUrl.toString().replace(/\/$/, '');
 }
 
-export const adminApiUrl = resolveApiBaseUrl(
-  import.meta.env.VITE_ADMIN_API_URL,
-  3002,
-);
+function resolveAdminApiBaseUrl(explicitUrl: string | undefined): string {
+  if (explicitUrl) {
+    return resolveApiBaseUrl(explicitUrl, 3002);
+  }
+
+  if (typeof window === 'undefined') {
+    return 'http://localhost:3002';
+  }
+
+  if (isLoopbackHost(window.location.hostname)) {
+    return 'http://localhost:3002';
+  }
+
+  return window.location.origin.replace(/\/$/, '');
+}
+
+export const adminApiUrl = resolveAdminApiBaseUrl(import.meta.env.VITE_ADMIN_API_URL);
 export const gatewayApiUrl = resolveApiBaseUrl(
   import.meta.env.VITE_GATEWAY_API_URL,
   3001,
@@ -49,14 +62,22 @@ export const SESSION_TIMEOUT_MESSAGE_STORAGE_KEY =
 
 export async function request<T>(
   url: string,
-  init?: RequestInit & { timeoutMs?: number },
+  init?: RequestInit & {
+    timeoutMs?: number;
+    skipSessionRefresh?: boolean;
+  },
 ): Promise<T> {
   return requestWithSessionRefresh<T>(url, init, false);
 }
 
 async function requestWithSessionRefresh<T>(
   url: string,
-  init: (RequestInit & { timeoutMs?: number }) | undefined,
+  init:
+    | (RequestInit & {
+        timeoutMs?: number;
+        skipSessionRefresh?: boolean;
+      })
+    | undefined,
   hasRetried: boolean,
 ): Promise<T> {
   const controller = new AbortController();
@@ -79,7 +100,10 @@ async function requestWithSessionRefresh<T>(
     }
 
     if (!response.ok) {
-      if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
+      if (
+        !init?.skipSessionRefresh &&
+        shouldAttemptSessionRefresh(response.status, hasRetried)
+      ) {
         await refreshBrowserSession(url);
         return requestWithSessionRefresh(url, init, true);
       }

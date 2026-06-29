@@ -75,7 +75,7 @@ export function LoginFormCard({
           data-testid="auth-login-email"
           label="Email"
           onChange={(event) => onEmailChange(event.currentTarget.value)}
-          placeholder="patrick@example.com"
+          placeholder="email@domain.com"
           value={email}
         />
         <PasswordInput

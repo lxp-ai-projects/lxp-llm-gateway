@@ -108,6 +108,33 @@ test('adminApiClient.getSession returns null and stores the timeout message when
   expect(assignMock).toHaveBeenCalledWith('http://localhost:3003/login');
 });
 
+test('adminApiClient.login does not treat invalid credentials as a session timeout', async () => {
+  const assignMock = vi.fn();
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: {
+      ...window.location,
+      origin: 'http://localhost:3003',
+      assign: assignMock,
+    },
+  });
+
+  vi.mocked(fetch).mockResolvedValueOnce(
+    textResponse('{"message":"Invalid email or password."}', { status: 401 }),
+  );
+
+  await expect(
+    adminApiClient.login({
+      email: 'patrick@example.com',
+      password: 'wrong-password',
+    }),
+  ).rejects.toThrow('Invalid email or password.');
+
+  expect(window.sessionStorage.getItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY)).toBeNull();
+  expect(assignMock).not.toHaveBeenCalled();
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
 test('adminApiClient.getSession throws on non-refreshable backend failures', async () => {
   vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 500 }));
 

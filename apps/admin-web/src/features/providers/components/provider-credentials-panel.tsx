@@ -11,7 +11,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import { IconEdit } from '@tabler/icons-react';
+import { IconEdit, IconTrash } from '@tabler/icons-react';
 
 import type { ProviderCredentialSummary } from '../../../lib/api-client';
 
@@ -23,6 +23,11 @@ type ProviderCredentialsPanelProps = {
   currentDefaultImageModel: string | null;
   currentDefaultImageProviderDisplayName: string | null;
   currentDefaultImageProviderId: string | null;
+  credentialPendingDelete: string | null;
+  isDeleteCredentialPending: boolean;
+  onCancelDeleteCredential: () => void;
+  onConfirmDeleteCredential: (credentialId: string) => void;
+  onDeleteCredential: (credentialId: string) => void;
   onEditCredential: (credential: {
     id: string;
     providerId: string;
@@ -38,23 +43,65 @@ export function ProviderCredentialsPanel({
   currentDefaultImageModel,
   currentDefaultImageProviderDisplayName,
   currentDefaultImageProviderId,
+  credentialPendingDelete,
+  isDeleteCredentialPending,
+  onCancelDeleteCredential,
+  onConfirmDeleteCredential,
+  onDeleteCredential,
   onEditCredential,
 }: ProviderCredentialsPanelProps) {
-  function renderCredentialEditAction(credential: {
+  function renderCredentialActions(credential: {
     id: string;
     providerId: string;
     label: string;
   }) {
+    const confirmDelete = credentialPendingDelete === credential.id;
+
     return (
-      <Button
-        data-testid={`providers-edit-credential-${credential.id}`}
-        leftSection={<IconEdit size={14} />}
-        onClick={() => onEditCredential(credential)}
-        size="xs"
-        variant="light"
-      >
-        Edit
-      </Button>
+      <Group gap="xs">
+        <Button
+          data-testid={`providers-edit-credential-${credential.id}`}
+          leftSection={<IconEdit size={14} />}
+          onClick={() => onEditCredential(credential)}
+          size="xs"
+          variant="light"
+        >
+          Edit
+        </Button>
+        {confirmDelete ? (
+          <>
+            <Button
+              data-testid={`providers-cancel-delete-credential-${credential.id}`}
+              onClick={onCancelDeleteCredential}
+              size="xs"
+              variant="subtle"
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              data-testid={`providers-confirm-delete-credential-${credential.id}`}
+              loading={isDeleteCredentialPending}
+              onClick={() => onDeleteCredential(credential.id)}
+              size="xs"
+              variant="light"
+            >
+              Confirm delete
+            </Button>
+          </>
+        ) : (
+          <Button
+            color="red"
+            data-testid={`providers-delete-credential-${credential.id}`}
+            leftSection={<IconTrash size={14} />}
+            onClick={() => onConfirmDeleteCredential(credential.id)}
+            size="xs"
+            variant="subtle"
+          >
+            Delete
+          </Button>
+        )}
+      </Group>
     );
   }
 
@@ -140,7 +187,7 @@ export function ProviderCredentialsPanel({
                       </Alert>
                     ) : null}
                     <Group justify="flex-start">
-                      {renderCredentialEditAction(credential)}
+                      {renderCredentialActions(credential)}
                     </Group>
                   </Stack>
                 </Accordion.Panel>
@@ -188,7 +235,7 @@ export function ProviderCredentialsPanel({
                 <Table.Td>
                   {credential.isActive ? 'Active' : 'Disabled'}
                 </Table.Td>
-                <Table.Td>{renderCredentialEditAction(credential)}</Table.Td>
+                <Table.Td>{renderCredentialActions(credential)}</Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>

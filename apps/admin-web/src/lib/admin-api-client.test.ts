@@ -175,6 +175,7 @@ test('adminApiClient login posts credentials then resolves the session through g
         email: 'patrick@example.com',
         password: 'secret',
       }),
+      skipSessionRefresh: true,
     },
   );
   expect(getSessionSpy).toHaveBeenCalledTimes(1);

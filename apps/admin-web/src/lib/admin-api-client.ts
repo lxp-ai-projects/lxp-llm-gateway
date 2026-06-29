@@ -37,7 +37,10 @@ import type {
   AdminUserSummary,
   AdminUpdateUserInput,
   ChatTransferConversation,
+  GatewayImageCatalogResponse,
+  GatewayVideoCatalogResponse,
   ProviderCredentialSummary,
+  ProviderModelSummary,
   ProviderSettingsSummary,
   RuntimeConfig,
   SessionUser,
@@ -100,6 +103,7 @@ export const adminApiClient = {
     await request(`${adminApiUrl}/api/v1/auth/login`, {
       method: 'POST',
       body: JSON.stringify(payload),
+      skipSessionRefresh: true,
     });
 
     return this.getSession();
@@ -463,6 +467,17 @@ export const adminApiClient = {
     );
   },
 
+  async deleteOwnProviderCredential(
+    credentialId: string,
+  ): Promise<{ deleted: true }> {
+    return request<{ deleted: true }>(
+      `${adminApiUrl}/api/v1/provider-credentials/${credentialId}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
   async createOwnProviderCredential(payload: {
     providerId: string;
     label: string;
@@ -476,6 +491,25 @@ export const adminApiClient = {
         body: JSON.stringify(payload),
       },
     );
+  },
+
+  async getOwnModels(providerId = 'nanogpt'): Promise<{
+    providerId: string;
+    models: ProviderModelSummary[];
+  }> {
+    const endpoint = providerId
+      ? `${adminApiUrl}/api/v1/models?providerId=${encodeURIComponent(providerId)}`
+      : `${adminApiUrl}/api/v1/models`;
+
+    return request(endpoint);
+  },
+
+  async getOwnImageCatalog(): Promise<GatewayImageCatalogResponse> {
+    return request(`${adminApiUrl}/api/v1/images/catalog`);
+  },
+
+  async getOwnVideoCatalog(): Promise<GatewayVideoCatalogResponse> {
+    return request(`${adminApiUrl}/api/v1/videos/catalog`);
   },
 
   async getOwnProviderSettings(): Promise<ProviderSettingsSummary> {

@@ -34,6 +34,7 @@ test('LoginPage reflects runtime config and enables sign-in once prerequisites a
 
   expect(screen.getByText('Create account')).toBeInTheDocument();
   expect(screen.getByText('Recovery disabled')).toBeInTheDocument();
+  expect(screen.getByPlaceholderText('email@domain.com')).toBeInTheDocument();
 
   const signInButton = screen.getByRole('button', { name: 'Sign in' });
   expect(signInButton).toBeDisabled();
@@ -57,4 +58,25 @@ test('LoginPage displays and clears the session timeout message', async () => {
     await screen.findByText('Session is timed out, you have to login again.'),
   ).toBeInTheDocument();
   expect(window.sessionStorage.getItem(sessionTimeoutStorageKey)).toBeNull();
+});
+
+test('LoginPage clears the session timeout message when the user edits the form', async () => {
+  const user = userEvent.setup();
+
+  window.sessionStorage.setItem(
+    sessionTimeoutStorageKey,
+    'Session is timed out, you have to login again.',
+  );
+
+  renderWithProviders(<LoginPage />);
+
+  expect(
+    await screen.findByText('Session is timed out, you have to login again.'),
+  ).toBeInTheDocument();
+
+  await user.type(screen.getByLabelText('Email'), 'email@domain.com');
+
+  expect(
+    screen.queryByText('Session is timed out, you have to login again.'),
+  ).not.toBeInTheDocument();
 });

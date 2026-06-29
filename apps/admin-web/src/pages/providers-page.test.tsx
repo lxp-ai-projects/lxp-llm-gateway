@@ -7,6 +7,7 @@ import { ProvidersPage } from './providers-page';
 
 const {
   createOwnProviderCredentialMock,
+  deleteOwnProviderCredentialMock,
   getImageCatalogMock,
   getModelsMock,
   getOwnProviderCredentialsMock,
@@ -33,6 +34,9 @@ const {
     createdAt: '2026-04-17T00:00:00.000Z',
     updatedAt: '2026-04-17T00:00:00.000Z',
     lastUsedAt: null,
+  })),
+  deleteOwnProviderCredentialMock: vi.fn(async () => ({
+    deleted: true,
   })),
   getImageCatalogMock: vi.fn(async () => ({
     providers: [
@@ -121,19 +125,19 @@ vi.mock('../lib/use-session', () => ({
 vi.mock('../lib/api-client', () => ({
   adminApiClient: {
     createOwnProviderCredential: createOwnProviderCredentialMock,
+    deleteOwnProviderCredential: deleteOwnProviderCredentialMock,
+    getOwnImageCatalog: getImageCatalogMock,
+    getOwnModels: getModelsMock,
     getOwnProviderCredentials: getOwnProviderCredentialsMock,
     getOwnProviderSettings: getOwnProviderSettingsMock,
     updateOwnProviderCredential: updateOwnProviderCredentialMock,
     updateOwnProviderSettings: updateOwnProviderSettingsMock,
   },
-  gatewayApiClient: {
-    getImageCatalog: getImageCatalogMock,
-    getModels: getModelsMock,
-  },
 }));
 
 beforeEach(() => {
   createOwnProviderCredentialMock.mockClear();
+  deleteOwnProviderCredentialMock.mockClear();
   getImageCatalogMock.mockClear();
   getModelsMock.mockClear();
   getOwnProviderCredentialsMock.mockClear();
@@ -308,6 +312,32 @@ test('ProvidersPage creates a new credential and ignores empty submit payloads',
       label: 'primary',
       apiToken: 'fresh-secret-token',
     }),
+  );
+});
+
+test('ProvidersPage confirms credential deletion before removing it', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'My credentials' });
+  const deleteButtons = await screen.findAllByTestId(
+    'providers-delete-credential-credential-1',
+  );
+  await user.click(
+    deleteButtons[0]!,
+  );
+  const confirmDeleteButtons = await screen.findAllByTestId(
+    'providers-confirm-delete-credential-credential-1',
+  );
+  expect(
+    confirmDeleteButtons[0],
+  ).toBeInTheDocument();
+
+  await user.click(confirmDeleteButtons[0]!);
+
+  await waitFor(() =>
+    expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1'),
   );
 });
 
