@@ -279,7 +279,7 @@ export function TenantsPage() {
         aside={<Button onClick={onOpenCreate}>Create tenant</Button>}
       />
 
-      <Grid gutter="lg">
+      <Grid gap="lg">
         <Grid.Col span={{ base: 12, xl: 5 }}>
           <Card className="section-card">
             <Group justify="space-between" mb="md">
