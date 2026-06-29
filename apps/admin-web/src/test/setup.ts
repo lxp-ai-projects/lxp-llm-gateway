@@ -33,6 +33,15 @@ Object.defineProperty(window, 'ResizeObserver', {
   value: ResizeObserverMock,
 });
 
+Object.defineProperty(document, 'fonts', {
+  configurable: true,
+  writable: true,
+  value: {
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  },
+});
+
 Object.defineProperty(URL, 'createObjectURL', {
   writable: true,
   value: () => 'blob:test-url',
