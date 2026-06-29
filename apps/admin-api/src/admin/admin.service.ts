@@ -1,8 +1,10 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -1616,7 +1618,7 @@ export class AdminService {
       }
     } else if (!actor.roles.includes('tenant_admin')) {
       throw new ForbiddenException(
-        'Only tenant administrators can manage tenant credentials.',
+        'Only tenant administrators or operators can manage tenant credentials.',
       );
     }
 
@@ -1701,7 +1703,7 @@ export class AdminService {
 
       if (duplicateCredential && duplicateCredential.id !== credential.id) {
         throw new ConflictException(
-          'Unable to update the provider credential.',
+          'A credential already exists for this provider/label. Use Edit to update it, or delete the existing credential first.',
         );
       }
       credential.label = nextLabel;
@@ -1740,6 +1742,82 @@ export class AdminService {
       updatedAt: credential.updatedAt,
       lastUsedAt: credential.lastUsedAt,
     };
+  }
+
+  async deleteOwnProviderCredential(
+    actorLike: TenantActorLike,
+    credentialId: string,
+  ) {
+    const actor = await this.resolveActor(actorLike);
+    const user = await this.assertTenantScopedUser(
+      actor.activeTenantId,
+      actor.userUuid,
+    );
+    const credential = await this.withCredentialRepository(
+      actor.activeTenantId,
+      (credentialRepository) =>
+        credentialRepository.findOne({
+          where: [
+            {
+              id: credentialId,
+              tenantId: actor.activeTenantId,
+              userId: user.id,
+              scope: 'user',
+            },
+            {
+              id: credentialId,
+              tenantId: actor.activeTenantId,
+              userId: IsNull(),
+              scope: 'tenant',
+            },
+          ],
+        }),
+    );
+    if (!credential) {
+      throw new NotFoundException('Unable to delete the provider credential.');
+    }
+
+    if (
+      credential.scope === 'tenant' &&
+      !actor.roles.some((role) => role === 'tenant_admin' || role === 'operator')
+    ) {
+      throw new ForbiddenException(
+        'Only tenant administrators or operators can manage tenant credentials.',
+      );
+    }
+
+    await this.withCredentialRepository(actor.activeTenantId, (credentialRepository) =>
+      credentialRepository.delete({
+        id: credential.id,
+        tenantId: actor.activeTenantId,
+      }),
+    );
+
+    return { deleted: true as const };
+  }
+
+  async listOwnModels(accessToken: string, providerId?: string) {
+    const query = providerId?.trim()
+      ? `?providerId=${encodeURIComponent(providerId.trim())}`
+      : '';
+    return this.fetchGatewayControlPlaneJson(
+      accessToken,
+      `/api/v1/models${query}`,
+    );
+  }
+
+  async getOwnImageCatalog(accessToken: string) {
+    return this.fetchGatewayControlPlaneJson(
+      accessToken,
+      '/api/v1/images/catalog',
+    );
+  }
+
+  async getOwnVideoCatalog(accessToken: string) {
+    return this.fetchGatewayControlPlaneJson(
+      accessToken,
+      '/api/v1/videos/catalog',
+    );
   }
 
   async getProviderSettingsForUser(
@@ -1912,7 +1990,9 @@ export class AdminService {
         }),
     );
     if (existingCredential) {
-      throw new ConflictException('Unable to store the provider credential.');
+      throw new ConflictException(
+        'A credential already exists for this provider/label. Use Edit to update it, or delete the existing credential first.',
+      );
     }
 
     const providerAccess = this.createProviderAccess(dto, provider.providerId);
@@ -2702,6 +2782,103 @@ export class AdminService {
       apiKey: apiKey || undefined,
       baseUrl: baseUrl || undefined,
     };
+  }
+
+  private getGatewayControlPlaneBaseUrl(): string {
+    const candidates = [
+      process.env.GATEWAY_API_URL,
+      process.env.LXP_VPS_GATEWAY_API_PUBLIC_URL,
+      process.env.VITE_GATEWAY_API_URL,
+      'http://127.0.0.1:3001',
+    ];
+    const resolved = candidates.find(
+      (candidate) => typeof candidate === 'string' && candidate.trim().length > 0,
+    );
+
+    return (resolved ?? 'http://127.0.0.1:3001').replace(/\/$/, '');
+  }
+
+  private async fetchGatewayControlPlaneJson<T>(
+    accessToken: string,
+    path: string,
+  ): Promise<T> {
+    const gatewayUrl = `${this.getGatewayControlPlaneBaseUrl()}${path}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
+    let response: Response;
+    try {
+      response = await fetch(gatewayUrl, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new BadGatewayException(
+          'The gateway control-plane request timed out before the server responded.',
+        );
+      }
+
+      throw new BadGatewayException(
+        error instanceof Error
+          ? error.message
+          : 'The gateway control-plane request failed before reaching the server.',
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new HttpException(
+        this.formatGatewayProxyErrorMessage(body, response.status),
+        response.status,
+      );
+    }
+
+    const body = await response.text();
+    if (!body.trim()) {
+      throw new BadGatewayException(
+        'The gateway control-plane response did not contain valid JSON.',
+      );
+    }
+
+    try {
+      return JSON.parse(body) as T;
+    } catch {
+      throw new BadGatewayException(
+        'The gateway control-plane response did not contain valid JSON.',
+      );
+    }
+  }
+
+  private formatGatewayProxyErrorMessage(body: string, status: number): string {
+    const trimmedBody = body.trim();
+    if (!trimmedBody) {
+      return `Gateway control-plane request failed with ${status}.`;
+    }
+
+    try {
+      const parsed = JSON.parse(trimmedBody) as {
+        message?: string | string[];
+      };
+      if (typeof parsed.message === 'string' && parsed.message.trim()) {
+        return parsed.message.trim();
+      }
+      if (
+        Array.isArray(parsed.message) &&
+        parsed.message.every((entry) => typeof entry === 'string')
+      ) {
+        return parsed.message.join(', ').trim();
+      }
+    } catch {
+      // Fall through to raw text below.
+    }
+
+    return trimmedBody;
   }
 
   private async assertActiveCredentialExists(

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
-import { adminApiClient, gatewayApiClient } from '../../../lib/api-client';
+import { adminApiClient } from '../../../lib/api-client';
 import { useRuntimeConfig } from '../../../lib/use-runtime-config';
 import {
   buildDefaultModelOptions,
@@ -30,9 +30,15 @@ export function useProvidersController() {
   const [credentialValidationError, setCredentialValidationError] = useState<
     string | null
   >(null);
+  const [credentialSubmitError, setCredentialSubmitError] = useState<string | null>(
+    null,
+  );
   const [editingCredentialId, setEditingCredentialId] = useState<string | null>(
     null,
   );
+  const [credentialPendingDelete, setCredentialPendingDelete] = useState<
+    string | null
+  >(null);
   const [defaultProviderId, setDefaultProviderId] = useState<string | null>(
     null,
   );
@@ -52,7 +58,7 @@ export function useProvidersController() {
   });
   const imageCatalogQuery = useQuery({
     queryKey: ['image-catalog-for-provider-settings'],
-    queryFn: () => gatewayApiClient.getImageCatalog(),
+    queryFn: () => adminApiClient.getOwnImageCatalog(),
   });
 
   const supportedProviders = runtimeConfigQuery.data?.supportedProviders ?? [];
@@ -94,7 +100,7 @@ export function useProvidersController() {
 
   const modelsQuery = useQuery({
     queryKey: ['provider-models', defaultProviderId],
-    queryFn: () => gatewayApiClient.getModels(defaultProviderId ?? undefined),
+    queryFn: () => adminApiClient.getOwnModels(defaultProviderId ?? undefined),
     enabled: Boolean(defaultProviderId),
   });
   useEffect(() => {
@@ -165,6 +171,31 @@ export function useProvidersController() {
     },
     onSuccess: async () => {
       resetCredentialForm();
+      setCredentialSubmitError(null);
+      await queryClient.invalidateQueries({
+        queryKey: ['own-provider-credentials'],
+      });
+    },
+    onError: (error) => {
+      setCredentialSubmitError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to save the provider credential.',
+      );
+    },
+  });
+
+  const deleteCredentialMutation = useMutation({
+    mutationFn: (credentialId: string) =>
+      adminApiClient.deleteOwnProviderCredential(credentialId),
+    onSuccess: async () => {
+      setCredentialPendingDelete(null);
+      if (
+        editingCredentialId &&
+        editingCredentialId === deleteCredentialMutation.variables
+      ) {
+        resetCredentialForm();
+      }
       await queryClient.invalidateQueries({
         queryKey: ['own-provider-credentials'],
       });
@@ -201,6 +232,8 @@ export function useProvidersController() {
     setApiToken('');
     setBaseUrl('');
     setCredentialValidationError(null);
+    setCredentialSubmitError(null);
+    setCredentialPendingDelete(null);
   }
 
   function beginCredentialEdit(credential: {
@@ -214,6 +247,8 @@ export function useProvidersController() {
     setApiToken('');
     setBaseUrl('');
     setCredentialValidationError(null);
+    setCredentialSubmitError(null);
+    setCredentialPendingDelete(null);
   }
 
   const defaultModelOptions = buildDefaultModelOptions(
@@ -238,6 +273,7 @@ export function useProvidersController() {
       baseUrl,
     });
     setCredentialValidationError(validationError);
+    setCredentialSubmitError(null);
     if (validationError) {
       return;
     }
@@ -258,8 +294,13 @@ export function useProvidersController() {
   return {
     apiToken,
     baseUrl,
+    credentialPendingDelete,
+    credentialSubmitError,
     credentialValidationError,
     credentials: credentialsQuery.data ?? [],
+    confirmDeleteCredential: (credentialId: string) => {
+      setCredentialPendingDelete(credentialId);
+    },
     currentDefaultModel: providerSettingsQuery.data?.defaultModel ?? null,
     currentDefaultProviderDisplayName: providerSettingsQuery.data
       ?.defaultProviderId
@@ -288,9 +329,13 @@ export function useProvidersController() {
     defaultImageModelOptions,
     defaultImageProviderId,
     defaultImageProviderOptions,
+    deleteCredential: (credentialId: string) => {
+      deleteCredentialMutation.mutate(credentialId);
+    },
     editingCredentialId,
     handleCredentialSubmit,
     handleDefaultsSubmit,
+    isDeleteCredentialPending: deleteCredentialMutation.isPending,
     isCredentialPending: upsertCredentialMutation.isPending,
     isDefaultsPending: saveDefaultsMutation.isPending,
     isModelLoading: modelsQuery.isPending,
@@ -311,13 +356,20 @@ export function useProvidersController() {
       if (credentialValidationError) {
         setCredentialValidationError(null);
       }
+      if (credentialSubmitError) {
+        setCredentialSubmitError(null);
+      }
     },
     onBaseUrlChange: (value: string) => {
       setBaseUrl(value);
       if (credentialValidationError) {
         setCredentialValidationError(null);
       }
+      if (credentialSubmitError) {
+        setCredentialSubmitError(null);
+      }
     },
+    onCancelDeleteCredential: () => setCredentialPendingDelete(null),
     onDefaultModelChange: (value: string | null) => setDefaultModel(value),
     onDefaultProviderChange: (value: string | null) => {
       setDefaultProviderId(value);
@@ -333,6 +385,9 @@ export function useProvidersController() {
       setProviderId(value ?? 'nanogpt');
       if (credentialValidationError) {
         setCredentialValidationError(null);
+      }
+      if (credentialSubmitError) {
+        setCredentialSubmitError(null);
       }
     },
     providerId,

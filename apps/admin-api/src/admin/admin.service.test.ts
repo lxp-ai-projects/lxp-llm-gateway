@@ -1121,7 +1121,7 @@ test('AdminService rejects storing a duplicate provider credential label', async
         label: 'primary',
         apiToken: 'another-secret-token',
       }),
-    /Unable to store the provider credential/,
+    /A credential already exists for this provider\/label/,
   );
 });
 
@@ -1160,8 +1160,37 @@ test('AdminService rejects updating a provider credential when the new label alr
           label: 'backup',
         },
       ),
-    /Unable to update the provider credential/,
+    /A credential already exists for this provider\/label/,
   );
+});
+
+test('AdminService rejects invalid JSON from the gateway control-plane proxy', async () => {
+  const previousGatewayUrl = process.env.GATEWAY_API_URL;
+  const previousFetch = globalThis.fetch;
+  process.env.GATEWAY_API_URL = 'http://gateway.example.test';
+  globalThis.fetch = (async () =>
+    new Response('not-json', {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })) as typeof fetch;
+
+  try {
+    const { service } = createAdminService();
+
+    await assert.rejects(
+      () => service.listOwnModels('access-token'),
+      /did not contain valid JSON/i,
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousGatewayUrl === undefined) {
+      delete process.env.GATEWAY_API_URL;
+    } else {
+      process.env.GATEWAY_API_URL = previousGatewayUrl;
+    }
+  }
 });
 
 test('AdminService updates provider settings for a user', async () => {

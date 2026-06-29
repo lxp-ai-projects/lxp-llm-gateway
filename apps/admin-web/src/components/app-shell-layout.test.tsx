@@ -360,7 +360,7 @@ test('AppShellLayout lets the user switch active tenants from the shell menu', a
     screen.getByText('Global control-plane surface', { selector: 'p' }),
   ).toBeInTheDocument();
 
-  await user.click(screen.getByRole('textbox', { name: /active tenant/i }));
+  await user.click(screen.getByRole('combobox', { name: /active tenant/i }));
   await user.click(
     screen.getByText('Tenant Two (tenant-two)', { selector: 'span' }),
   );

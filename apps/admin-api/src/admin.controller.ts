@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -416,6 +417,18 @@ export class AdminController {
     );
   }
 
+  @Delete('provider-credentials/:credentialId')
+  @UseGuards(AccessTokenGuard)
+  deleteOwnProviderCredential(
+    @Req() request: RequestWithAuthUser,
+    @Param('credentialId') credentialId: string,
+  ) {
+    return this.adminService.deleteOwnProviderCredential(
+      request.authUser!,
+      credentialId,
+    );
+  }
+
   @Post('provider-credentials')
   @UseGuards(AccessTokenGuard)
   createProviderCredential(
@@ -429,6 +442,27 @@ export class AdminController {
         userUuid: dto.userUuid ?? request.authUser!.userUuid,
       },
     );
+  }
+
+  @Get('models')
+  @UseGuards(AccessTokenGuard)
+  listOwnModels(
+    @Req() request: RequestWithAuthUser,
+    @Query('providerId') providerId?: string,
+  ) {
+    return this.adminService.listOwnModels(request.authAccessToken!, providerId);
+  }
+
+  @Get('images/catalog')
+  @UseGuards(AccessTokenGuard)
+  getOwnImageCatalog(@Req() request: RequestWithAuthUser) {
+    return this.adminService.getOwnImageCatalog(request.authAccessToken!);
+  }
+
+  @Get('videos/catalog')
+  @UseGuards(AccessTokenGuard)
+  getOwnVideoCatalog(@Req() request: RequestWithAuthUser) {
+    return this.adminService.getOwnVideoCatalog(request.authAccessToken!);
   }
 
   @Get('provider-settings')

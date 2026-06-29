@@ -14,6 +14,9 @@ export function ProvidersPage() {
     apiToken,
     baseUrl,
     beginCredentialEdit,
+    confirmDeleteCredential,
+    credentialPendingDelete,
+    credentialSubmitError,
     credentialValidationError,
     credentials,
     currentDefaultModel,
@@ -30,9 +33,11 @@ export function ProvidersPage() {
     defaultImageModelOptions,
     defaultImageProviderId,
     defaultImageProviderOptions,
+    deleteCredential,
     editingCredentialId,
     handleCredentialSubmit,
     handleDefaultsSubmit,
+    isDeleteCredentialPending,
     isCredentialPending,
     isDefaultsPending,
     isModelLoading,
@@ -42,6 +47,7 @@ export function ProvidersPage() {
     modelErrorMessage,
     onApiTokenChange,
     onBaseUrlChange,
+    onCancelDeleteCredential,
     onDefaultModelChange,
     onDefaultProviderChange,
     onDefaultImageModelChange,
@@ -67,6 +73,7 @@ export function ProvidersPage() {
             <ProviderCredentialForm
               apiToken={apiToken}
               baseUrl={baseUrl}
+              credentialSubmitError={credentialSubmitError}
               credentialValidationError={credentialValidationError}
               editingCredentialId={editingCredentialId}
               isPending={isCredentialPending}
@@ -113,11 +120,16 @@ export function ProvidersPage() {
               currentDefaultProviderDisplayName
             }
             currentDefaultProviderId={currentDefaultProviderId}
+            credentialPendingDelete={credentialPendingDelete}
             currentDefaultImageModel={currentDefaultImageModel}
             currentDefaultImageProviderDisplayName={
               currentDefaultImageProviderDisplayName
             }
             currentDefaultImageProviderId={currentDefaultImageProviderId}
+            isDeleteCredentialPending={isDeleteCredentialPending}
+            onCancelDeleteCredential={onCancelDeleteCredential}
+            onConfirmDeleteCredential={confirmDeleteCredential}
+            onDeleteCredential={deleteCredential}
             onEditCredential={beginCredentialEdit}
           />
         </Grid.Col>

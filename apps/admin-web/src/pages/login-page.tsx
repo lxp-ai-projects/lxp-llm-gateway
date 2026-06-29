@@ -35,6 +35,25 @@ export function LoginPage() {
     window.sessionStorage.removeItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY);
   }, []);
 
+  function clearSessionTimeoutMessage() {
+    setSessionTimeoutMessage(null);
+  }
+
+  function handleEmailChange(value: string) {
+    clearSessionTimeoutMessage();
+    setEmail(value);
+  }
+
+  function handlePasswordChange(value: string) {
+    clearSessionTimeoutMessage();
+    setPassword(value);
+  }
+
+  function handleAcceptedPoliciesChange(value: boolean) {
+    clearSessionTimeoutMessage();
+    setAcceptedPolicies(value);
+  }
+
   const loginMutation = useMutation({
     mutationFn: () => adminApiClient.login({ email, password }),
     onSuccess: async (session) => {
@@ -63,9 +82,9 @@ export function LoginPage() {
                   : 'Unable to authenticate with the current credentials.'
                 : null
             }
-            onAcceptedPoliciesChange={setAcceptedPolicies}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
+            onAcceptedPoliciesChange={handleAcceptedPoliciesChange}
+            onEmailChange={handleEmailChange}
+            onPasswordChange={handlePasswordChange}
             onSubmit={() => loginMutation.mutate()}
             password={password}
             registrationEnabled={Boolean(

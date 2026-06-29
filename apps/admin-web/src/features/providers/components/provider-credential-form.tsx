@@ -50,6 +50,7 @@ type ProviderOption = {
 type ProviderCredentialFormProps = {
   apiToken: string;
   baseUrl: string;
+  credentialSubmitError: string | null;
   credentialValidationError: string | null;
   editingCredentialId: string | null;
   isPending: boolean;
@@ -67,6 +68,7 @@ type ProviderCredentialFormProps = {
 export function ProviderCredentialForm({
   apiToken,
   baseUrl,
+  credentialSubmitError,
   credentialValidationError,
   editingCredentialId,
   isPending,
@@ -128,6 +130,11 @@ export function ProviderCredentialForm({
           {credentialValidationError ? (
             <Alert color="red" title="Credential validation failed">
               {credentialValidationError}
+            </Alert>
+          ) : null}
+          {credentialSubmitError ? (
+            <Alert color="red" title="Unable to save credential">
+              {credentialSubmitError}
             </Alert>
           ) : null}
           <label className="form-native-field">

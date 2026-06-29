@@ -1,19 +1,5 @@
-const CACHE_NAME = 'lxp-admin-web-v1';
-const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/pwa-192.svg',
-  '/pwa-512.svg',
-];
-
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting()),
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
@@ -22,40 +8,21 @@ self.addEventListener('activate', (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key)),
+          keys.map(async (key) => {
+            try {
+              await caches.delete(key);
+            } catch {
+              // Keep unregister/claim moving even if one cache entry is already broken.
+            }
+          }),
         ),
       )
-      .then(() => self.clients.claim()),
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const networkFetch = fetch(event.request)
-        .then((response) => {
-          if (
-            response &&
-            response.status === 200 &&
-            response.type === 'basic'
-          ) {
-            const responseClone = response.clone();
-            caches
-              .open(CACHE_NAME)
-              .then((cache) => cache.put(event.request, responseClone));
-          }
-
-          return response;
-        })
-        .catch(() => cached);
-
-      return cached ?? networkFetch;
-    }),
+      .then(async () => {
+        try {
+          await self.registration.unregister();
+        } finally {
+          await self.clients.claim();
+        }
+      }),
   );
 });

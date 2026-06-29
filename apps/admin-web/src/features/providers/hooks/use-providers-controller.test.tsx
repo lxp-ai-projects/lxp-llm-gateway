@@ -10,6 +10,7 @@ import { useProvidersController } from './use-providers-controller';
 
 const {
   createOwnProviderCredentialMock,
+  deleteOwnProviderCredentialMock,
   getImageCatalogMock,
   getModelsMock,
   getOwnProviderCredentialsMock,
@@ -35,6 +36,9 @@ const {
     createdAt: '2026-04-17T00:00:00.000Z',
     updatedAt: '2026-04-17T00:00:00.000Z',
     lastUsedAt: null,
+  })),
+  deleteOwnProviderCredentialMock: vi.fn(async () => ({
+    deleted: true,
   })),
   getImageCatalogMock: vi.fn(async () => ({
     providers: [
@@ -118,14 +122,13 @@ vi.mock('../../../lib/use-runtime-config', () => ({
 vi.mock('../../../lib/api-client', () => ({
   adminApiClient: {
     createOwnProviderCredential: createOwnProviderCredentialMock,
+    deleteOwnProviderCredential: deleteOwnProviderCredentialMock,
+    getOwnImageCatalog: getImageCatalogMock,
+    getOwnModels: getModelsMock,
     getOwnProviderCredentials: getOwnProviderCredentialsMock,
     getOwnProviderSettings: getOwnProviderSettingsMock,
     updateOwnProviderCredential: updateOwnProviderCredentialMock,
     updateOwnProviderSettings: updateOwnProviderSettingsMock,
-  },
-  gatewayApiClient: {
-    getImageCatalog: getImageCatalogMock,
-    getModels: getModelsMock,
   },
 }));
 
@@ -151,6 +154,7 @@ function createWrapper() {
 
 beforeEach(() => {
   createOwnProviderCredentialMock.mockClear();
+  deleteOwnProviderCredentialMock.mockClear();
   getImageCatalogMock.mockClear();
   getModelsMock.mockClear();
   getOwnProviderCredentialsMock.mockClear();
@@ -404,6 +408,42 @@ test('useProvidersController surfaces model loading errors and provider fallback
   expect(result.current.defaultImageProviderOptions).toEqual([
     { label: 'NanoGPT', value: 'nanogpt' },
   ]);
+});
+
+test('useProvidersController surfaces provider credential conflicts clearly', async () => {
+  const wrapper = createWrapper();
+  const conflictMessage =
+    'A credential already exists for this provider/label. Use Edit to update it, or delete the existing credential first.';
+
+  createOwnProviderCredentialMock.mockRejectedValueOnce(new Error(conflictMessage));
+  getOwnProviderCredentialsMock.mockResolvedValue([]);
+  getOwnProviderSettingsMock.mockResolvedValue({
+    userUuid: 'user-1',
+    defaultProviderId: null,
+    defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  });
+
+  const { result } = renderHook(() => useProvidersController(), { wrapper });
+
+  await waitFor(() => expect(result.current.providerOptions).not.toHaveLength(0));
+
+  await act(async () => {
+    result.current.onProviderChange('nanogpt');
+    result.current.onLabelChange('primary');
+    result.current.onApiTokenChange('nano-secret-token');
+  });
+
+  await act(async () => {
+    result.current.handleCredentialSubmit({
+      preventDefault() {},
+    } as never);
+  });
+
+  await waitFor(() =>
+    expect(result.current.credentialSubmitError).toBe(conflictMessage),
+  );
 });
 
 test('useProvidersController blocks Ollama cloud credentials without an API token', async () => {

@@ -34,7 +34,24 @@ RUN printf '%s\n' \
   '  server_name _;' \
   '  root /usr/share/nginx/html;' \
   '  index index.html;' \
+  '  location /assets/ {' \
+  '    add_header Cache-Control "public, max-age=31536000, immutable" always;' \
+  '    try_files $uri =404;' \
+  '  }' \
+  '  location = /service-worker.js {' \
+  '    add_header Cache-Control "no-store" always;' \
+  '    try_files $uri =404;' \
+  '  }' \
+  '  location = /manifest.webmanifest {' \
+  '    add_header Cache-Control "no-store" always;' \
+  '    try_files $uri =404;' \
+  '  }' \
+  '  location = /index.html {' \
+  '    add_header Cache-Control "no-store" always;' \
+  '    try_files $uri =404;' \
+  '  }' \
   '  location / {' \
+  '    add_header Cache-Control "no-store" always;' \
   '    try_files $uri $uri/ /index.html;' \
   '  }' \
   '}' > /etc/nginx/conf.d/default.conf

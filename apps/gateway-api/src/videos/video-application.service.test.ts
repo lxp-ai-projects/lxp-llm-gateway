@@ -281,10 +281,7 @@ class FakeVideoProvider implements LlmProviderAdapter {
     };
   }
 
-  async getVideoGenerationJob(
-    _jobId: string,
-    _context: ProviderExecutionContext,
-  ) {
+  async getVideoGenerationJob() {
     this.pollCalls += 1;
     return this.nextPollResponses[
       Math.min(this.pollCalls - 1, this.nextPollResponses.length - 1)

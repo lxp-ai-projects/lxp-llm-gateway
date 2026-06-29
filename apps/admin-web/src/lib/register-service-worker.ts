@@ -3,28 +3,21 @@ export function registerServiceWorker() {
     return;
   }
 
-  if (!import.meta.env.PROD) {
-    void navigator.serviceWorker.getRegistrations?.().then((registrations) => {
-      registrations.forEach((registration) => {
-        void registration.unregister();
-      });
-    });
-    return;
-  }
-
-  if (typeof navigator.serviceWorker.register !== 'function') {
-    return;
-  }
-
-  if (!(window.isSecureContext || window.location.hostname === 'localhost')) {
-    return;
-  }
-
-  window.addEventListener('load', () => {
-    if (typeof navigator.serviceWorker?.register !== 'function') {
-      return;
+  void (async () => {
+    try {
+      const registrations =
+        (await navigator.serviceWorker.getRegistrations?.()) ?? [];
+      await Promise.all(
+        registrations.map(async (registration) => {
+          try {
+            await registration.unregister();
+          } catch {
+            // Ignore cleanup failures while retiring the service worker path.
+          }
+        }),
+      );
+    } catch {
+      // Ignore cleanup failures while retiring the service worker path.
     }
-
-    void navigator.serviceWorker.register('/service-worker.js');
-  });
+  })();
 }
