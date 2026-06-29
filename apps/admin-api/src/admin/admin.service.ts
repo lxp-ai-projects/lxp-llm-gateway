@@ -1618,7 +1618,7 @@ export class AdminService {
       }
     } else if (!actor.roles.includes('tenant_admin')) {
       throw new ForbiddenException(
-        'Only tenant administrators can manage tenant credentials.',
+        'Only tenant administrators or operators can manage tenant credentials.',
       );
     }
 
@@ -1782,7 +1782,7 @@ export class AdminService {
       !actor.roles.some((role) => role === 'tenant_admin' || role === 'operator')
     ) {
       throw new ForbiddenException(
-        'Only tenant administrators can manage tenant credentials.',
+        'Only tenant administrators or operators can manage tenant credentials.',
       );
     }
 
@@ -2803,6 +2803,8 @@ export class AdminService {
     path: string,
   ): Promise<T> {
     const gatewayUrl = `${this.getGatewayControlPlaneBaseUrl()}${path}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
 
     let response: Response;
     try {
@@ -2811,13 +2813,22 @@ export class AdminService {
           Accept: 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
+        signal: controller.signal,
       });
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new BadGatewayException(
+          'The gateway control-plane request timed out before the server responded.',
+        );
+      }
+
       throw new BadGatewayException(
         error instanceof Error
           ? error.message
           : 'The gateway control-plane request failed before reaching the server.',
       );
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     if (!response.ok) {
@@ -2828,7 +2839,20 @@ export class AdminService {
       );
     }
 
-    return response.json() as Promise<T>;
+    const body = await response.text();
+    if (!body.trim()) {
+      throw new BadGatewayException(
+        'The gateway control-plane response did not contain valid JSON.',
+      );
+    }
+
+    try {
+      return JSON.parse(body) as T;
+    } catch {
+      throw new BadGatewayException(
+        'The gateway control-plane response did not contain valid JSON.',
+      );
+    }
   }
 
   private formatGatewayProxyErrorMessage(body: string, status: number): string {

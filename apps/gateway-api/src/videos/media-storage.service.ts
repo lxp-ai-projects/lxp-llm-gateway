@@ -95,12 +95,18 @@ export class MediaStorageService {
       throw new Error(`${fieldName} is required.`);
     }
 
+    const hasInvalidControlCharacter = [...trimmedValue].some((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint <= 0x1f;
+    });
+
     if (
       trimmedValue === '.' ||
       trimmedValue === '..' ||
       trimmedValue.includes('/') ||
       trimmedValue.includes('\\') ||
-      /[<>:"|?*\x00-\x1f]/.test(trimmedValue)
+      /[<>:"|?*]/.test(trimmedValue) ||
+      hasInvalidControlCharacter
     ) {
       throw new Error(`${fieldName} contains an invalid path segment.`);
     }

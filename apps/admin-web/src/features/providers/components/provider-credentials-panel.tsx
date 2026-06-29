@@ -56,11 +56,13 @@ export function ProviderCredentialsPanel({
     label: string;
   }) {
     const confirmDelete = credentialPendingDelete === credential.id;
+    const disableActions = isDeleteCredentialPending;
 
     return (
       <Group gap="xs">
         <Button
           data-testid={`providers-edit-credential-${credential.id}`}
+          disabled={disableActions}
           leftSection={<IconEdit size={14} />}
           onClick={() => onEditCredential(credential)}
           size="xs"
@@ -72,6 +74,7 @@ export function ProviderCredentialsPanel({
           <>
             <Button
               data-testid={`providers-cancel-delete-credential-${credential.id}`}
+              disabled={disableActions}
               onClick={onCancelDeleteCredential}
               size="xs"
               variant="subtle"
@@ -93,6 +96,7 @@ export function ProviderCredentialsPanel({
           <Button
             color="red"
             data-testid={`providers-delete-credential-${credential.id}`}
+            disabled={disableActions}
             leftSection={<IconTrash size={14} />}
             onClick={() => onConfirmDeleteCredential(credential.id)}
             size="xs"

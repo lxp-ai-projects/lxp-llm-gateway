@@ -58,6 +58,24 @@ test('refreshBrowserSession shares an in-flight refresh request', async () => {
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
+test('adminApiUrl resolves to localhost admin-api for IPv6 loopback', () => {
+  const originalLocation = window.location;
+
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: {
+      ...originalLocation,
+      hostname: '::1',
+      origin: 'http://[::1]:3003',
+    },
+  });
+
+  vi.resetModules();
+  return import('./api-base').then((module) => {
+    expect(module.adminApiUrl).toBe('http://localhost:3002');
+  });
+});
+
 test('request refreshes the browser session against the failed gateway hostname for loopback polling', async () => {
   vi.mocked(fetch)
     .mockResolvedValueOnce(textResponse('{"message":"Access token is required."}', { status: 401 }))

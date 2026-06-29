@@ -181,6 +181,25 @@ test('adminApiClient login posts credentials then resolves the session through g
   expect(getSessionSpy).toHaveBeenCalledTimes(1);
 });
 
+test('adminApiClient getOwnModels omits the providerId query when none is supplied', async () => {
+  requestMock.mockResolvedValue({
+    providerId: 'nanogpt',
+    models: [],
+  });
+
+  await adminApiClient.getOwnModels();
+  await adminApiClient.getOwnModels('  openai  ');
+
+  expect(requestMock).toHaveBeenNthCalledWith(
+    1,
+    'http://localhost:3002/api/v1/models',
+  );
+  expect(requestMock).toHaveBeenNthCalledWith(
+    2,
+    'http://localhost:3002/api/v1/models?providerId=openai',
+  );
+});
+
 test('adminApiClient transfer helpers delegate to blob and upload helpers', async () => {
   requestBlobWithSessionRefreshMock
     .mockResolvedValueOnce({

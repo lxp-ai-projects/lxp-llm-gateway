@@ -493,12 +493,13 @@ export const adminApiClient = {
     );
   },
 
-  async getOwnModels(providerId = 'nanogpt'): Promise<{
+  async getOwnModels(providerId?: string): Promise<{
     providerId: string;
     models: ProviderModelSummary[];
   }> {
-    const endpoint = providerId
-      ? `${adminApiUrl}/api/v1/models?providerId=${encodeURIComponent(providerId)}`
+    const normalizedProviderId = providerId?.trim();
+    const endpoint = normalizedProviderId
+      ? `${adminApiUrl}/api/v1/models?providerId=${encodeURIComponent(normalizedProviderId)}`
       : `${adminApiUrl}/api/v1/models`;
 
     return request(endpoint);

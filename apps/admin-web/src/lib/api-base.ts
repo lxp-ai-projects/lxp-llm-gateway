@@ -6,7 +6,12 @@ import type {
 } from './api-client.types';
 
 function isLoopbackHost(hostname: string): boolean {
-  return hostname === 'localhost' || hostname === '127.0.0.1';
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === '[::1]'
+  );
 }
 
 function resolveApiBaseUrl(
@@ -29,7 +34,9 @@ function resolveApiBaseUrl(
 
   if (shouldPreferCurrentHost) {
     configuredUrl.protocol = currentUrl.protocol;
-    configuredUrl.hostname = currentUrl.hostname;
+    configuredUrl.hostname = isLoopbackHost(currentUrl.hostname)
+      ? 'localhost'
+      : currentUrl.hostname;
   }
 
   return configuredUrl.toString().replace(/\/$/, '');

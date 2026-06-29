@@ -341,6 +341,51 @@ test('ProvidersPage confirms credential deletion before removing it', async () =
   );
 });
 
+test('ProvidersPage disables credential actions while a delete is pending', async () => {
+  let resolveDelete: (() => void) | null = null;
+  deleteOwnProviderCredentialMock.mockImplementationOnce(
+    async () =>
+      new Promise((resolve) => {
+        resolveDelete = () => resolve({ deleted: true });
+      }),
+  );
+  const user = userEvent.setup();
+
+  renderWithProviders(<ProvidersPage />);
+
+  await screen.findByRole('heading', { name: 'My credentials' });
+  await user.click(
+    (await screen.findAllByTestId(
+      'providers-delete-credential-credential-1',
+    ))[0]!,
+  );
+
+  const confirmButton = (
+    await screen.findAllByTestId(
+      'providers-confirm-delete-credential-credential-1',
+    )
+  )[0]!;
+  const cancelButton = (
+    await screen.findAllByTestId(
+      'providers-cancel-delete-credential-credential-1',
+    )
+  )[0]!;
+  const editButton = (
+    await screen.findAllByTestId('providers-edit-credential-credential-1')
+  )[0]!;
+
+  await user.click(confirmButton);
+
+  await waitFor(() => expect(confirmButton).toBeDisabled());
+  expect(cancelButton).toBeDisabled();
+  expect(editButton).toBeDisabled();
+
+  resolveDelete?.();
+  await waitFor(() =>
+    expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1'),
+  );
+});
+
 test('ProvidersPage lists Mistral and DeepSeek in the provider selector', async () => {
   renderWithProviders(<ProvidersPage />);
 

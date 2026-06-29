@@ -12,7 +12,6 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import type { GatewayVideoGenerationRequest } from '@lxp/contracts';
 import { PROVIDER_IDS, type ProviderId } from '@lxp/domain';
 
 import { GatewayVideoReferenceDto } from './gateway-video-reference.dto';

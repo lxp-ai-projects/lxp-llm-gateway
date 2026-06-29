@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
+import * as path from 'node:path';
+import * as vm from 'node:vm';
 
 import { waitFor } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
@@ -69,15 +69,32 @@ test('service worker unregisters itself and clears old caches', async () => {
   expect(context.self.clients.claim).toHaveBeenCalled();
 });
 
+test('service worker still unregisters when one cache delete fails', async () => {
+  const { handlers, context } = loadServiceWorkerHarness();
+  const activateWaitUntil = vi.fn((promise: Promise<unknown>) => promise);
+
+  vi.mocked(context.caches.delete).mockImplementation(async (key: string) => {
+    if (key === 'old-cache') {
+      throw new Error('cache is locked');
+    }
+
+    return true;
+  });
+
+  handlers.get('activate')?.({ waitUntil: activateWaitUntil });
+  await activateWaitUntil.mock.calls[0]?.[0];
+
+  expect(context.self.registration.unregister).toHaveBeenCalled();
+  expect(context.self.clients.claim).toHaveBeenCalled();
+});
+
 test('registerServiceWorker unregisters existing service workers outside production', async () => {
   const unregister = vi.fn(async () => true);
   const getRegistrations = vi.fn(async () => [{ unregister }]);
-  const originalNavigator = globalThis.navigator;
-
   Object.defineProperty(globalThis, 'navigator', {
     configurable: true,
     value: {
-      ...originalNavigator,
+      ...(globalThis.navigator),
       serviceWorker: {
         getRegistrations,
       },

@@ -15,6 +15,7 @@ import type {
   GatewayVideoRetryRequest,
   GatewayVideoReference,
 } from '@lxp/contracts';
+import { validateVideoRequestAgainstFamily } from '@lxp/model-family-capabilities';
 import type { ProviderAccessConfig } from '@lxp/provider-sdk';
 import { Repository } from 'typeorm';
 
@@ -47,7 +48,6 @@ const BASE_POLL_DELAY_MS = 2000;
 const MAX_POLL_DELAY_MS = 30000;
 
 type ProviderId = import('@lxp/domain').ProviderId;
-const { validateVideoRequestAgainstFamily } = require('@lxp/model-family-capabilities');
 
 @Injectable()
 export class VideoApplicationService {
@@ -249,7 +249,7 @@ export class VideoApplicationService {
             requestPayload: this.buildStoredRequestPayload(request),
             sourceAssetId:
               mode === 'image_to_video'
-                ? this.extractPrimaryAssetId(request, resolvedReferences)
+                ? this.extractPrimaryAssetId(request)
                 : null,
             providerMetadata: null,
             errorMessage: null,
@@ -936,7 +936,6 @@ export class VideoApplicationService {
 
   private extractPrimaryAssetId(
     request: GatewayVideoGenerationRequest,
-    resolvedReferences: GatewayVideoReference[],
   ): string | null {
     const directAssetReference = request.referenceImages?.find(
       (image) => image.type === 'asset',
