@@ -29,6 +29,7 @@ import { TenantRlsService } from './persistence/tenant-rls.service';
 import { EmailProtectionService } from './security/email-protection.service';
 import { EncryptionService } from './security/encryption.service';
 import { PasswordService } from './security/password.service';
+import { AdminCatalogService } from './admin/admin-catalog.service';
 import { AdminService } from './admin/admin.service';
 import { ConversationTransferController } from './conversation-transfer/conversation-transfer.controller';
 import { ConversationTransferService } from './conversation-transfer/conversation-transfer.service';
@@ -72,6 +73,7 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
     PasswordService,
     TenantRlsService,
     SuperAdminBootstrapService,
+    AdminCatalogService,
     AdminService,
     ConversationTransferService,
   ],

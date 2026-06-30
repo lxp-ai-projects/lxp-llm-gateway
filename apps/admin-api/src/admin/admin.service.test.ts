@@ -6,6 +6,7 @@ import type { ProviderId } from '@lxp/domain';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
+import { AdminCatalogService } from './admin-catalog.service';
 import { AdminService } from './admin.service';
 
 function createRepositoryMock<T extends { id?: string }>(
@@ -367,6 +368,15 @@ function createAdminService() {
       new PasswordService(),
       tenantRlsService as never,
       superAdminBootstrapService as never,
+      new AdminCatalogService(
+        userRepository as never,
+        tenantRepository as never,
+        tenantMembershipRepository as never,
+        providerRepository as never,
+        tenantProviderConfigurationRepository as never,
+        new EncryptionService(),
+        tenantRlsService as never,
+      ),
     ),
     actor,
     repositories: {

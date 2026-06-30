@@ -1,29 +1,13 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
-  BadGatewayException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  HttpException,
   Injectable,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { GlobalRole, ProviderId, TenantRole } from '@lxp/domain';
-import type { LlmProviderAdapter } from '@lxp/provider-sdk';
-import { AnthropicProviderAdapter } from '@lxp/provider-anthropic';
-import { DeepSeekProviderAdapter } from '@lxp/provider-deepseek';
-import { GoogleProviderAdapter } from '@lxp/provider-google';
-import { GroqProviderAdapter } from '@lxp/provider-groq';
-import { MistralProviderAdapter } from '@lxp/provider-mistral';
-import { MoonshotProviderAdapter } from '@lxp/provider-moonshot';
-import { NanoGptProviderAdapter } from '@lxp/provider-nanogpt';
-import { OllamaProviderAdapter } from '@lxp/provider-ollama';
-import { OpenAiProviderAdapter } from '@lxp/provider-openai';
-import { OpenRouterProviderAdapter } from '@lxp/provider-openrouter';
-import { XaiProviderAdapter } from '@lxp/provider-xai';
-import { ZaiProviderAdapter } from '@lxp/provider-zai';
 import { IsNull, Repository } from 'typeorm';
 
 import { ProviderEntity } from '../persistence/entities/provider.entity';
@@ -51,6 +35,7 @@ import { SuperAdminBootstrapService } from '../auth/super-admin-bootstrap.servic
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
+import { AdminCatalogService } from './admin-catalog.service';
 import { CreateTenantMembershipDto } from './dto/create-tenant-membership.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { StoreProviderCredentialDto } from './dto/store-provider-credential.dto';
@@ -63,25 +48,6 @@ type ProviderAccessConfig = {
   apiKey?: string;
   headers?: Record<string, string>;
 };
-
-const ADMIN_LLM_PROVIDERS: LlmProviderAdapter[] = [
-  new NanoGptProviderAdapter(),
-  new OpenRouterProviderAdapter(),
-  new OllamaProviderAdapter(),
-  new GroqProviderAdapter(),
-  new GoogleProviderAdapter(),
-  new OpenAiProviderAdapter(),
-  new AnthropicProviderAdapter(),
-  new XaiProviderAdapter(),
-  new MistralProviderAdapter(),
-  new DeepSeekProviderAdapter(),
-  new MoonshotProviderAdapter(),
-  new ZaiProviderAdapter(),
-];
-
-const ADMIN_LLM_PROVIDER_MAP = new Map(
-  ADMIN_LLM_PROVIDERS.map((provider) => [provider.providerId, provider]),
-);
 
 type TenantActor = {
   userUuid: string;
@@ -264,6 +230,7 @@ export class AdminService {
     private readonly passwordService: PasswordService,
     private readonly tenantRlsService: TenantRlsService,
     private readonly superAdminBootstrapService: SuperAdminBootstrapService,
+    private readonly adminCatalogService: AdminCatalogService,
   ) {}
 
   async createUser(
@@ -1830,77 +1797,15 @@ export class AdminService {
   }
 
   async listOwnModels(actorLike: TenantActorLike, providerId?: string) {
-    const actor = await this.resolveActor(actorLike);
-    const user = await this.userRepository.findOne({
-      where: {
-        userUuid: actor.userUuid,
-        status: 'active',
-      },
-    });
-    if (!user) {
-      throw new NotFoundException('User not found.');
-    }
-
-    const resolvedProviderId = await this.resolveOwnModelsProviderId(
-      user,
-      providerId,
-    );
-    const providerEntity = await this.assertProviderExists(resolvedProviderId);
-    const tenant = await this.assertTenantExists(actor.activeTenantId);
-    const configuration = await this.getResolvedTenantProviderConfiguration(
-      tenant,
-      providerEntity,
-    );
-    const providerAccess = await this.resolveProviderAccessForConfiguration({
-      actor,
-      user,
-      provider: providerEntity,
-      configuration,
-    });
-    const provider = this.getRegisteredLlmProvider(providerEntity.providerId);
-
-    if (!provider.listModels) {
-      throw new NotImplementedException(
-        `Provider ${provider.providerId} does not expose a model listing.`,
-      );
-    }
-
-    try {
-      const models = await provider.listModels({
-        requestId: randomUUID(),
-        userId: user.id,
-        providerAccess,
-      });
-
-      return {
-        providerId: provider.providerId,
-        models,
-      };
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      throw new BadGatewayException(
-        error instanceof Error
-          ? error.message
-          : 'The provider model listing failed.',
-      );
-    }
+    return this.adminCatalogService.listOwnModels(actorLike, providerId);
   }
 
   async getOwnImageCatalog(accessToken: string) {
-    return this.fetchGatewayControlPlaneJson(
-      accessToken,
-      '/api/v1/images/catalog',
-    );
+    return this.adminCatalogService.getOwnImageCatalog(accessToken);
   }
 
   async getOwnVideoCatalog(accessToken: string) {
-    return this.fetchGatewayControlPlaneJson(
-      accessToken,
-      '/api/v1/videos/catalog',
-    );
+    return this.adminCatalogService.getOwnVideoCatalog(accessToken);
   }
 
   async getProviderSettingsForUser(
@@ -2698,29 +2603,6 @@ export class AdminService {
     return credential !== null;
   }
 
-  private async findActiveCredential(
-    tenantId: string,
-    userId: string | null,
-    providerId: string,
-    scope: 'tenant' | 'user',
-  ): Promise<UserProviderCredentialEntity | null> {
-    return this.withCredentialRepository(tenantId, (credentialRepository) =>
-      credentialRepository.findOne({
-        where: {
-          tenantId,
-          userId: userId ?? IsNull(),
-          providerId,
-          scope,
-          isActive: true,
-        },
-        order: {
-          updatedAt: 'DESC',
-          createdAt: 'DESC',
-        },
-      }),
-    );
-  }
-
   private resolveCredentialScopeForConfiguration(
     configuration: TenantProviderConfigurationSummary,
     availability: {
@@ -2888,195 +2770,6 @@ export class AdminService {
       apiKey: apiKey || undefined,
       baseUrl: baseUrl || undefined,
     };
-  }
-
-  private getRegisteredLlmProvider(providerId: ProviderId): LlmProviderAdapter {
-    const provider = ADMIN_LLM_PROVIDER_MAP.get(providerId);
-    if (!provider) {
-      throw new NotFoundException(
-        `Provider ${providerId} is not registered in admin-api.`,
-      );
-    }
-
-    return provider;
-  }
-
-  private async resolveOwnModelsProviderId(
-    user: UserEntity,
-    providerId?: string,
-  ): Promise<ProviderId> {
-    const trimmedProviderId = providerId?.trim();
-    if (trimmedProviderId) {
-      return trimmedProviderId as ProviderId;
-    }
-
-    if (user.defaultProviderId) {
-      return user.defaultProviderId;
-    }
-
-    throw new BadRequestException(
-      'No provider was supplied and no default provider is configured for the authenticated user.',
-    );
-  }
-
-  private async resolveProviderAccessForConfiguration(input: {
-    actor: TenantActor;
-    user: UserEntity;
-    provider: ProviderEntity;
-    configuration: TenantProviderConfigurationSummary;
-  }): Promise<ProviderAccessConfig> {
-    const [userCredential, tenantCredential] = await Promise.all([
-      this.findActiveCredential(
-        input.actor.activeTenantId,
-        input.user.id,
-        input.provider.id,
-        'user',
-      ),
-      this.findActiveCredential(
-        input.actor.activeTenantId,
-        null,
-        input.provider.id,
-        'tenant',
-      ),
-    ]);
-    const userProviderAccess = userCredential
-      ? this.readProviderAccess(userCredential)
-      : null;
-    const tenantProviderAccess = tenantCredential
-      ? this.readProviderAccess(tenantCredential)
-      : null;
-    const platformProviderAccess = this.getPlatformProviderAccess(
-      input.provider.providerId,
-    );
-    const resolvedCredentialScope = this.resolveCredentialScopeForConfiguration(
-      input.configuration,
-      {
-        userCredentialAvailable: userProviderAccess !== null,
-        tenantCredentialAvailable: tenantProviderAccess !== null,
-        platformCredentialAvailable: platformProviderAccess !== null,
-      },
-    );
-
-    if (resolvedCredentialScope === 'user' && userProviderAccess) {
-      return userProviderAccess;
-    }
-
-    if (resolvedCredentialScope === 'tenant' && tenantProviderAccess) {
-      return tenantProviderAccess;
-    }
-
-    if (resolvedCredentialScope === 'platform' && platformProviderAccess) {
-      return platformProviderAccess;
-    }
-
-    throw new ForbiddenException(
-      this.buildTenantProviderConfigurationTestMessage({
-        configuration: input.configuration,
-        canResolve: false,
-        resolvedCredentialScope,
-        testedUserUuid: input.user.userUuid,
-        userCredentialAvailable: userProviderAccess !== null,
-        tenantCredentialAvailable: tenantProviderAccess !== null,
-        platformCredentialAvailable: platformProviderAccess !== null,
-      }),
-    );
-  }
-
-  private getGatewayControlPlaneBaseUrl(): string {
-    const candidates = [
-      process.env.GATEWAY_API_URL,
-      process.env.LXP_VPS_GATEWAY_API_PUBLIC_URL,
-      process.env.VITE_GATEWAY_API_URL,
-      'http://127.0.0.1:3001',
-    ];
-    const resolved = candidates.find(
-      (candidate) => typeof candidate === 'string' && candidate.trim().length > 0,
-    );
-
-    return (resolved ?? 'http://127.0.0.1:3001').replace(/\/$/, '');
-  }
-
-  private async fetchGatewayControlPlaneJson<T>(
-    accessToken: string,
-    path: string,
-  ): Promise<T> {
-    const gatewayUrl = `${this.getGatewayControlPlaneBaseUrl()}${path}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
-
-    let response: Response;
-    try {
-      response = await fetch(gatewayUrl, {
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        signal: controller.signal,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new BadGatewayException(
-          'The gateway control-plane request timed out before the server responded.',
-        );
-      }
-
-      throw new BadGatewayException(
-        error instanceof Error
-          ? error.message
-          : 'The gateway control-plane request failed before reaching the server.',
-      );
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new HttpException(
-        this.formatGatewayProxyErrorMessage(body, response.status),
-        response.status,
-      );
-    }
-
-    const body = await response.text();
-    if (!body.trim()) {
-      throw new BadGatewayException(
-        'The gateway control-plane response did not contain valid JSON.',
-      );
-    }
-
-    try {
-      return JSON.parse(body) as T;
-    } catch {
-      throw new BadGatewayException(
-        'The gateway control-plane response did not contain valid JSON.',
-      );
-    }
-  }
-
-  private formatGatewayProxyErrorMessage(body: string, status: number): string {
-    const trimmedBody = body.trim();
-    if (!trimmedBody) {
-      return `Gateway control-plane request failed with ${status}.`;
-    }
-
-    try {
-      const parsed = JSON.parse(trimmedBody) as {
-        message?: string | string[];
-      };
-      if (typeof parsed.message === 'string' && parsed.message.trim()) {
-        return parsed.message.trim();
-      }
-      if (
-        Array.isArray(parsed.message) &&
-        parsed.message.every((entry) => typeof entry === 'string')
-      ) {
-        return parsed.message.join(', ').trim();
-      }
-    } catch {
-      // Fall through to raw text below.
-    }
-
-    return trimmedBody;
   }
 
   private async assertActiveCredentialExists(
