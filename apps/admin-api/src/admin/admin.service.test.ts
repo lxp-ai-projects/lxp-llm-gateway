@@ -7,6 +7,7 @@ import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
 import { AdminCatalogService } from './admin-catalog.service';
+import { AdminProviderCredentialService } from './admin-provider-credential.service';
 import { AdminService } from './admin.service';
 
 function createRepositoryMock<T extends { id?: string }>(
@@ -340,6 +341,7 @@ function createAdminService() {
       return;
     },
   };
+  const encryptionService = new EncryptionService();
   const actor = {
     userUuid: randomUUID(),
     activeTenantId: tenantRepository.data[0]!.id,
@@ -363,8 +365,8 @@ function createAdminService() {
       tenantPolicyRepository as never,
       usageEventRepository as never,
       credentialRepository as never,
-      new EmailProtectionService(new EncryptionService()),
-      new EncryptionService(),
+      new EmailProtectionService(encryptionService),
+      encryptionService,
       new PasswordService(),
       tenantRlsService as never,
       superAdminBootstrapService as never,
@@ -374,7 +376,14 @@ function createAdminService() {
         tenantMembershipRepository as never,
         providerRepository as never,
         tenantProviderConfigurationRepository as never,
-        new EncryptionService(),
+        encryptionService,
+        tenantRlsService as never,
+      ),
+      new AdminProviderCredentialService(
+        userRepository as never,
+        tenantMembershipRepository as never,
+        providerRepository as never,
+        encryptionService,
         tenantRlsService as never,
       ),
     ),
