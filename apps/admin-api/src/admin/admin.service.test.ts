@@ -1164,25 +1164,54 @@ test('AdminService rejects updating a provider credential when the new label alr
   );
 });
 
-test('AdminService rejects invalid JSON from the gateway control-plane proxy', async () => {
+test('AdminService lists models directly from the provider instead of the gateway public URL', async () => {
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+  const authenticatedUser = {
+    ...actor,
+    userUuid: createdUser.userUuid,
+  };
   const previousGatewayUrl = process.env.GATEWAY_API_URL;
   const previousFetch = globalThis.fetch;
   process.env.GATEWAY_API_URL = 'http://gateway.example.test';
-  globalThis.fetch = (async () =>
-    new Response('not-json', {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
+  const fetchCalls: string[] = [];
+  globalThis.fetch = (async (input) => {
+    fetchCalls.push(String(input));
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'glm-4.6',
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       },
-    })) as typeof fetch;
+    );
+  }) as typeof fetch;
+
+  await service.storeProviderCredentialForActor(actor, {
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
 
   try {
-    const { service } = createAdminService();
+    const response = await service.listOwnModels(authenticatedUser, 'nanogpt');
 
-    await assert.rejects(
-      () => service.listOwnModels('access-token'),
-      /did not contain valid JSON/i,
-    );
+    assert.equal(response.providerId, 'nanogpt');
+    assert.deepEqual(response.models.map((model) => model.id), ['glm-4.6']);
+    assert.equal(fetchCalls.includes('http://gateway.example.test/api/v1/models'), false);
+    assert.ok(fetchCalls.some((url) => url.includes('/models')));
   } finally {
     globalThis.fetch = previousFetch;
     if (previousGatewayUrl === undefined) {
@@ -1191,6 +1220,24 @@ test('AdminService rejects invalid JSON from the gateway control-plane proxy', a
       process.env.GATEWAY_API_URL = previousGatewayUrl;
     }
   }
+});
+
+test('AdminService rejects model listing without an explicit or default provider', async () => {
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.listOwnModels({
+        ...actor,
+        userUuid: createdUser.userUuid,
+      }),
+    /No provider was supplied and no default provider is configured/,
+  );
 });
 
 test('AdminService updates provider settings for a user', async () => {
