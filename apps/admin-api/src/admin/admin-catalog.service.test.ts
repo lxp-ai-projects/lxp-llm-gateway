@@ -381,11 +381,10 @@ test('AdminCatalogService fails fast when provider model listing times out', asy
       baseUrl: 'https://api.openai.com/v1',
     },
   });
-  const previousFetch = globalThis.fetch;
   const previousSetTimeout = globalThis.setTimeout;
   const previousClearTimeout = globalThis.clearTimeout;
+  let rejectListModels: ((error: Error) => void) | undefined;
 
-  globalThis.fetch = (() => new Promise<Response>(() => undefined)) as typeof fetch;
   globalThis.setTimeout = ((callback: TimerHandler) => {
     if (typeof callback === 'function') {
       callback();
@@ -393,6 +392,27 @@ test('AdminCatalogService fails fast when provider model listing times out', asy
     return 1 as never;
   }) as typeof setTimeout;
   globalThis.clearTimeout = (() => undefined) as typeof clearTimeout;
+  const originalGetRegisteredLlmProvider = (
+    service as {
+      getRegisteredLlmProvider: (providerId: 'openai') => {
+        listModels?: (_context: unknown) => Promise<unknown>;
+      };
+    }
+  ).getRegisteredLlmProvider;
+  (
+    service as {
+      getRegisteredLlmProvider: (providerId: 'openai') => {
+        providerId: 'openai';
+        listModels: (_context: unknown) => Promise<unknown>;
+      };
+    }
+  ).getRegisteredLlmProvider = () => ({
+    providerId: 'openai',
+    listModels: async () =>
+      new Promise<never>((_, reject) => {
+        rejectListModels = reject;
+      }),
+  });
 
   try {
     await assert.rejects(
@@ -404,7 +424,14 @@ test('AdminCatalogService fails fast when provider model listing times out', asy
       },
     );
   } finally {
-    globalThis.fetch = previousFetch;
+    rejectListModels?.(
+      new Error('Settling timed-out provider listModels test double.'),
+    );
+    (
+      service as {
+        getRegisteredLlmProvider: typeof originalGetRegisteredLlmProvider;
+      }
+    ).getRegisteredLlmProvider = originalGetRegisteredLlmProvider;
     globalThis.setTimeout = previousSetTimeout;
     globalThis.clearTimeout = previousClearTimeout;
   }
