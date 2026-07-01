@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
 import type { ProviderId } from '@lxp/domain';
+import { BadRequestException } from '@nestjs/common';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
@@ -1229,7 +1230,10 @@ test('AdminService lists models directly from the provider instead of the gatewa
 
     assert.equal(response.providerId, 'nanogpt');
     assert.deepEqual(response.models.map((model) => model.id), ['glm-4.6']);
-    assert.equal(fetchCalls.includes('http://gateway.example.test/api/v1/models'), false);
+    assert.equal(
+      fetchCalls.some((url) => url.startsWith('http://gateway.example.test')),
+      false,
+    );
     assert.ok(fetchCalls.some((url) => url.includes('/models')));
   } finally {
     globalThis.fetch = previousFetch;
@@ -1255,7 +1259,14 @@ test('AdminService rejects model listing without an explicit or default provider
         ...actor,
         userUuid: createdUser.userUuid,
       }),
-    /No provider was supplied and no default provider is configured/,
+    (error: unknown) => {
+      assert.ok(error instanceof BadRequestException);
+      assert.match(
+        error.message,
+        /No provider was supplied and no default provider is configured/,
+      );
+      return true;
+    },
   );
 });
 

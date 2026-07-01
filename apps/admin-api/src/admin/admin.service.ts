@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -6,43 +6,44 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import type { GlobalRole, ProviderId, TenantRole } from '@lxp/domain';
-import { IsNull, Repository } from 'typeorm';
+import {InjectRepository} from '@nestjs/typeorm';
+import type {GlobalRole, ProviderId, TenantRole} from '@lxp/domain';
+import {IsNull, Repository} from 'typeorm';
 
-import { ProviderEntity } from '../persistence/entities/provider.entity';
-import { RoleEntity } from '../persistence/entities/role.entity';
-import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
-import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
-import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
+import {ProviderEntity} from '../persistence/entities/provider.entity';
+import {RoleEntity} from '../persistence/entities/role.entity';
+import {ApiKeyEntity} from '../persistence/entities/api-key.entity';
+import {IntegrationClientEntity} from '../persistence/entities/integration-client.entity';
+import {TenantMembershipEntity} from '../persistence/entities/tenant-membership.entity';
 import {
-  TenantModelAccessRuleEntity,
   type TenantModelAccessCapability,
   type TenantModelAccessEffect,
+  TenantModelAccessRuleEntity,
 } from '../persistence/entities/tenant-model-access-rule.entity';
-import { TenantEntity } from '../persistence/entities/tenant.entity';
+import {TenantEntity} from '../persistence/entities/tenant.entity';
 import {
   TenantProviderConfigurationEntity,
   type TenantProviderCredentialMode,
 } from '../persistence/entities/tenant-provider-configuration.entity';
-import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
-import { TenantRlsService } from '../persistence/tenant-rls.service';
-import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
-import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
-import { UserRoleEntity } from '../persistence/entities/user-role.entity';
-import { UserEntity } from '../persistence/entities/user.entity';
-import { SuperAdminBootstrapService } from '../auth/super-admin-bootstrap.service';
-import { EmailProtectionService } from '../security/email-protection.service';
-import { EncryptionService } from '../security/encryption.service';
-import { PasswordService } from '../security/password.service';
-import { AdminCatalogService } from './admin-catalog.service';
-import { AdminProviderCredentialService } from './admin-provider-credential.service';
-import { CreateTenantMembershipDto } from './dto/create-tenant-membership.dto';
-import { CreateUserDto } from './dto/create-user.dto';
-import { StoreProviderCredentialDto } from './dto/store-provider-credential.dto';
-import { UpdateProviderCredentialDto } from './dto/update-provider-credential.dto';
-import { UpdateProviderSettingsDto } from './dto/update-provider-settings.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import {TenantPolicyEntity} from '../persistence/entities/tenant-policy.entity';
+import {TenantRlsService} from '../persistence/tenant-rls.service';
+import {UsageEventEntity} from '../persistence/entities/usage-event.entity';
+import {UserProviderCredentialEntity} from '../persistence/entities/user-provider-credential.entity';
+import {UserRoleEntity} from '../persistence/entities/user-role.entity';
+import {UserEntity} from '../persistence/entities/user.entity';
+import {SuperAdminBootstrapService} from '../auth/super-admin-bootstrap.service';
+import {EmailProtectionService} from '../security/email-protection.service';
+import {EncryptionService} from '../security/encryption.service';
+import {PasswordService} from '../security/password.service';
+import {AdminCatalogService} from './admin-catalog.service';
+import {getValidatedPlatformProviderAccess} from './admin-provider-access';
+import {AdminProviderCredentialService} from './admin-provider-credential.service';
+import {CreateTenantMembershipDto} from './dto/create-tenant-membership.dto';
+import {CreateUserDto} from './dto/create-user.dto';
+import {StoreProviderCredentialDto} from './dto/store-provider-credential.dto';
+import {UpdateProviderCredentialDto} from './dto/update-provider-credential.dto';
+import {UpdateProviderSettingsDto} from './dto/update-provider-settings.dto';
+import {UpdateUserDto} from './dto/update-user.dto';
 
 type ProviderAccessConfig = {
   baseUrl?: string;
@@ -275,11 +276,9 @@ export class AdminService {
     },
   ) {
     const protectedEmail = this.emailProtectionService.protect(dto.email);
-    const existingUser = await this.userRepository.findOne({
-      where: { emailHash: protectedEmail.emailHash },
+    let user = await this.userRepository.findOne({
+      where: {emailHash: protectedEmail.emailHash},
     });
-
-    let user = existingUser;
     if (!user) {
       if (!dto.password || dto.password.trim().length < 8) {
         throw new BadRequestException(
@@ -657,14 +656,11 @@ export class AdminService {
           : Promise.resolve(false),
         this.hasActiveCredential(tenantId, null, provider.id, 'tenant'),
       ]);
-    const platformProviderAccess = this.getPlatformProviderAccess(
+    const platformProviderAccess = getValidatedPlatformProviderAccess(
       provider.providerId,
+      this.getPlatformProviderAccess(provider.providerId),
     );
-    const platformCredentialAvailable =
-      platformProviderAccess !== null &&
-      Boolean(
-        platformProviderAccess.apiKey || platformProviderAccess.baseUrl,
-      );
+    const platformCredentialAvailable = platformProviderAccess !== null;
     const resolvedCredentialScope = this.resolveCredentialScopeForConfiguration(
       configuration,
       {
