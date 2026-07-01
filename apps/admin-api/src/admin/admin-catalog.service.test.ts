@@ -383,7 +383,7 @@ test('AdminCatalogService fails fast when provider model listing times out', asy
   });
   const previousSetTimeout = globalThis.setTimeout;
   const previousClearTimeout = globalThis.clearTimeout;
-  let rejectListModels: ((error: Error) => void) | undefined;
+  let resolveListModels: (() => void) | undefined;
 
   globalThis.setTimeout = ((callback: TimerHandler) => {
     if (typeof callback === 'function') {
@@ -409,8 +409,8 @@ test('AdminCatalogService fails fast when provider model listing times out', asy
   ).getRegisteredLlmProvider = () => ({
     providerId: 'openai',
     listModels: async () =>
-      new Promise<never>((_, reject) => {
-        rejectListModels = reject;
+      new Promise<never>((resolve) => {
+        resolveListModels = () => resolve([] as never);
       }),
   });
 
@@ -424,9 +424,7 @@ test('AdminCatalogService fails fast when provider model listing times out', asy
       },
     );
   } finally {
-    rejectListModels?.(
-      new Error('Settling timed-out provider listModels test double.'),
-    );
+    resolveListModels?.();
     (
       service as {
         getRegisteredLlmProvider: typeof originalGetRegisteredLlmProvider;
