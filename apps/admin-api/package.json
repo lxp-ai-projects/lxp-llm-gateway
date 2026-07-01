@@ -38,15 +38,15 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "coverage": "tsx --test --test-concurrency=1 --experimental-test-coverage src/admin/admin.service.test.ts src/admin/admin-catalog.service.test.ts src/admin/admin-provider-credential.service.test.ts src/auth/auth-cookie.service.test.ts src/auth/auth.service.test.ts src/auth/super-admin-bootstrap.service.test.ts src/conversation-transfer/conversation-transfer.service.test.ts src/security/crypto.service.test.ts src/security/email-protection.service.test.ts src/security/password.service.test.ts src/persistence/database.integration.test.ts",
+    "coverage": "node ./scripts/run-tests.mjs coverage",
     "dev": "node ../../scripts/run-with-port.mjs 3002 pnpm exec tsc-watch --project tsconfig.json --onSuccess \"node dist/main.js\"",
     "lint": "eslint src --ext .ts",
     "migration:generate": "typeorm-ts-node-commonjs -d src/persistence/data-source.ts migration:generate src/persistence/migrations/GeneratedMigration",
     "migration:run": "tsx ./node_modules/typeorm/cli.js migration:run -d src/persistence/data-source.ts",
-    "prepare:test-deps": "pnpm --filter @lxp/domain build && pnpm --filter @lxp/contracts build && pnpm --filter @lxp/provider-sdk build && pnpm --filter @lxp/provider-anthropic build && pnpm --filter @lxp/provider-deepseek build && pnpm --filter @lxp/provider-google build && pnpm --filter @lxp/provider-groq build && pnpm --filter @lxp/provider-mistral build && pnpm --filter @lxp/provider-moonshot build && pnpm --filter @lxp/provider-nanogpt build && pnpm --filter @lxp/provider-ollama build && pnpm --filter @lxp/provider-openai build && pnpm --filter @lxp/provider-openrouter build && pnpm --filter @lxp/provider-xai build && pnpm --filter @lxp/provider-zai build",
+    "prepare:test-deps": "pnpm --filter @lxp/domain build && pnpm --filter @lxp/contracts build && pnpm --filter @lxp/provider-sdk build && pnpm --parallel --workspace-concurrency=12 --filter @lxp/provider-anthropic --filter @lxp/provider-deepseek --filter @lxp/provider-google --filter @lxp/provider-groq --filter @lxp/provider-mistral --filter @lxp/provider-moonshot --filter @lxp/provider-nanogpt --filter @lxp/provider-ollama --filter @lxp/provider-openai --filter @lxp/provider-openrouter --filter @lxp/provider-xai --filter @lxp/provider-zai build",
     "precoverage": "pnpm run prepare:test-deps",
     "pretest": "pnpm run prepare:test-deps",
-    "test": "tsx --test --test-concurrency=1 src/admin/admin.service.test.ts src/admin/admin-catalog.service.test.ts src/admin/admin-provider-credential.service.test.ts src/auth/auth-cookie.service.test.ts src/auth/auth.service.test.ts src/auth/super-admin-bootstrap.service.test.ts src/conversation-transfer/conversation-transfer.service.test.ts src/security/crypto.service.test.ts src/security/email-protection.service.test.ts src/security/password.service.test.ts src/persistence/database.integration.test.ts",
+    "test": "node ./scripts/run-tests.mjs test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

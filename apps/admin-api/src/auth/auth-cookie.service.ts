@@ -1,12 +1,29 @@
 import type { Response } from 'express';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+
+export const AUTH_COOKIE_SERVICE_CONFIG = Symbol('AUTH_COOKIE_SERVICE_CONFIG');
+
+export type AuthCookieServiceConfig = {
+  adminWebOrigin?: string;
+  cookieDomain?: string;
+  secureCookies?: boolean;
+};
 
 @Injectable()
 export class AuthCookieService {
   private readonly accessCookieName = 'lxp_access_token';
   private readonly refreshCookieName = 'lxp_refresh_token';
-  private readonly cookieDomain = this.resolveCookieDomain();
-  private readonly secureCookies = this.resolveSecureCookies();
+  private readonly cookieDomain: string | undefined;
+  private readonly secureCookies: boolean;
+
+  constructor(
+    @Optional()
+    @Inject(AUTH_COOKIE_SERVICE_CONFIG)
+    private readonly config?: AuthCookieServiceConfig,
+  ) {
+    this.cookieDomain = this.resolveCookieDomain();
+    this.secureCookies = this.resolveSecureCookies();
+  }
 
   setAccessTokenCookie(
     response: Response,
@@ -63,11 +80,16 @@ export class AuthCookieService {
   }
 
   private resolveCookieDomain(): string | undefined {
-    const configuredDomain = process.env.LXP_COOKIE_DOMAIN?.trim();
+    const configuredDomain =
+      this.config?.cookieDomain?.trim() ?? process.env.LXP_COOKIE_DOMAIN?.trim();
     return configuredDomain ? configuredDomain : undefined;
   }
 
   private resolveSecureCookies(): boolean {
+    if (this.config?.secureCookies !== undefined) {
+      return this.config.secureCookies;
+    }
+
     const configuredSecure = process.env.LXP_COOKIE_SECURE?.trim().toLowerCase();
     if (configuredSecure === 'true') {
       return true;
@@ -76,7 +98,11 @@ export class AuthCookieService {
       return false;
     }
 
-    const adminWebOrigin = process.env.ADMIN_WEB_ORIGIN?.trim().toLowerCase();
+    const adminWebOrigin = (
+      this.config?.adminWebOrigin ?? process.env.ADMIN_WEB_ORIGIN
+    )
+      ?.trim()
+      .toLowerCase();
     return adminWebOrigin?.startsWith('https://') ?? false;
   }
 }
