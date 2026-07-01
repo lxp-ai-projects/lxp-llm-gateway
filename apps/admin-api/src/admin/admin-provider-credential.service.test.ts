@@ -254,6 +254,24 @@ test('AdminProviderCredentialService lists credentials with an unknown provider 
   assert.equal(credential.providerDisplayName, 'Unknown provider');
 });
 
+test('AdminProviderCredentialService rejects listing another user credential list for non-privileged actors', async () => {
+  const { actor, service } = createAdminProviderCredentialService({
+    actorRoles: ['user'],
+  });
+
+  await assert.rejects(
+    () => service.listProviderCredentialsForUser(actor, 'user-uuid-2'),
+    (error: unknown) => {
+      assert.ok(error instanceof ForbiddenException);
+      assert.match(
+        error.message,
+        /You cannot view another user provider credential list/,
+      );
+      return true;
+    },
+  );
+});
+
 test('AdminProviderCredentialService defaults user-scoped credentials to the active actor', async () => {
   const { actor, credentialRepository, service } =
     createAdminProviderCredentialService();
@@ -375,7 +393,7 @@ test('AdminProviderCredentialService stores endpoint-only Ollama credentials wit
     scope: 'user',
   });
 
-  assert.equal(credential.maskedHint, 'http://localhost:11434');
+  assert.equal(credential.maskedHint, 'localhost:11434');
 });
 
 test('AdminProviderCredentialService rejects tenant credential updates for non-privileged actors', async () => {
@@ -474,6 +492,44 @@ test('AdminProviderCredentialService merges legacy plaintext secrets when refres
     apiKey: 'legacy-token-1234',
     baseUrl: 'https://api.openai.com/v1',
   });
+  assert.equal(savedCredential.maskedHint, '***1234');
+});
+
+test('AdminProviderCredentialService returns null userUuid when updating a tenant-scoped credential', async () => {
+  const { actor, service } = createAdminProviderCredentialService({
+    credentialData: [
+      {
+        id: 'credential-tenant-1',
+        tenantId: 'tenant-1',
+        userId: null,
+        providerId: 'provider-openai',
+        provider: {
+          id: 'provider-openai',
+          providerId: 'openai',
+          displayName: 'OpenAI',
+        },
+        scope: 'tenant',
+        label: 'Tenant',
+        maskedHint: '***5678',
+        encryptedSecret: 'placeholder-ciphertext',
+        iv: 'placeholder-iv',
+        authTag: 'placeholder-auth-tag',
+        keyVersion: '1',
+        isActive: true,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: null,
+      },
+    ],
+  });
+
+  const updated = await service.updateOwnProviderCredential(
+    actor,
+    'credential-tenant-1',
+    { label: 'Tenant shared' },
+  );
+
+  assert.equal(updated.userUuid, null);
 });
 
 test('AdminProviderCredentialService rejects deleting tenant credentials for non-privileged actors', async () => {

@@ -673,14 +673,20 @@ export class AdminCatalogService {
       throw new NotFoundException('User not found.');
     }
 
+    if (!actor.activeTenantId) {
+      throw new NotFoundException('User not found.');
+    }
+
     const memberships = await this.tenantMembershipRepository.find({
-      where: { userId: user.id },
+      where: { userId: user.id, tenantId: actor.activeTenantId },
       relations: {
         tenant: true,
       },
     });
     const membership = memberships.find(
-      (entry) => entry.tenant?.status === 'active',
+      (entry) =>
+        entry.tenant?.status === 'active' &&
+        entry.tenantId === actor.activeTenantId,
     );
     if (!membership || !membership.tenant) {
       throw new NotFoundException('User not found.');
@@ -689,7 +695,7 @@ export class AdminCatalogService {
     return {
       userUuid: user.userUuid,
       activeTenantId: membership.tenantId,
-      activeTenantSlug: membership.tenant.slug,
+      activeTenantSlug: actor.activeTenantSlug ?? membership.tenant.slug,
       roles: memberships
         .filter((entry) => entry.tenantId === membership.tenantId)
         .map((entry) => entry.role),

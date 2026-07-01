@@ -913,7 +913,7 @@ test('AdminService stores short provider tokens without masking them further', a
     apiToken: 'abcd',
   });
 
-  assert.equal(credential.maskedHint, 'abcd');
+  assert.equal(credential.maskedHint, '***');
 });
 
 test('AdminService stores an Ollama endpoint-only credential', async () => {
@@ -932,7 +932,7 @@ test('AdminService stores an Ollama endpoint-only credential', async () => {
   });
 
   assert.equal(credential.providerId, 'ollama');
-  assert.equal(credential.maskedHint, 'http://127.0.0.1:11434/v1');
+  assert.equal(credential.maskedHint, '127.0.0.1:11434');
 
   const stored = repositories.credentialRepository.data[0] as {
     encryptedSecret: string;

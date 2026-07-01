@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { GlobalRole, ProviderId, TenantRole } from '@lxp/domain';
+import type { GlobalRole, TenantRole } from '@lxp/domain';
 import type { ProviderAccessConfig } from '@lxp/provider-sdk';
 import { IsNull, Repository } from 'typeorm';
 
@@ -42,6 +42,15 @@ export class AdminProviderCredentialService {
   ) {}
 
   async listProviderCredentialsForUser(actor: TenantActor, userUuid: string) {
+    const isOwnCredentialList = actor.userUuid === userUuid;
+    const isPrivileged =
+      actor.roles.includes('tenant_admin') || actor.roles.includes('operator');
+    if (!isOwnCredentialList && !isPrivileged) {
+      throw new ForbiddenException(
+        'You cannot view another user provider credential list.',
+      );
+    }
+
     const user = await this.assertTenantScopedUser(actor.activeTenantId, userUuid);
     const credentials = await this.withCredentialRepository(
       actor.activeTenantId,
@@ -242,7 +251,7 @@ export class AdminProviderCredentialService {
 
     return {
       id: credential.id,
-      userUuid: credential.scope === 'tenant' ? actor.userUuid : user.userUuid,
+      userUuid: credential.scope === 'tenant' ? null : user.userUuid,
       providerId: provider.providerId,
       providerDisplayName: provider.displayName,
       label: credential.label,
@@ -465,12 +474,17 @@ export class AdminProviderCredentialService {
   private maskProviderAccess(providerAccess: ProviderAccessConfig): string | null {
     if (providerAccess.apiKey) {
       return providerAccess.apiKey.length <= 4
-        ? providerAccess.apiKey
+        ? '***'
         : `***${providerAccess.apiKey.slice(-4)}`;
     }
 
     if (providerAccess.baseUrl) {
-      return providerAccess.baseUrl;
+      try {
+        const parsedUrl = new URL(providerAccess.baseUrl);
+        return parsedUrl.host || parsedUrl.hostname || 'Custom endpoint';
+      } catch {
+        return 'Custom endpoint';
+      }
     }
 
     return null;

@@ -87,6 +87,23 @@ export function assertCatalogProviderBaseUrlIsSafe(
     );
   }
 
+  const protocol = parsedUrl.protocol.toLowerCase();
+  const hostname = parsedUrl.hostname.toLowerCase();
+  const isLoopbackOllamaHost =
+    providerId === 'ollama' &&
+    (hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname === '[::1]');
+
+  if (protocol !== 'https:' && !(protocol === 'http:' && isLoopbackOllamaHost)) {
+    throw new BadRequestException(
+      providerId === 'ollama'
+        ? 'Catalog lookups require HTTPS except for loopback Ollama endpoints.'
+        : 'Catalog lookups require an HTTPS provider base URL.',
+    );
+  }
+
   const allowedHosts = CATALOG_SAFE_HOSTS[providerId];
   if (!allowedHosts?.length) {
     throw new ForbiddenException(
@@ -94,7 +111,6 @@ export function assertCatalogProviderBaseUrlIsSafe(
     );
   }
 
-  const hostname = parsedUrl.hostname.toLowerCase();
   if (!allowedHosts.includes(hostname)) {
     throw new ForbiddenException(
       `Model catalog lookups are not allowed for the configured ${providerId} base URL from admin-api.`,

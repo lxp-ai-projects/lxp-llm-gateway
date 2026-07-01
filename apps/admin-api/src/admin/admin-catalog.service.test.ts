@@ -292,7 +292,7 @@ test('AdminCatalogService rejects unsafe custom provider base URLs before adapte
   const { actor, service } = createAdminCatalogService({
     userCredentialPayload: {
       apiKey: 'openai-secret',
-      baseUrl: 'http://169.254.169.254/v1',
+      baseUrl: 'https://169.254.169.254/v1',
     },
   });
   const previousFetch = globalThis.fetch;
@@ -318,6 +318,24 @@ test('AdminCatalogService rejects unsafe custom provider base URLs before adapte
   } finally {
     globalThis.fetch = previousFetch;
   }
+});
+
+test('AdminCatalogService rejects cleartext base URLs for cloud provider catalogs', async () => {
+  const { actor, service } = createAdminCatalogService({
+    userCredentialPayload: {
+      apiKey: 'openai-secret',
+      baseUrl: 'http://api.openai.com/v1',
+    },
+  });
+
+  await assert.rejects(
+    () => service.listOwnModels(actor, 'openai'),
+    (error: unknown) => {
+      assert.ok(error instanceof BadRequestException);
+      assert.match(error.message, /require an HTTPS provider base URL/);
+      return true;
+    },
+  );
 });
 
 test('AdminCatalogService rejects invalid platform credentials locally before listing models', async () => {
@@ -481,6 +499,7 @@ test('AdminCatalogService resolves the active tenant from memberships when the a
   const { service } = createAdminCatalogService({
     actorLike: {
       userUuid: 'user-uuid-1',
+      activeTenantId: 'tenant-1',
     },
     userCredentialPayload: {
       apiKey: 'openai-secret',
@@ -495,33 +514,28 @@ test('AdminCatalogService resolves the active tenant from memberships when the a
         { status: 200 },
       )) as typeof fetch,
     async () => {
-      const result = await service.listOwnModels({ userUuid: 'user-uuid-1' }, 'openai');
+      const result = await service.listOwnModels(
+        { userUuid: 'user-uuid-1', activeTenantId: 'tenant-1' },
+        'openai',
+      );
       assert.equal(result.providerId, 'openai');
       assert.equal(result.models[0]?.id, 'gpt-4.1-mini');
     },
   );
 });
 
-test('AdminCatalogService rejects partial actors when no active tenant membership can be found', async () => {
+test('AdminCatalogService rejects partial actors when no explicit active tenant can be resolved', async () => {
   const { service } = createAdminCatalogService({
     actorLike: {
       userUuid: 'user-uuid-1',
-    },
-    tenantStatus: 'disabled',
-    userCredentialPayload: {
-      apiKey: 'openai-secret',
-      baseUrl: 'https://api.openai.com/v1',
     },
   });
 
   await assert.rejects(
     () => service.listOwnModels({ userUuid: 'user-uuid-1' }, 'openai'),
     (error: unknown) => {
-      assert.ok(error instanceof Error);
+      assert.ok(error instanceof NotFoundException);
       assert.match(error.message, /User not found/);
-      if ('status' in error) {
-        assert.equal(error.status, 404);
-      }
       return true;
     },
   );
