@@ -5,7 +5,9 @@ param(
   [string]$GatewayDomain = 'gateway.example.com',
   [string]$DefaultUserEmail = 'admin@example.com',
   [string]$PostgresDb = 'lxp_gateway',
-  [string]$PostgresUser = 'lxp_gateway'
+  [string]$PostgresUser = 'lxp_gateway',
+  [string]$CookieDomain = $env:LXP_VPS_COOKIE_DOMAIN,
+  [switch]$EnableSharedCookieDomain
 )
 
 $ErrorActionPreference = 'Stop'
@@ -45,6 +47,14 @@ function Get-SharedCookieDomain {
     [string]$LeftDomain,
     [string]$RightDomain
   )
+
+  if ($CookieDomain) {
+    return $CookieDomain
+  }
+
+  if (-not $EnableSharedCookieDomain.IsPresent) {
+    return ''
+  }
 
   $leftLabels = $LeftDomain.Split('.')
   $rightLabels = $RightDomain.Split('.')

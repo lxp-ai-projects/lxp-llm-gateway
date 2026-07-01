@@ -9,6 +9,8 @@ GATEWAY_DOMAIN="${LXP_VPS_GATEWAY_DOMAIN:-gateway.example.com}"
 DEFAULT_USER_EMAIL="${LXP_VPS_DEFAULT_USER_EMAIL:-admin@example.com}"
 POSTGRES_DB="${LXP_VPS_POSTGRES_DB:-lxp_gateway}"
 POSTGRES_USER="${LXP_VPS_POSTGRES_USER:-lxp_gateway}"
+EXPLICIT_COOKIE_DOMAIN="${LXP_VPS_COOKIE_DOMAIN:-}"
+ENABLE_SHARED_COOKIE_DOMAIN="${LXP_VPS_ENABLE_SHARED_COOKIE_DOMAIN:-false}"
 
 if [[ -f "$OUTPUT_PATH" ]]; then
   echo "Refusing to overwrite existing file: $OUTPUT_PATH"
@@ -39,6 +41,16 @@ random_base64() {
 derive_cookie_domain() {
   local admin_domain="$1"
   local gateway_domain="$2"
+
+  if [[ -n "$EXPLICIT_COOKIE_DOMAIN" ]]; then
+    echo "$EXPLICIT_COOKIE_DOMAIN"
+    return
+  fi
+
+  if [[ "$ENABLE_SHARED_COOKIE_DOMAIN" != "true" ]]; then
+    echo ""
+    return
+  fi
 
   IFS='.' read -r -a admin_labels <<<"$admin_domain"
   IFS='.' read -r -a gateway_labels <<<"$gateway_domain"
