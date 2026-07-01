@@ -53,7 +53,10 @@ services:
       LXP_EMAIL_LOOKUP_KEY: ${LXP_VPS_EMAIL_LOOKUP_KEY}
       LXP_REQUEST_BODY_LIMIT: ${LXP_VPS_REQUEST_BODY_LIMIT}
       LXP_COOKIE_SECRET: ${LXP_VPS_COOKIE_SECRET}
+      LXP_COOKIE_DOMAIN: ${LXP_VPS_COOKIE_DOMAIN}
+      LXP_COOKIE_SECURE: ${LXP_VPS_COOKIE_SECURE}
       LXP_JWT_PRIVATE_KEY: ${LXP_VPS_JWT_PRIVATE_KEY}
+      GATEWAY_API_URL: http://gateway-api:3001
     depends_on:
       postgres:
         condition: service_healthy

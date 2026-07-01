@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "pretest": "pnpm --filter @lxp/domain build && pnpm --filter @lxp/contracts build && pnpm --filter @lxp/provider-sdk build",
-    "test": "tsx --test src/index.test.ts src/image/api-client.test.ts src/image/edit-service.test.ts src/image/generation-service.test.ts src/image/model-policy.test.ts src/image/request-mapper.test.ts src/image/response-mapper.test.ts"
+    "test": "tsx --test --test-concurrency=1 src/index.test.ts src/image/api-client.test.ts src/image/edit-service.test.ts src/image/generation-service.test.ts src/image/model-policy.test.ts src/image/request-mapper.test.ts src/image/response-mapper.test.ts"
   },
   "dependencies": {
     "@lxp/contracts": "workspace:*",

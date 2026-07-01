@@ -3,9 +3,12 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
 import type { ProviderId } from '@lxp/domain';
+import { BadRequestException } from '@nestjs/common';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
+import { AdminCatalogService } from './admin-catalog.service';
+import { AdminProviderCredentialService } from './admin-provider-credential.service';
 import { AdminService } from './admin.service';
 
 function createRepositoryMock<T extends { id?: string }>(
@@ -339,6 +342,7 @@ function createAdminService() {
       return;
     },
   };
+  const encryptionService = new EncryptionService();
   const actor = {
     userUuid: randomUUID(),
     activeTenantId: tenantRepository.data[0]!.id,
@@ -362,11 +366,27 @@ function createAdminService() {
       tenantPolicyRepository as never,
       usageEventRepository as never,
       credentialRepository as never,
-      new EmailProtectionService(new EncryptionService()),
-      new EncryptionService(),
+      new EmailProtectionService(encryptionService),
+      encryptionService,
       new PasswordService(),
       tenantRlsService as never,
       superAdminBootstrapService as never,
+      new AdminCatalogService(
+        userRepository as never,
+        tenantRepository as never,
+        tenantMembershipRepository as never,
+        providerRepository as never,
+        tenantProviderConfigurationRepository as never,
+        encryptionService,
+        tenantRlsService as never,
+      ),
+      new AdminProviderCredentialService(
+        userRepository as never,
+        tenantMembershipRepository as never,
+        providerRepository as never,
+        encryptionService,
+        tenantRlsService as never,
+      ),
     ),
     actor,
     repositories: {
@@ -893,7 +913,7 @@ test('AdminService stores short provider tokens without masking them further', a
     apiToken: 'abcd',
   });
 
-  assert.equal(credential.maskedHint, 'abcd');
+  assert.equal(credential.maskedHint, '***');
 });
 
 test('AdminService stores an Ollama endpoint-only credential', async () => {
@@ -912,7 +932,7 @@ test('AdminService stores an Ollama endpoint-only credential', async () => {
   });
 
   assert.equal(credential.providerId, 'ollama');
-  assert.equal(credential.maskedHint, 'http://127.0.0.1:11434/v1');
+  assert.equal(credential.maskedHint, '127.0.0.1:11434');
 
   const stored = repositories.credentialRepository.data[0] as {
     encryptedSecret: string;
@@ -1164,25 +1184,57 @@ test('AdminService rejects updating a provider credential when the new label alr
   );
 });
 
-test('AdminService rejects invalid JSON from the gateway control-plane proxy', async () => {
+test('AdminService lists models directly from the provider instead of the gateway public URL', async () => {
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+  const authenticatedUser = {
+    ...actor,
+    userUuid: createdUser.userUuid,
+  };
   const previousGatewayUrl = process.env.GATEWAY_API_URL;
   const previousFetch = globalThis.fetch;
   process.env.GATEWAY_API_URL = 'http://gateway.example.test';
-  globalThis.fetch = (async () =>
-    new Response('not-json', {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
+  const fetchCalls: string[] = [];
+  globalThis.fetch = (async (input) => {
+    fetchCalls.push(String(input));
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'glm-4.6',
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       },
-    })) as typeof fetch;
+    );
+  }) as typeof fetch;
+
+  await service.storeProviderCredentialForActor(actor, {
+    userUuid: createdUser.userUuid,
+    providerId: 'nanogpt',
+    label: 'primary',
+    apiToken: 'nano-secret-token',
+  });
 
   try {
-    const { service } = createAdminService();
+    const response = await service.listOwnModels(authenticatedUser, 'nanogpt');
 
-    await assert.rejects(
-      () => service.listOwnModels('access-token'),
-      /did not contain valid JSON/i,
+    assert.equal(response.providerId, 'nanogpt');
+    assert.deepEqual(response.models.map((model) => model.id), ['glm-4.6']);
+    assert.equal(
+      fetchCalls.some((url) => url.startsWith('http://gateway.example.test')),
+      false,
     );
+    assert.ok(fetchCalls.some((url) => url.includes('/models')));
   } finally {
     globalThis.fetch = previousFetch;
     if (previousGatewayUrl === undefined) {
@@ -1191,6 +1243,31 @@ test('AdminService rejects invalid JSON from the gateway control-plane proxy', a
       process.env.GATEWAY_API_URL = previousGatewayUrl;
     }
   }
+});
+
+test('AdminService rejects model listing without an explicit or default provider', async () => {
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await assert.rejects(
+    () =>
+      service.listOwnModels({
+        ...actor,
+        userUuid: createdUser.userUuid,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof BadRequestException);
+      assert.match(
+        error.message,
+        /No provider was supplied and no default provider is configured/,
+      );
+      return true;
+    },
+  );
 });
 
 test('AdminService updates provider settings for a user', async () => {

@@ -84,6 +84,7 @@ Fill in at minimum:
 - `LXP_VPS_ENCRYPTION_MASTER_KEY`
 - `LXP_VPS_EMAIL_LOOKUP_KEY`
 - `LXP_VPS_COOKIE_SECRET`
+- `LXP_VPS_COOKIE_DOMAIN`
 - `LXP_VPS_JWT_PRIVATE_KEY`
 - `LXP_VPS_ADMIN_WEB_ORIGIN`
 - `LXP_VPS_ADMIN_API_PUBLIC_URL`
@@ -95,6 +96,9 @@ Important rules:
 
 - `LXP_VPS_EMAIL_LOOKUP_KEY` must match between `admin-api` and `gateway-api`
 - `LXP_VPS_ENCRYPTION_MASTER_KEY` must stay stable once credentials are stored
+- `LXP_VPS_COOKIE_DOMAIN` should usually be the shared parent domain of
+  `admin.*` and `gateway.*`, for example `.example.com`
+- `LXP_VPS_COOKIE_SECURE=true` is the expected VPS posture behind HTTPS
 - `LXP_VPS_JWT_PRIVATE_KEY` and `LXP_VPS_COOKIE_SECRET` are not development
   placeholders on a real VPS
 - keep `LXP_VPS_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED=false` unless you have
@@ -313,9 +317,15 @@ Common causes:
 Check:
 
 - `LXP_VPS_ADMIN_WEB_ORIGIN`
+- `LXP_VPS_COOKIE_DOMAIN`
 - reverse-proxy route mapping
 - cookie behavior over HTTPS
 - `admin-api` health on `127.0.0.1:3002`
+
+If `admin-web` can log in but runtime chat/image/video requests fail only on the
+separate `gateway.*` hostname, the most common cause is a missing shared cookie
+domain. For a split-domain VPS install, the access cookie should usually be
+valid for both subdomains, for example `.example.com`.
 
 ### Empty model list from `/api/v1/openai/models`
 

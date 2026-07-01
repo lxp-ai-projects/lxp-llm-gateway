@@ -1,48 +1,49 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import {
-  BadGatewayException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import type { GlobalRole, ProviderId, TenantRole } from '@lxp/domain';
-import { IsNull, Repository } from 'typeorm';
+import {InjectRepository} from '@nestjs/typeorm';
+import type {GlobalRole, ProviderId, TenantRole} from '@lxp/domain';
+import {IsNull, Repository} from 'typeorm';
 
-import { ProviderEntity } from '../persistence/entities/provider.entity';
-import { RoleEntity } from '../persistence/entities/role.entity';
-import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
-import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
-import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
+import {ProviderEntity} from '../persistence/entities/provider.entity';
+import {RoleEntity} from '../persistence/entities/role.entity';
+import {ApiKeyEntity} from '../persistence/entities/api-key.entity';
+import {IntegrationClientEntity} from '../persistence/entities/integration-client.entity';
+import {TenantMembershipEntity} from '../persistence/entities/tenant-membership.entity';
 import {
-  TenantModelAccessRuleEntity,
   type TenantModelAccessCapability,
   type TenantModelAccessEffect,
+  TenantModelAccessRuleEntity,
 } from '../persistence/entities/tenant-model-access-rule.entity';
-import { TenantEntity } from '../persistence/entities/tenant.entity';
+import {TenantEntity} from '../persistence/entities/tenant.entity';
 import {
   TenantProviderConfigurationEntity,
   type TenantProviderCredentialMode,
 } from '../persistence/entities/tenant-provider-configuration.entity';
-import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
-import { TenantRlsService } from '../persistence/tenant-rls.service';
-import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
-import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
-import { UserRoleEntity } from '../persistence/entities/user-role.entity';
-import { UserEntity } from '../persistence/entities/user.entity';
-import { SuperAdminBootstrapService } from '../auth/super-admin-bootstrap.service';
-import { EmailProtectionService } from '../security/email-protection.service';
-import { EncryptionService } from '../security/encryption.service';
-import { PasswordService } from '../security/password.service';
-import { CreateTenantMembershipDto } from './dto/create-tenant-membership.dto';
-import { CreateUserDto } from './dto/create-user.dto';
-import { StoreProviderCredentialDto } from './dto/store-provider-credential.dto';
-import { UpdateProviderCredentialDto } from './dto/update-provider-credential.dto';
-import { UpdateProviderSettingsDto } from './dto/update-provider-settings.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import {TenantPolicyEntity} from '../persistence/entities/tenant-policy.entity';
+import {TenantRlsService} from '../persistence/tenant-rls.service';
+import {UsageEventEntity} from '../persistence/entities/usage-event.entity';
+import {UserProviderCredentialEntity} from '../persistence/entities/user-provider-credential.entity';
+import {UserRoleEntity} from '../persistence/entities/user-role.entity';
+import {UserEntity} from '../persistence/entities/user.entity';
+import {SuperAdminBootstrapService} from '../auth/super-admin-bootstrap.service';
+import {EmailProtectionService} from '../security/email-protection.service';
+import {EncryptionService} from '../security/encryption.service';
+import {PasswordService} from '../security/password.service';
+import {AdminCatalogService} from './admin-catalog.service';
+import {getValidatedPlatformProviderAccess} from './admin-provider-access';
+import {AdminProviderCredentialService} from './admin-provider-credential.service';
+import {CreateTenantMembershipDto} from './dto/create-tenant-membership.dto';
+import {CreateUserDto} from './dto/create-user.dto';
+import {StoreProviderCredentialDto} from './dto/store-provider-credential.dto';
+import {UpdateProviderCredentialDto} from './dto/update-provider-credential.dto';
+import {UpdateProviderSettingsDto} from './dto/update-provider-settings.dto';
+import {UpdateUserDto} from './dto/update-user.dto';
 
 type ProviderAccessConfig = {
   baseUrl?: string;
@@ -231,6 +232,8 @@ export class AdminService {
     private readonly passwordService: PasswordService,
     private readonly tenantRlsService: TenantRlsService,
     private readonly superAdminBootstrapService: SuperAdminBootstrapService,
+    private readonly adminCatalogService: AdminCatalogService,
+    private readonly adminProviderCredentialService: AdminProviderCredentialService,
   ) {}
 
   async createUser(
@@ -273,11 +276,9 @@ export class AdminService {
     },
   ) {
     const protectedEmail = this.emailProtectionService.protect(dto.email);
-    const existingUser = await this.userRepository.findOne({
-      where: { emailHash: protectedEmail.emailHash },
+    let user = await this.userRepository.findOne({
+      where: {emailHash: protectedEmail.emailHash},
     });
-
-    let user = existingUser;
     if (!user) {
       if (!dto.password || dto.password.trim().length < 8) {
         throw new BadRequestException(
@@ -655,14 +656,11 @@ export class AdminService {
           : Promise.resolve(false),
         this.hasActiveCredential(tenantId, null, provider.id, 'tenant'),
       ]);
-    const platformProviderAccess = this.getPlatformProviderAccess(
+    const platformProviderAccess = getValidatedPlatformProviderAccess(
       provider.providerId,
+      this.getPlatformProviderAccess(provider.providerId),
     );
-    const platformCredentialAvailable =
-      platformProviderAccess !== null &&
-      Boolean(
-        platformProviderAccess.apiKey || platformProviderAccess.baseUrl,
-      );
+    const platformCredentialAvailable = platformProviderAccess !== null;
     const resolvedCredentialScope = this.resolveCredentialScopeForConfiguration(
       configuration,
       {
@@ -1522,62 +1520,10 @@ export class AdminService {
         : await this.resolveActor(actorOrUserUuid);
     const userUuid =
       typeof actorOrUserUuid === 'string' ? actorOrUserUuid : maybeUserUuid!;
-    const user = await this.assertTenantScopedUser(actor.activeTenantId, userUuid);
-    const credentials = await this.withCredentialRepository(
-      actor.activeTenantId,
-      (credentialRepository) =>
-        credentialRepository.find({
-          where: [
-            {
-              tenantId: actor.activeTenantId,
-              userId: user.id,
-            },
-            {
-              tenantId: actor.activeTenantId,
-              userId: IsNull(),
-              scope: 'tenant',
-            },
-          ],
-          relations: {
-            provider: true,
-          },
-          order: {
-            createdAt: 'DESC',
-          },
-        }),
-    );
-    const providerIds = new Set(
-      credentials
-        .map((credential) => credential.providerId)
-        .filter((providerId): providerId is string => Boolean(providerId)),
-    );
-    const providerMap = new Map(
-      (
-        await this.providerRepository.find({
-          where: [...providerIds].map((providerId) => ({ id: providerId })),
-        })
-      ).map((provider) => [provider.id, provider]),
-    );
-
-    return credentials.map((credential) => ({
-      id: credential.id,
+    return this.adminProviderCredentialService.listProviderCredentialsForUser(
+      actor,
       userUuid,
-      providerId:
-        credential.provider?.providerId ??
-        providerMap.get(credential.providerId)?.providerId ??
-        credential.providerId,
-      providerDisplayName:
-        credential.provider?.displayName ??
-        providerMap.get(credential.providerId)?.displayName ??
-        'Unknown provider',
-      label: credential.label,
-      scope: credential.scope,
-      maskedHint: credential.maskedHint,
-      isActive: credential.isActive,
-      createdAt: credential.createdAt,
-      updatedAt: credential.updatedAt,
-      lastUsedAt: credential.lastUsedAt,
-    }));
+    );
   }
 
   async storeProviderCredential(dto: StoreProviderCredentialDto) {
@@ -1594,38 +1540,10 @@ export class AdminService {
     dto: StoreProviderCredentialDto,
   ) {
     const actor = await this.resolveActor(actorLike);
-    const scope = dto.scope ?? (dto.userUuid ? 'user' : 'tenant');
-    if (scope === 'user' && !dto.userUuid) {
-      dto = { ...dto, userUuid: actor.userUuid };
-    }
-
-    if (scope === 'tenant' && dto.userUuid) {
-      throw new BadRequestException(
-        'Tenant-scoped credentials cannot target an individual user.',
-      );
-    }
-
-    if (scope === 'user') {
-      const targetUserUuid = dto.userUuid ?? actor.userUuid;
-      const isOwnCredential = targetUserUuid === actor.userUuid;
-      const isPrivileged =
-        actor.roles.includes('tenant_admin') || actor.roles.includes('operator');
-
-      if (!isOwnCredential && !isPrivileged) {
-        throw new ForbiddenException(
-          'You cannot manage another user provider credential.',
-        );
-      }
-    } else if (!actor.roles.includes('tenant_admin')) {
-      throw new ForbiddenException(
-        'Only tenant administrators or operators can manage tenant credentials.',
-      );
-    }
-
-    return this.storeProviderCredentialInternal(actor.activeTenantId, {
-      ...dto,
-      scope,
-    });
+    return this.adminProviderCredentialService.storeProviderCredentialForActor(
+      actor,
+      dto,
+    );
   }
 
   async updateOwnProviderCredential(
@@ -1634,114 +1552,11 @@ export class AdminService {
     dto: UpdateProviderCredentialDto,
   ) {
     const actor = await this.resolveActor(actorLike);
-    const user = await this.assertTenantScopedUser(
-      actor.activeTenantId,
-      actor.userUuid,
+    return this.adminProviderCredentialService.updateOwnProviderCredential(
+      actor,
+      credentialId,
+      dto,
     );
-    const credential = await this.withCredentialRepository(
-      actor.activeTenantId,
-      (credentialRepository) =>
-        credentialRepository.findOne({
-          where: [
-            {
-              id: credentialId,
-              tenantId: actor.activeTenantId,
-              userId: user.id,
-              scope: 'user',
-            },
-            {
-              id: credentialId,
-              tenantId: actor.activeTenantId,
-              userId: IsNull(),
-              scope: 'tenant',
-            },
-          ],
-          relations: {
-            provider: true,
-          },
-        }),
-    );
-    if (!credential) {
-      throw new NotFoundException('Unable to update the provider credential.');
-    }
-
-    if (
-      credential.scope === 'tenant' &&
-      !actor.roles.some((role) => role === 'tenant_admin' || role === 'operator')
-    ) {
-      throw new ForbiddenException(
-        'Only tenant administrators can manage tenant credentials.',
-      );
-    }
-
-    const provider =
-      credential.provider ??
-      (await this.providerRepository.findOne({
-        where: { id: credential.providerId },
-      }));
-    if (!provider) {
-      throw new NotFoundException('Unable to update the provider credential.');
-    }
-
-    const nextLabel = dto.label?.trim() ?? credential.label;
-    if (nextLabel !== credential.label) {
-      const credentialUserId =
-        credential.scope === 'tenant' ? IsNull() : user.id;
-      const duplicateCredential = await this.withCredentialRepository(
-        actor.activeTenantId,
-        (credentialRepository) =>
-          credentialRepository.findOne({
-            where: {
-              tenantId: actor.activeTenantId,
-              userId: credentialUserId,
-              providerId: credential.providerId,
-              label: nextLabel,
-              scope: credential.scope,
-            },
-          }),
-      );
-
-      if (duplicateCredential && duplicateCredential.id !== credential.id) {
-        throw new ConflictException(
-          'A credential already exists for this provider/label. Use Edit to update it, or delete the existing credential first.',
-        );
-      }
-      credential.label = nextLabel;
-    }
-
-    if (dto.apiToken?.trim() || dto.baseUrl?.trim()) {
-      const providerAccess = this.createProviderAccess(
-        dto,
-        provider.providerId,
-        credential,
-      );
-      const encrypted = this.encryptionService.encrypt(
-        JSON.stringify(providerAccess),
-      );
-      credential.encryptedSecret = encrypted.ciphertext;
-      credential.iv = encrypted.iv;
-      credential.authTag = encrypted.authTag;
-      credential.keyVersion = encrypted.keyVersion;
-      credential.maskedHint = this.maskProviderAccess(providerAccess);
-    }
-
-    await this.withCredentialRepository(actor.activeTenantId, (credentialRepository) =>
-      credentialRepository.save(credential),
-    );
-
-    return {
-      id: credential.id,
-      userUuid: credential.scope === 'tenant' ? actor.userUuid : user.userUuid,
-      providerId: provider.providerId,
-      providerDisplayName: provider.displayName,
-      label: credential.label,
-      scope: credential.scope,
-      maskedHint: credential.maskedHint,
-      isActive: credential.isActive,
-      createdAt: credential.createdAt,
-      updatedAt: credential.updatedAt,
-      lastUsedAt: credential.lastUsedAt,
-    };
   }
 
   async deleteOwnProviderCredential(
@@ -1749,75 +1564,22 @@ export class AdminService {
     credentialId: string,
   ) {
     const actor = await this.resolveActor(actorLike);
-    const user = await this.assertTenantScopedUser(
-      actor.activeTenantId,
-      actor.userUuid,
+    return this.adminProviderCredentialService.deleteOwnProviderCredential(
+      actor,
+      credentialId,
     );
-    const credential = await this.withCredentialRepository(
-      actor.activeTenantId,
-      (credentialRepository) =>
-        credentialRepository.findOne({
-          where: [
-            {
-              id: credentialId,
-              tenantId: actor.activeTenantId,
-              userId: user.id,
-              scope: 'user',
-            },
-            {
-              id: credentialId,
-              tenantId: actor.activeTenantId,
-              userId: IsNull(),
-              scope: 'tenant',
-            },
-          ],
-        }),
-    );
-    if (!credential) {
-      throw new NotFoundException('Unable to delete the provider credential.');
-    }
-
-    if (
-      credential.scope === 'tenant' &&
-      !actor.roles.some((role) => role === 'tenant_admin' || role === 'operator')
-    ) {
-      throw new ForbiddenException(
-        'Only tenant administrators or operators can manage tenant credentials.',
-      );
-    }
-
-    await this.withCredentialRepository(actor.activeTenantId, (credentialRepository) =>
-      credentialRepository.delete({
-        id: credential.id,
-        tenantId: actor.activeTenantId,
-      }),
-    );
-
-    return { deleted: true as const };
   }
 
-  async listOwnModels(accessToken: string, providerId?: string) {
-    const query = providerId?.trim()
-      ? `?providerId=${encodeURIComponent(providerId.trim())}`
-      : '';
-    return this.fetchGatewayControlPlaneJson(
-      accessToken,
-      `/api/v1/models${query}`,
-    );
+  async listOwnModels(actorLike: TenantActorLike, providerId?: string) {
+    return this.adminCatalogService.listOwnModels(actorLike, providerId);
   }
 
   async getOwnImageCatalog(accessToken: string) {
-    return this.fetchGatewayControlPlaneJson(
-      accessToken,
-      '/api/v1/images/catalog',
-    );
+    return this.adminCatalogService.getOwnImageCatalog(accessToken);
   }
 
   async getOwnVideoCatalog(accessToken: string) {
-    return this.fetchGatewayControlPlaneJson(
-      accessToken,
-      '/api/v1/videos/catalog',
-    );
+    return this.adminCatalogService.getOwnVideoCatalog(accessToken);
   }
 
   async getProviderSettingsForUser(
@@ -1958,77 +1720,6 @@ export class AdminService {
       defaultModel: user.defaultModel,
       defaultImageProviderId: user.defaultImageProviderId,
       defaultImageModel: user.defaultImageModel,
-    };
-  }
-
-  private async storeProviderCredentialInternal(
-    tenantId: string,
-    dto: StoreProviderCredentialDto & { scope: 'tenant' | 'user' },
-  ) {
-    const user =
-      dto.scope === 'user'
-        ? await this.assertTenantScopedUser(tenantId, dto.userUuid!)
-        : null;
-
-    const provider = await this.providerRepository.findOne({
-      where: { providerId: dto.providerId },
-    });
-    if (!provider) {
-      throw new NotFoundException('Unable to store the provider credential.');
-    }
-
-    const existingCredential = await this.withCredentialRepository(
-      tenantId,
-      (credentialRepository) =>
-        credentialRepository.findOne({
-          where: {
-            tenantId,
-            userId: user?.id ?? IsNull(),
-            providerId: provider.id,
-            label: dto.label,
-          },
-        }),
-    );
-    if (existingCredential) {
-      throw new ConflictException(
-        'A credential already exists for this provider/label. Use Edit to update it, or delete the existing credential first.',
-      );
-    }
-
-    const providerAccess = this.createProviderAccess(dto, provider.providerId);
-    const encrypted = this.encryptionService.encrypt(
-      JSON.stringify(providerAccess),
-    );
-    const maskedHint = this.maskProviderAccess(providerAccess);
-
-    const credential = this.credentialRepository.create({
-      tenantId,
-      userId: user?.id ?? null,
-      providerId: provider.id,
-      scope: dto.scope,
-      label: dto.label,
-      encryptedSecret: encrypted.ciphertext,
-      iv: encrypted.iv,
-      authTag: encrypted.authTag,
-      keyVersion: encrypted.keyVersion,
-      isActive: true,
-      maskedHint,
-    });
-
-    await this.withCredentialRepository(tenantId, (credentialRepository) =>
-      credentialRepository.save(credential),
-    );
-
-    return {
-      id: credential.id,
-      tenantId,
-      userUuid: user?.userUuid ?? null,
-      providerId: provider.providerId,
-      label: credential.label,
-      scope: credential.scope,
-      maskedHint: credential.maskedHint,
-      isActive: credential.isActive,
-      createdAt: credential.createdAt,
     };
   }
 
@@ -2784,103 +2475,6 @@ export class AdminService {
     };
   }
 
-  private getGatewayControlPlaneBaseUrl(): string {
-    const candidates = [
-      process.env.GATEWAY_API_URL,
-      process.env.LXP_VPS_GATEWAY_API_PUBLIC_URL,
-      process.env.VITE_GATEWAY_API_URL,
-      'http://127.0.0.1:3001',
-    ];
-    const resolved = candidates.find(
-      (candidate) => typeof candidate === 'string' && candidate.trim().length > 0,
-    );
-
-    return (resolved ?? 'http://127.0.0.1:3001').replace(/\/$/, '');
-  }
-
-  private async fetchGatewayControlPlaneJson<T>(
-    accessToken: string,
-    path: string,
-  ): Promise<T> {
-    const gatewayUrl = `${this.getGatewayControlPlaneBaseUrl()}${path}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
-
-    let response: Response;
-    try {
-      response = await fetch(gatewayUrl, {
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        signal: controller.signal,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new BadGatewayException(
-          'The gateway control-plane request timed out before the server responded.',
-        );
-      }
-
-      throw new BadGatewayException(
-        error instanceof Error
-          ? error.message
-          : 'The gateway control-plane request failed before reaching the server.',
-      );
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new HttpException(
-        this.formatGatewayProxyErrorMessage(body, response.status),
-        response.status,
-      );
-    }
-
-    const body = await response.text();
-    if (!body.trim()) {
-      throw new BadGatewayException(
-        'The gateway control-plane response did not contain valid JSON.',
-      );
-    }
-
-    try {
-      return JSON.parse(body) as T;
-    } catch {
-      throw new BadGatewayException(
-        'The gateway control-plane response did not contain valid JSON.',
-      );
-    }
-  }
-
-  private formatGatewayProxyErrorMessage(body: string, status: number): string {
-    const trimmedBody = body.trim();
-    if (!trimmedBody) {
-      return `Gateway control-plane request failed with ${status}.`;
-    }
-
-    try {
-      const parsed = JSON.parse(trimmedBody) as {
-        message?: string | string[];
-      };
-      if (typeof parsed.message === 'string' && parsed.message.trim()) {
-        return parsed.message.trim();
-      }
-      if (
-        Array.isArray(parsed.message) &&
-        parsed.message.every((entry) => typeof entry === 'string')
-      ) {
-        return parsed.message.join(', ').trim();
-      }
-    } catch {
-      // Fall through to raw text below.
-    }
-
-    return trimmedBody;
-  }
-
   private async assertActiveCredentialExists(
     tenantId: string,
     userId: string,
@@ -3101,137 +2695,6 @@ export class AdminService {
           membership.userId,
         ) ?? [],
     };
-  }
-
-  private createProviderAccess(
-    dto:
-      | StoreProviderCredentialDto
-      | UpdateProviderCredentialDto
-      | (Partial<StoreProviderCredentialDto> & Partial<UpdateProviderCredentialDto>),
-    providerIdOrCredential: string | UserProviderCredentialEntity,
-    existingCredential?: UserProviderCredentialEntity,
-  ): ProviderAccessConfig {
-    const resolvedExistingCredential =
-      typeof providerIdOrCredential === 'string'
-        ? existingCredential
-        : providerIdOrCredential;
-    const providerId =
-      typeof providerIdOrCredential === 'string'
-        ? providerIdOrCredential
-        : providerIdOrCredential.provider?.providerId;
-    if (!providerId) {
-      throw new BadRequestException(
-        'A provider credential must resolve to a provider identifier.',
-      );
-    }
-    const providerAccess = resolvedExistingCredential
-      ? this.readProviderAccess(resolvedExistingCredential)
-      : {};
-
-    if ('apiToken' in dto && dto.apiToken?.trim()) {
-      providerAccess.apiKey = dto.apiToken.trim();
-    }
-
-    if ('baseUrl' in dto && dto.baseUrl?.trim()) {
-      providerAccess.baseUrl = dto.baseUrl.trim();
-    }
-
-    if (!providerAccess.apiKey && !providerAccess.baseUrl) {
-      throw new BadRequestException(
-        'A provider credential must include an API token, a base URL, or both.',
-      );
-    }
-
-    this.assertProviderAccessIsValid(providerId, providerAccess);
-
-    return providerAccess;
-  }
-
-  private assertProviderAccessIsValid(
-    providerId: string | undefined,
-    providerAccess: ProviderAccessConfig,
-  ): void {
-    if (
-      (providerId === 'google' ||
-        providerId === 'xai' ||
-        providerId === 'openai' ||
-        providerId === 'anthropic' ||
-        providerId === 'mistral' ||
-        providerId === 'deepseek') &&
-      !providerAccess.apiKey
-    ) {
-      throw new BadRequestException(
-        providerId === 'google'
-          ? 'Google Gemini credentials require an API token.'
-          : providerId === 'xai'
-            ? 'xAI Grok credentials require an API token.'
-            : providerId === 'openai'
-              ? 'OpenAI credentials require an API token.'
-              : providerId === 'anthropic'
-                ? 'Anthropic credentials require an API token.'
-                : providerId === 'mistral'
-                  ? 'Mistral credentials require an API token.'
-                  : 'DeepSeek credentials require an API token.',
-      );
-    }
-
-    if (providerId !== 'ollama' || !providerAccess.baseUrl) {
-      return;
-    }
-
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(providerAccess.baseUrl);
-    } catch {
-      throw new BadRequestException(
-        'Ollama base URL must be a valid absolute URL.',
-      );
-    }
-
-    const hostname = parsedUrl.hostname.toLowerCase();
-    if (
-      (hostname === 'ollama.com' || hostname === 'www.ollama.com') &&
-      !providerAccess.apiKey
-    ) {
-      throw new BadRequestException(
-        'Ollama cloud credentials on ollama.com require an API token.',
-      );
-    }
-  }
-
-  private readProviderAccess(
-    credential: UserProviderCredentialEntity,
-  ): ProviderAccessConfig {
-    const decryptedPayload = this.encryptionService.decrypt({
-      ciphertext: credential.encryptedSecret,
-      iv: credential.iv,
-      authTag: credential.authTag,
-      keyVersion: credential.keyVersion,
-    });
-
-    try {
-      return JSON.parse(decryptedPayload) as ProviderAccessConfig;
-    } catch {
-      return {
-        apiKey: decryptedPayload,
-      };
-    }
-  }
-
-  private maskProviderAccess(
-    providerAccess: ProviderAccessConfig,
-  ): string | null {
-    if (providerAccess.apiKey) {
-      return providerAccess.apiKey.length <= 4
-        ? providerAccess.apiKey
-        : `***${providerAccess.apiKey.slice(-4)}`;
-    }
-
-    if (providerAccess.baseUrl) {
-      return providerAccess.baseUrl;
-    }
-
-    return null;
   }
 
   private async withCredentialRepository<T>(

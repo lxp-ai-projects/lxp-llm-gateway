@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { Readable } from 'node:stream';
 
 import type { GatewayVideoGenerationRequest } from '@lxp/contracts';
 import { attachKlingVideoFamilyToModel } from '@lxp/model-family-capabilities';
@@ -291,12 +292,7 @@ class FakeVideoProvider implements LlmProviderAdapter {
   downloadVideoOutput = async () => {
     this.downloadCalls += 1;
     const payload = new TextEncoder().encode('video-bytes');
-    return new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(payload);
-        controller.close();
-      },
-    });
+    return Readable.toWeb(Readable.from([payload])) as ReadableStream<Uint8Array>;
   };
 
   cancelVideoGeneration = async () => {

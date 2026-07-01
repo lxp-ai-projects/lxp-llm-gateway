@@ -450,7 +450,7 @@ export class AdminController {
     @Req() request: RequestWithAuthUser,
     @Query('providerId') providerId?: string,
   ) {
-    return this.adminService.listOwnModels(request.authAccessToken!, providerId);
+    return this.adminService.listOwnModels(request.authUser!, providerId);
   }
 
   @Get('images/catalog')
