@@ -210,6 +210,34 @@ test('useChatStreaming surfaces missing assistant content when the stream ends e
   );
 });
 
+test('useChatStreaming warns when the assistant stream stops at the model output limit', async () => {
+  chatStreamMock.mockImplementation(async (_payload, handlers) => {
+    handlers.onChunk?.({ reasoningDelta: '', contentDelta: 'Partial answer' });
+
+    return {
+      requestId: 'request-length',
+      receivedReasoning: false,
+      receivedContent: true,
+      finishReason: 'length',
+    };
+  });
+
+  const { hook, onSetChatError, currentConversations } = setup();
+
+  await act(async () => {
+    await hook.result.current.sendMessage(createConversation, 'Hello');
+  });
+
+  expect(onSetChatError).toHaveBeenLastCalledWith(
+    'The assistant response stopped at the model output limit and may be incomplete.',
+  );
+  expect(currentConversations()[0]?.messages.at(-1)).toMatchObject({
+    role: 'assistant',
+    content: 'Partial answer',
+    finishReason: 'length',
+  });
+});
+
 test('useChatStreaming retries an assistant message from the prior user context', async () => {
   const activeConversation: StoredConversation = {
     ...createConversation(),
