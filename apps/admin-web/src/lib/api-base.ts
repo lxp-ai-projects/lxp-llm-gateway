@@ -371,6 +371,7 @@ export async function chatStreamWithSessionRefresh(
     onChunk: (chunk: GatewayChatStreamChunk) => void;
   },
   hasRetried: boolean,
+  baseUrl = gatewayApiUrl,
 ): Promise<GatewayChatStreamResult> {
   const controller = new AbortController();
   let idleTimeoutId: number | undefined;
@@ -387,7 +388,7 @@ export async function chatStreamWithSessionRefresh(
 
   resetIdleTimeout();
 
-  const chatUrl = `${gatewayApiUrl}/api/v1/chat`;
+  const chatUrl = `${baseUrl}/api/v1/chat`;
   const response = await fetch(chatUrl, {
     method: 'POST',
     credentials: 'include',

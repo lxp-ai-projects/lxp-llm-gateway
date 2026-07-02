@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Readable } from 'node:stream';
 import {
   BadGatewayException,
   BadRequestException,
@@ -8,6 +9,7 @@ import {
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
+import type { Response as ExpressResponse } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ProviderId, TenantRole, GlobalRole } from '@lxp/domain';
 import type {
@@ -179,6 +181,94 @@ export class AdminCatalogService {
       accessToken,
       '/api/v1/videos/catalog',
     );
+  }
+
+  async proxyGatewayJson<T>(
+    accessToken: string,
+    path: string,
+    options?: {
+      method?: 'DELETE' | 'GET' | 'PATCH' | 'POST';
+      body?: unknown;
+      timeoutMs?: number;
+    },
+  ): Promise<T> {
+    const response = await this.fetchGatewayControlPlane(accessToken, path, {
+      method: options?.method,
+      body: options?.body,
+      timeoutMs: options?.timeoutMs,
+    });
+
+    return this.parseGatewayJsonResponse(response);
+  }
+
+  async proxyGatewayBinary(
+    accessToken: string,
+    path: string,
+    response: ExpressResponse,
+  ): Promise<void> {
+    const upstreamResponse = await this.fetchGatewayControlPlane(
+      accessToken,
+      path,
+      {
+        headers: {
+          Accept: '*/*',
+        },
+      },
+    );
+
+    response.status(upstreamResponse.status);
+    this.copyGatewayResponseHeader(
+      upstreamResponse,
+      response,
+      'cache-control',
+    );
+    this.copyGatewayResponseHeader(
+      upstreamResponse,
+      response,
+      'content-disposition',
+    );
+    this.copyGatewayResponseHeader(upstreamResponse, response, 'content-type');
+
+    response.send(Buffer.from(await upstreamResponse.arrayBuffer()));
+  }
+
+  async proxyGatewayChat(
+    accessToken: string,
+    payload: unknown,
+    response: ExpressResponse,
+  ): Promise<void> {
+    const upstreamResponse = await this.fetchGatewayControlPlane(
+      accessToken,
+      '/api/v1/chat',
+      {
+        method: 'POST',
+        body: payload,
+        headers: {
+          Accept: isStreamingChatPayload(payload)
+            ? 'text/event-stream'
+            : 'application/json',
+        },
+        timeoutMs: 90_000,
+      },
+    );
+
+    response.status(upstreamResponse.status);
+    this.copyGatewayResponseHeader(upstreamResponse, response, 'content-type');
+    this.copyGatewayResponseHeader(upstreamResponse, response, 'cache-control');
+    this.copyGatewayResponseHeader(upstreamResponse, response, 'connection');
+    this.copyGatewayResponseHeader(upstreamResponse, response, 'x-request-id');
+
+    const contentType = upstreamResponse.headers.get('content-type') ?? '';
+    if (
+      contentType.includes('text/event-stream') &&
+      upstreamResponse.body
+    ) {
+      response.flushHeaders?.();
+      Readable.fromWeb(upstreamResponse.body as never).pipe(response as never);
+      return;
+    }
+
+    response.send(await upstreamResponse.text());
   }
 
   private async assertTenantExists(tenantId: string) {
@@ -576,17 +666,47 @@ export class AdminCatalogService {
     accessToken: string,
     path: string,
   ): Promise<T> {
+    const response = await this.fetchGatewayControlPlane(accessToken, path);
+
+    return this.parseGatewayJsonResponse(response);
+  }
+
+  private async fetchGatewayControlPlane(
+    accessToken: string,
+    path: string,
+    options?: {
+      method?: 'DELETE' | 'GET' | 'PATCH' | 'POST';
+      body?: unknown;
+      headers?: Record<string, string>;
+      timeoutMs?: number;
+    },
+  ): Promise<Response> {
     const gatewayUrl = `${this.getGatewayControlPlaneBaseUrl()}${path}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      options?.timeoutMs ?? 15_000,
+    );
 
     let response: Response;
     try {
       response = await fetch(gatewayUrl, {
+        method: options?.method ?? 'GET',
         headers: {
           Accept: 'application/json',
           Authorization: `Bearer ${accessToken}`,
+          ...(options?.body === undefined
+            ? {}
+            : {
+                'Content-Type': 'application/json',
+              }),
+          ...(options?.headers ?? {}),
         },
+        ...(options?.body === undefined
+          ? {}
+          : {
+              body: JSON.stringify(options.body),
+            }),
         signal: controller.signal,
       });
     } catch (error) {
@@ -613,6 +733,10 @@ export class AdminCatalogService {
       );
     }
 
+    return response;
+  }
+
+  private async parseGatewayJsonResponse<T>(response: Response): Promise<T> {
     const body = await response.text();
     if (!body.trim()) {
       throw new BadGatewayException(
@@ -627,6 +751,19 @@ export class AdminCatalogService {
         'The gateway control-plane response did not contain valid JSON.',
       );
     }
+  }
+
+  private copyGatewayResponseHeader(
+    upstreamResponse: Response,
+    response: ExpressResponse,
+    headerName: string,
+  ) {
+    const headerValue = upstreamResponse.headers.get(headerName);
+    if (!headerValue) {
+      return;
+    }
+
+    response.setHeader(headerName, headerValue);
   }
 
   private formatGatewayProxyErrorMessage(body: string, status: number): string {
@@ -721,4 +858,15 @@ export class AdminCatalogService {
       };
     }
   }
+}
+
+function isStreamingChatPayload(
+  payload: unknown,
+): payload is { stream: true } {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'stream' in payload &&
+    (payload as { stream?: unknown }).stream === true
+  );
 }

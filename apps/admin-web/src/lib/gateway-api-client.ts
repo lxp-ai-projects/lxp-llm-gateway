@@ -1,4 +1,5 @@
 import {
+  adminApiUrl,
   chatStreamWithSessionRefresh,
   gatewayApiUrl,
   request,
@@ -26,6 +27,7 @@ import type {
 } from './api-client.types';
 
 const IMAGE_REQUEST_TIMEOUT_MS = 300000;
+const gatewayControlPlaneUrl = adminApiUrl;
 
 export const gatewayApiClient = {
   async getHealth(): Promise<{ status: string }> {
@@ -34,13 +36,13 @@ export const gatewayApiClient = {
 
   async getImageCatalog(): Promise<GatewayImageCatalogResponse> {
     return request<GatewayImageCatalogResponse>(
-      `${gatewayApiUrl}/api/v1/images/catalog`,
+      `${gatewayControlPlaneUrl}/api/v1/images/catalog`,
     );
   },
 
   async getVideoCatalog(): Promise<GatewayVideoCatalogResponse> {
     return request<GatewayVideoCatalogResponse>(
-      `${gatewayApiUrl}/api/v1/videos/catalog`,
+      `${gatewayControlPlaneUrl}/api/v1/videos/catalog`,
     );
   },
 
@@ -49,8 +51,8 @@ export const gatewayApiClient = {
     models: ProviderModelSummary[];
   }> {
     const endpoint = providerId
-      ? `${gatewayApiUrl}/api/v1/models?providerId=${encodeURIComponent(providerId)}`
-      : `${gatewayApiUrl}/api/v1/models`;
+      ? `${gatewayControlPlaneUrl}/api/v1/models?providerId=${encodeURIComponent(providerId)}`
+      : `${gatewayControlPlaneUrl}/api/v1/models`;
 
     return request(endpoint);
   },
@@ -63,7 +65,7 @@ export const gatewayApiClient = {
     stream: false;
     messages: GatewayChatMessage[];
   }): Promise<GatewayChatResponse> {
-    return request<GatewayChatResponse>(`${gatewayApiUrl}/api/v1/chat`, {
+    return request<GatewayChatResponse>(`${gatewayControlPlaneUrl}/api/v1/chat`, {
       method: 'POST',
       body: JSON.stringify(payload),
       timeoutMs: 90000,
@@ -83,7 +85,12 @@ export const gatewayApiClient = {
       onChunk: (chunk: GatewayChatStreamChunk) => void;
     },
   ): Promise<GatewayChatStreamResult> {
-    return chatStreamWithSessionRefresh(payload, handlers, false);
+    return chatStreamWithSessionRefresh(
+      payload,
+      handlers,
+      false,
+      gatewayControlPlaneUrl,
+    );
   },
 
   async generateImage(payload: {
@@ -101,7 +108,7 @@ export const gatewayApiClient = {
     outputCompression?: number;
   }): Promise<GatewayImageGenerationResponse> {
     return request<GatewayImageGenerationResponse>(
-      `${gatewayApiUrl}/api/v1/images/generations`,
+      `${gatewayControlPlaneUrl}/api/v1/images/generations`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -127,7 +134,7 @@ export const gatewayApiClient = {
     inputFidelity?: string;
   }): Promise<GatewayImageGenerationResponse> {
     return request<GatewayImageGenerationResponse>(
-      `${gatewayApiUrl}/api/v1/images/edits`,
+      `${gatewayControlPlaneUrl}/api/v1/images/edits`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -141,7 +148,7 @@ export const gatewayApiClient = {
     label?: string;
   }): Promise<{ asset: GatewayImageAssetSummary }> {
     return request<{ asset: GatewayImageAssetSummary }>(
-      `${gatewayApiUrl}/api/v1/images/assets`,
+      `${gatewayControlPlaneUrl}/api/v1/images/assets`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -152,7 +159,7 @@ export const gatewayApiClient = {
 
   async getImageAssets(): Promise<GatewayImageAssetListResponse> {
     return request<GatewayImageAssetListResponse>(
-      `${gatewayApiUrl}/api/v1/images/assets`,
+      `${gatewayControlPlaneUrl}/api/v1/images/assets`,
     );
   },
 
@@ -161,7 +168,7 @@ export const gatewayApiClient = {
     saved: boolean,
   ): Promise<{ asset: GatewayImageAssetSummary }> {
     return request<{ asset: GatewayImageAssetSummary }>(
-      `${gatewayApiUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}/save`,
+      `${gatewayControlPlaneUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}/save`,
       {
         method: 'PATCH',
         body: JSON.stringify({ saved }),
@@ -171,7 +178,7 @@ export const gatewayApiClient = {
 
   async deleteImageAsset(assetId: string): Promise<{ deleted: true }> {
     return request<{ deleted: true }>(
-      `${gatewayApiUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}`,
+      `${gatewayControlPlaneUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}`,
       {
         method: 'DELETE',
       },
@@ -183,7 +190,7 @@ export const gatewayApiClient = {
     payload: GatewayImageAssetUpdateRequest,
   ): Promise<{ asset: GatewayImageAssetSummary }> {
     return request<{ asset: GatewayImageAssetSummary }>(
-      `${gatewayApiUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}`,
+      `${gatewayControlPlaneUrl}/api/v1/images/assets/${encodeURIComponent(assetId)}`,
       {
         method: 'PATCH',
         body: JSON.stringify(payload),
@@ -193,7 +200,7 @@ export const gatewayApiClient = {
 
   async getImageHistory(page = 1): Promise<GatewayImageHistoryResponse> {
     return request<GatewayImageHistoryResponse>(
-      `${gatewayApiUrl}/api/v1/images/history?page=${encodeURIComponent(String(page))}`,
+      `${gatewayControlPlaneUrl}/api/v1/images/history?page=${encodeURIComponent(String(page))}`,
     );
   },
 
@@ -213,7 +220,7 @@ export const gatewayApiClient = {
     providerOptions?: Record<string, unknown>;
   }): Promise<GatewayVideoGenerationJob> {
     return request<GatewayVideoGenerationJob>(
-      `${gatewayApiUrl}/api/v1/videos/generations`,
+      `${gatewayControlPlaneUrl}/api/v1/videos/generations`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -224,7 +231,7 @@ export const gatewayApiClient = {
 
   async getVideoJob(jobId: string): Promise<GatewayVideoGenerationJob> {
     return request<GatewayVideoGenerationJob>(
-      `${gatewayApiUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
+      `${gatewayControlPlaneUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
       {
         timeoutMs: 90000,
       },
@@ -233,7 +240,7 @@ export const gatewayApiClient = {
 
   async cancelVideoJob(jobId: string): Promise<GatewayVideoGenerationJob> {
     return request<GatewayVideoGenerationJob>(
-      `${gatewayApiUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}/cancel`,
+      `${gatewayControlPlaneUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}/cancel`,
       {
         method: 'PATCH',
       },
@@ -242,7 +249,7 @@ export const gatewayApiClient = {
 
   async deleteVideoJob(jobId: string): Promise<{ deleted: true }> {
     return request<{ deleted: true }>(
-      `${gatewayApiUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
+      `${gatewayControlPlaneUrl}/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
       {
         method: 'DELETE',
       },
@@ -254,7 +261,7 @@ export const gatewayApiClient = {
     saved: boolean,
   ): Promise<GatewayVideoAssetSaveResponse> {
     return request<GatewayVideoAssetSaveResponse>(
-      `${gatewayApiUrl}/api/v1/videos/assets/${encodeURIComponent(assetId)}/save`,
+      `${gatewayControlPlaneUrl}/api/v1/videos/assets/${encodeURIComponent(assetId)}/save`,
       {
         method: 'PATCH',
         body: JSON.stringify({ saved }),
@@ -264,7 +271,7 @@ export const gatewayApiClient = {
 
   async getVideoHistory(page = 1): Promise<GatewayVideoHistoryResponse> {
     return request<GatewayVideoHistoryResponse>(
-      `${gatewayApiUrl}/api/v1/videos/history?page=${encodeURIComponent(String(page))}`,
+      `${gatewayControlPlaneUrl}/api/v1/videos/history?page=${encodeURIComponent(String(page))}`,
     );
   },
 };

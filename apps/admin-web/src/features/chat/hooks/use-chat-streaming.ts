@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { supportsPreservedThinking } from '@lxp/domain';
 
 import { gatewayApiClient } from '../../../lib/api-client';
-import { shouldFlagMissingAssistantContent } from '../../../lib/chat-stream';
+import {
+  isTruncatedAssistantFinishReason,
+  shouldFlagMissingAssistantContent,
+} from '../../../lib/chat-stream';
 import {
   appendUserMessage,
   buildGatewayMessages,
@@ -136,6 +139,7 @@ export function useChatStreaming({
                 ...message,
                 reasoning: streamedReasoning,
                 content: streamedContent,
+                finishReason: streamResult.finishReason ?? null,
               }
             : message,
         ),
@@ -157,6 +161,10 @@ export function useChatStreaming({
           streamResult.receivedReasoning
             ? 'The model stream ended without any assistant response content.'
             : 'The model stream ended before any assistant output was received.',
+        );
+      } else if (isTruncatedAssistantFinishReason(streamResult.finishReason)) {
+        onSetChatError(
+          'The assistant response stopped at the model output limit and may be incomplete.',
         );
       }
     } catch (error) {

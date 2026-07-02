@@ -1125,3 +1125,34 @@ test('ChatPage surfaces missing assistant content and interrupted reasoning stre
     ),
   ).toBeInTheDocument();
 });
+
+test('ChatPage shows a truncation warning when the model stops at the output limit', async () => {
+  const user = userEvent.setup();
+  chatStreamMock.mockImplementationOnce(async (_payload, handlers) => {
+    handlers.onChunk({ reasoningDelta: '', contentDelta: 'Partial answer' });
+
+    return {
+      requestId: 'request-truncated',
+      receivedReasoning: false,
+      receivedContent: true,
+      finishReason: 'length',
+    };
+  });
+
+  renderWithProviders(<ChatPage />);
+
+  const composer = await screen.findByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Explain the architecture.');
+  await user.keyboard('{Enter}');
+
+  expect(
+    await screen.findByText(
+      'The assistant response stopped at the model output limit and may be incomplete.',
+    ),
+  ).toBeInTheDocument();
+  expect(
+    await screen.findByText('The model stopped at its output limit before finishing the answer.'),
+  ).toBeInTheDocument();
+});

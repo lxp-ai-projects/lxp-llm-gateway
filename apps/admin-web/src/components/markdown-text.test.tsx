@@ -1,5 +1,5 @@
-import { screen } from '@testing-library/react';
-import { expect, test } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { expect, test, vi } from 'vitest';
 
 import { renderWithProviders } from '../test/test-utils';
 import { MarkdownText } from './markdown-text';
@@ -92,4 +92,42 @@ test('MarkdownText keeps a standalone separator as a divider instead of a table'
 
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.getByText('Next section')).toBeInTheDocument();
+});
+
+test('MarkdownText renders fenced code blocks in a copyable card', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText },
+  });
+
+  renderWithProviders(
+    <MarkdownText
+      value={`Voici un exemple:
+
+\`\`\`typescript
+async function hello() {
+  return 'bonjour';
+}
+\`\`\``}
+    />,
+  );
+
+  expect(screen.getByText('Typescript')).toBeInTheDocument();
+  expect(
+    screen.getAllByText(
+      (_, element) =>
+        element?.textContent ===
+        "async function hello() {\n  return 'bonjour';\n}",
+    ).length,
+  ).toBeGreaterThan(0);
+
+  fireEvent.click(screen.getByRole('button', { name: /copy/i }));
+
+  await waitFor(() => {
+    expect(writeText).toHaveBeenCalledWith(
+      "async function hello() {\n  return 'bonjour';\n}",
+    );
+  });
+  expect(screen.getByRole('button', { name: /copied/i })).toBeInTheDocument();
 });

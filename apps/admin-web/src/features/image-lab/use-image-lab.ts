@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { resolveMaxReferenceImages } from '@lxp/domain';
 
-import { gatewayApiClient, gatewayApiUrl } from '../../lib/api-client';
+import { adminApiUrl, gatewayApiClient } from '../../lib/api-client';
 import type {
   GatewayGeneratedImage,
   GatewayImageAssetSummary,
@@ -498,7 +498,7 @@ function resolveGatewayMediaUrl(value: string) {
     return value;
   }
 
-  return `${gatewayApiUrl}${value}`;
+  return `${adminApiUrl}${value}`;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
