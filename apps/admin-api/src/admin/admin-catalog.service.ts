@@ -192,13 +192,17 @@ export class AdminCatalogService {
       timeoutMs?: number;
     },
   ): Promise<T> {
-    const response = await this.fetchGatewayControlPlane(accessToken, path, {
+    const upstream = await this.fetchGatewayControlPlane(accessToken, path, {
       method: options?.method,
       body: options?.body,
       timeoutMs: options?.timeoutMs,
     });
 
-    return this.parseGatewayJsonResponse(response);
+    try {
+      return this.parseGatewayJsonResponse(upstream.response);
+    } finally {
+      upstream.releaseTimeout();
+    }
   }
 
   async proxyGatewayBinary(
@@ -206,7 +210,7 @@ export class AdminCatalogService {
     path: string,
     response: ExpressResponse,
   ): Promise<void> {
-    const upstreamResponse = await this.fetchGatewayControlPlane(
+    const upstream = await this.fetchGatewayControlPlane(
       accessToken,
       path,
       {
@@ -216,20 +220,57 @@ export class AdminCatalogService {
       },
     );
 
-    response.status(upstreamResponse.status);
+    response.status(upstream.response.status);
     this.copyGatewayResponseHeader(
-      upstreamResponse,
+      upstream.response,
       response,
       'cache-control',
     );
     this.copyGatewayResponseHeader(
-      upstreamResponse,
+      upstream.response,
       response,
       'content-disposition',
     );
-    this.copyGatewayResponseHeader(upstreamResponse, response, 'content-type');
+    this.copyGatewayResponseHeader(upstream.response, response, 'content-type');
 
-    response.send(Buffer.from(await upstreamResponse.arrayBuffer()));
+    if (!upstream.response.body) {
+      upstream.releaseTimeout();
+      response.end();
+      return;
+    }
+
+    const upstreamStream = Readable.fromWeb(upstream.response.body as never);
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const settle = (error?: Error) => {
+          upstreamStream.off('error', onUpstreamError);
+          response.off('error', onResponseError);
+          response.off('close', onClose);
+          response.off('finish', onFinish);
+
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        };
+
+        const onUpstreamError = (error: Error) => settle(error);
+        const onResponseError = (error: Error) => settle(error);
+        const onClose = () => settle();
+        const onFinish = () => settle();
+
+        upstreamStream.on('error', onUpstreamError);
+        response.on('error', onResponseError);
+        response.on('close', onClose);
+        response.on('finish', onFinish);
+        upstreamStream.pipe(response as never);
+      });
+    } finally {
+      upstream.releaseTimeout();
+    }
   }
 
   async proxyGatewayChat(
@@ -237,7 +278,7 @@ export class AdminCatalogService {
     payload: unknown,
     response: ExpressResponse,
   ): Promise<void> {
-    const upstreamResponse = await this.fetchGatewayControlPlane(
+    const upstream = await this.fetchGatewayControlPlane(
       accessToken,
       '/api/v1/chat',
       {
@@ -252,23 +293,57 @@ export class AdminCatalogService {
       },
     );
 
-    response.status(upstreamResponse.status);
-    this.copyGatewayResponseHeader(upstreamResponse, response, 'content-type');
-    this.copyGatewayResponseHeader(upstreamResponse, response, 'cache-control');
-    this.copyGatewayResponseHeader(upstreamResponse, response, 'connection');
-    this.copyGatewayResponseHeader(upstreamResponse, response, 'x-request-id');
+    response.status(upstream.response.status);
+    this.copyGatewayResponseHeader(upstream.response, response, 'content-type');
+    this.copyGatewayResponseHeader(upstream.response, response, 'cache-control');
+    this.copyGatewayResponseHeader(upstream.response, response, 'x-request-id');
 
-    const contentType = upstreamResponse.headers.get('content-type') ?? '';
+    const contentType = upstream.response.headers.get('content-type') ?? '';
     if (
       contentType.includes('text/event-stream') &&
-      upstreamResponse.body
+      upstream.response.body
     ) {
+      const upstreamStream = Readable.fromWeb(upstream.response.body as never);
       response.flushHeaders?.();
-      Readable.fromWeb(upstreamResponse.body as never).pipe(response as never);
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const settle = (error?: Error) => {
+            upstreamStream.off('error', onUpstreamError);
+            response.off('error', onResponseError);
+            response.off('close', onClose);
+            response.off('finish', onFinish);
+
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            resolve();
+          };
+
+          const onUpstreamError = (error: Error) => settle(error);
+          const onResponseError = (error: Error) => settle(error);
+          const onClose = () => settle();
+          const onFinish = () => settle();
+
+          upstreamStream.on('error', onUpstreamError);
+          response.on('error', onResponseError);
+          response.on('close', onClose);
+          response.on('finish', onFinish);
+          upstreamStream.pipe(response as never);
+        });
+      } finally {
+        upstream.releaseTimeout();
+      }
       return;
     }
 
-    response.send(await upstreamResponse.text());
+    try {
+      response.send(await upstream.response.text());
+    } finally {
+      upstream.releaseTimeout();
+    }
   }
 
   private async assertTenantExists(tenantId: string) {
@@ -666,9 +741,13 @@ export class AdminCatalogService {
     accessToken: string,
     path: string,
   ): Promise<T> {
-    const response = await this.fetchGatewayControlPlane(accessToken, path);
+    const upstream = await this.fetchGatewayControlPlane(accessToken, path);
 
-    return this.parseGatewayJsonResponse(response);
+    try {
+      return this.parseGatewayJsonResponse(upstream.response);
+    } finally {
+      upstream.releaseTimeout();
+    }
   }
 
   private async fetchGatewayControlPlane(
@@ -680,13 +759,21 @@ export class AdminCatalogService {
       headers?: Record<string, string>;
       timeoutMs?: number;
     },
-  ): Promise<Response> {
+  ): Promise<{ response: Response; releaseTimeout: () => void }> {
     const gatewayUrl = `${this.getGatewayControlPlaneBaseUrl()}${path}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(
+    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(
       () => controller.abort(),
       options?.timeoutMs ?? 15_000,
     );
+    const releaseTimeout = () => {
+      if (!timeoutId) {
+        return;
+      }
+
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    };
 
     let response: Response;
     try {
@@ -710,6 +797,7 @@ export class AdminCatalogService {
         signal: controller.signal,
       });
     } catch (error) {
+      releaseTimeout();
       if (error instanceof Error && error.name === 'AbortError') {
         throw new BadGatewayException(
           'The gateway control-plane request timed out before the server responded.',
@@ -721,19 +809,20 @@ export class AdminCatalogService {
           ? error.message
           : 'The gateway control-plane request failed before reaching the server.',
       );
-    } finally {
-      clearTimeout(timeoutId);
     }
 
     if (!response.ok) {
-      const body = await response.text();
+      const body = await response.text().finally(() => releaseTimeout());
       throw new HttpException(
         this.formatGatewayProxyErrorMessage(body, response.status),
         response.status,
       );
     }
 
-    return response;
+    return {
+      response,
+      releaseTimeout,
+    };
   }
 
   private async parseGatewayJsonResponse<T>(response: Response): Promise<T> {

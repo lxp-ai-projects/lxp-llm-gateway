@@ -15,25 +15,37 @@ type ParsedMarkdownTable = {
 };
 
 function normalizeMarkdownSource(value: string): string {
-  return value
+  const normalizedLines: string[] = [];
+  let insideFence = false;
+
+  for (const line of value
     .replace(/\r\n/g, '\n')
     .replace(/([^\n])```/g, '$1\n```')
-    .split('\n')
-    .map((line) => {
-      if (line.includes('|')) {
-        return line;
-      }
+    .split('\n')) {
+    if (/^\s*```/.test(line)) {
+      normalizedLines.push(line);
+      insideFence = !insideFence;
+      continue;
+    }
 
-      return line
+    if (insideFence || line.includes('|')) {
+      normalizedLines.push(line);
+      continue;
+    }
+
+    normalizedLines.push(
+      line
         .replace(/\s+(---+)\s+(#{1,6}\s+)/g, '\n\n$1\n\n$2')
         .replace(/([.!?:"')])\s+(#{1,6}\s+)/g, '$1\n\n$2')
         .replace(/\s+(#{1,6}\s+)/g, '\n\n$1')
         .replace(/([.!?:"')])\s+(---+)\s+/g, '$1\n\n$2\n\n')
         .replace(/\s+(---+)\s+/g, '\n\n$1\n\n')
         .replace(/([.!?:"')])\s+(\d+\.\s+)/g, '$1\n$2')
-        .replace(/([.!?:"')])\s+([*-]\s+)/g, '$1\n$2');
-    })
-    .join('\n');
+        .replace(/([.!?:"')])\s+([*-]\s+)/g, '$1\n$2'),
+    );
+  }
+
+  return normalizedLines.join('\n');
 }
 
 function normalizeCodeFenceLanguage(value: string): string {
@@ -46,20 +58,32 @@ function normalizeCodeFenceLanguage(value: string): string {
 }
 
 async function copyCodeBlock(value: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return;
-  }
+  let textArea: HTMLTextAreaElement | null = null;
 
-  const textArea = document.createElement('textarea');
-  textArea.value = value;
-  textArea.setAttribute('readonly', 'true');
-  textArea.style.position = 'absolute';
-  textArea.style.left = '-9999px';
-  document.body.appendChild(textArea);
-  textArea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textArea);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    textArea = document.createElement('textarea');
+    textArea.value = value;
+    textArea.setAttribute('readonly', 'true');
+    textArea.style.position = 'absolute';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    if (!document.execCommand('copy')) {
+      throw new Error('The browser rejected the copy command.');
+    }
+  } catch {
+    throw new Error('The code block could not be copied.');
+  } finally {
+    if (textArea?.parentNode) {
+      textArea.parentNode.removeChild(textArea);
+    }
+  }
 }
 
 function MarkdownCodeBlock(input: { code: string; language?: string }) {
@@ -75,10 +99,12 @@ function MarkdownCodeBlock(input: { code: string; language?: string }) {
           className="markdown-code-copy"
           leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
           onClick={() => {
-            void copyCodeBlock(input.code).then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            });
+            void copyCodeBlock(input.code)
+              .then(() => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1500);
+              })
+              .catch(() => undefined);
           }}
           size="compact-xs"
           variant="subtle"

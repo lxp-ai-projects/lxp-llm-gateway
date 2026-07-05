@@ -131,3 +131,51 @@ async function hello() {
   });
   expect(screen.getByRole('button', { name: /copied/i })).toBeInTheDocument();
 });
+
+test('MarkdownText preserves fenced code block content while normalizing surrounding markdown', () => {
+  renderWithProviders(
+    <MarkdownText
+      value={`Avant ### Titre
+
+\`\`\`typescript
+### leave-me-alone
+1. still code
+\`\`\``}
+    />,
+  );
+
+  expect(screen.getByText('Titre')).toBeInTheDocument();
+  expect(
+    screen.getAllByText(
+      (_, element) =>
+        element?.textContent === '### leave-me-alone\n1. still code',
+    ).length,
+  ).toBeGreaterThan(0);
+});
+
+test('MarkdownText swallows copy failures and cleans up the fallback textarea', async () => {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: undefined,
+  });
+  const execCommandSpy = vi.fn(() => false);
+  Object.defineProperty(document, 'execCommand', {
+    configurable: true,
+    value: execCommandSpy,
+  });
+
+  renderWithProviders(
+    <MarkdownText
+      value={`\`\`\`typescript
+const answer = 42;
+\`\`\``}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: /copy/i }));
+
+  await waitFor(() => {
+    expect(execCommandSpy).toHaveBeenCalledWith('copy');
+  });
+  expect(document.querySelector('textarea')).toBeNull();
+});

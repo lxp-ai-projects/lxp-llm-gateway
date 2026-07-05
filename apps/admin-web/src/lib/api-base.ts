@@ -409,7 +409,7 @@ export async function chatStreamWithSessionRefresh(
   if (!response.ok) {
     if (shouldAttemptSessionRefresh(response.status, hasRetried)) {
       await refreshBrowserSession(chatUrl);
-      return chatStreamWithSessionRefresh(payload, handlers, true);
+      return chatStreamWithSessionRefresh(payload, handlers, true, baseUrl);
     }
 
     const body = await response.text();

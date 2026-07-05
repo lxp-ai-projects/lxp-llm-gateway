@@ -30,6 +30,7 @@ import { getProviderModelLoadingNote } from '../../providers/lib/provider-utils'
 type ChatMessageListProps = {
   activeConversation: StoredConversation | null;
   chatError: string | null;
+  chatWarning: string | null;
   copiedAssistantMessageId: string | null;
   editingContent: string;
   editingMessageId: string | null;
@@ -56,6 +57,7 @@ type ChatMessageListProps = {
 export function ChatMessageList({
   activeConversation,
   chatError,
+  chatWarning,
   copiedAssistantMessageId,
   editingContent,
   editingMessageId,
@@ -102,6 +104,15 @@ export function ChatMessageList({
           title="Chat request failed"
         >
           {chatError}
+        </Alert>
+      ) : null}
+      {chatWarning ? (
+        <Alert
+          color="yellow"
+          icon={<IconAlertCircle size={18} />}
+          title="Response may be incomplete"
+        >
+          {chatWarning}
         </Alert>
       ) : null}
 

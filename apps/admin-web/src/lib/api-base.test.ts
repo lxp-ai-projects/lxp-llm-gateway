@@ -156,6 +156,7 @@ test('requestBlobWithSessionRefresh and uploadFileWithSessionRefresh surface non
 
 test('chatStreamWithSessionRefresh retries after session refresh and ignores empty SSE blocks', async () => {
   const onChunk = vi.fn();
+  const baseUrl = 'http://localhost:3002';
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(new TextEncoder().encode('event: ping\n\n'));
@@ -188,6 +189,7 @@ test('chatStreamWithSessionRefresh retries after session refresh and ignores emp
     },
     { onChunk },
     false,
+    baseUrl,
   );
 
   expect(onChunk).toHaveBeenCalledWith(
@@ -203,6 +205,14 @@ test('chatStreamWithSessionRefresh retries after session refresh and ignores emp
     receivedContent: true,
     finishReason: 'stop',
   });
+  expect(fetch).toHaveBeenNthCalledWith(
+    3,
+    `${baseUrl}/api/v1/chat`,
+    expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+    }),
+  );
 });
 
 test('chatStreamWithSessionRefresh surfaces non-abort stream errors', async () => {
