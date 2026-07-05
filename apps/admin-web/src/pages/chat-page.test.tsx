@@ -1153,6 +1153,8 @@ test('ChatPage shows a truncation warning when the model stops at the output lim
     ),
   ).toBeInTheDocument();
   expect(
-    await screen.findByText('The model stopped at its output limit before finishing the answer.'),
-  ).toBeInTheDocument();
+    screen.queryByText(
+      'The model stopped at its output limit before finishing the answer.',
+    ),
+  ).not.toBeInTheDocument();
 });

@@ -228,7 +228,8 @@ export function ChatMessageList({
                   {message.content ? (
                     <>
                       <MarkdownText value={message.content} />
-                      {isTruncatedAssistantFinishReason(message.finishReason) ? (
+                      {!chatWarning &&
+                      isTruncatedAssistantFinishReason(message.finishReason) ? (
                         <Alert
                           color="yellow"
                           icon={<IconAlertCircle size={16} />}

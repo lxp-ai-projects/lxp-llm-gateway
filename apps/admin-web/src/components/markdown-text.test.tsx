@@ -1,8 +1,23 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 
 import { renderWithProviders } from '../test/test-utils';
 import { MarkdownText } from './markdown-text';
+
+const originalClipboard = navigator.clipboard;
+const originalExecCommand = document.execCommand;
+
+afterEach(() => {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: originalClipboard,
+  });
+  Object.defineProperty(document, 'execCommand', {
+    configurable: true,
+    value: originalExecCommand,
+  });
+  vi.restoreAllMocks();
+});
 
 test('MarkdownText renders headings, emphasis, and lists', () => {
   renderWithProviders(
