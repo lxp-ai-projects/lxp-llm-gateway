@@ -53,6 +53,7 @@ function setup(
   const onPromptCleared = vi.fn();
   const onSetAutoScrollEnabled = vi.fn();
   const onSetChatError = vi.fn();
+  const onSetChatWarning = vi.fn();
   const onStreamingChange = vi.fn();
   let currentConversations = activeConversation ? [activeConversation] : [];
 
@@ -65,13 +66,13 @@ function setup(
     useChatStreaming({
       activeConversation,
       editingContent: 'Updated content',
-      model: 'z-ai/glm-4.6:thinking',
       onClearEditingState,
       onConversationActivated,
       onConversationUpdated,
       onPromptCleared,
       onSetAutoScrollEnabled,
       onSetChatError,
+      onSetChatWarning,
       onStreamingChange,
     }),
   );
@@ -85,6 +86,7 @@ function setup(
     onPromptCleared,
     onSetAutoScrollEnabled,
     onSetChatError,
+    onSetChatWarning,
     onStreamingChange,
   };
 }
@@ -114,6 +116,7 @@ test('useChatStreaming sends a prompt and persists the completed assistant respo
     onPromptCleared,
     onSetAutoScrollEnabled,
     onSetChatError,
+    onSetChatWarning,
     onStreamingChange,
     currentConversations,
   } = setup();
@@ -128,6 +131,7 @@ test('useChatStreaming sends a prompt and persists the completed assistant respo
   expect(onSetAutoScrollEnabled).toHaveBeenCalledWith(true);
   expect(onConversationActivated).toHaveBeenCalled();
   expect(onSetChatError).toHaveBeenCalledWith(null);
+  expect(onSetChatWarning).toHaveBeenCalledWith(null);
   expect(onStreamingChange).toHaveBeenNthCalledWith(1, true);
   expect(onStreamingChange).toHaveBeenLastCalledWith(false);
   expect(saveConversationMock).toHaveBeenCalledTimes(1);
@@ -208,6 +212,37 @@ test('useChatStreaming surfaces missing assistant content when the stream ends e
   expect(onSetChatError).toHaveBeenLastCalledWith(
     'The model stream ended before any assistant output was received.',
   );
+});
+
+test('useChatStreaming warns when the assistant stream stops at the model output limit', async () => {
+  chatStreamMock.mockImplementation(async (_payload, handlers) => {
+    handlers.onChunk?.({ reasoningDelta: '', contentDelta: 'Partial answer' });
+
+    return {
+      requestId: 'request-length',
+      receivedReasoning: false,
+      receivedContent: true,
+      finishReason: 'length',
+    };
+  });
+
+  const { hook, onSetChatError, onSetChatWarning, currentConversations } = setup();
+
+  await act(async () => {
+    await hook.result.current.sendMessage(createConversation, 'Hello');
+  });
+
+  expect(onSetChatWarning).toHaveBeenLastCalledWith(
+    'The assistant response stopped at the model output limit and may be incomplete.',
+  );
+  expect(onSetChatError).not.toHaveBeenLastCalledWith(
+    'The assistant response stopped at the model output limit and may be incomplete.',
+  );
+  expect(currentConversations()[0]?.messages.at(-1)).toMatchObject({
+    role: 'assistant',
+    content: 'Partial answer',
+    finishReason: 'length',
+  });
 });
 
 test('useChatStreaming retries an assistant message from the prior user context', async () => {

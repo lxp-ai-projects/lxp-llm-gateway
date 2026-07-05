@@ -256,6 +256,7 @@ export function ChatPage() {
     useState<number | ''>(4096);
   const [thinkingMode, setThinkingMode] = useState<ThinkingUiMode>('enabled');
   const [chatError, setChatError] = useState<string | null>(null);
+  const [chatWarning, setChatWarning] = useState<string | null>(null);
   const [streamingSignal, setStreamingSignal] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
@@ -352,6 +353,7 @@ export function ChatPage() {
     onPromptCleared: () => setPrompt(''),
     onSetAutoScrollEnabled: setAutoScrollEnabled,
     onSetChatError: setChatError,
+    onSetChatWarning: setChatWarning,
     onStreamingChange: setStreamingSignal,
   });
   const modelsQuery = useQuery({
@@ -1013,6 +1015,7 @@ export function ChatPage() {
                     <ChatMessageList
                       activeConversation={activeConversation}
                       chatError={chatError}
+                      chatWarning={chatWarning}
                       copiedAssistantMessageId={copiedAssistantMessageId}
                       editingContent={editingContent}
                       editingMessageId={editingMessageId}

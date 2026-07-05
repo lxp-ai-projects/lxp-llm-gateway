@@ -1,7 +1,8 @@
-import { Text, Title } from '@mantine/core';
+import { Button, Card, Group, Text, Title } from '@mantine/core';
+import { IconCheck, IconCopy } from '@tabler/icons-react';
 import type { TitleOrder } from '@mantine/core';
 import type { ReactElement, ReactNode } from 'react';
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 
 type MarkdownTextProps = {
   value: string;
@@ -14,24 +15,108 @@ type ParsedMarkdownTable = {
 };
 
 function normalizeMarkdownSource(value: string): string {
-  return value
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((line) => {
-      if (line.includes('|')) {
-        return line;
-      }
+  const normalizedLines: string[] = [];
+  let insideFence = false;
 
-      return line
+  for (const line of value
+    .replace(/\r\n/g, '\n')
+    .replace(/([^\n])```/g, '$1\n```')
+    .split('\n')) {
+    if (/^\s*```/.test(line)) {
+      normalizedLines.push(line);
+      insideFence = !insideFence;
+      continue;
+    }
+
+    if (insideFence || line.includes('|')) {
+      normalizedLines.push(line);
+      continue;
+    }
+
+    normalizedLines.push(
+      line
         .replace(/\s+(---+)\s+(#{1,6}\s+)/g, '\n\n$1\n\n$2')
         .replace(/([.!?:"')])\s+(#{1,6}\s+)/g, '$1\n\n$2')
         .replace(/\s+(#{1,6}\s+)/g, '\n\n$1')
         .replace(/([.!?:"')])\s+(---+)\s+/g, '$1\n\n$2\n\n')
         .replace(/\s+(---+)\s+/g, '\n\n$1\n\n')
         .replace(/([.!?:"')])\s+(\d+\.\s+)/g, '$1\n$2')
-        .replace(/([.!?:"')])\s+([*-]\s+)/g, '$1\n$2');
-    })
-    .join('\n');
+        .replace(/([.!?:"')])\s+([*-]\s+)/g, '$1\n$2'),
+    );
+  }
+
+  return normalizedLines.join('\n');
+}
+
+function normalizeCodeFenceLanguage(value: string): string {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return 'Code';
+  }
+
+  return trimmedValue.charAt(0).toUpperCase() + trimmedValue.slice(1);
+}
+
+async function copyCodeBlock(value: string): Promise<void> {
+  let textArea: HTMLTextAreaElement | null = null;
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    textArea = document.createElement('textarea');
+    textArea.value = value;
+    textArea.setAttribute('readonly', 'true');
+    textArea.style.position = 'absolute';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    if (!document.execCommand('copy')) {
+      throw new Error('The browser rejected the copy command.');
+    }
+  } catch {
+    throw new Error('The code block could not be copied.');
+  } finally {
+    if (textArea?.parentNode) {
+      textArea.parentNode.removeChild(textArea);
+    }
+  }
+}
+
+function MarkdownCodeBlock(input: { code: string; language?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <Card className="markdown-code-card" padding="sm" radius="md">
+      <Group justify="space-between" mb="xs">
+        <Text className="markdown-code-label" size="xs" fw={700} tt="uppercase">
+          {normalizeCodeFenceLanguage(input.language ?? '')}
+        </Text>
+        <Button
+          className="markdown-code-copy"
+          leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+          onClick={() => {
+            void copyCodeBlock(input.code)
+              .then(() => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1500);
+              })
+              .catch(() => undefined);
+          }}
+          size="compact-xs"
+          variant="subtle"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+      </Group>
+      <pre className="markdown-code-pre">
+        <code>{input.code}</code>
+      </pre>
+    </Card>
+  );
 }
 
 function renderInlineMarkdown(value: string): ReactNode[] {
@@ -181,6 +266,34 @@ function renderMarkdownBlocks(value: string, dimmed = false): ReactElement[] {
           {renderInlineMarkdown(headingMatch[2])}
         </Title>,
       );
+      continue;
+    }
+
+    const codeFenceMatch = /^```([\w#+.-]*)\s*$/.exec(trimmed);
+    if (codeFenceMatch) {
+      flushParagraph();
+      flushList();
+      const codeLines: string[] = [];
+      let nextIndex = lineIndex + 1;
+
+      while (nextIndex < lines.length) {
+        const candidate = lines[nextIndex] ?? '';
+        if (candidate.trim() === '```') {
+          break;
+        }
+
+        codeLines.push(candidate);
+        nextIndex += 1;
+      }
+
+      blocks.push(
+        <MarkdownCodeBlock
+          code={codeLines.join('\n').trimEnd()}
+          key={`code-${blocks.length}`}
+          language={codeFenceMatch[1] || undefined}
+        />,
+      );
+      lineIndex = nextIndex;
       continue;
     }
 

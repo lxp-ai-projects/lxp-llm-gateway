@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { supportsPreservedThinking } from '@lxp/domain';
 
 import { gatewayApiClient } from '../../../lib/api-client';
-import { shouldFlagMissingAssistantContent } from '../../../lib/chat-stream';
+import {
+  isTruncatedAssistantFinishReason,
+  shouldFlagMissingAssistantContent,
+} from '../../../lib/chat-stream';
 import {
   appendUserMessage,
   buildGatewayMessages,
@@ -26,6 +29,7 @@ type UseChatStreamingOptions = {
   onPromptCleared: () => void;
   onSetAutoScrollEnabled: (value: boolean) => void;
   onSetChatError: (value: string | null) => void;
+  onSetChatWarning: (value: string | null) => void;
   onStreamingChange?: (value: boolean) => void;
 };
 
@@ -38,6 +42,7 @@ export function useChatStreaming({
   onPromptCleared,
   onSetAutoScrollEnabled,
   onSetChatError,
+  onSetChatWarning,
   onStreamingChange,
 }: UseChatStreamingOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
@@ -64,6 +69,7 @@ export function useChatStreaming({
     let streamedContent = '';
 
     onSetChatError(null);
+    onSetChatWarning(null);
     setIsStreaming(true);
     onStreamingChange?.(true);
     onSetAutoScrollEnabled(true);
@@ -136,6 +142,7 @@ export function useChatStreaming({
                 ...message,
                 reasoning: streamedReasoning,
                 content: streamedContent,
+                finishReason: streamResult.finishReason ?? null,
               }
             : message,
         ),
@@ -157,6 +164,10 @@ export function useChatStreaming({
           streamResult.receivedReasoning
             ? 'The model stream ended without any assistant response content.'
             : 'The model stream ended before any assistant output was received.',
+        );
+      } else if (isTruncatedAssistantFinishReason(streamResult.finishReason)) {
+        onSetChatWarning(
+          'The assistant response stopped at the model output limit and may be incomplete.',
         );
       }
     } catch (error) {

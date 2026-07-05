@@ -5,6 +5,7 @@ export type StoredConversationMessage = {
   role: 'user' | 'assistant';
   content: string;
   reasoning?: string;
+  finishReason?: string | null;
   createdAt: string;
 };
 

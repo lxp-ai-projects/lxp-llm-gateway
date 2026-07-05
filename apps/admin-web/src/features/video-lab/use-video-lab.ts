@@ -5,7 +5,7 @@ import {
   validateVideoRequestAgainstFamily,
 } from '@lxp/model-family-capabilities';
 
-import { gatewayApiClient, gatewayApiUrl } from '../../lib/api-client';
+import { adminApiUrl, gatewayApiClient } from '../../lib/api-client';
 import type {
   GatewayImageAssetSummary,
   GatewayVideoGenerationJob,
@@ -811,7 +811,7 @@ function resolveGatewayMediaUrl(value: string) {
     return value;
   }
 
-  return `${gatewayApiUrl}${value}`;
+  return `${adminApiUrl}${value}`;
 }
 
 function isTerminalStatus(status: GatewayVideoGenerationJob['status']) {

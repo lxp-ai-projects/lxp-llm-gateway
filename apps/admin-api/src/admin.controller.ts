@@ -9,9 +9,12 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 
+import { AdminCatalogService } from './admin/admin-catalog.service';
 import { AdminService } from './admin/admin.service';
 import { BootstrapAdminDto } from './admin/dto/bootstrap-admin.dto';
 import { CreateTenantDto } from './admin/dto/create-tenant.dto';
@@ -40,7 +43,10 @@ import { Roles } from './auth/roles.decorator';
 
 @Controller()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly adminCatalogService: AdminCatalogService,
+  ) {}
 
   @Post('bootstrap/admin')
   bootstrapAdmin(@Body() dto: BootstrapAdminDto) {
@@ -463,6 +469,268 @@ export class AdminController {
   @UseGuards(AccessTokenGuard)
   getOwnVideoCatalog(@Req() request: RequestWithAuthUser) {
     return this.adminService.getOwnVideoCatalog(request.authAccessToken!);
+  }
+
+  @Post('chat')
+  @UseGuards(AccessTokenGuard)
+  proxyOwnChat(
+    @Req() request: RequestWithAuthUser,
+    @Body() payload: unknown,
+    @Res() response: Response,
+  ) {
+    return this.adminCatalogService.proxyGatewayChat(
+      request.authAccessToken!,
+      payload,
+      response,
+    );
+  }
+
+  @Post('images/generations')
+  @UseGuards(AccessTokenGuard)
+  generateOwnImage(
+    @Req() request: RequestWithAuthUser,
+    @Body() payload: unknown,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      '/api/v1/images/generations',
+      {
+        method: 'POST',
+        body: payload,
+        timeoutMs: 300_000,
+      },
+    );
+  }
+
+  @Post('images/edits')
+  @UseGuards(AccessTokenGuard)
+  editOwnImage(
+    @Req() request: RequestWithAuthUser,
+    @Body() payload: unknown,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      '/api/v1/images/edits',
+      {
+        method: 'POST',
+        body: payload,
+        timeoutMs: 300_000,
+      },
+    );
+  }
+
+  @Post('images/assets')
+  @UseGuards(AccessTokenGuard)
+  uploadOwnImageAsset(
+    @Req() request: RequestWithAuthUser,
+    @Body() payload: unknown,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      '/api/v1/images/assets',
+      {
+        method: 'POST',
+        body: payload,
+        timeoutMs: 90_000,
+      },
+    );
+  }
+
+  @Get('images/assets')
+  @UseGuards(AccessTokenGuard)
+  listOwnImageAssets(@Req() request: RequestWithAuthUser) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      '/api/v1/images/assets',
+    );
+  }
+
+  @Patch('images/assets/:assetId/save')
+  @UseGuards(AccessTokenGuard)
+  setOwnImageAssetSaved(
+    @Req() request: RequestWithAuthUser,
+    @Param('assetId') assetId: string,
+    @Body() payload: unknown,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/images/assets/${encodeURIComponent(assetId)}/save`,
+      {
+        method: 'PATCH',
+        body: payload,
+      },
+    );
+  }
+
+  @Patch('images/assets/:assetId')
+  @UseGuards(AccessTokenGuard)
+  updateOwnImageAsset(
+    @Req() request: RequestWithAuthUser,
+    @Param('assetId') assetId: string,
+    @Body() payload: unknown,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/images/assets/${encodeURIComponent(assetId)}`,
+      {
+        method: 'PATCH',
+        body: payload,
+      },
+    );
+  }
+
+  @Delete('images/assets/:assetId')
+  @UseGuards(AccessTokenGuard)
+  deleteOwnImageAsset(
+    @Req() request: RequestWithAuthUser,
+    @Param('assetId') assetId: string,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/images/assets/${encodeURIComponent(assetId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  }
+
+  @Get('images/history')
+  @UseGuards(AccessTokenGuard)
+  getOwnImageHistory(
+    @Req() request: RequestWithAuthUser,
+    @Query('page') page?: string,
+  ) {
+    const queryString = page
+      ? `?page=${encodeURIComponent(page)}`
+      : '';
+
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/images/history${queryString}`,
+    );
+  }
+
+  @Get('images/assets/:assetId/content')
+  @UseGuards(AccessTokenGuard)
+  getOwnImageAssetContent(
+    @Req() request: RequestWithAuthUser,
+    @Param('assetId') assetId: string,
+    @Res() response: Response,
+  ) {
+    return this.adminCatalogService.proxyGatewayBinary(
+      request.authAccessToken!,
+      `/api/v1/images/assets/${encodeURIComponent(assetId)}/content`,
+      response,
+    );
+  }
+
+  @Post('videos/generations')
+  @UseGuards(AccessTokenGuard)
+  generateOwnVideo(
+    @Req() request: RequestWithAuthUser,
+    @Body() payload: unknown,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      '/api/v1/videos/generations',
+      {
+        method: 'POST',
+        body: payload,
+        timeoutMs: 300_000,
+      },
+    );
+  }
+
+  @Get('videos/jobs/:jobId')
+  @UseGuards(AccessTokenGuard)
+  getOwnVideoJob(
+    @Req() request: RequestWithAuthUser,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
+      {
+        timeoutMs: 90_000,
+      },
+    );
+  }
+
+  @Patch('videos/jobs/:jobId/cancel')
+  @UseGuards(AccessTokenGuard)
+  cancelOwnVideoJob(
+    @Req() request: RequestWithAuthUser,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/videos/jobs/${encodeURIComponent(jobId)}/cancel`,
+      {
+        method: 'PATCH',
+      },
+    );
+  }
+
+  @Delete('videos/jobs/:jobId')
+  @UseGuards(AccessTokenGuard)
+  deleteOwnVideoJob(
+    @Req() request: RequestWithAuthUser,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/videos/jobs/${encodeURIComponent(jobId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  }
+
+  @Patch('videos/assets/:assetId/save')
+  @UseGuards(AccessTokenGuard)
+  setOwnVideoAssetSaved(
+    @Req() request: RequestWithAuthUser,
+    @Param('assetId') assetId: string,
+    @Body() payload: unknown,
+  ) {
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/videos/assets/${encodeURIComponent(assetId)}/save`,
+      {
+        method: 'PATCH',
+        body: payload,
+      },
+    );
+  }
+
+  @Get('videos/history')
+  @UseGuards(AccessTokenGuard)
+  getOwnVideoHistory(
+    @Req() request: RequestWithAuthUser,
+    @Query('page') page?: string,
+  ) {
+    const queryString = page
+      ? `?page=${encodeURIComponent(page)}`
+      : '';
+
+    return this.adminCatalogService.proxyGatewayJson(
+      request.authAccessToken!,
+      `/api/v1/videos/history${queryString}`,
+    );
+  }
+
+  @Get('videos/assets/:assetId/content')
+  @UseGuards(AccessTokenGuard)
+  getOwnVideoAssetContent(
+    @Req() request: RequestWithAuthUser,
+    @Param('assetId') assetId: string,
+    @Res() response: Response,
+  ) {
+    return this.adminCatalogService.proxyGatewayBinary(
+      request.authAccessToken!,
+      `/api/v1/videos/assets/${encodeURIComponent(assetId)}/content`,
+      response,
+    );
   }
 
   @Get('provider-settings')

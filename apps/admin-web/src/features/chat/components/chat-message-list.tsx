@@ -24,11 +24,13 @@ import type { UIEventHandler } from 'react';
 
 import { MarkdownText } from '../../../components/markdown-text';
 import type { StoredConversation } from '../../../lib/chat-store';
+import { isTruncatedAssistantFinishReason } from '../../../lib/chat-stream';
 import { getProviderModelLoadingNote } from '../../providers/lib/provider-utils';
 
 type ChatMessageListProps = {
   activeConversation: StoredConversation | null;
   chatError: string | null;
+  chatWarning: string | null;
   copiedAssistantMessageId: string | null;
   editingContent: string;
   editingMessageId: string | null;
@@ -55,6 +57,7 @@ type ChatMessageListProps = {
 export function ChatMessageList({
   activeConversation,
   chatError,
+  chatWarning,
   copiedAssistantMessageId,
   editingContent,
   editingMessageId,
@@ -101,6 +104,15 @@ export function ChatMessageList({
           title="Chat request failed"
         >
           {chatError}
+        </Alert>
+      ) : null}
+      {chatWarning ? (
+        <Alert
+          color="yellow"
+          icon={<IconAlertCircle size={18} />}
+          title="Response may be incomplete"
+        >
+          {chatWarning}
         </Alert>
       ) : null}
 
@@ -216,6 +228,18 @@ export function ChatMessageList({
                   {message.content ? (
                     <>
                       <MarkdownText value={message.content} />
+                      {!chatWarning &&
+                      isTruncatedAssistantFinishReason(message.finishReason) ? (
+                        <Alert
+                          color="yellow"
+                          icon={<IconAlertCircle size={16} />}
+                          mt="sm"
+                          title="Response may be incomplete"
+                        >
+                          The model stopped at its output limit before finishing
+                          the answer.
+                        </Alert>
+                      ) : null}
                       {!isStreaming ? (
                         <Group justify="flex-end" mt="sm">
                           <Button

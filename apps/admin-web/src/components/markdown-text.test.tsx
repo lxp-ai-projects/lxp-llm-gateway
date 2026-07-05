@@ -1,8 +1,23 @@
-import { screen } from '@testing-library/react';
-import { expect, test } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { afterEach, expect, test, vi } from 'vitest';
 
 import { renderWithProviders } from '../test/test-utils';
 import { MarkdownText } from './markdown-text';
+
+const originalClipboard = navigator.clipboard;
+const originalExecCommand = document.execCommand;
+
+afterEach(() => {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: originalClipboard,
+  });
+  Object.defineProperty(document, 'execCommand', {
+    configurable: true,
+    value: originalExecCommand,
+  });
+  vi.restoreAllMocks();
+});
 
 test('MarkdownText renders headings, emphasis, and lists', () => {
   renderWithProviders(
@@ -92,4 +107,90 @@ test('MarkdownText keeps a standalone separator as a divider instead of a table'
 
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.getByText('Next section')).toBeInTheDocument();
+});
+
+test('MarkdownText renders fenced code blocks in a copyable card', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText },
+  });
+
+  renderWithProviders(
+    <MarkdownText
+      value={`Voici un exemple:
+
+\`\`\`typescript
+async function hello() {
+  return 'bonjour';
+}
+\`\`\``}
+    />,
+  );
+
+  expect(screen.getByText('Typescript')).toBeInTheDocument();
+  expect(
+    screen.getAllByText(
+      (_, element) =>
+        element?.textContent ===
+        "async function hello() {\n  return 'bonjour';\n}",
+    ).length,
+  ).toBeGreaterThan(0);
+
+  fireEvent.click(screen.getByRole('button', { name: /copy/i }));
+
+  await waitFor(() => {
+    expect(writeText).toHaveBeenCalledWith(
+      "async function hello() {\n  return 'bonjour';\n}",
+    );
+  });
+  expect(screen.getByRole('button', { name: /copied/i })).toBeInTheDocument();
+});
+
+test('MarkdownText preserves fenced code block content while normalizing surrounding markdown', () => {
+  renderWithProviders(
+    <MarkdownText
+      value={`Avant ### Titre
+
+\`\`\`typescript
+### leave-me-alone
+1. still code
+\`\`\``}
+    />,
+  );
+
+  expect(screen.getByText('Titre')).toBeInTheDocument();
+  expect(
+    screen.getAllByText(
+      (_, element) =>
+        element?.textContent === '### leave-me-alone\n1. still code',
+    ).length,
+  ).toBeGreaterThan(0);
+});
+
+test('MarkdownText swallows copy failures and cleans up the fallback textarea', async () => {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: undefined,
+  });
+  const execCommandSpy = vi.fn(() => false);
+  Object.defineProperty(document, 'execCommand', {
+    configurable: true,
+    value: execCommandSpy,
+  });
+
+  renderWithProviders(
+    <MarkdownText
+      value={`\`\`\`typescript
+const answer = 42;
+\`\`\``}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: /copy/i }));
+
+  await waitFor(() => {
+    expect(execCommandSpy).toHaveBeenCalledWith('copy');
+  });
+  expect(document.querySelector('textarea')).toBeNull();
 });

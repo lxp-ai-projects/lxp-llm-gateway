@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Readable } from 'node:stream';
 import {
   BadGatewayException,
   BadRequestException,
@@ -8,6 +9,7 @@ import {
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
+import type { Response as ExpressResponse } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ProviderId, TenantRole, GlobalRole } from '@lxp/domain';
 import type {
@@ -179,6 +181,169 @@ export class AdminCatalogService {
       accessToken,
       '/api/v1/videos/catalog',
     );
+  }
+
+  async proxyGatewayJson<T>(
+    accessToken: string,
+    path: string,
+    options?: {
+      method?: 'DELETE' | 'GET' | 'PATCH' | 'POST';
+      body?: unknown;
+      timeoutMs?: number;
+    },
+  ): Promise<T> {
+    const upstream = await this.fetchGatewayControlPlane(accessToken, path, {
+      method: options?.method,
+      body: options?.body,
+      timeoutMs: options?.timeoutMs,
+    });
+
+    try {
+      return this.parseGatewayJsonResponse(upstream.response);
+    } finally {
+      upstream.releaseTimeout();
+    }
+  }
+
+  async proxyGatewayBinary(
+    accessToken: string,
+    path: string,
+    response: ExpressResponse,
+  ): Promise<void> {
+    const upstream = await this.fetchGatewayControlPlane(
+      accessToken,
+      path,
+      {
+        headers: {
+          Accept: '*/*',
+        },
+      },
+    );
+
+    response.status(upstream.response.status);
+    this.copyGatewayResponseHeader(
+      upstream.response,
+      response,
+      'cache-control',
+    );
+    this.copyGatewayResponseHeader(
+      upstream.response,
+      response,
+      'content-disposition',
+    );
+    this.copyGatewayResponseHeader(upstream.response, response, 'content-type');
+
+    if (!upstream.response.body) {
+      upstream.releaseTimeout();
+      response.end();
+      return;
+    }
+
+    const upstreamStream = Readable.fromWeb(upstream.response.body as never);
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const settle = (error?: Error) => {
+          upstreamStream.off('error', onUpstreamError);
+          response.off('error', onResponseError);
+          response.off('close', onClose);
+          response.off('finish', onFinish);
+
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        };
+
+        const onUpstreamError = (error: Error) => settle(error);
+        const onResponseError = (error: Error) => settle(error);
+        const onClose = () => settle();
+        const onFinish = () => settle();
+
+        upstreamStream.on('error', onUpstreamError);
+        response.on('error', onResponseError);
+        response.on('close', onClose);
+        response.on('finish', onFinish);
+        upstreamStream.pipe(response as never);
+      });
+    } finally {
+      upstream.releaseTimeout();
+    }
+  }
+
+  async proxyGatewayChat(
+    accessToken: string,
+    payload: unknown,
+    response: ExpressResponse,
+  ): Promise<void> {
+    const upstream = await this.fetchGatewayControlPlane(
+      accessToken,
+      '/api/v1/chat',
+      {
+        method: 'POST',
+        body: payload,
+        headers: {
+          Accept: isStreamingChatPayload(payload)
+            ? 'text/event-stream'
+            : 'application/json',
+        },
+        timeoutMs: 90_000,
+      },
+    );
+
+    response.status(upstream.response.status);
+    this.copyGatewayResponseHeader(upstream.response, response, 'content-type');
+    this.copyGatewayResponseHeader(upstream.response, response, 'cache-control');
+    this.copyGatewayResponseHeader(upstream.response, response, 'x-request-id');
+
+    const contentType = upstream.response.headers.get('content-type') ?? '';
+    if (
+      contentType.includes('text/event-stream') &&
+      upstream.response.body
+    ) {
+      const upstreamStream = Readable.fromWeb(upstream.response.body as never);
+      response.flushHeaders?.();
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const settle = (error?: Error) => {
+            upstreamStream.off('error', onUpstreamError);
+            response.off('error', onResponseError);
+            response.off('close', onClose);
+            response.off('finish', onFinish);
+
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            resolve();
+          };
+
+          const onUpstreamError = (error: Error) => settle(error);
+          const onResponseError = (error: Error) => settle(error);
+          const onClose = () => settle();
+          const onFinish = () => settle();
+
+          upstreamStream.on('error', onUpstreamError);
+          response.on('error', onResponseError);
+          response.on('close', onClose);
+          response.on('finish', onFinish);
+          upstreamStream.pipe(response as never);
+        });
+      } finally {
+        upstream.releaseTimeout();
+      }
+      return;
+    }
+
+    try {
+      response.send(await upstream.response.text());
+    } finally {
+      upstream.releaseTimeout();
+    }
   }
 
   private async assertTenantExists(tenantId: string) {
@@ -576,20 +741,63 @@ export class AdminCatalogService {
     accessToken: string,
     path: string,
   ): Promise<T> {
+    const upstream = await this.fetchGatewayControlPlane(accessToken, path);
+
+    try {
+      return this.parseGatewayJsonResponse(upstream.response);
+    } finally {
+      upstream.releaseTimeout();
+    }
+  }
+
+  private async fetchGatewayControlPlane(
+    accessToken: string,
+    path: string,
+    options?: {
+      method?: 'DELETE' | 'GET' | 'PATCH' | 'POST';
+      body?: unknown;
+      headers?: Record<string, string>;
+      timeoutMs?: number;
+    },
+  ): Promise<{ response: Response; releaseTimeout: () => void }> {
     const gatewayUrl = `${this.getGatewayControlPlaneBaseUrl()}${path}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(
+      () => controller.abort(),
+      options?.timeoutMs ?? 15_000,
+    );
+    const releaseTimeout = () => {
+      if (!timeoutId) {
+        return;
+      }
+
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    };
 
     let response: Response;
     try {
       response = await fetch(gatewayUrl, {
+        method: options?.method ?? 'GET',
         headers: {
           Accept: 'application/json',
           Authorization: `Bearer ${accessToken}`,
+          ...(options?.body === undefined
+            ? {}
+            : {
+                'Content-Type': 'application/json',
+              }),
+          ...(options?.headers ?? {}),
         },
+        ...(options?.body === undefined
+          ? {}
+          : {
+              body: JSON.stringify(options.body),
+            }),
         signal: controller.signal,
       });
     } catch (error) {
+      releaseTimeout();
       if (error instanceof Error && error.name === 'AbortError') {
         throw new BadGatewayException(
           'The gateway control-plane request timed out before the server responded.',
@@ -601,18 +809,23 @@ export class AdminCatalogService {
           ? error.message
           : 'The gateway control-plane request failed before reaching the server.',
       );
-    } finally {
-      clearTimeout(timeoutId);
     }
 
     if (!response.ok) {
-      const body = await response.text();
+      const body = await response.text().finally(() => releaseTimeout());
       throw new HttpException(
         this.formatGatewayProxyErrorMessage(body, response.status),
         response.status,
       );
     }
 
+    return {
+      response,
+      releaseTimeout,
+    };
+  }
+
+  private async parseGatewayJsonResponse<T>(response: Response): Promise<T> {
     const body = await response.text();
     if (!body.trim()) {
       throw new BadGatewayException(
@@ -627,6 +840,19 @@ export class AdminCatalogService {
         'The gateway control-plane response did not contain valid JSON.',
       );
     }
+  }
+
+  private copyGatewayResponseHeader(
+    upstreamResponse: Response,
+    response: ExpressResponse,
+    headerName: string,
+  ) {
+    const headerValue = upstreamResponse.headers.get(headerName);
+    if (!headerValue) {
+      return;
+    }
+
+    response.setHeader(headerName, headerValue);
   }
 
   private formatGatewayProxyErrorMessage(body: string, status: number): string {
@@ -721,4 +947,15 @@ export class AdminCatalogService {
       };
     }
   }
+}
+
+function isStreamingChatPayload(
+  payload: unknown,
+): payload is { stream: true } {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'stream' in payload &&
+    (payload as { stream?: unknown }).stream === true
+  );
 }
