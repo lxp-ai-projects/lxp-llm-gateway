@@ -33,6 +33,12 @@ export type UpdateProfileInput = {
   displayName?: string;
 };
 
+export type ChangeOwnPasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+};
+
 export type GatewayChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;

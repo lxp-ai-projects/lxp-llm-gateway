@@ -368,6 +368,122 @@ test('AuthService updates the authenticated user display name', async () => {
   assert.equal(updatedUser.email, 'laurie@example.com');
 });
 
+test('AuthService changes the authenticated user password when the current password is valid', async () => {
+  const { authService, user } = await buildAuthService();
+  const previousHash = user.passwordHash;
+
+  await authService.changeOwnPassword(
+    { userId: user.id },
+    {
+      currentPassword: 'Sup3rS3cret!',
+      newPassword: 'EvenB3tterPass!',
+      confirmNewPassword: 'EvenB3tterPass!',
+    },
+  );
+
+  assert.notEqual(user.passwordHash, previousHash);
+  assert.equal(
+    await new PasswordService().verifyPassword(
+      'EvenB3tterPass!',
+      user.passwordHash,
+    ),
+    true,
+  );
+});
+
+test('AuthService rejects password change when the current password is invalid', async () => {
+  const { authService, user } = await buildAuthService();
+  const previousHash = user.passwordHash;
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id },
+        {
+          currentPassword: 'wrong-password',
+          newPassword: 'EvenB3tterPass!',
+          confirmNewPassword: 'EvenB3tterPass!',
+        },
+      ),
+    /Current password is invalid/,
+  );
+  assert.equal(user.passwordHash, previousHash);
+});
+
+test('AuthService rejects password change when the confirmation does not match', async () => {
+  const { authService, user } = await buildAuthService();
+  const previousHash = user.passwordHash;
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id },
+        {
+          currentPassword: 'Sup3rS3cret!',
+          newPassword: 'EvenB3tterPass!',
+          confirmNewPassword: 'MismatchPass!',
+        },
+      ),
+    /New password confirmation does not match/,
+  );
+  assert.equal(user.passwordHash, previousHash);
+});
+
+test('AuthService rejects password change when the new password matches the current password', async () => {
+  const { authService, user } = await buildAuthService();
+  const previousHash = user.passwordHash;
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id },
+        {
+          currentPassword: 'Sup3rS3cret!',
+          newPassword: 'Sup3rS3cret!',
+          confirmNewPassword: 'Sup3rS3cret!',
+        },
+      ),
+    /New password must be different from the current password/,
+  );
+  assert.equal(user.passwordHash, previousHash);
+});
+
+test('AuthService rejects password change when the authenticated user no longer exists', async () => {
+  const { authService } = await buildAuthService();
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: randomUUID() },
+        {
+          currentPassword: 'Sup3rS3cret!',
+          newPassword: 'EvenB3tterPass!',
+          confirmNewPassword: 'EvenB3tterPass!',
+        },
+      ),
+    /Invalid or expired token/,
+  );
+});
+
+test('AuthService rejects password change when the authenticated user is disabled', async () => {
+  const { authService, user } = await buildAuthServiceWithUser({
+    status: 'disabled',
+  });
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id },
+        {
+          currentPassword: 'Sup3rS3cret!',
+          newPassword: 'EvenB3tterPass!',
+          confirmNewPassword: 'EvenB3tterPass!',
+        },
+      ),
+    /Invalid or expired token/,
+  );
+});
+
 test('AuthService rejects login when the password is wrong', async () => {
   const { authService } = await buildAuthService();
 

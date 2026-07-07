@@ -17,6 +17,7 @@ import { AccessTokenGuard } from './access-token.guard';
 import type { RequestWithAuthUser } from './auth-request.types';
 import { AuthCookieService } from './auth-cookie.service';
 import { AuthService } from './auth.service';
+import { ChangeOwnPasswordDto } from './dto/change-own-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -114,6 +115,16 @@ export class AuthController {
       request.authUser!,
       dto,
     );
+  }
+
+  @Post('me/change-password')
+  @UseGuards(AccessTokenGuard)
+  async changeOwnPassword(
+    @Req() request: Request & RequestWithAuthUser,
+    @Body() payload: ChangeOwnPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.authService.changeOwnPassword(request.authUser!, payload);
+    return { message: 'Password changed successfully.' };
   }
 
   @Post('active-tenant')

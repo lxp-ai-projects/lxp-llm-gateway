@@ -5,6 +5,7 @@ import {
   Card,
   Grid,
   Group,
+  PasswordInput,
   Stack,
   Text,
   TextInput,
@@ -15,6 +16,7 @@ import {
   IconCheck,
   IconDeviceFloppy,
   IconInfoCircle,
+  IconLockPassword,
   IconPlugConnected,
   IconUserCog,
 } from '@tabler/icons-react';
@@ -29,12 +31,33 @@ import type { ParsedApiError } from '../lib/api-base';
 import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 
+function getErrorMessage(error: Error): string {
+  const apiError = error as Error & Partial<ParsedApiError>;
+  return apiError.message || 'Unable to complete the request.';
+}
+
 export function ProfilePage() {
   const queryClient = useQueryClient();
   const sessionQuery = useSession();
   const [displayName, setDisplayName] = useState('');
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [profileSuccessMessage, setProfileSuccessMessage] = useState<string | null>(
+    null,
+  );
+  const [profileErrorMessage, setProfileErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState<string | null>(
+    null,
+  );
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [passwordValidationMessage, setPasswordValidationMessage] = useState<
+    string | null
+  >(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   useEffect(() => {
     setDisplayName(sessionQuery.data?.displayName ?? '');
@@ -44,34 +67,60 @@ export function ProfilePage() {
     mutationFn: (payload: { displayName: string }) =>
       adminApiClient.updateProfile(payload),
     onMutate: () => {
-      setSuccessMessage(null);
-      setErrorMessage(null);
+      setProfileSuccessMessage(null);
+      setProfileErrorMessage(null);
     },
     onSuccess: async (nextSession) => {
       queryClient.setQueryData(['session'], nextSession);
       await queryClient.invalidateQueries({ queryKey: ['session'] });
       setDisplayName(nextSession.displayName);
-      setSuccessMessage('Your profile has been updated.');
+      setProfileSuccessMessage('Your profile has been updated.');
     },
     onError: (error: Error) => {
-      const apiError = error as Error & Partial<ParsedApiError>;
-      setErrorMessage(apiError.message || 'Unable to update your profile.');
+      setProfileErrorMessage(getErrorMessage(error));
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: (payload: {
+      currentPassword: string;
+      newPassword: string;
+      confirmNewPassword: string;
+    }) => adminApiClient.changeOwnPassword(payload),
+    onMutate: () => {
+      setPasswordSuccessMessage(null);
+      setPasswordErrorMessage(null);
+      setPasswordValidationMessage(null);
+    },
+    onSuccess: (result) => {
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setPasswordSuccessMessage(result.message);
+    },
+    onError: (error: Error) => {
+      setPasswordErrorMessage(getErrorMessage(error));
     },
   });
 
   const trimmedDisplayName = displayName.trim();
   const currentDisplayName = sessionQuery.data?.displayName ?? '';
-  const isSaveDisabled =
+  const isProfileSaveDisabled =
     sessionQuery.isLoading ||
     updateProfileMutation.isPending ||
     trimmedDisplayName.length === 0 ||
     trimmedDisplayName === currentDisplayName;
+  const isPasswordSaveDisabled =
+    changePasswordMutation.isPending ||
+    currentPassword.length === 0 ||
+    newPassword.length === 0 ||
+    confirmNewPassword.length === 0;
 
   return (
     <>
       <PageHeader
         title="Profile"
-        description="Update the account details tied to your current browser session."
+        description="Manage the account details and password tied to your current browser session."
         context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
@@ -87,7 +136,7 @@ export function ProfilePage() {
             value={sessionQuery.data?.email ?? 'Unavailable'}
           />
         </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 8 }}>
+        <Grid.Col span={{ base: 12, md: 6 }}>
           <Card className="section-card">
             <Stack gap="md">
               <div>
@@ -97,23 +146,23 @@ export function ProfilePage() {
                 </Text>
               </div>
 
-              {successMessage ? (
+              {profileSuccessMessage ? (
                 <Alert
                   color="teal"
                   icon={<IconCheck size={18} />}
                   title="Profile updated"
                 >
-                  {successMessage}
+                  {profileSuccessMessage}
                 </Alert>
               ) : null}
 
-              {errorMessage ? (
+              {profileErrorMessage ? (
                 <Alert
                   color="red"
                   icon={<IconUserCog size={18} />}
                   title="Update failed"
                 >
-                  {errorMessage}
+                  {profileErrorMessage}
                 </Alert>
               ) : null}
 
@@ -122,8 +171,8 @@ export function ProfilePage() {
                 label="Display name"
                 onChange={(event) => {
                   setDisplayName(event.currentTarget.value);
-                  if (successMessage) {
-                    setSuccessMessage(null);
+                  if (profileSuccessMessage) {
+                    setProfileSuccessMessage(null);
                   }
                 }}
                 placeholder="Your display name"
@@ -145,7 +194,7 @@ export function ProfilePage() {
                   data-testid="profile-save-button"
                   leftSection={<IconDeviceFloppy size={16} />}
                   loading={updateProfileMutation.isPending}
-                  disabled={isSaveDisabled}
+                  disabled={isProfileSaveDisabled}
                   onClick={() =>
                     updateProfileMutation.mutate({
                       displayName: trimmedDisplayName,
@@ -153,6 +202,117 @@ export function ProfilePage() {
                   }
                 >
                   Save profile
+                </Button>
+              </Group>
+            </Stack>
+          </Card>
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, md: 6 }}>
+          <Card className="section-card">
+            <Stack gap="md">
+              <div>
+                <Text fw={700}>Security</Text>
+                <Text c="dimmed" size="sm">
+                  Change your password without leaving the current session.
+                </Text>
+              </div>
+
+              {passwordSuccessMessage ? (
+                <Alert
+                  color="teal"
+                  icon={<IconCheck size={18} />}
+                  title="Password updated"
+                >
+                  {passwordSuccessMessage}
+                </Alert>
+              ) : null}
+
+              {passwordValidationMessage ? (
+                <Alert
+                  color="yellow"
+                  icon={<IconInfoCircle size={18} />}
+                  title="Check your entries"
+                >
+                  {passwordValidationMessage}
+                </Alert>
+              ) : null}
+
+              {passwordErrorMessage ? (
+                <Alert
+                  color="red"
+                  icon={<IconLockPassword size={18} />}
+                  title="Password change failed"
+                >
+                  {passwordErrorMessage}
+                </Alert>
+              ) : null}
+
+              <PasswordInput
+                data-testid="profile-current-password-input"
+                label="Current password"
+                autoComplete="current-password"
+                onChange={(event) => {
+                  setCurrentPassword(event.currentTarget.value);
+                  if (passwordSuccessMessage) {
+                    setPasswordSuccessMessage(null);
+                  }
+                }}
+                value={currentPassword}
+              />
+
+              <PasswordInput
+                data-testid="profile-new-password-input"
+                label="New password"
+                autoComplete="new-password"
+                onChange={(event) => {
+                  setNewPassword(event.currentTarget.value);
+                  if (passwordSuccessMessage) {
+                    setPasswordSuccessMessage(null);
+                  }
+                }}
+                value={newPassword}
+              />
+
+              <PasswordInput
+                data-testid="profile-confirm-new-password-input"
+                label="Confirm new password"
+                autoComplete="new-password"
+                onChange={(event) => {
+                  setConfirmNewPassword(event.currentTarget.value);
+                  if (passwordSuccessMessage) {
+                    setPasswordSuccessMessage(null);
+                  }
+                }}
+                value={confirmNewPassword}
+              />
+
+              <Group justify="space-between" align="end">
+                <Text c="dimmed" size="sm">
+                  We verify your current password before saving a new one.
+                </Text>
+                <Button
+                  data-testid="profile-change-password-button"
+                  leftSection={<IconLockPassword size={16} />}
+                  loading={changePasswordMutation.isPending}
+                  disabled={isPasswordSaveDisabled}
+                  onClick={() => {
+                    if (newPassword !== confirmNewPassword) {
+                      setPasswordValidationMessage(
+                        'New password confirmation does not match.',
+                      );
+                      setPasswordSuccessMessage(null);
+                      setPasswordErrorMessage(null);
+                      return;
+                    }
+
+                    changePasswordMutation.mutate({
+                      currentPassword,
+                      newPassword,
+                      confirmNewPassword,
+                    });
+                  }}
+                >
+                  Change password
                 </Button>
               </Group>
             </Stack>
@@ -173,11 +333,7 @@ export function ProfilePage() {
                   </Text>
                 </Stack>
               </Group>
-              <Anchor
-                component={Link}
-                to="/app/providers"
-                underline="hover"
-              >
+              <Anchor component={Link} to="/app/providers" underline="hover">
                 <Group gap={6} wrap="nowrap">
                   <Text size="sm">Open provider settings</Text>
                   <IconArrowRight size={16} />
@@ -187,15 +343,6 @@ export function ProfilePage() {
           </Card>
         </Grid.Col>
       </Grid>
-      <Alert
-        color="blue"
-        icon={<IconInfoCircle size={18} />}
-        mt="lg"
-        title="Next profile surfaces"
-      >
-        Password change and per-user analytics cards can be added here once the
-        remaining self-service endpoints are ready.
-      </Alert>
     </>
   );
 }

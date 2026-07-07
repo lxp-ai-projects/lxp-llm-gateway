@@ -209,6 +209,52 @@ export class AuthService {
     return this.mapAuthenticatedUser(user, authContext);
   }
 
+  async changeOwnPassword(
+    authUser: Pick<AuthenticatedUser, 'userId'>,
+    payload: {
+      currentPassword: string;
+      newPassword: string;
+      confirmNewPassword: string;
+    },
+  ): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.userId },
+    });
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
+
+    const currentPasswordMatches = await this.passwordService.verifyPassword(
+      payload.currentPassword,
+      user.passwordHash,
+    );
+    if (!currentPasswordMatches) {
+      throw new BadRequestException('Current password is invalid.');
+    }
+
+    if (payload.newPassword !== payload.confirmNewPassword) {
+      throw new BadRequestException(
+        'New password confirmation does not match.',
+      );
+    }
+
+    const nextPasswordMatchesCurrent =
+      await this.passwordService.verifyPassword(
+        payload.newPassword,
+        user.passwordHash,
+      );
+    if (nextPasswordMatchesCurrent) {
+      throw new BadRequestException(
+        'New password must be different from the current password.',
+      );
+    }
+
+    user.passwordHash = await this.passwordService.hashPassword(
+      payload.newPassword,
+    );
+    await this.userRepository.save(user);
+  }
+
   getRefreshTokenTtlSeconds(): number {
     return this.refreshTokenTtlSeconds;
   }

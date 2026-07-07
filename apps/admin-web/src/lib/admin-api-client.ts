@@ -36,6 +36,7 @@ import type {
   AdminUpdateTenantProviderConfigurationInput,
   AdminUserSummary,
   AdminUpdateUserInput,
+  ChangeOwnPasswordInput,
   ChatTransferConversation,
   GatewayImageCatalogResponse,
   GatewayVideoCatalogResponse,
@@ -128,6 +129,18 @@ export const adminApiClient = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+  },
+
+  async changeOwnPassword(
+    payload: ChangeOwnPasswordInput,
+  ): Promise<{ message: string }> {
+    return request<{ message: string }>(
+      `${adminApiUrl}/api/v1/auth/me/change-password`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   async getHealth(): Promise<{ status: string }> {

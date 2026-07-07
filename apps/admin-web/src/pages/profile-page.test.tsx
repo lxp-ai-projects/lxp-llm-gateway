@@ -4,10 +4,13 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { renderWithProviders } from '../test/test-utils';
 import { ProfilePage } from './profile-page';
 
-const { useSessionMock, updateProfileMock } = vi.hoisted(() => ({
-  useSessionMock: vi.fn(),
-  updateProfileMock: vi.fn(),
-}));
+const { useSessionMock, updateProfileMock, changeOwnPasswordMock } = vi.hoisted(
+  () => ({
+    useSessionMock: vi.fn(),
+    updateProfileMock: vi.fn(),
+    changeOwnPasswordMock: vi.fn(),
+  }),
+);
 
 vi.mock('../lib/use-session', () => ({
   useSession: useSessionMock,
@@ -16,21 +19,28 @@ vi.mock('../lib/use-session', () => ({
 vi.mock('../lib/api-client', () => ({
   adminApiClient: {
     updateProfile: updateProfileMock,
+    changeOwnPassword: changeOwnPasswordMock,
   },
 }));
 
 beforeEach(() => {
   useSessionMock.mockReset();
   updateProfileMock.mockReset();
+  changeOwnPasswordMock.mockReset();
 });
 
-test('ProfilePage renders the current session details when available', () => {
+function mockSession() {
   useSessionMock.mockReturnValue({
     data: {
       displayName: 'Patrick',
       email: 'patrick@example.com',
     },
+    isLoading: false,
   });
+}
+
+test('ProfilePage renders the current session details and password fields', () => {
+  mockSession();
 
   renderWithProviders(<ProfilePage />);
 
@@ -38,41 +48,110 @@ test('ProfilePage renders the current session details when available', () => {
   expect(screen.getByTestId('profile-display-name-input')).toBeInTheDocument();
   expect(screen.getByText('Patrick')).toBeInTheDocument();
   expect(screen.getByText('patrick@example.com')).toBeInTheDocument();
-  expect(screen.getByText('Providers')).toBeInTheDocument();
-  expect(screen.getByText('Profile details')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('Patrick')).toBeInTheDocument();
+  expect(screen.getByText('Security')).toBeInTheDocument();
+  expect(screen.getByTestId('profile-current-password-input')).toBeInTheDocument();
+  expect(screen.getByTestId('profile-new-password-input')).toBeInTheDocument();
+  expect(
+    screen.getByTestId('profile-confirm-new-password-input'),
+  ).toBeInTheDocument();
   expect(
     screen.getByRole('link', { name: /Open provider settings/i }),
   ).toHaveAttribute('href', '/app/providers');
 });
 
-test('ProfilePage falls back to unavailable placeholders without a session payload', () => {
-  useSessionMock.mockReturnValue({
-    data: null,
-    isLoading: false,
+test('ProfilePage confirmation mismatch prevents API call and shows validation feedback', async () => {
+  mockSession();
+
+  renderWithProviders(<ProfilePage />);
+
+  fireEvent.change(screen.getByTestId('profile-current-password-input'), {
+    target: { value: 'Sup3rS3cret!' },
+  });
+  fireEvent.change(screen.getByTestId('profile-new-password-input'), {
+    target: { value: 'EvenB3tterPass!' },
+  });
+  fireEvent.change(screen.getByTestId('profile-confirm-new-password-input'), {
+    target: { value: 'MismatchPass!' },
+  });
+  fireEvent.click(screen.getByTestId('profile-change-password-button'));
+
+  expect(changeOwnPasswordMock).not.toHaveBeenCalled();
+  expect(
+    await screen.findByText('New password confirmation does not match.'),
+  ).toBeInTheDocument();
+});
+
+test('ProfilePage successfully changes the password and clears the fields', async () => {
+  mockSession();
+  changeOwnPasswordMock.mockResolvedValue({
+    message: 'Password changed successfully.',
   });
 
   renderWithProviders(<ProfilePage />);
 
-  expect(screen.getAllByText('Unavailable')).toHaveLength(2);
+  fireEvent.change(screen.getByTestId('profile-current-password-input'), {
+    target: { value: 'Sup3rS3cret!' },
+  });
+  fireEvent.change(screen.getByTestId('profile-new-password-input'), {
+    target: { value: 'EvenB3tterPass!' },
+  });
+  fireEvent.change(screen.getByTestId('profile-confirm-new-password-input'), {
+    target: { value: 'EvenB3tterPass!' },
+  });
+  fireEvent.click(screen.getByTestId('profile-change-password-button'));
+
+  await waitFor(() =>
+    expect(changeOwnPasswordMock).toHaveBeenCalledWith({
+      currentPassword: 'Sup3rS3cret!',
+      newPassword: 'EvenB3tterPass!',
+      confirmNewPassword: 'EvenB3tterPass!',
+    }),
+  );
   expect(
-    screen.getByText(/Provider tokens and endpoint configuration live on the dedicated/i),
+    screen.getByText('Password changed successfully.'),
   ).toBeInTheDocument();
-  expect(
-    screen.getByText(
-      /Password change and per-user analytics cards can be added here/i,
-    ),
-  ).toBeInTheDocument();
+  expect(screen.getByTestId('profile-current-password-input')).toHaveValue('');
+  expect(screen.getByTestId('profile-new-password-input')).toHaveValue('');
+  expect(screen.getByTestId('profile-confirm-new-password-input')).toHaveValue(
+    '',
+  );
 });
 
-test('ProfilePage saves the connected user display name', async () => {
-  useSessionMock.mockReturnValue({
-    data: {
-      displayName: 'Patrick',
-      email: 'patrick@example.com',
-    },
-    isLoading: false,
+test('ProfilePage keeps password values when the password change fails', async () => {
+  mockSession();
+  changeOwnPasswordMock.mockRejectedValue(
+    new Error('Current password is invalid.'),
+  );
+
+  renderWithProviders(<ProfilePage />);
+
+  fireEvent.change(screen.getByTestId('profile-current-password-input'), {
+    target: { value: 'wrong-password' },
   });
+  fireEvent.change(screen.getByTestId('profile-new-password-input'), {
+    target: { value: 'EvenB3tterPass!' },
+  });
+  fireEvent.change(screen.getByTestId('profile-confirm-new-password-input'), {
+    target: { value: 'EvenB3tterPass!' },
+  });
+  fireEvent.click(screen.getByTestId('profile-change-password-button'));
+
+  expect(
+    await screen.findByText('Current password is invalid.'),
+  ).toBeInTheDocument();
+  expect(screen.getByTestId('profile-current-password-input')).toHaveValue(
+    'wrong-password',
+  );
+  expect(screen.getByTestId('profile-new-password-input')).toHaveValue(
+    'EvenB3tterPass!',
+  );
+  expect(screen.getByTestId('profile-confirm-new-password-input')).toHaveValue(
+    'EvenB3tterPass!',
+  );
+});
+
+test('ProfilePage still saves the connected user display name', async () => {
+  mockSession();
   updateProfileMock.mockResolvedValue({
     displayName: 'Patrice',
     email: 'patrick@example.com',
