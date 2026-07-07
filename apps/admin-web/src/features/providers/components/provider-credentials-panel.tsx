@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Group,
+  Modal,
   SimpleGrid,
   Stack,
   Table,
@@ -23,11 +24,13 @@ type ProviderCredentialsPanelProps = {
   currentDefaultImageModel: string | null;
   currentDefaultImageProviderDisplayName: string | null;
   currentDefaultImageProviderId: string | null;
-  credentialPendingDelete: string | null;
+  credentialDeleteTarget: ProviderCredentialSummary | null;
+  deleteCredentialError: string | null;
+  deleteCredentialSuccessMessage: string | null;
   isDeleteCredentialPending: boolean;
   onCancelDeleteCredential: () => void;
-  onConfirmDeleteCredential: (credentialId: string) => void;
-  onDeleteCredential: (credentialId: string) => void;
+  onConfirmDeleteCredential: (credential: ProviderCredentialSummary) => void;
+  onDeleteCredential: () => void;
   onEditCredential: (credential: {
     id: string;
     providerId: string;
@@ -43,7 +46,9 @@ export function ProviderCredentialsPanel({
   currentDefaultImageModel,
   currentDefaultImageProviderDisplayName,
   currentDefaultImageProviderId,
-  credentialPendingDelete,
+  credentialDeleteTarget,
+  deleteCredentialError,
+  deleteCredentialSuccessMessage,
   isDeleteCredentialPending,
   onCancelDeleteCredential,
   onConfirmDeleteCredential,
@@ -55,8 +60,9 @@ export function ProviderCredentialsPanel({
     providerId: string;
     label: string;
   }) {
-    const confirmDelete = credentialPendingDelete === credential.id;
     const disableActions = isDeleteCredentialPending;
+    const matchingCredential =
+      credentials.find((entry) => entry.id === credential.id) ?? null;
 
     return (
       <Group gap="xs">
@@ -70,41 +76,21 @@ export function ProviderCredentialsPanel({
         >
           Edit
         </Button>
-        {confirmDelete ? (
-          <>
-            <Button
-              data-testid={`providers-cancel-delete-credential-${credential.id}`}
-              disabled={disableActions}
-              onClick={onCancelDeleteCredential}
-              size="xs"
-              variant="subtle"
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              data-testid={`providers-confirm-delete-credential-${credential.id}`}
-              loading={isDeleteCredentialPending}
-              onClick={() => onDeleteCredential(credential.id)}
-              size="xs"
-              variant="light"
-            >
-              Confirm delete
-            </Button>
-          </>
-        ) : (
-          <Button
-            color="red"
-            data-testid={`providers-delete-credential-${credential.id}`}
-            disabled={disableActions}
-            leftSection={<IconTrash size={14} />}
-            onClick={() => onConfirmDeleteCredential(credential.id)}
-            size="xs"
-            variant="subtle"
-          >
-            Delete
-          </Button>
-        )}
+        <Button
+          color="red"
+          data-testid={`providers-delete-credential-${credential.id}`}
+          disabled={disableActions || matchingCredential === null}
+          leftSection={<IconTrash size={14} />}
+          onClick={() => {
+            if (matchingCredential) {
+              onConfirmDeleteCredential(matchingCredential);
+            }
+          }}
+          size="xs"
+          variant="subtle"
+        >
+          Delete
+        </Button>
       </Group>
     );
   }
@@ -113,6 +99,11 @@ export function ProviderCredentialsPanel({
     <Card className="section-card">
       <Stack gap="sm">
         <Title order={3}>My credentials</Title>
+        {deleteCredentialSuccessMessage ? (
+          <Alert color="teal" title="Credential deleted">
+            {deleteCredentialSuccessMessage}
+          </Alert>
+        ) : null}
         <div className="provider-credentials-mobile">
           <Accordion
             variant="separated"
@@ -263,6 +254,55 @@ export function ProviderCredentialsPanel({
           </Alert>
         ) : null}
       </Stack>
+      <Modal
+        centered
+        data-testid="providers-delete-credential-modal"
+        onClose={isDeleteCredentialPending ? () => undefined : onCancelDeleteCredential}
+        opened={credentialDeleteTarget !== null}
+        title="Delete credential"
+      >
+        <Stack gap="sm">
+          <Text>
+            Delete the credential for{' '}
+            <Text component="span" fw={700}>
+              {credentialDeleteTarget?.providerDisplayName ?? 'Unknown provider'}
+            </Text>{' '}
+            with label{' '}
+            <Text component="span" fw={700}>
+              {credentialDeleteTarget?.label ?? 'Unknown label'}
+            </Text>
+            ?
+          </Text>
+          <Alert color="red" title="Impact" variant="light">
+            This provider may stop working until a valid credential is configured
+            again.
+          </Alert>
+          {deleteCredentialError ? (
+            <Alert color="red" title="Unable to delete credential">
+              {deleteCredentialError}
+            </Alert>
+          ) : null}
+          <Group justify="flex-end">
+            <Button
+              disabled={isDeleteCredentialPending}
+              onClick={onCancelDeleteCredential}
+              type="button"
+              variant="subtle"
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              data-testid="providers-delete-credential-confirm"
+              loading={isDeleteCredentialPending}
+              onClick={onDeleteCredential}
+              type="button"
+            >
+              Delete credential
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Card>
   );
 }

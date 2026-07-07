@@ -50,16 +50,24 @@ type ProviderOption = {
 type ProviderCredentialFormProps = {
   apiToken: string;
   baseUrl: string;
+  credentialConflictPrompt: {
+    providerId: string;
+    label: string;
+    message: string;
+  } | null;
   credentialSubmitError: string | null;
   credentialValidationError: string | null;
   editingCredentialId: string | null;
+  editingCredentialMode: 'edit' | 'replace';
   isPending: boolean;
   label: string;
   onApiTokenChange: (value: string) => void;
   onBaseUrlChange: (value: string) => void;
   onCancelEdit: () => void;
+  onEditExistingCredential: () => void;
   onLabelChange: (value: string) => void;
   onProviderChange: (value: string | null) => void;
+  onReplaceExistingCredential: () => void;
   onSubmit: React.FormEventHandler<HTMLFormElement>;
   providerId: string;
   providerOptions: ProviderOption[];
@@ -68,27 +76,34 @@ type ProviderCredentialFormProps = {
 export function ProviderCredentialForm({
   apiToken,
   baseUrl,
+  credentialConflictPrompt,
   credentialSubmitError,
   credentialValidationError,
   editingCredentialId,
+  editingCredentialMode,
   isPending,
   label,
   onApiTokenChange,
   onBaseUrlChange,
   onCancelEdit,
+  onEditExistingCredential,
   onLabelChange,
   onProviderChange,
+  onReplaceExistingCredential,
   onSubmit,
   providerId,
   providerOptions,
 }: ProviderCredentialFormProps) {
   const isEditing = Boolean(editingCredentialId);
+  const isReplacingExisting = isEditing && editingCredentialMode === 'replace';
   const usesEndpointAccess = providerId === 'ollama';
   const isGroq = providerId === 'groq';
   const isGoogle = providerId === 'google';
   const responsibilityNote = getProviderCredentialResponsibilityNote(providerId);
   const isSubmitDisabled =
-    !label.trim() || (!isEditing && !apiToken.trim() && !baseUrl.trim());
+    !label.trim() ||
+    (!isEditing && !apiToken.trim() && !baseUrl.trim()) ||
+    (isReplacingExisting && !apiToken.trim() && !baseUrl.trim());
 
   return (
     <Card className="section-card">
@@ -97,7 +112,9 @@ export function ProviderCredentialForm({
           <Group justify="space-between">
             <Title order={3}>
               {isEditing
-                ? 'Edit provider credential'
+                ? isReplacingExisting
+                  ? 'Replace provider credential'
+                  : 'Edit provider credential'
                 : 'Add provider credential'}
             </Title>
             <IconKey size={18} />
@@ -135,6 +152,40 @@ export function ProviderCredentialForm({
           {credentialSubmitError ? (
             <Alert color="red" title="Unable to save credential">
               {credentialSubmitError}
+            </Alert>
+          ) : null}
+          {credentialConflictPrompt ? (
+            <Alert color="yellow" title="Credential already exists">
+              <Stack gap="xs">
+                <Text size="sm">
+                  {credentialConflictPrompt.message} Edit the existing credential
+                  or explicitly replace its secret value.
+                </Text>
+                <Group gap="xs">
+                  <Button
+                    onClick={onEditExistingCredential}
+                    size="xs"
+                    type="button"
+                    variant="light"
+                  >
+                    Edit existing credential
+                  </Button>
+                  <Button
+                    onClick={onReplaceExistingCredential}
+                    size="xs"
+                    type="button"
+                    variant="light"
+                  >
+                    Replace existing credential
+                  </Button>
+                </Group>
+              </Stack>
+            </Alert>
+          ) : null}
+          {isReplacingExisting ? (
+            <Alert color="orange" title="Replace existing credential">
+              Saving this form will rotate the stored secret for this credential
+              without deleting and recreating it.
             </Alert>
           ) : null}
           <label className="form-native-field">

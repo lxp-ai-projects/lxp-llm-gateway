@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { adminApiClient } from '../../../lib/api-client';
+import type { ParsedApiError } from '../../../lib/api-base';
+import type { ProviderCredentialSummary } from '../../../lib/api-client.types';
 import { useRuntimeConfig } from '../../../lib/use-runtime-config';
 import {
   buildDefaultModelOptions,
@@ -33,12 +35,24 @@ export function useProvidersController() {
   const [credentialSubmitError, setCredentialSubmitError] = useState<string | null>(
     null,
   );
+  const [credentialConflictPrompt, setCredentialConflictPrompt] = useState<{
+    providerId: string;
+    label: string;
+    message: string;
+  } | null>(null);
   const [editingCredentialId, setEditingCredentialId] = useState<string | null>(
     null,
   );
-  const [credentialPendingDelete, setCredentialPendingDelete] = useState<
-    string | null
-  >(null);
+  const [credentialEditMode, setCredentialEditMode] = useState<
+    'edit' | 'replace'
+  >('edit');
+  const [credentialDeleteTarget, setCredentialDeleteTarget] =
+    useState<ProviderCredentialSummary | null>(null);
+  const [deleteCredentialError, setDeleteCredentialError] = useState<string | null>(
+    null,
+  );
+  const [deleteCredentialSuccessMessage, setDeleteCredentialSuccessMessage] =
+    useState<string | null>(null);
   const [defaultProviderId, setDefaultProviderId] = useState<string | null>(
     null,
   );
@@ -172,11 +186,26 @@ export function useProvidersController() {
     onSuccess: async () => {
       resetCredentialForm();
       setCredentialSubmitError(null);
+      setCredentialConflictPrompt(null);
       await queryClient.invalidateQueries({
         queryKey: ['own-provider-credentials'],
       });
     },
     onError: (error) => {
+      const apiError = error as Partial<ParsedApiError> | undefined;
+      if (apiError?.code === 'credential_already_exists') {
+        setCredentialConflictPrompt({
+          providerId,
+          label: label.trim(),
+          message:
+            apiError.message ||
+            'A credential already exists for this provider.',
+        });
+        setCredentialSubmitError(null);
+        return;
+      }
+
+      setCredentialConflictPrompt(null);
       setCredentialSubmitError(
         error instanceof Error
           ? error.message
@@ -189,7 +218,9 @@ export function useProvidersController() {
     mutationFn: (credentialId: string) =>
       adminApiClient.deleteOwnProviderCredential(credentialId),
     onSuccess: async () => {
-      setCredentialPendingDelete(null);
+      setDeleteCredentialError(null);
+      setDeleteCredentialSuccessMessage('Credential deleted successfully.');
+      setCredentialDeleteTarget(null);
       if (
         editingCredentialId &&
         editingCredentialId === deleteCredentialMutation.variables
@@ -199,6 +230,13 @@ export function useProvidersController() {
       await queryClient.invalidateQueries({
         queryKey: ['own-provider-credentials'],
       });
+    },
+    onError: (error) => {
+      setDeleteCredentialError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to delete the provider credential.',
+      );
     },
   });
 
@@ -227,28 +265,70 @@ export function useProvidersController() {
 
   function resetCredentialForm() {
     setEditingCredentialId(null);
+    setCredentialEditMode('edit');
     setProviderId(resolvePreferredProviderId(providerOptions));
     setLabel('primary');
     setApiToken('');
     setBaseUrl('');
     setCredentialValidationError(null);
     setCredentialSubmitError(null);
-    setCredentialPendingDelete(null);
+    setCredentialConflictPrompt(null);
   }
 
-  function beginCredentialEdit(credential: {
-    id: string;
-    providerId: string;
-    label: string;
-  }) {
+  function beginCredentialEdit(
+    credential: {
+      id: string;
+      providerId: string;
+      label: string;
+    },
+    mode: 'edit' | 'replace' = 'edit',
+  ) {
     setEditingCredentialId(credential.id);
+    setCredentialEditMode(mode);
     setProviderId(credential.providerId);
     setLabel(credential.label);
     setApiToken('');
     setBaseUrl('');
     setCredentialValidationError(null);
     setCredentialSubmitError(null);
-    setCredentialPendingDelete(null);
+    setCredentialConflictPrompt(null);
+  }
+
+  async function resolveConflictingCredential() {
+    const conflictPrompt = credentialConflictPrompt;
+    if (!conflictPrompt) {
+      return null;
+    }
+
+    const findMatch = (credentials: ProviderCredentialSummary[]) =>
+      credentials.find(
+        (credential) =>
+          credential.providerId === conflictPrompt.providerId &&
+          credential.label === conflictPrompt.label,
+      ) ?? null;
+
+    const existingCredentials = credentialsQuery.data ?? [];
+    const existingMatch = findMatch(existingCredentials);
+    if (existingMatch) {
+      return existingMatch;
+    }
+
+    const refreshed = await credentialsQuery.refetch();
+    return findMatch(refreshed.data ?? []);
+  }
+
+  async function handleConflictAction(mode: 'edit' | 'replace') {
+    setCredentialSubmitError(null);
+    const credential = await resolveConflictingCredential();
+    if (!credential) {
+      setCredentialConflictPrompt(null);
+      setCredentialSubmitError(
+        'The existing credential could not be loaded. Please refresh and try again.',
+      );
+      return;
+    }
+
+    beginCredentialEdit(credential, mode);
   }
 
   const defaultModelOptions = buildDefaultModelOptions(
@@ -263,7 +343,11 @@ export function useProvidersController() {
   function handleCredentialSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!label.trim() || (!editingCredentialId && !apiToken.trim() && !baseUrl.trim())) {
+    if (
+      !label.trim() ||
+      (!editingCredentialId && !apiToken.trim() && !baseUrl.trim()) ||
+      (credentialEditMode === 'replace' && !apiToken.trim() && !baseUrl.trim())
+    ) {
       return;
     }
 
@@ -274,6 +358,7 @@ export function useProvidersController() {
     });
     setCredentialValidationError(validationError);
     setCredentialSubmitError(null);
+    setCredentialConflictPrompt(null);
     if (validationError) {
       return;
     }
@@ -294,12 +379,14 @@ export function useProvidersController() {
   return {
     apiToken,
     baseUrl,
-    credentialPendingDelete,
+    credentialConflictPrompt,
     credentialSubmitError,
     credentialValidationError,
     credentials: credentialsQuery.data ?? [],
-    confirmDeleteCredential: (credentialId: string) => {
-      setCredentialPendingDelete(credentialId);
+    confirmDeleteCredential: (credential: ProviderCredentialSummary) => {
+      setDeleteCredentialError(null);
+      setDeleteCredentialSuccessMessage(null);
+      setCredentialDeleteTarget(credential);
     },
     currentDefaultModel: providerSettingsQuery.data?.defaultModel ?? null,
     currentDefaultProviderDisplayName: providerSettingsQuery.data
@@ -329,12 +416,26 @@ export function useProvidersController() {
     defaultImageModelOptions,
     defaultImageProviderId,
     defaultImageProviderOptions,
-    deleteCredential: (credentialId: string) => {
-      deleteCredentialMutation.mutate(credentialId);
+    deleteCredential: () => {
+      if (!credentialDeleteTarget) {
+        return;
+      }
+      setDeleteCredentialError(null);
+      deleteCredentialMutation.mutate(credentialDeleteTarget.id);
     },
+    deleteCredentialError,
+    deleteCredentialSuccessMessage,
+    credentialDeleteTarget,
     editingCredentialId,
+    editingCredentialMode: credentialEditMode,
     handleCredentialSubmit,
     handleDefaultsSubmit,
+    handleExistingCredentialEdit: () => {
+      void handleConflictAction('edit');
+    },
+    handleExistingCredentialReplace: () => {
+      void handleConflictAction('replace');
+    },
     isDeleteCredentialPending: deleteCredentialMutation.isPending,
     isCredentialPending: upsertCredentialMutation.isPending,
     isDefaultsPending: saveDefaultsMutation.isPending,
@@ -359,6 +460,9 @@ export function useProvidersController() {
       if (credentialSubmitError) {
         setCredentialSubmitError(null);
       }
+      if (credentialConflictPrompt) {
+        setCredentialConflictPrompt(null);
+      }
     },
     onBaseUrlChange: (value: string) => {
       setBaseUrl(value);
@@ -368,8 +472,14 @@ export function useProvidersController() {
       if (credentialSubmitError) {
         setCredentialSubmitError(null);
       }
+      if (credentialConflictPrompt) {
+        setCredentialConflictPrompt(null);
+      }
     },
-    onCancelDeleteCredential: () => setCredentialPendingDelete(null),
+    onCancelDeleteCredential: () => {
+      setDeleteCredentialError(null);
+      setCredentialDeleteTarget(null);
+    },
     onDefaultModelChange: (value: string | null) => setDefaultModel(value),
     onDefaultProviderChange: (value: string | null) => {
       setDefaultProviderId(value);
@@ -380,7 +490,15 @@ export function useProvidersController() {
       setDefaultImageProviderId(value);
       setDefaultImageModel(null);
     },
-    onLabelChange: setLabel,
+    onLabelChange: (value: string) => {
+      setLabel(value);
+      if (credentialSubmitError) {
+        setCredentialSubmitError(null);
+      }
+      if (credentialConflictPrompt) {
+        setCredentialConflictPrompt(null);
+      }
+    },
     onProviderChange: (value: string | null) => {
       setProviderId(value ?? 'nanogpt');
       if (credentialValidationError) {
@@ -388,6 +506,9 @@ export function useProvidersController() {
       }
       if (credentialSubmitError) {
         setCredentialSubmitError(null);
+      }
+      if (credentialConflictPrompt) {
+        setCredentialConflictPrompt(null);
       }
     },
     providerId,

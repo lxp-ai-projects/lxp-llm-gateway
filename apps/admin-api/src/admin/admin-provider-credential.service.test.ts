@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -394,6 +395,51 @@ test('AdminProviderCredentialService stores endpoint-only Ollama credentials wit
   });
 
   assert.equal(credential.maskedHint, 'localhost:11434');
+});
+
+test('AdminProviderCredentialService returns a structured 409 when a credential already exists', async () => {
+  const { actor, service } = createAdminProviderCredentialService({
+    credentialData: [
+      {
+        id: 'credential-1',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        providerId: 'provider-openai',
+        scope: 'user',
+        label: 'Primary',
+        maskedHint: '***5678',
+        isActive: true,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: null,
+      },
+    ],
+  });
+
+  await assert.rejects(
+    () =>
+      service.storeProviderCredentialForActor(actor, {
+        providerId: 'openai',
+        label: 'Primary',
+        apiToken: 'sk-openai-12345678',
+        scope: 'user',
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConflictException);
+      assert.deepEqual(error.getResponse(), {
+        error: {
+          code: 'credential_already_exists',
+          message: 'A credential already exists for this provider.',
+          action: 'edit_or_replace_required',
+        },
+      });
+      const responseText = JSON.stringify(error.getResponse());
+      assert.doesNotMatch(responseText, /credential-1/);
+      assert.doesNotMatch(responseText, /tenant-1/);
+      assert.doesNotMatch(responseText, /user-1/);
+      return true;
+    },
+  );
 });
 
 test('AdminProviderCredentialService rejects tenant credential updates for non-privileged actors', async () => {

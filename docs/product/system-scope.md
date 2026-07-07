@@ -50,6 +50,7 @@ The repository now contains:
 - `gateway-api` as the data-plane backend for model listing, non-stream chat, and SSE chat streaming through the provider seam
 - `gateway-api` as the data-plane backend for a thin OpenAI-compatible facade used by trusted internal clients such as `Open WebUI`
 - `admin-web` as a role-aware SPA with public auth surfaces, user self-service, admin management, and a local chat test surface
+- `admin-api` as the same-origin control-plane facade used by `admin-web` for protected browser operations, including provider credentials, provider settings, model discovery, and image catalog access
 - Postgres-backed durable control-plane persistence with encrypted provider credential storage
 - Redis-backed auth revocation and other operational state where ephemeral behavior is appropriate
 - BYOK provider access through user-managed provider credentials

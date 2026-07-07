@@ -38,6 +38,35 @@ test('request resolves undefined on 204 and surfaces plain-text backend errors',
   );
 });
 
+test('request preserves structured API error metadata for credential conflicts', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        error: {
+          code: 'credential_already_exists',
+          message: 'A credential already exists for this provider.',
+          action: 'edit_or_replace_required',
+        },
+      }),
+      {
+        status: 409,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    ),
+  );
+
+  await expect(
+    request('http://localhost:3002/api/v1/provider-credentials'),
+  ).rejects.toMatchObject({
+    message: 'A credential already exists for this provider.',
+    code: 'credential_already_exists',
+    action: 'edit_or_replace_required',
+    status: 409,
+  });
+});
+
 test('refreshBrowserSession shares an in-flight refresh request', async () => {
   let resolveRefresh: (() => void) | null = null;
   vi.mocked(fetch).mockImplementationOnce(

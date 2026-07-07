@@ -1141,7 +1141,11 @@ test('AdminService rejects storing a duplicate provider credential label', async
         label: 'primary',
         apiToken: 'another-secret-token',
       }),
-    /A credential already exists for this provider\/label/,
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(JSON.stringify(error), /credential_already_exists/);
+      return true;
+    },
   );
 });
 
@@ -1180,7 +1184,11 @@ test('AdminService rejects updating a provider credential when the new label alr
           label: 'backup',
         },
       ),
-    /A credential already exists for this provider\/label/,
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(JSON.stringify(error), /credential_already_exists/);
+      return true;
+    },
   );
 });
 

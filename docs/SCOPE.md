@@ -208,6 +208,7 @@ Responsibilities:
 - admin and user authentication
 - provider credential management
 - settings and configuration management
+- same-origin control-plane facade for protected `admin-web` browser calls
 - future policy, quota, and routing administration
 
 This is the control plane.
@@ -218,6 +219,7 @@ Responsibilities:
 
 - login
 - user and provider management
+- protected control-plane access through `admin-api` on the admin origin
 - settings management
 - future admin dashboards
 
