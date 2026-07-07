@@ -5,6 +5,7 @@ import {
   Get,
   Headers,
   HttpCode,
+  Patch,
   Post,
   Req,
   Res,
@@ -20,6 +21,7 @@ import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SwitchActiveTenantDto } from './dto/switch-active-tenant.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -100,6 +102,18 @@ export class AuthController {
   @UseGuards(AccessTokenGuard)
   me(@Req() request: Request & RequestWithAuthUser) {
     return request.authUser;
+  }
+
+  @Patch('me')
+  @UseGuards(AccessTokenGuard)
+  updateMe(
+    @Req() request: Request & RequestWithAuthUser,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.authService.updateAuthenticatedUserProfile(
+      request.authUser!,
+      dto,
+    );
   }
 
   @Post('active-tenant')

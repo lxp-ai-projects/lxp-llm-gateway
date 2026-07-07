@@ -29,6 +29,10 @@ export type SessionUser = {
   availableTenants?: SessionTenantSummary[];
 };
 
+export type UpdateProfileInput = {
+  displayName?: string;
+};
+
 export type GatewayChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;

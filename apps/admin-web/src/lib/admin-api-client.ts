@@ -44,6 +44,7 @@ import type {
   ProviderSettingsSummary,
   RuntimeConfig,
   SessionUser,
+  UpdateProfileInput,
 } from './api-client.types';
 
 export const adminApiClient = {
@@ -119,6 +120,13 @@ export const adminApiClient = {
     return request<SessionUser>(`${adminApiUrl}/api/v1/auth/active-tenant`, {
       method: 'POST',
       body: JSON.stringify({ tenantId }),
+    });
+  },
+
+  async updateProfile(payload: UpdateProfileInput): Promise<SessionUser> {
+    return request<SessionUser>(`${adminApiUrl}/api/v1/auth/me`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
     });
   },
 

@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { GlobalRole, TenantRole } from '@lxp/domain';
@@ -172,6 +176,37 @@ export class AuthService {
       ...tokenPair,
       user: this.mapAuthenticatedUser(user, authContext),
     };
+  }
+
+  async updateAuthenticatedUserProfile(
+    authUser: Pick<AuthenticatedUser, 'userId'>,
+    dto: {
+      displayName?: string;
+    },
+  ): Promise<AuthenticatedUser> {
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.userId },
+    });
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
+
+    const nextDisplayName = dto.displayName?.trim();
+    if (nextDisplayName !== undefined && nextDisplayName.length === 0) {
+      throw new BadRequestException('Display name is required.');
+    }
+
+    if (nextDisplayName) {
+      user.displayName = nextDisplayName;
+      await this.userRepository.save(user);
+    }
+
+    const authContext = await this.resolveActiveTenantAccess(
+      user,
+      user.lastActiveTenantId ?? undefined,
+    );
+
+    return this.mapAuthenticatedUser(user, authContext);
   }
 
   getRefreshTokenTtlSeconds(): number {

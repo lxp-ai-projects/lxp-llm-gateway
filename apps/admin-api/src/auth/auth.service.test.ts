@@ -355,6 +355,19 @@ test('AuthService returns the authenticated user profile for a valid access toke
   assert.equal(authenticatedUser.availableTenants.length, 1);
 });
 
+test('AuthService updates the authenticated user display name', async () => {
+  const { authService, user } = await buildAuthService();
+
+  const updatedUser = await authService.updateAuthenticatedUserProfile(
+    { userId: user.id },
+    { displayName: 'Laurie Admin' },
+  );
+
+  assert.equal(updatedUser.displayName, 'Laurie Admin');
+  assert.equal(user.displayName, 'Laurie Admin');
+  assert.equal(updatedUser.email, 'laurie@example.com');
+});
+
 test('AuthService rejects login when the password is wrong', async () => {
   const { authService } = await buildAuthService();
 
