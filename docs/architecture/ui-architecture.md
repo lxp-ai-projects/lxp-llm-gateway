@@ -125,6 +125,9 @@ Sidebar sections:
 - links to terms and privacy
 - conditional registration link
 - conditional forgot-password link
+- a feature-owned authentication shell with an original local SVG wave backdrop
+- CSS-only motion that becomes static for `prefers-reduced-motion: reduce`
+- decorative layers remain non-interactive and hidden from assistive technology
 
 ### User Management
 
