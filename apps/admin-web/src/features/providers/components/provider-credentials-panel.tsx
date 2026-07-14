@@ -256,12 +256,11 @@ export function ProviderCredentialsPanel({
       </Stack>
       <Modal
         centered
-        data-testid="providers-delete-credential-modal"
         onClose={isDeleteCredentialPending ? () => undefined : onCancelDeleteCredential}
         opened={credentialDeleteTarget !== null}
         title="Delete credential"
       >
-        <Stack gap="sm">
+        <Stack data-testid="providers-delete-credential-modal" gap="sm">
           <Text>
             Delete the credential for{' '}
             <Text component="span" fw={700}>
