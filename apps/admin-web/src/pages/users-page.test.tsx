@@ -146,6 +146,7 @@ test('UsersPage filters the directory and opens provider credentials for a selec
       providerId: 'nanogpt',
       providerDisplayName: 'NanoGPT',
       label: 'primary',
+      scope: 'user',
       maskedHint: '****1234',
     },
   ]);

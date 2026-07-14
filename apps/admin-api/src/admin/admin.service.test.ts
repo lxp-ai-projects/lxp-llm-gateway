@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
 import type { ProviderId } from '@lxp/domain';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { EmailProtectionService } from '../security/email-protection.service';
 import { EncryptionService } from '../security/encryption.service';
 import { PasswordService } from '../security/password.service';
@@ -1142,8 +1142,14 @@ test('AdminService rejects storing a duplicate provider credential label', async
         apiToken: 'another-secret-token',
       }),
     (error: unknown) => {
-      assert.ok(error instanceof Error);
-      assert.match(JSON.stringify(error), /credential_already_exists/);
+      assert.ok(error instanceof ConflictException);
+      assert.deepEqual(error.getResponse(), {
+        error: {
+          code: 'credential_already_exists',
+          message: 'A credential already exists for this provider.',
+          action: 'edit_or_replace_required',
+        },
+      });
       return true;
     },
   );
@@ -1185,8 +1191,14 @@ test('AdminService rejects updating a provider credential when the new label alr
         },
       ),
     (error: unknown) => {
-      assert.ok(error instanceof Error);
-      assert.match(JSON.stringify(error), /credential_already_exists/);
+      assert.ok(error instanceof ConflictException);
+      assert.deepEqual(error.getResponse(), {
+        error: {
+          code: 'credential_already_exists',
+          message: 'A credential already exists for this provider.',
+          action: 'edit_or_replace_required',
+        },
+      });
       return true;
     },
   );

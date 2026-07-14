@@ -29,6 +29,7 @@ const {
     providerId: 'nanogpt',
     providerDisplayName: 'NanoGPT',
     label: 'primary',
+    scope: 'user',
     maskedHint: '***oken',
     isActive: true,
     createdAt: '2026-04-17T00:00:00.000Z',
@@ -76,6 +77,7 @@ const {
       providerId: 'nanogpt',
       providerDisplayName: 'NanoGPT',
       label: 'primary',
+      scope: 'user',
       maskedHint: '***oken',
       isActive: true,
       createdAt: '2026-04-17T00:00:00.000Z',
@@ -97,6 +99,7 @@ const {
     providerId: 'nanogpt',
     providerDisplayName: 'NanoGPT',
     label: 'main',
+    scope: 'user',
     maskedHint: '***oken',
     isActive: true,
     createdAt: '2026-04-17T00:00:00.000Z',
@@ -185,6 +188,7 @@ beforeEach(() => {
       providerId: 'nanogpt',
       providerDisplayName: 'NanoGPT',
       label: 'primary',
+      scope: 'user',
       maskedHint: '***oken',
       isActive: true,
       createdAt: '2026-04-17T00:00:00.000Z',
@@ -456,7 +460,23 @@ test('ProvidersPage offers edit and replace actions after a credential conflict'
   expect(
     screen.getByText(/rotate the stored secret for this credential/i),
   ).toBeInTheDocument();
-});
+
+  await user.type(
+    screen.getByTestId('providers-token-input'),
+    'replacement-secret-token',
+  );
+  await user.click(screen.getByRole('button', { name: 'Update credential' }));
+
+  await waitFor(() =>
+    expect(updateOwnProviderCredentialMock).toHaveBeenCalledWith(
+      'credential-1',
+      {
+        label: 'primary',
+        apiToken: 'replacement-secret-token',
+      },
+    ),
+  );
+}, 20_000);
 
 test('ProvidersPage lists Mistral and DeepSeek in the provider selector', async () => {
   renderWithProviders(<ProvidersPage />);
@@ -624,6 +644,7 @@ test('ProvidersPage creates an Ollama endpoint credential with a base URL', asyn
     providerId: 'ollama',
     providerDisplayName: 'Ollama',
     label: 'local-ollama',
+    scope: 'user',
     maskedHint: 'http://127.0.0.1:11434/v1',
     isActive: true,
     createdAt: '2026-04-17T00:00:00.000Z',

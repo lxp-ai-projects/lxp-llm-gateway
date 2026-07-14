@@ -120,6 +120,7 @@ export class AuthService {
 
   async getAuthenticatedUser(accessToken: string): Promise<AuthenticatedUser> {
     const payload = await this.verifyToken(accessToken, 'access');
+    await this.assertUserSessionIsUsable(payload);
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
       payload.jti,
     );
@@ -179,7 +180,7 @@ export class AuthService {
   }
 
   async updateAuthenticatedUserProfile(
-    authUser: Pick<AuthenticatedUser, 'userId'>,
+    authUser: Pick<AuthenticatedUser, 'userId' | 'activeTenantId'>,
     dto: {
       displayName?: string;
     },
@@ -203,20 +204,29 @@ export class AuthService {
 
     const authContext = await this.resolveActiveTenantAccess(
       user,
-      user.lastActiveTenantId ?? undefined,
+      authUser.activeTenantId,
     );
 
     return this.mapAuthenticatedUser(user, authContext);
   }
 
   async changeOwnPassword(
-    authUser: Pick<AuthenticatedUser, 'userId'>,
+    authUser: Pick<AuthenticatedUser, 'userId' | 'activeTenantId'>,
     payload: {
       currentPassword: string;
       newPassword: string;
       confirmNewPassword: string;
     },
-  ): Promise<void> {
+    accessToken: string,
+  ): Promise<TokenPair> {
+    const sessionPayload = await this.verifyToken(accessToken, 'access');
+    const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
+      sessionPayload.jti,
+    );
+    if (isBlacklisted) {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
+
     const user = await this.userRepository.findOne({
       where: { id: authUser.userId },
     });
@@ -253,6 +263,20 @@ export class AuthService {
       payload.newPassword,
     );
     await this.userRepository.save(user);
+
+    const invalidBeforeEpochMs = Date.now();
+    await this.authTokenStore.invalidateUserSessions(
+      user.id,
+      invalidBeforeEpochMs,
+      this.refreshTokenTtlSeconds,
+    );
+
+    const authContext = await this.resolveActiveTenantAccess(
+      user,
+      authUser.activeTenantId,
+    );
+
+    return this.issueTokenPair(user, authContext, sessionPayload.sessionId);
   }
 
   getRefreshTokenTtlSeconds(): number {
@@ -272,6 +296,7 @@ export class AuthService {
   ): Promise<TokenPair> {
     const accessJti = randomUUID();
     const refreshJti = randomUUID();
+    const issuedAtMs = Date.now();
 
     const accessToken = await this.jwtService.signAsync(
       {
@@ -285,6 +310,7 @@ export class AuthService {
         globalRoles: authContext.globalRoles,
         sessionId,
         jti: accessJti,
+        issuedAtMs,
       } satisfies AuthTokenPayload,
       {
         expiresIn: this.accessTokenTtlSeconds,
@@ -303,6 +329,7 @@ export class AuthService {
         globalRoles: authContext.globalRoles,
         sessionId,
         jti: refreshJti,
+        issuedAtMs,
       } satisfies AuthTokenPayload,
       {
         expiresIn: this.refreshTokenTtlSeconds,
@@ -324,6 +351,8 @@ export class AuthService {
   private async assertRefreshTokenIsUsable(
     payload: AuthTokenPayload,
   ): Promise<void> {
+    await this.assertUserSessionIsUsable(payload);
+
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
       payload.jti,
     );
@@ -376,6 +405,22 @@ export class AuthService {
     return this.userRepository.findOne({
       where: { emailHash },
     });
+  }
+
+  private async assertUserSessionIsUsable(
+    payload: Pick<AuthTokenPayload, 'userId' | 'iat' | 'issuedAtMs'>,
+  ): Promise<void> {
+    const invalidBefore = await this.authTokenStore.getUserInvalidBefore(
+      payload.userId,
+    );
+    if (!invalidBefore) {
+      return;
+    }
+
+    const issuedAt = payload.issuedAtMs ?? (payload.iat ?? 0) * 1000;
+    if (issuedAt < invalidBefore) {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
   }
 
   private async getUserGlobalRoles(userId: string): Promise<GlobalRole[]> {

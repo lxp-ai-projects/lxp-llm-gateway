@@ -38,6 +38,7 @@ export function useProvidersController() {
   const [credentialConflictPrompt, setCredentialConflictPrompt] = useState<{
     providerId: string;
     label: string;
+    scope: ProviderCredentialSummary['scope'];
     message: string;
   } | null>(null);
   const [editingCredentialId, setEditingCredentialId] = useState<string | null>(
@@ -197,6 +198,7 @@ export function useProvidersController() {
         setCredentialConflictPrompt({
           providerId,
           label: label.trim(),
+          scope: 'user',
           message:
             apiError.message ||
             'A credential already exists for this provider.',
@@ -304,6 +306,7 @@ export function useProvidersController() {
       credentials.find(
         (credential) =>
           credential.providerId === conflictPrompt.providerId &&
+          credential.scope === conflictPrompt.scope &&
           credential.label === conflictPrompt.label,
       ) ?? null;
 

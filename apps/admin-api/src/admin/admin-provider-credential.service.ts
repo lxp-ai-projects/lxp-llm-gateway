@@ -36,6 +36,9 @@ const CREDENTIAL_ALREADY_EXISTS_ERROR = {
   },
 } as const;
 
+Object.freeze(CREDENTIAL_ALREADY_EXISTS_ERROR);
+Object.freeze(CREDENTIAL_ALREADY_EXISTS_ERROR.error);
+
 @Injectable()
 export class AdminProviderCredentialService {
   constructor(

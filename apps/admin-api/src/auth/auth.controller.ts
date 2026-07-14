@@ -121,9 +121,24 @@ export class AuthController {
   @UseGuards(AccessTokenGuard)
   async changeOwnPassword(
     @Req() request: Request & RequestWithAuthUser,
+    @Res({ passthrough: true }) response: Response,
     @Body() payload: ChangeOwnPasswordDto,
   ): Promise<{ message: string }> {
-    await this.authService.changeOwnPassword(request.authUser!, payload);
+    const result = await this.authService.changeOwnPassword(
+      request.authUser!,
+      payload,
+      request.authAccessToken!,
+    );
+    this.authCookieService.setAccessTokenCookie(
+      response,
+      result.accessToken,
+      this.accessTokenCookieMaxAgeMs,
+    );
+    this.authCookieService.setRefreshTokenCookie(
+      response,
+      result.refreshToken,
+      this.refreshTokenCookieMaxAgeMs,
+    );
     return { message: 'Password changed successfully.' };
   }
 

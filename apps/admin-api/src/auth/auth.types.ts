@@ -13,6 +13,8 @@ export type AuthTokenPayload = {
   globalRoles: GlobalRole[];
   sessionId: string;
   jti: string;
+  iat?: number;
+  issuedAtMs?: number;
 };
 
 export type AccessibleTenant = {

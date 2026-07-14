@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import { renderWithProviders } from '../test/test-utils';
@@ -83,6 +83,11 @@ test('ProfilePage confirmation mismatch prevents API call and shows validation f
 
 test('ProfilePage successfully changes the password and clears the fields', async () => {
   mockSession();
+  const expectedPayload = {
+    currentPassword: 'Sup3rS3cret!',
+    newPassword: 'EvenB3tterPass!',
+    confirmNewPassword: 'EvenB3tterPass!',
+  };
   changeOwnPasswordMock.mockResolvedValue({
     message: 'Password changed successfully.',
   });
@@ -100,16 +105,10 @@ test('ProfilePage successfully changes the password and clears the fields', asyn
   });
   fireEvent.click(screen.getByTestId('profile-change-password-button'));
 
-  await waitFor(() =>
-    expect(changeOwnPasswordMock).toHaveBeenCalledWith({
-      currentPassword: 'Sup3rS3cret!',
-      newPassword: 'EvenB3tterPass!',
-      confirmNewPassword: 'EvenB3tterPass!',
-    }),
-  );
   expect(
-    screen.getByText('Password changed successfully.'),
+    await screen.findByText('Password changed successfully.'),
   ).toBeInTheDocument();
+  expect(changeOwnPasswordMock).toHaveBeenCalledWith(expectedPayload);
   expect(screen.getByTestId('profile-current-password-input')).toHaveValue('');
   expect(screen.getByTestId('profile-new-password-input')).toHaveValue('');
   expect(screen.getByTestId('profile-confirm-new-password-input')).toHaveValue(
@@ -152,6 +151,7 @@ test('ProfilePage keeps password values when the password change fails', async (
 
 test('ProfilePage still saves the connected user display name', async () => {
   mockSession();
+  const expectedPayload = { displayName: 'Patrice' };
   updateProfileMock.mockResolvedValue({
     displayName: 'Patrice',
     email: 'patrick@example.com',
@@ -164,8 +164,8 @@ test('ProfilePage still saves the connected user display name', async () => {
   });
   fireEvent.click(screen.getByTestId('profile-save-button'));
 
-  await waitFor(() =>
-    expect(updateProfileMock).toHaveBeenCalledWith({ displayName: 'Patrice' }),
-  );
-  expect(screen.getByText('Your profile has been updated.')).toBeInTheDocument();
+  expect(
+    await screen.findByText('Your profile has been updated.'),
+  ).toBeInTheDocument();
+  expect(updateProfileMock).toHaveBeenCalledWith(expectedPayload);
 });

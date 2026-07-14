@@ -107,6 +107,7 @@ beforeEach(() => {
       providerId: 'nanogpt',
       providerDisplayName: 'NanoGPT',
       label: 'primary',
+      scope: 'user',
       maskedHint: '****1234',
     },
   ]);
