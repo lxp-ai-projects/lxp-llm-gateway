@@ -15,7 +15,8 @@ export function ProvidersPage() {
     baseUrl,
     beginCredentialEdit,
     confirmDeleteCredential,
-    credentialPendingDelete,
+    credentialConflictPrompt,
+    credentialDeleteTarget,
     credentialSubmitError,
     credentialValidationError,
     credentials,
@@ -34,9 +35,14 @@ export function ProvidersPage() {
     defaultImageProviderId,
     defaultImageProviderOptions,
     deleteCredential,
+    deleteCredentialError,
+    deleteCredentialSuccessMessage,
     editingCredentialId,
+    editingCredentialMode,
     handleCredentialSubmit,
     handleDefaultsSubmit,
+    handleExistingCredentialEdit,
+    handleExistingCredentialReplace,
     isDeleteCredentialPending,
     isCredentialPending,
     isDefaultsPending,
@@ -73,16 +79,20 @@ export function ProvidersPage() {
             <ProviderCredentialForm
               apiToken={apiToken}
               baseUrl={baseUrl}
+              credentialConflictPrompt={credentialConflictPrompt}
               credentialSubmitError={credentialSubmitError}
               credentialValidationError={credentialValidationError}
               editingCredentialId={editingCredentialId}
+              editingCredentialMode={editingCredentialMode}
               isPending={isCredentialPending}
               label={label}
               onApiTokenChange={onApiTokenChange}
               onBaseUrlChange={onBaseUrlChange}
               onCancelEdit={resetCredentialForm}
+              onEditExistingCredential={handleExistingCredentialEdit}
               onLabelChange={onLabelChange}
               onProviderChange={onProviderChange}
+              onReplaceExistingCredential={handleExistingCredentialReplace}
               onSubmit={handleCredentialSubmit}
               providerId={providerId}
               providerOptions={providerOptions}
@@ -120,12 +130,14 @@ export function ProvidersPage() {
               currentDefaultProviderDisplayName
             }
             currentDefaultProviderId={currentDefaultProviderId}
-            credentialPendingDelete={credentialPendingDelete}
+            credentialDeleteTarget={credentialDeleteTarget}
             currentDefaultImageModel={currentDefaultImageModel}
             currentDefaultImageProviderDisplayName={
               currentDefaultImageProviderDisplayName
             }
             currentDefaultImageProviderId={currentDefaultImageProviderId}
+            deleteCredentialError={deleteCredentialError}
+            deleteCredentialSuccessMessage={deleteCredentialSuccessMessage}
             isDeleteCredentialPending={isDeleteCredentialPending}
             onCancelDeleteCredential={onCancelDeleteCredential}
             onConfirmDeleteCredential={confirmDeleteCredential}

@@ -29,6 +29,16 @@ export type SessionUser = {
   availableTenants?: SessionTenantSummary[];
 };
 
+export type UpdateProfileInput = {
+  displayName?: string;
+};
+
+export type ChangeOwnPasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+};
+
 export type GatewayChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -443,6 +453,7 @@ export type ProviderCredentialSummary = {
   providerId: string;
   providerDisplayName: string;
   label: string;
+  scope: 'tenant' | 'user';
   maskedHint: string | null;
   isActive: boolean;
   createdAt: string;

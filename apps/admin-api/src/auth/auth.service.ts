@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { GlobalRole, TenantRole } from '@lxp/domain';
@@ -116,6 +120,7 @@ export class AuthService {
 
   async getAuthenticatedUser(accessToken: string): Promise<AuthenticatedUser> {
     const payload = await this.verifyToken(accessToken, 'access');
+    await this.assertUserSessionIsUsable(payload);
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
       payload.jti,
     );
@@ -142,6 +147,7 @@ export class AuthService {
     tenantId: string,
   ): Promise<TokenPair & { user: AuthenticatedUser }> {
     const payload = await this.verifyToken(accessToken, 'access');
+    await this.assertUserSessionIsUsable(payload);
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
       payload.jti,
     );
@@ -174,6 +180,107 @@ export class AuthService {
     };
   }
 
+  async updateAuthenticatedUserProfile(
+    authUser: Pick<AuthenticatedUser, 'userId' | 'activeTenantId'>,
+    dto: {
+      displayName?: string;
+    },
+  ): Promise<AuthenticatedUser> {
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.userId },
+    });
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
+
+    const nextDisplayName = dto.displayName?.trim();
+    if (nextDisplayName !== undefined && nextDisplayName.length === 0) {
+      throw new BadRequestException('Display name is required.');
+    }
+
+    if (nextDisplayName) {
+      user.displayName = nextDisplayName;
+      await this.userRepository.save(user);
+    }
+
+    const authContext = await this.resolveActiveTenantAccess(
+      user,
+      authUser.activeTenantId,
+    );
+
+    return this.mapAuthenticatedUser(user, authContext);
+  }
+
+  async changeOwnPassword(
+    authUser: Pick<AuthenticatedUser, 'userId' | 'activeTenantId'>,
+    payload: {
+      currentPassword: string;
+      newPassword: string;
+      confirmNewPassword: string;
+    },
+    accessToken: string,
+  ): Promise<TokenPair> {
+    const sessionPayload = await this.verifyToken(accessToken, 'access');
+    await this.assertUserSessionIsUsable(sessionPayload);
+    const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
+      sessionPayload.jti,
+    );
+    if (isBlacklisted) {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.userId },
+    });
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
+
+    const currentPasswordMatches = await this.passwordService.verifyPassword(
+      payload.currentPassword,
+      user.passwordHash,
+    );
+    if (!currentPasswordMatches) {
+      throw new BadRequestException('Current password is invalid.');
+    }
+
+    if (payload.newPassword !== payload.confirmNewPassword) {
+      throw new BadRequestException(
+        'New password confirmation does not match.',
+      );
+    }
+
+    const nextPasswordMatchesCurrent =
+      await this.passwordService.verifyPassword(
+        payload.newPassword,
+        user.passwordHash,
+      );
+    if (nextPasswordMatchesCurrent) {
+      throw new BadRequestException(
+        'New password must be different from the current password.',
+      );
+    }
+
+    user.passwordHash = await this.passwordService.hashPassword(
+      payload.newPassword,
+    );
+    await this.userRepository.save(user);
+
+    const invalidBeforeEpochMs = Date.now();
+    await this.authTokenStore.invalidateUserSessions(
+      user.id,
+      invalidBeforeEpochMs,
+      this.refreshTokenTtlSeconds,
+    );
+
+    const authContext = await this.resolveActiveTenantAccess(
+      user,
+      authUser.activeTenantId,
+    );
+
+    return this.issueTokenPair(user, authContext, sessionPayload.sessionId);
+  }
+
   getRefreshTokenTtlSeconds(): number {
     return this.refreshTokenTtlSeconds;
   }
@@ -191,6 +298,7 @@ export class AuthService {
   ): Promise<TokenPair> {
     const accessJti = randomUUID();
     const refreshJti = randomUUID();
+    const issuedAtMs = Date.now();
 
     const accessToken = await this.jwtService.signAsync(
       {
@@ -204,6 +312,7 @@ export class AuthService {
         globalRoles: authContext.globalRoles,
         sessionId,
         jti: accessJti,
+        issuedAtMs,
       } satisfies AuthTokenPayload,
       {
         expiresIn: this.accessTokenTtlSeconds,
@@ -222,6 +331,7 @@ export class AuthService {
         globalRoles: authContext.globalRoles,
         sessionId,
         jti: refreshJti,
+        issuedAtMs,
       } satisfies AuthTokenPayload,
       {
         expiresIn: this.refreshTokenTtlSeconds,
@@ -243,6 +353,8 @@ export class AuthService {
   private async assertRefreshTokenIsUsable(
     payload: AuthTokenPayload,
   ): Promise<void> {
+    await this.assertUserSessionIsUsable(payload);
+
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
       payload.jti,
     );
@@ -295,6 +407,22 @@ export class AuthService {
     return this.userRepository.findOne({
       where: { emailHash },
     });
+  }
+
+  private async assertUserSessionIsUsable(
+    payload: Pick<AuthTokenPayload, 'userId' | 'iat' | 'issuedAtMs'>,
+  ): Promise<void> {
+    const invalidBefore = await this.authTokenStore.getUserInvalidBefore(
+      payload.userId,
+    );
+    if (!invalidBefore) {
+      return;
+    }
+
+    const issuedAt = payload.issuedAtMs ?? (payload.iat ?? 0) * 1000;
+    if (issuedAt < invalidBefore) {
+      throw new UnauthorizedException('Invalid or expired token.');
+    }
   }
 
   private async getUserGlobalRoles(userId: string): Promise<GlobalRole[]> {

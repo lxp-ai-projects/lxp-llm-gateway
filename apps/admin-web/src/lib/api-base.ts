@@ -67,6 +67,13 @@ let refreshInFlight: Promise<void> | null = null;
 export const SESSION_TIMEOUT_MESSAGE_STORAGE_KEY =
   'lxp.session-timeout-message';
 
+export type ParsedApiError = {
+  status: number;
+  message: string;
+  code?: string;
+  action?: string;
+};
+
 export async function request<T>(
   url: string,
   init?: RequestInit & {
@@ -116,7 +123,7 @@ async function requestWithSessionRefresh<T>(
       }
 
       const body = await response.text();
-      throw new Error(formatApiErrorMessage(body, response.status));
+      throw createApiError(body, response.status);
     }
 
     return response.json() as Promise<T>;
@@ -233,7 +240,7 @@ export async function requestBlobWithSessionRefresh(
     }
 
     const body = await response.text();
-    throw new Error(formatApiErrorMessage(body, response.status));
+    throw createApiError(body, response.status);
   }
 
   return {
@@ -270,8 +277,8 @@ export async function uploadFileWithSessionRefresh<T>(
       return uploadFileWithSessionRefresh<T>(url, file, true);
     }
 
-    const body = await response.text();
-    throw new Error(formatApiErrorMessage(body, response.status));
+      const body = await response.text();
+      throw createApiError(body, response.status);
   }
 
   return response.json() as Promise<T>;
@@ -306,38 +313,81 @@ function parseServerSentEventBlock(block: string): string | null {
   return dataLines.join('\n');
 }
 
-function formatApiErrorMessage(body: string, status: number): string {
+function createApiError(body: string, status: number): Error & ParsedApiError {
+  const parsed = parseApiError(body, status);
+  const error = new Error(parsed.message) as Error & ParsedApiError;
+  error.status = parsed.status;
+  error.code = parsed.code;
+  error.action = parsed.action;
+  return error;
+}
+
+function parseApiError(body: string, status: number): ParsedApiError {
   const trimmedBody = body.trim();
   if (!trimmedBody) {
-    return `Request failed with ${status}`;
+    return {
+      status,
+      message: `Request failed with ${status}`,
+    };
   }
 
   try {
     const parsed = JSON.parse(trimmedBody) as {
       message?: string | string[];
-      error?: string;
+      error?:
+        | string
+        | {
+            code?: string;
+            message?: string;
+            action?: string;
+          };
       statusCode?: number;
     };
 
+    if (parsed.error && typeof parsed.error === 'object') {
+      const message =
+        typeof parsed.error.message === 'string' && parsed.error.message.trim()
+          ? parsed.error.message.trim()
+          : `Request failed with ${status}`;
+      return {
+        status,
+        message,
+        code: parsed.error.code,
+        action: parsed.error.action,
+      };
+    }
+
     if (typeof parsed.message === 'string' && parsed.message.trim()) {
-      return parsed.message.trim();
+      return {
+        status,
+        message: parsed.message.trim(),
+      };
     }
 
     if (
       Array.isArray(parsed.message) &&
       parsed.message.every((entry) => typeof entry === 'string')
     ) {
-      return parsed.message.join(', ').trim();
+      return {
+        status,
+        message: parsed.message.join(', ').trim(),
+      };
     }
 
-    if (parsed.error && parsed.statusCode) {
-      return `${parsed.error}: ${trimmedBody}`;
+    if (typeof parsed.error === 'string' && parsed.statusCode) {
+      return {
+        status,
+        message: `${parsed.error}: ${trimmedBody}`,
+      };
     }
   } catch {
     // The body is not JSON, fall back to raw text below.
   }
 
-  return trimmedBody || `Request failed with ${status}`;
+  return {
+    status,
+    message: trimmedBody || `Request failed with ${status}`,
+  };
 }
 
 function formatFetchFailureMessage(url: string): string {
@@ -413,7 +463,7 @@ export async function chatStreamWithSessionRefresh(
     }
 
     const body = await response.text();
-    throw new Error(formatApiErrorMessage(body, response.status));
+    throw createApiError(body, response.status);
   }
 
   if (!response.body) {

@@ -29,6 +29,7 @@ const {
     providerId: 'nanogpt',
     providerDisplayName: 'NanoGPT',
     label: 'primary',
+    scope: 'user',
     maskedHint: '***oken',
     isActive: true,
     createdAt: '2026-04-17T00:00:00.000Z',
@@ -76,6 +77,7 @@ const {
       providerId: 'nanogpt',
       providerDisplayName: 'NanoGPT',
       label: 'primary',
+      scope: 'user',
       maskedHint: '***oken',
       isActive: true,
       createdAt: '2026-04-17T00:00:00.000Z',
@@ -97,6 +99,7 @@ const {
     providerId: 'nanogpt',
     providerDisplayName: 'NanoGPT',
     label: 'main',
+    scope: 'user',
     maskedHint: '***oken',
     isActive: true,
     createdAt: '2026-04-17T00:00:00.000Z',
@@ -185,6 +188,7 @@ beforeEach(() => {
       providerId: 'nanogpt',
       providerDisplayName: 'NanoGPT',
       label: 'primary',
+      scope: 'user',
       maskedHint: '***oken',
       isActive: true,
       createdAt: '2026-04-17T00:00:00.000Z',
@@ -324,20 +328,23 @@ test('ProvidersPage confirms credential deletion before removing it', async () =
   const deleteButtons = await screen.findAllByTestId(
     'providers-delete-credential-credential-1',
   );
-  await user.click(
-    deleteButtons[0]!,
-  );
-  const confirmDeleteButtons = await screen.findAllByTestId(
-    'providers-confirm-delete-credential-credential-1',
-  );
-  expect(
-    confirmDeleteButtons[0],
-  ).toBeInTheDocument();
+  await user.click(deleteButtons[0]!);
 
-  await user.click(confirmDeleteButtons[0]!);
+  const deleteModal = await screen.findByTestId(
+    'providers-delete-credential-modal',
+  );
+  expect(deleteModal).toBeInTheDocument();
+  expect(within(deleteModal).getByText(/This provider may stop working/i)).toBeInTheDocument();
+
+  await user.click(
+    within(deleteModal).getByTestId('providers-delete-credential-confirm'),
+  );
 
   await waitFor(() =>
     expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1'),
+  );
+  await waitFor(() =>
+    expect(screen.queryByText(/Delete the credential for/i)).not.toBeInTheDocument(),
   );
 });
 
@@ -360,31 +367,116 @@ test('ProvidersPage disables credential actions while a delete is pending', asyn
     ))[0]!,
   );
 
-  const confirmButton = (
-    await screen.findAllByTestId(
-      'providers-confirm-delete-credential-credential-1',
-    )
-  )[0]!;
-  const cancelButton = (
-    await screen.findAllByTestId(
-      'providers-cancel-delete-credential-credential-1',
-    )
-  )[0]!;
-  const editButton = (
-    await screen.findAllByTestId('providers-edit-credential-credential-1')
-  )[0]!;
+  const deleteModal = await screen.findByTestId('providers-delete-credential-modal');
+  const confirmButton = within(deleteModal).getByTestId(
+    'providers-delete-credential-confirm',
+  );
+  const cancelButton = within(deleteModal).getByRole('button', {
+    name: 'Cancel',
+  });
 
   await user.click(confirmButton);
 
   await waitFor(() => expect(confirmButton).toBeDisabled());
   expect(cancelButton).toBeDisabled();
-  expect(editButton).toBeDisabled();
 
   resolveDelete?.();
   await waitFor(() =>
     expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1'),
   );
 });
+
+test('ProvidersPage keeps the delete modal open when deletion fails and allows cancel', async () => {
+  const user = userEvent.setup();
+  deleteOwnProviderCredentialMock.mockRejectedValueOnce(
+    new Error('Delete failed'),
+  );
+
+  renderWithProviders(<ProvidersPage />);
+
+  await user.click(
+    (await screen.findAllByTestId(
+      'providers-delete-credential-credential-1',
+    ))[0]!,
+  );
+
+  const deleteModal = await screen.findByTestId('providers-delete-credential-modal');
+  await user.click(
+    within(deleteModal).getByTestId('providers-delete-credential-confirm'),
+  );
+
+  expect(await within(deleteModal).findByText('Delete failed')).toBeInTheDocument();
+  expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1');
+
+  await user.click(within(deleteModal).getByRole('button', { name: 'Cancel' }));
+  await waitFor(() =>
+    expect(screen.queryByText(/Delete the credential for/i)).not.toBeInTheDocument(),
+  );
+});
+
+test('ProvidersPage offers edit and replace actions after a credential conflict', async () => {
+  const user = userEvent.setup();
+  createOwnProviderCredentialMock.mockRejectedValueOnce(
+    Object.assign(new Error('A credential already exists for this provider.'), {
+      code: 'credential_already_exists',
+      action: 'edit_or_replace_required',
+      status: 409,
+    }),
+  );
+
+  renderWithProviders(<ProvidersPage />);
+
+  await user.type(screen.getByTestId('providers-token-input'), 'fresh-secret-token');
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+
+  expect(
+    await screen.findByRole('button', { name: 'Edit existing credential' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Replace existing credential' }),
+  ).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Edit existing credential' }));
+  expect(
+    await screen.findByRole('heading', { name: 'Edit provider credential' }),
+  ).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Cancel edit' }));
+  createOwnProviderCredentialMock.mockRejectedValueOnce(
+    Object.assign(new Error('A credential already exists for this provider.'), {
+      code: 'credential_already_exists',
+      action: 'edit_or_replace_required',
+      status: 409,
+    }),
+  );
+
+  await user.type(screen.getByTestId('providers-token-input'), 'fresh-secret-token');
+  await user.click(screen.getByRole('button', { name: 'Save credential' }));
+  await user.click(screen.getByRole('button', { name: 'Replace existing credential' }));
+
+  expect(
+    await screen.findByRole('heading', { name: 'Replace provider credential' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/rotate the stored secret for this credential/i),
+  ).toBeInTheDocument();
+
+  await user.type(
+    screen.getByTestId('providers-token-input'),
+    'replacement-secret-token',
+  );
+  await user.click(screen.getByRole('button', { name: 'Update credential' }));
+
+  await waitFor(() =>
+    expect(updateOwnProviderCredentialMock).toHaveBeenCalledWith(
+      'credential-1',
+      {
+        label: 'primary',
+        apiToken: 'replacement-secret-token',
+      },
+    ),
+  );
+}, 20_000);
 
 test('ProvidersPage lists Mistral and DeepSeek in the provider selector', async () => {
   renderWithProviders(<ProvidersPage />);
@@ -552,6 +644,7 @@ test('ProvidersPage creates an Ollama endpoint credential with a base URL', asyn
     providerId: 'ollama',
     providerDisplayName: 'Ollama',
     label: 'local-ollama',
+    scope: 'user',
     maskedHint: 'http://127.0.0.1:11434/v1',
     isActive: true,
     createdAt: '2026-04-17T00:00:00.000Z',

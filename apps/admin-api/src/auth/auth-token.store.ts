@@ -49,6 +49,30 @@ export class AuthTokenStore implements OnModuleInit, OnModuleDestroy {
     await this.getClient().del(this.getSessionKey(sessionId));
   }
 
+  async invalidateUserSessions(
+    userId: string,
+    invalidBeforeEpochMs: number,
+    ttlSeconds: number,
+  ): Promise<void> {
+    await this.getClient().set(
+      this.getUserInvalidBeforeKey(userId),
+      String(invalidBeforeEpochMs),
+      {
+        EX: Math.max(ttlSeconds, 1),
+      },
+    );
+  }
+
+  async getUserInvalidBefore(userId: string): Promise<number | null> {
+    const value = await this.getClient().get(this.getUserInvalidBeforeKey(userId));
+    if (!value) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   private getClient(): RedisClientType {
     if (!this.client) {
       throw new Error('Redis client not initialized.');
@@ -63,5 +87,9 @@ export class AuthTokenStore implements OnModuleInit, OnModuleDestroy {
 
   private getSessionKey(sessionId: string): string {
     return `auth:refresh-session:${sessionId}`;
+  }
+
+  private getUserInvalidBeforeKey(userId: string): string {
+    return `auth:user-invalid-before:${userId}`;
   }
 }

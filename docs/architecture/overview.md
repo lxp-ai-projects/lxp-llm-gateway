@@ -5,7 +5,7 @@
 The platform separates the data plane from the control plane.
 
 - `admin-web` talks to `admin-api`
-- `admin-web` talks to `gateway-api` for chat and model discovery
+- `admin-web` uses `admin-api` as the same-origin control-plane facade for protected admin operations such as provider credentials, provider settings, model discovery, and image catalog access
 - clients or trusted internal callers talk to `gateway-api`
 - trusted internal callers such as `Open WebUI` can use a thin OpenAI-compatible facade exposed by `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
@@ -49,6 +49,7 @@ It must not import provider-specific implementation details directly.
 - users and role-aware admin workflows
 - super-admin tenant control workflows
 - encrypted provider credential writes and resets
+- same-origin control-plane proxying for protected admin-web operations that need gateway-backed catalogs or runtime execution
 - runtime config for the SPA
 - conversation import and export support
 - control-plane health and settings surfaces
@@ -56,6 +57,8 @@ It must not import provider-specific implementation details directly.
 `admin-api` is the durable source of truth for control-plane identity and secret administration.
 
 `admin-web` is the operator-facing SPA for both administrator and end-user control-plane workflows.
+
+Protected browser control-plane calls should stay on the admin origin through `admin-api`, not go directly to the public `gateway-api` origin.
 
 ### Shared Packages
 

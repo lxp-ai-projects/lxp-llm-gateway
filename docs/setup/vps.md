@@ -170,6 +170,13 @@ For the core product, the practical rule is:
 - proxy `gateway.example.com` to `127.0.0.1:3001`
 - do not expose container ports directly to the internet
 
+Control-plane rule:
+
+- `admin-web` should call protected browser APIs on the admin origin through `admin-api`
+- control-plane browser routes such as provider credentials, provider settings, model discovery, image catalog access, and runtime execution should stay on `https://admin.example.com/api/v1/...`
+- the public `gateway.example.com` origin is reserved for direct gateway clients such as Open WebUI and other OpenAI-compatible callers
+- if `admin-web` still uses `LXP_VPS_GATEWAY_API_PUBLIC_URL`, treat that as a narrow exception for public gateway health visibility rather than the normal control-plane path
+
 Recommended minimal posture:
 
 - terminate TLS at the reverse proxy
@@ -322,10 +329,11 @@ Check:
 - cookie behavior over HTTPS
 - `admin-api` health on `127.0.0.1:3002`
 
-If `admin-web` can log in but runtime chat/image/video requests fail only on the
-separate `gateway.*` hostname, the most common cause is a missing shared cookie
-domain. For a split-domain VPS install, the access cookie should usually be
-valid for both subdomains, for example `.example.com`.
+If `admin-web` can log in but some protected provider or catalog requests still
+go to the separate `gateway.*` hostname, check for stale frontend assets or a
+previous service worker registration in the browser before debugging Caddy or
+cookies. The alpha admin build no longer ships a service worker, and protected
+control-plane requests should stay on the admin origin.
 
 ### Empty model list from `/api/v1/openai/models`
 

@@ -28,6 +28,17 @@ type TenantActor = {
   globalRoles?: GlobalRole[];
 };
 
+const CREDENTIAL_ALREADY_EXISTS_ERROR = {
+  error: {
+    code: 'credential_already_exists',
+    message: 'A credential already exists for this provider.',
+    action: 'edit_or_replace_required',
+  },
+} as const;
+
+Object.freeze(CREDENTIAL_ALREADY_EXISTS_ERROR);
+Object.freeze(CREDENTIAL_ALREADY_EXISTS_ERROR.error);
+
 @Injectable()
 export class AdminProviderCredentialService {
   constructor(
@@ -222,9 +233,7 @@ export class AdminProviderCredentialService {
       );
 
       if (duplicateCredential && duplicateCredential.id !== credential.id) {
-        throw new ConflictException(
-          'A credential already exists for this provider/label. Use Edit to update it, or delete the existing credential first.',
-        );
+        throw new ConflictException(CREDENTIAL_ALREADY_EXISTS_ERROR);
       }
       credential.label = nextLabel;
     }
@@ -341,9 +350,7 @@ export class AdminProviderCredentialService {
         }),
     );
     if (existingCredential) {
-      throw new ConflictException(
-        'A credential already exists for this provider/label. Use Edit to update it, or delete the existing credential first.',
-      );
+      throw new ConflictException(CREDENTIAL_ALREADY_EXISTS_ERROR);
     }
 
     const providerAccess = this.createProviderAccess(dto, provider.providerId);

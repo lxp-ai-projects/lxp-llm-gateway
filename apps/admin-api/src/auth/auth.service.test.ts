@@ -16,6 +16,7 @@ import type { AuthTokenPayload } from './auth.types';
 class InMemoryAuthTokenStore {
   readonly blacklistedTokens = new Map<string, string>();
   readonly refreshSessions = new Map<string, string>();
+  readonly userInvalidBefore = new Map<string, number>();
 
   async blacklistToken(jti: string): Promise<void> {
     this.blacklistedTokens.set(jti, 'revoked');
@@ -38,6 +39,17 @@ class InMemoryAuthTokenStore {
 
   async deleteRefreshSession(sessionId: string): Promise<void> {
     this.refreshSessions.delete(sessionId);
+  }
+
+  async invalidateUserSessions(
+    userId: string,
+    invalidBeforeEpochMs: number,
+  ): Promise<void> {
+    this.userInvalidBefore.set(userId, invalidBeforeEpochMs);
+  }
+
+  async getUserInvalidBefore(userId: string): Promise<number | null> {
+    return this.userInvalidBefore.get(userId) ?? null;
   }
 }
 
@@ -353,6 +365,215 @@ test('AuthService returns the authenticated user profile for a valid access toke
   assert.deepEqual(authenticatedUser.roles, ['tenant_admin']);
   assert.equal(authenticatedUser.activeTenantSlug, 'lxp-internal');
   assert.equal(authenticatedUser.availableTenants.length, 1);
+});
+
+test('AuthService updates the authenticated user display name', async () => {
+  const { authService, user } = await buildAuthService();
+
+  const updatedUser = await authService.updateAuthenticatedUserProfile(
+    { userId: user.id, activeTenantId: user.lastActiveTenantId! },
+    { displayName: 'Laurie Admin' },
+  );
+
+  assert.equal(updatedUser.displayName, 'Laurie Admin');
+  assert.equal(user.displayName, 'Laurie Admin');
+  assert.equal(updatedUser.email, 'laurie@example.com');
+});
+
+test('AuthService changes the authenticated user password, rotates the current session, and revokes older sessions', async () => {
+  const { authService, jwtService, tokenStore, user } = await buildAuthService();
+  const previousHash = user.passwordHash;
+  const firstLogin = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  const secondLogin = await authService.login('laurie@example.com', 'Sup3rS3cret!');
+  const preservedSession = await jwtService.verifyAsync<AuthTokenPayload>(
+    secondLogin.accessToken,
+  );
+
+  const replacementTokens = await authService.changeOwnPassword(
+    { userId: user.id, activeTenantId: user.lastActiveTenantId! },
+    {
+      currentPassword: 'Sup3rS3cret!',
+      newPassword: 'EvenB3tterPass!',
+      confirmNewPassword: 'EvenB3tterPass!',
+    },
+    secondLogin.accessToken,
+  );
+
+  const replacementAccessPayload = await jwtService.verifyAsync<AuthTokenPayload>(
+    replacementTokens.accessToken,
+  );
+  const replacementRefreshPayload = await jwtService.verifyAsync<AuthTokenPayload>(
+    replacementTokens.refreshToken,
+  );
+
+  assert.notEqual(user.passwordHash, previousHash);
+  assert.equal(
+    await new PasswordService().verifyPassword(
+      'EvenB3tterPass!',
+      user.passwordHash,
+    ),
+    true,
+  );
+  assert.equal(
+    await tokenStore.getUserInvalidBefore(user.id) !== null,
+    true,
+  );
+  assert.equal(replacementAccessPayload.sessionId, preservedSession.sessionId);
+  assert.equal(replacementRefreshPayload.sessionId, preservedSession.sessionId);
+
+  await assert.rejects(
+    () => authService.getAuthenticatedUser(firstLogin.accessToken),
+    /Invalid or expired token/,
+  );
+  await assert.rejects(
+    () => authService.refresh(firstLogin.refreshToken),
+    /Invalid or expired token/,
+  );
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id, activeTenantId: user.lastActiveTenantId! },
+        {
+          currentPassword: 'EvenB3tterPass!',
+          newPassword: 'AnotherB3tterPass!',
+          confirmNewPassword: 'AnotherB3tterPass!',
+        },
+        firstLogin.accessToken,
+      ),
+    /Invalid or expired token/,
+  );
+  await assert.rejects(
+    () =>
+      authService.switchActiveTenant(
+        firstLogin.accessToken,
+        user.lastActiveTenantId!,
+      ),
+    /Invalid or expired token/,
+  );
+
+  const refreshedUser = await authService.getAuthenticatedUser(
+    replacementTokens.accessToken,
+  );
+  assert.equal(refreshedUser.userUuid, user.userUuid);
+});
+
+test('AuthService rejects password change when the current password is invalid', async () => {
+  const { authService, user } = await buildAuthService();
+  const previousHash = user.passwordHash;
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id, activeTenantId: user.lastActiveTenantId! },
+        {
+          currentPassword: 'wrong-password',
+          newPassword: 'EvenB3tterPass!',
+          confirmNewPassword: 'EvenB3tterPass!',
+        },
+        loginResult.accessToken,
+      ),
+    /Current password is invalid/,
+  );
+  assert.equal(user.passwordHash, previousHash);
+});
+
+test('AuthService rejects password change when the confirmation does not match', async () => {
+  const { authService, user } = await buildAuthService();
+  const previousHash = user.passwordHash;
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id, activeTenantId: user.lastActiveTenantId! },
+        {
+          currentPassword: 'Sup3rS3cret!',
+          newPassword: 'EvenB3tterPass!',
+          confirmNewPassword: 'MismatchPass!',
+        },
+        loginResult.accessToken,
+      ),
+    /New password confirmation does not match/,
+  );
+  assert.equal(user.passwordHash, previousHash);
+});
+
+test('AuthService rejects password change when the new password matches the current password', async () => {
+  const { authService, user } = await buildAuthService();
+  const previousHash = user.passwordHash;
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id, activeTenantId: user.lastActiveTenantId! },
+        {
+          currentPassword: 'Sup3rS3cret!',
+          newPassword: 'Sup3rS3cret!',
+          confirmNewPassword: 'Sup3rS3cret!',
+        },
+        loginResult.accessToken,
+      ),
+    /New password must be different from the current password/,
+  );
+  assert.equal(user.passwordHash, previousHash);
+});
+
+test('AuthService rejects password change when the authenticated user no longer exists', async () => {
+  const { authService, user } = await buildAuthService();
+  const loginResult = await authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: randomUUID(), activeTenantId: user.lastActiveTenantId! },
+        {
+          currentPassword: 'Sup3rS3cret!',
+          newPassword: 'EvenB3tterPass!',
+          confirmNewPassword: 'EvenB3tterPass!',
+        },
+        loginResult.accessToken,
+      ),
+    /Invalid or expired token/,
+  );
+});
+
+test('AuthService rejects password change when the authenticated user is disabled', async () => {
+  const { authService, user } = await buildAuthServiceWithUser({
+    status: 'disabled',
+  });
+  const activeService = await buildAuthService();
+  const loginResult = await activeService.authService.login(
+    'laurie@example.com',
+    'Sup3rS3cret!',
+  );
+
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id, activeTenantId: user.lastActiveTenantId! },
+        {
+          currentPassword: 'Sup3rS3cret!',
+          newPassword: 'EvenB3tterPass!',
+          confirmNewPassword: 'EvenB3tterPass!',
+        },
+        loginResult.accessToken,
+      ),
+    /Invalid or expired token/,
+  );
 });
 
 test('AuthService rejects login when the password is wrong', async () => {

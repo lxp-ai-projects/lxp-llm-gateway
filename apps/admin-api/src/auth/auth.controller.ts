@@ -5,6 +5,7 @@ import {
   Get,
   Headers,
   HttpCode,
+  Patch,
   Post,
   Req,
   Res,
@@ -16,10 +17,12 @@ import { AccessTokenGuard } from './access-token.guard';
 import type { RequestWithAuthUser } from './auth-request.types';
 import { AuthCookieService } from './auth-cookie.service';
 import { AuthService } from './auth.service';
+import { ChangeOwnPasswordDto } from './dto/change-own-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SwitchActiveTenantDto } from './dto/switch-active-tenant.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -100,6 +103,43 @@ export class AuthController {
   @UseGuards(AccessTokenGuard)
   me(@Req() request: Request & RequestWithAuthUser) {
     return request.authUser;
+  }
+
+  @Patch('me')
+  @UseGuards(AccessTokenGuard)
+  updateMe(
+    @Req() request: Request & RequestWithAuthUser,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.authService.updateAuthenticatedUserProfile(
+      request.authUser!,
+      dto,
+    );
+  }
+
+  @Post('me/change-password')
+  @UseGuards(AccessTokenGuard)
+  async changeOwnPassword(
+    @Req() request: Request & RequestWithAuthUser,
+    @Res({ passthrough: true }) response: Response,
+    @Body() payload: ChangeOwnPasswordDto,
+  ): Promise<{ message: string }> {
+    const result = await this.authService.changeOwnPassword(
+      request.authUser!,
+      payload,
+      request.authAccessToken!,
+    );
+    this.authCookieService.setAccessTokenCookie(
+      response,
+      result.accessToken,
+      this.accessTokenCookieMaxAgeMs,
+    );
+    this.authCookieService.setRefreshTokenCookie(
+      response,
+      result.refreshToken,
+      this.refreshTokenCookieMaxAgeMs,
+    );
+    return { message: 'Password changed successfully.' };
   }
 
   @Post('active-tenant')
