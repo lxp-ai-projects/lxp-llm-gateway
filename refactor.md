@@ -89,10 +89,25 @@ Controller shape:
 @Post('me/change-password')
 @UseGuards(AccessTokenGuard)
 async changeOwnPassword(
-  @Req() request: AuthenticatedRequest,
+  @Req() request: Request & RequestWithAuthUser,
+  @Res({ passthrough: true }) response: Response,
   @Body() payload: ChangeOwnPasswordDto,
 ): Promise<{ message: string }> {
-  await this.authService.changeOwnPassword(request.authUser, payload);
+  const result = await this.authService.changeOwnPassword(
+    request.authUser!,
+    payload,
+    request.authAccessToken!,
+  );
+  this.authCookieService.setAccessTokenCookie(
+    response,
+    result.accessToken,
+    this.accessTokenCookieMaxAgeMs,
+  );
+  this.authCookieService.setRefreshTokenCookie(
+    response,
+    result.refreshToken,
+    this.refreshTokenCookieMaxAgeMs,
+  );
   return { message: 'Password changed successfully.' };
 }
 ```
@@ -107,22 +122,26 @@ Add a method similar to:
 
 ```ts
 async changeOwnPassword(
-  authUser: AuthenticatedUser,
-  payload: ChangeOwnPasswordDto,
-): Promise<void>
+  authUser: Pick<AuthenticatedUser, 'userId' | 'activeTenantId'>,
+  payload: {
+    currentPassword: string;
+    newPassword: string;
+    confirmNewPassword: string;
+  },
+  accessToken: string,
+): Promise<TokenPair>
 ```
 
 Behavior:
 
-1. Load the current user from the database using the authenticated user identity.
-2. Reject if the user no longer exists.
-3. Reject if the user is not active.
+1. Verify the current access token and reject blacklisted or password-invalidated sessions.
+2. Load the current user from the database using the authenticated user identity.
+3. Reject if the user no longer exists or is not active.
 4. Verify `currentPassword` using the existing `PasswordService.verifyPassword`.
-5. Reject if the current password is invalid.
-6. Reject if `newPassword !== confirmNewPassword`.
-7. Reject if the new password is the same as the current password.
-8. Hash the new password using the existing `PasswordService.hashPassword`.
-9. Save the updated `passwordHash`.
+5. Reject if the current password is invalid, confirmation does not match, or the new password matches the current password.
+6. Hash and save the updated `passwordHash` using the existing `PasswordService.hashPassword`.
+7. Invalidate the user's existing access and refresh sessions.
+8. Resolve the authenticated session's active tenant and issue a rotated `TokenPair` for the current `sessionId`, keeping the user signed in.
 
 Do not use bcrypt. Do not create another password encoder. Reuse the existing Argon2-backed `PasswordService`.
 
@@ -177,7 +196,7 @@ Follow the existing client/request pattern. Do not call `fetch` directly from th
 
 ### Update Profile Page
 
-In `apps/admin-web/src/pages/profile/ProfilePage.tsx`, keep the existing profile/session display and add a password/security section.
+In `apps/admin-web/src/pages/profile-page.tsx`, keep the existing profile/session display and add a password/security section.
 
 Recommended UI section:
 
@@ -214,7 +233,7 @@ Do not expose raw unsafe backend details if the error is too technical.
 
 ## Frontend Tests
 
-Update `apps/admin-web/src/pages/profile/ProfilePage.test.tsx`.
+Update `apps/admin-web/src/pages/profile-page.test.tsx`.
 
 Existing tests currently expect the placeholder text. Replace or adjust that expectation.
 

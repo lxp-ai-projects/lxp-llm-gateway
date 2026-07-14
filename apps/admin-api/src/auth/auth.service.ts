@@ -147,6 +147,7 @@ export class AuthService {
     tenantId: string,
   ): Promise<TokenPair & { user: AuthenticatedUser }> {
     const payload = await this.verifyToken(accessToken, 'access');
+    await this.assertUserSessionIsUsable(payload);
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
       payload.jti,
     );
@@ -220,6 +221,7 @@ export class AuthService {
     accessToken: string,
   ): Promise<TokenPair> {
     const sessionPayload = await this.verifyToken(accessToken, 'access');
+    await this.assertUserSessionIsUsable(sessionPayload);
     const isBlacklisted = await this.authTokenStore.isTokenBlacklisted(
       sessionPayload.jti,
     );

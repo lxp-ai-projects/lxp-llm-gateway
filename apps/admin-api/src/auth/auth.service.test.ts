@@ -429,6 +429,27 @@ test('AuthService changes the authenticated user password, rotates the current s
     () => authService.refresh(firstLogin.refreshToken),
     /Invalid or expired token/,
   );
+  await assert.rejects(
+    () =>
+      authService.changeOwnPassword(
+        { userId: user.id, activeTenantId: user.lastActiveTenantId! },
+        {
+          currentPassword: 'EvenB3tterPass!',
+          newPassword: 'AnotherB3tterPass!',
+          confirmNewPassword: 'AnotherB3tterPass!',
+        },
+        firstLogin.accessToken,
+      ),
+    /Invalid or expired token/,
+  );
+  await assert.rejects(
+    () =>
+      authService.switchActiveTenant(
+        firstLogin.accessToken,
+        user.lastActiveTenantId!,
+      ),
+    /Invalid or expired token/,
+  );
 
   const refreshedUser = await authService.getAuthenticatedUser(
     replacementTokens.accessToken,
