@@ -26,6 +26,7 @@ import { useState } from 'react';
 
 import { PageHeader } from '../components/page-header';
 import { useTenantsController } from '../features/tenants/hooks/use-tenants-controller';
+import { TenantRegistrationPanel } from '../features/tenants/components/tenant-registration-panel';
 
 function HelpTooltip({ text }: { text: string }) {
   return (
@@ -43,13 +44,7 @@ function HelpTooltip({ text }: { text: string }) {
   );
 }
 
-function SectionTitle({
-  title,
-  help,
-}: {
-  title: string;
-  help: string;
-}) {
+function SectionTitle({ title, help }: { title: string; help: string }) {
   return (
     <Group gap="xs">
       <Title order={3}>{title}</Title>
@@ -58,13 +53,7 @@ function SectionTitle({
   );
 }
 
-function FieldLabel({
-  label,
-  help,
-}: {
-  label: string;
-  help: string;
-}) {
+function FieldLabel({ label, help }: { label: string; help: string }) {
   return (
     <Group gap={6} wrap="nowrap">
       <Text component="span" inherit>
@@ -284,9 +273,7 @@ export function TenantsPage() {
           <Card className="section-card">
             <Group justify="space-between" mb="md">
               <Title order={3}>Tenants</Title>
-              <Badge variant="light">
-                {tenantCards.length} total
-              </Badge>
+              <Badge variant="light">{tenantCards.length} total</Badge>
             </Group>
             <Stack gap="sm">
               {tenantCards.map((tenant) => (
@@ -330,7 +317,9 @@ export function TenantsPage() {
                         User override
                       </Text>
                       <Text fw={600}>
-                        {tenant.allowUserCredentialOverride ? 'Allowed' : 'Disabled'}
+                        {tenant.allowUserCredentialOverride
+                          ? 'Allowed'
+                          : 'Disabled'}
                       </Text>
                     </div>
                   </SimpleGrid>
@@ -354,6 +343,7 @@ export function TenantsPage() {
           >
             <Tabs.List mb="md" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
               <Tabs.Tab value="settings">Tenant Settings</Tabs.Tab>
+              <Tabs.Tab value="registration">Registration</Tabs.Tab>
               <Tabs.Tab value="memberships">Memberships</Tabs.Tab>
               <Tabs.Tab value="policies">Policies &amp; Limits</Tabs.Tab>
               <Tabs.Tab value="providers">Provider Configurations</Tabs.Tab>
@@ -363,630 +353,208 @@ export function TenantsPage() {
               <Tabs.Tab value="model-rules">Model Access Rules</Tabs.Tab>
             </Tabs.List>
 
-            <Tabs.Panel value="settings">
-            <Card className="section-card">
-              <Group justify="space-between" mb="md">
-                <SectionTitle
-                  title="Tenant Settings"
-                  help="Basic tenant operating posture: friendly name, active or disabled state, and whether members may override tenant-level BYOK credentials with their own."
-                />
+            <Tabs.Panel value="registration">
+              <Card className="section-card">
+                <Group justify="space-between" mb="md">
+                  <SectionTitle
+                    title="Public Registration"
+                    help="Controls the tenant registration switch and exact public hostname mappings. The global kill switch remains authoritative."
+                  />
+                  {selectedTenant ? (
+                    <Badge variant="outline">{selectedTenant.slug}</Badge>
+                  ) : null}
+                </Group>
                 {selectedTenant ? (
-                  <Badge variant="outline">{selectedTenant.slug}</Badge>
-                ) : null}
-              </Group>
-              {selectedTenant ? (
-                <form onSubmit={handleUpdateTenantSubmit}>
-                  <Stack gap="md">
-                    <TextInput
-                      label={
-                        <FieldLabel
-                          label="Display name"
-                          help="Human-friendly tenant name shown in the admin UI."
-                        />
-                      }
-                      value={editDisplayName}
-                      onChange={(event) =>
-                        onEditDisplayNameChange(event.currentTarget.value)
-                      }
-                    />
-                    <Select
-                      label={
-                        <FieldLabel
-                          label="Status"
-                          help="Active tenants can operate normally. Disabled tenants stay in the system but should no longer be used operationally."
-                        />
-                      }
-                      data={[
-                        { value: 'active', label: 'Active' },
-                        { value: 'disabled', label: 'Disabled' },
-                      ]}
-                      value={editStatus}
-                      onChange={onEditStatusChange}
-                    />
-                    <Switch
-                      checked={editAllowOverride}
-                      label={
-                        <FieldLabel
-                          label="Allow user credential override"
-                          help="If enabled, a member's own BYOK credential can override the tenant default when the provider configuration also permits it."
-                        />
-                      }
-                      description="When enabled, user-scoped BYOK credentials can override the tenant default."
-                      onChange={(event) =>
-                        onEditAllowOverrideChange(event.currentTarget.checked)
-                      }
-                    />
-                    <Group justify="flex-end">
-                      <Button loading={isUpdatePending} type="submit">
-                        Save tenant
-                      </Button>
-                    </Group>
-                  </Stack>
-                </form>
-              ) : (
-                <Text c="dimmed" size="sm">
-                  Select a tenant to inspect or update its control-plane settings.
-                </Text>
-              )}
-            </Card>
+                  <TenantRegistrationPanel
+                    tenantId={selectedTenant.id}
+                    activeTenantCount={
+                      tenantCards.filter((tenant) => tenant.status === 'active')
+                        .length
+                    }
+                  />
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Select a tenant to configure public registration.
+                  </Text>
+                )}
+              </Card>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="settings">
+              <Card className="section-card">
+                <Group justify="space-between" mb="md">
+                  <SectionTitle
+                    title="Tenant Settings"
+                    help="Basic tenant operating posture: friendly name, active or disabled state, and whether members may override tenant-level BYOK credentials with their own."
+                  />
+                  {selectedTenant ? (
+                    <Badge variant="outline">{selectedTenant.slug}</Badge>
+                  ) : null}
+                </Group>
+                {selectedTenant ? (
+                  <form onSubmit={handleUpdateTenantSubmit}>
+                    <Stack gap="md">
+                      <TextInput
+                        label={
+                          <FieldLabel
+                            label="Display name"
+                            help="Human-friendly tenant name shown in the admin UI."
+                          />
+                        }
+                        value={editDisplayName}
+                        onChange={(event) =>
+                          onEditDisplayNameChange(event.currentTarget.value)
+                        }
+                      />
+                      <Select
+                        label={
+                          <FieldLabel
+                            label="Status"
+                            help="Active tenants can operate normally. Disabled tenants stay in the system but should no longer be used operationally."
+                          />
+                        }
+                        data={[
+                          { value: 'active', label: 'Active' },
+                          { value: 'disabled', label: 'Disabled' },
+                        ]}
+                        value={editStatus}
+                        onChange={onEditStatusChange}
+                      />
+                      <Switch
+                        checked={editAllowOverride}
+                        label={
+                          <FieldLabel
+                            label="Allow user credential override"
+                            help="If enabled, a member's own BYOK credential can override the tenant default when the provider configuration also permits it."
+                          />
+                        }
+                        description="When enabled, user-scoped BYOK credentials can override the tenant default."
+                        onChange={(event) =>
+                          onEditAllowOverrideChange(event.currentTarget.checked)
+                        }
+                      />
+                      <Group justify="flex-end">
+                        <Button loading={isUpdatePending} type="submit">
+                          Save tenant
+                        </Button>
+                      </Group>
+                    </Stack>
+                  </form>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Select a tenant to inspect or update its control-plane
+                    settings.
+                  </Text>
+                )}
+              </Card>
             </Tabs.Panel>
 
             <Tabs.Panel value="memberships">
-            <Card className="section-card">
-              <Group justify="space-between" mb="md">
-                <SectionTitle
-                  title="Memberships"
-                  help="Defines which global users belong to this tenant and which tenant-scoped roles they hold here. A user may appear in multiple tenants with different roles."
-                />
-                <Group gap="sm">
-                  {selectedTenant ? (
-                    <Badge variant="light">{memberships.length} members</Badge>
-                  ) : null}
-                  <Button
-                    size="xs"
-                    onClick={onOpenCreateMember}
-                    disabled={!selectedTenant}
-                  >
-                    Add member
-                  </Button>
-                </Group>
-              </Group>
-              {selectedTenant ? (
-                <Table.ScrollContainer minWidth={760}>
-                  <Table highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>User</Table.Th>
-                        <Table.Th>Tenant roles</Table.Th>
-                        <Table.Th>Global roles</Table.Th>
-                        <Table.Th>Status</Table.Th>
-                        <Table.Th>Actions</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {memberships.map((membership) => (
-                        <Table.Tr key={`${membership.tenantId}-${membership.userUuid}`}>
-                          <Table.Td>
-                            <Text fw={600}>{membership.displayName}</Text>
-                            <Text size="sm" c="dimmed">
-                              {membership.email}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Group gap="xs" wrap="wrap">
-                              {membership.roles.map((role) => (
-                                <Badge key={role} variant="light">
-                                  {role}
-                                </Badge>
-                              ))}
-                            </Group>
-                          </Table.Td>
-                          <Table.Td>
-                            <Group gap="xs" wrap="wrap">
-                              {membership.globalRoles.length ? (
-                                membership.globalRoles.map((role) => (
-                                  <Badge key={role} color="grape" variant="light">
-                                    {role}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <Text size="sm" c="dimmed">
-                                  None
-                                </Text>
-                              )}
-                            </Group>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge
-                              color={membership.status === 'active' ? 'moss' : 'red'}
-                              variant="light"
-                            >
-                              {membership.status}
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Group gap="xs">
-                              <Button
-                                size="xs"
-                                variant="light"
-                                onClick={() => onOpenEditMember(membership)}
-                              >
-                                {membership.globalRoles.includes('super_admin')
-                                  ? 'Protected'
-                                  : 'Edit member'}
-                              </Button>
-                              <Button
-                                size="xs"
-                                variant="subtle"
-                                onClick={() => onOpenEditGlobalRoles(membership)}
-                              >
-                                Global access
-                              </Button>
-                            </Group>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Table.ScrollContainer>
-              ) : (
-                <Text c="dimmed" size="sm">
-                  Select a tenant to inspect its membership boundary.
-                </Text>
-              )}
-              {selectedTenant && !memberships.length && !membershipsQuery.isPending ? (
-                <Text c="dimmed" size="sm" mt="md">
-                  This tenant has no memberships yet.
-                </Text>
-              ) : null}
-            </Card>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="policies">
-            <Card className="section-card">
-              <Group justify="space-between" mb="md">
-                <SectionTitle
-                  title="Policies & Limits"
-                  help="Operational guardrails like request rates, budget ceilings, token ceilings, logging posture, and retention defaults. Some fields are enforced now, while others are persisted for future hardening."
-                />
-                {selectedTenant ? (
-                  <Badge variant="light">App-enforced</Badge>
-                ) : null}
-              </Group>
-              {selectedTenant ? (
-                <form onSubmit={handleUpdateTenantPolicySubmit}>
-                  <Stack gap="md">
-                    <Text size="sm" c="dimmed">
-                      The gateway currently enforces request windows, monthly
-                      budget, monthly token totals, and monthly image request
-                      counts from the usage ledger. Logging and retention fields
-                      are persisted now so we can harden the next layer without
-                      redesigning the contract.
-                    </Text>
-                    <Group grow>
-                      <TextInput
-                        label={
-                          <FieldLabel
-                            label="Monthly budget (USD)"
-                            help="Soft budget ceiling for this tenant's monthly usage. Once reached, the gateway blocks further requests with a quota event."
-                          />
-                        }
-                        placeholder="250.00"
-                        value={editPolicyMonthlyBudgetUsd}
-                        onChange={(event) =>
-                          onEditPolicyMonthlyBudgetUsdChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                      <TextInput
-                        label={
-                          <FieldLabel
-                            label="Retention days"
-                            help="Planned retention posture for tenant-owned telemetry and operational records."
-                          />
-                        }
-                        value={editPolicyRetentionDays}
-                        onChange={(event) =>
-                          onEditPolicyRetentionDaysChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                    </Group>
-                    <Group grow>
-                      <TextInput
-                        label={
-                          <FieldLabel
-                            label="Requests per minute"
-                            help="Per-tenant request rate ceiling across gateway calls."
-                          />
-                        }
-                        value={editPolicyRequestsPerMinute}
-                        onChange={(event) =>
-                          onEditPolicyRequestsPerMinuteChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                      <TextInput
-                        label={
-                          <FieldLabel
-                            label="Tokens per minute"
-                            help="Per-tenant rolling token ceiling across compatible requests."
-                          />
-                        }
-                        value={editPolicyTokensPerMinute}
-                        onChange={(event) =>
-                          onEditPolicyTokensPerMinuteChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                    </Group>
-                    <Group grow>
-                      <TextInput
-                        label="Daily request limit"
-                        value={editPolicyDailyRequestLimit}
-                        onChange={(event) =>
-                          onEditPolicyDailyRequestLimitChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                      <TextInput
-                        label="Monthly request limit"
-                        value={editPolicyMonthlyRequestLimit}
-                        onChange={(event) =>
-                          onEditPolicyMonthlyRequestLimitChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                    </Group>
-                    <Group grow>
-                      <TextInput
-                        label="Monthly token limit"
-                        value={editPolicyMonthlyTokenLimit}
-                        onChange={(event) =>
-                          onEditPolicyMonthlyTokenLimitChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                      <TextInput
-                        label="Image requests per month"
-                        value={editPolicyImageRequestsPerMonth}
-                        onChange={(event) =>
-                          onEditPolicyImageRequestsPerMonthChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                    </Group>
-                    <Group grow>
-                      <TextInput
-                        label="Max input tokens"
-                        value={editPolicyMaxInputTokens}
-                        onChange={(event) =>
-                          onEditPolicyMaxInputTokensChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                      <TextInput
-                        label="Max output tokens"
-                        value={editPolicyMaxOutputTokens}
-                        onChange={(event) =>
-                          onEditPolicyMaxOutputTokensChange(
-                            event.currentTarget.value,
-                          )
-                        }
-                      />
-                    </Group>
-                    <Group grow>
-                      <Switch
-                        checked={editPolicyAllowPromptLogging}
-                        label="Allow prompt logging"
-                        onChange={(event) =>
-                          onEditPolicyAllowPromptLoggingChange(
-                            event.currentTarget.checked,
-                          )
-                        }
-                      />
-                      <Switch
-                        checked={editPolicyAllowResponseLogging}
-                        label="Allow response logging"
-                        onChange={(event) =>
-                          onEditPolicyAllowResponseLoggingChange(
-                            event.currentTarget.checked,
-                          )
-                        }
-                      />
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                      {tenantPolicy?.createdAt
-                        ? `Policy row persisted and last updated ${new Date(
-                            tenantPolicy.updatedAt ?? tenantPolicy.createdAt,
-                          ).toLocaleString()}.`
-                        : 'No policy row has been persisted yet. Saving here will materialize the tenant defaults.'}
-                    </Text>
-                    <Group justify="flex-end">
-                      <Button
-                        loading={isUpdateTenantPolicyPending}
-                        type="submit"
-                      >
-                        Save policy
-                      </Button>
-                    </Group>
-                  </Stack>
-                </form>
-              ) : (
-                <Text c="dimmed" size="sm">
-                  Select a tenant to configure its cost guardrails, quota
-                  thresholds, and logging posture.
-                </Text>
-              )}
-              {selectedTenant && !tenantPolicy && !tenantPolicyQuery.isPending ? (
-                <Text c="dimmed" size="sm" mt="md">
-                  The gateway is currently using implicit defaults for this
-                  tenant.
-                </Text>
-              ) : null}
-            </Card>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="providers">
-            <Card className="section-card">
-              <Group justify="space-between" mb="md">
-                <SectionTitle
-                  title="Provider Configurations"
-                  help="Controls whether a provider is available to this tenant, which default models it uses, and how credentials are resolved between platform, tenant, and user scopes."
-                />
-                {selectedTenant ? (
-                  <Badge variant="light">{providerConfigurations.length} providers</Badge>
-                ) : null}
-              </Group>
-              {selectedTenant ? (
-                <Table.ScrollContainer minWidth={760}>
-                  <Table highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Provider</Table.Th>
-                        <Table.Th>Status</Table.Th>
-                        <Table.Th>Credential path</Table.Th>
-                        <Table.Th>Defaults</Table.Th>
-                        <Table.Th>Actions</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {providerConfigurations.map((configuration) => (
-                        <Table.Tr key={configuration.providerId}>
-                          <Table.Td>
-                            <Text fw={600}>
-                              {configuration.providerDisplayName}
-                            </Text>
-                            <Text size="sm" c="dimmed">
-                              {configuration.providerId}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Group gap="xs" wrap="wrap">
-                              <Badge
-                                color={configuration.enabled ? 'moss' : 'red'}
-                                variant="light"
-                              >
-                                {configuration.enabled ? 'enabled' : 'disabled'}
-                              </Badge>
-                              <Badge
-                                color={
-                                  configuration.providerStatus === 'active'
-                                    ? 'blue'
-                                    : 'gray'
-                                }
-                                variant="outline"
-                              >
-                                platform {configuration.providerStatus}
-                              </Badge>
-                            </Group>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text fw={600}>{configuration.credentialMode}</Text>
-                            <Text size="sm" c="dimmed">
-                              {configuration.preferUserCredentials
-                                ? 'User-first'
-                                : 'Tenant-first'}
-                              {' / '}
-                              {configuration.allowTenantFallback
-                                ? 'tenant fallback'
-                                : 'no tenant fallback'}
-                              {' / '}
-                              {configuration.allowPlatformFallback
-                                ? 'platform fallback'
-                                : 'no platform fallback'}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm">
-                              Text:{' '}
-                              {configuration.defaultTextModel ?? 'No tenant default'}
-                            </Text>
-                            <Text size="sm">
-                              Image:{' '}
-                              {configuration.defaultImageModel ?? 'No tenant default'}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Button
-                              size="xs"
-                              variant="light"
-                              onClick={() =>
-                                onOpenEditProviderConfiguration(configuration)
-                              }
-                            >
-                              Edit config
-                            </Button>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Table.ScrollContainer>
-              ) : (
-                <Text c="dimmed" size="sm">
-                  Select a tenant to manage provider enablement, defaults, and
-                  credential routing.
-                </Text>
-              )}
-            {selectedTenant &&
-              !providerConfigurations.length &&
-              !providerConfigurationsQuery.isPending ? (
-                <Text c="dimmed" size="sm" mt="md">
-                  This tenant has no provider configurations yet.
-                </Text>
-              ) : null}
-            </Card>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="integration-clients">
-            <Card className="section-card">
-              <Group justify="space-between" mb="md">
-                <SectionTitle
-                  title="Integration Clients"
-                  help="Technical identities for apps like Open WebUI. They are tenant-bound, scoped, and own one or more rotatable API keys."
-                />
-                <Group gap="sm">
-                  {selectedTenant ? (
-                    <Badge variant="light">{integrationClients.length} clients</Badge>
-                  ) : null}
-                  <Button
-                    size="xs"
-                    onClick={onOpenCreateIntegrationClient}
-                    disabled={!selectedTenant}
-                  >
-                    Add client
-                  </Button>
-                </Group>
-              </Group>
-              {selectedTenant ? (
-                <Stack gap="md">
-                  {revealedIntegrationApiKey ? (
-                    <Alert
-                      color="yellow"
-                      variant="light"
-                      title="Copy this API key now"
+              <Card className="section-card">
+                <Group justify="space-between" mb="md">
+                  <SectionTitle
+                    title="Memberships"
+                    help="Defines which global users belong to this tenant and which tenant-scoped roles they hold here. A user may appear in multiple tenants with different roles."
+                  />
+                  <Group gap="sm">
+                    {selectedTenant ? (
+                      <Badge variant="light">
+                        {memberships.length} members
+                      </Badge>
+                    ) : null}
+                    <Button
+                      size="xs"
+                      onClick={onOpenCreateMember}
+                      disabled={!selectedTenant}
                     >
-                      <Stack gap="xs">
-                        <Text size="sm">
-                          This secret for{' '}
-                          <Text span fw={700}>
-                            {revealedIntegrationApiKey.clientDisplayName}
-                          </Text>{' '}
-                          /{' '}
-                          <Text span fw={700}>
-                            {revealedIntegrationApiKey.label}
-                          </Text>{' '}
-                          is shown only once.
-                        </Text>
-                        <Code block>{revealedIntegrationApiKey.apiKey}</Code>
-                        <Group justify="flex-end">
-                          <Button
-                            size="xs"
-                            variant="light"
-                            onClick={onDismissRevealedIntegrationApiKey}
-                          >
-                            Dismiss
-                          </Button>
-                        </Group>
-                      </Stack>
-                    </Alert>
-                  ) : null}
-                  <Table.ScrollContainer minWidth={860}>
+                      Add member
+                    </Button>
+                  </Group>
+                </Group>
+                {selectedTenant ? (
+                  <Table.ScrollContainer minWidth={760}>
                     <Table highlightOnHover>
                       <Table.Thead>
                         <Table.Tr>
-                          <Table.Th>Client</Table.Th>
-                          <Table.Th>Identity</Table.Th>
-                          <Table.Th>Scopes</Table.Th>
+                          <Table.Th>User</Table.Th>
+                          <Table.Th>Tenant roles</Table.Th>
+                          <Table.Th>Global roles</Table.Th>
                           <Table.Th>Status</Table.Th>
                           <Table.Th>Actions</Table.Th>
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
-                        {integrationClients.map((client) => (
+                        {memberships.map((membership) => (
                           <Table.Tr
-                            key={client.id}
-                            style={{
-                              backgroundColor:
-                                selectedIntegrationClient?.id === client.id
-                                  ? 'var(--mantine-color-teal-0)'
-                                  : undefined,
-                            }}
+                            key={`${membership.tenantId}-${membership.userUuid}`}
                           >
                             <Table.Td>
-                              <Text fw={600}>{client.displayName}</Text>
+                              <Text fw={600}>{membership.displayName}</Text>
                               <Text size="sm" c="dimmed">
-                                {client.clientId}
-                              </Text>
-                              <Text size="sm" c="dimmed">
-                                App: {client.applicationId}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="sm">
-                                Default user:{' '}
-                                {client.defaultUserDisplayName ?? 'No default user'}
-                              </Text>
-                              <Text size="sm" c="dimmed">
-                                Forwarded identity:{' '}
-                                {client.trustedForwardedIdentityEnabled
-                                  ? 'trusted'
-                                  : 'disabled'}
+                                {membership.email}
                               </Text>
                             </Table.Td>
                             <Table.Td>
                               <Group gap="xs" wrap="wrap">
-                                {client.scopes.map((scope) => (
-                                  <Badge key={scope} variant="light">
-                                    {scope}
+                                {membership.roles.map((role) => (
+                                  <Badge key={role} variant="light">
+                                    {role}
                                   </Badge>
                                 ))}
                               </Group>
                             </Table.Td>
                             <Table.Td>
                               <Group gap="xs" wrap="wrap">
-                                <Badge
-                                  color={client.status === 'active' ? 'moss' : 'red'}
-                                  variant="light"
-                                >
-                                  {client.status}
-                                </Badge>
-                                <Badge variant="outline">
-                                  {client.apiKeyCount} keys
-                                </Badge>
+                                {membership.globalRoles.length ? (
+                                  membership.globalRoles.map((role) => (
+                                    <Badge
+                                      key={role}
+                                      color="grape"
+                                      variant="light"
+                                    >
+                                      {role}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <Text size="sm" c="dimmed">
+                                    None
+                                  </Text>
+                                )}
                               </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge
+                                color={
+                                  membership.status === 'active'
+                                    ? 'moss'
+                                    : 'red'
+                                }
+                                variant="light"
+                              >
+                                {membership.status}
+                              </Badge>
                             </Table.Td>
                             <Table.Td>
                               <Group gap="xs">
                                 <Button
                                   size="xs"
-                                  variant="subtle"
-                                  onClick={() => onSelectIntegrationClient(client)}
-                                >
-                                  View keys
-                                </Button>
-                                <Button
-                                  size="xs"
                                   variant="light"
-                                  onClick={() => onOpenEditIntegrationClient(client)}
+                                  onClick={() => onOpenEditMember(membership)}
                                 >
-                                  Edit client
+                                  {membership.globalRoles.includes(
+                                    'super_admin',
+                                  )
+                                    ? 'Protected'
+                                    : 'Edit member'}
                                 </Button>
                                 <Button
                                   size="xs"
-                                  onClick={() => onOpenCreateIntegrationApiKey(client)}
+                                  variant="subtle"
+                                  onClick={() =>
+                                    onOpenEditGlobalRoles(membership)
+                                  }
                                 >
-                                  Create key
+                                  Global access
                                 </Button>
                               </Group>
                             </Table.Td>
@@ -995,244 +563,750 @@ export function TenantsPage() {
                       </Table.Tbody>
                     </Table>
                   </Table.ScrollContainer>
-                  {selectedIntegrationClient ? (
-                    <Card withBorder radius="lg">
-                      <Group justify="space-between" mb="md">
-                        <div>
-                          <Text fw={700}>
-                            API keys for {selectedIntegrationClient.displayName}
-                          </Text>
-                          <Text size="sm" c="dimmed">
-                            {selectedIntegrationClient.clientId}
-                          </Text>
-                        </div>
-                        <Button
-                          size="xs"
-                          onClick={() =>
-                            onOpenCreateIntegrationApiKey(selectedIntegrationClient)
-                          }
-                        >
-                          Create key
-                        </Button>
-                      </Group>
-                      <Table.ScrollContainer minWidth={760}>
-                        <Table highlightOnHover>
-                          <Table.Thead>
-                            <Table.Tr>
-                              <Table.Th>Label</Table.Th>
-                              <Table.Th>Hint</Table.Th>
-                              <Table.Th>Scopes</Table.Th>
-                              <Table.Th>Status</Table.Th>
-                              <Table.Th>Last used</Table.Th>
-                              <Table.Th>Actions</Table.Th>
-                            </Table.Tr>
-                          </Table.Thead>
-                          <Table.Tbody>
-                            {integrationApiKeys.map((apiKey) => (
-                              <Table.Tr key={apiKey.id}>
-                                <Table.Td>
-                                  <Text fw={600}>{apiKey.label}</Text>
-                                  <Text size="sm" c="dimmed">
-                                    {apiKey.expiresAt
-                                      ? `Expires ${new Date(apiKey.expiresAt).toLocaleString()}`
-                                      : 'No expiry'}
-                                  </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Code>{apiKey.keyHint ?? 'hidden'}</Code>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Group gap="xs" wrap="wrap">
-                                    {apiKey.scopes.map((scope) => (
-                                      <Badge key={scope} variant="light">
-                                        {scope}
-                                      </Badge>
-                                    ))}
-                                  </Group>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Badge
-                                    color={apiKey.status === 'active' ? 'moss' : 'red'}
-                                    variant="light"
-                                  >
-                                    {apiKey.status}
-                                  </Badge>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Text size="sm">
-                                    {apiKey.lastUsedAt
-                                      ? new Date(apiKey.lastUsedAt).toLocaleString()
-                                      : 'Never'}
-                                  </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                  <Group gap="xs">
-                                    <Button
-                                      size="xs"
-                                      variant="light"
-                                      onClick={() =>
-                                        onOpenEditIntegrationApiKey(
-                                          selectedIntegrationClient,
-                                          apiKey,
-                                        )
-                                      }
-                                    >
-                                      Edit key
-                                    </Button>
-                                    <Button
-                                      size="xs"
-                                      variant="subtle"
-                                      onClick={() =>
-                                        onOpenEditIntegrationApiKey(
-                                          selectedIntegrationClient,
-                                          apiKey,
-                                        )
-                                      }
-                                    >
-                                      Select
-                                    </Button>
-                                  </Group>
-                                </Table.Td>
-                              </Table.Tr>
-                            ))}
-                          </Table.Tbody>
-                        </Table>
-                      </Table.ScrollContainer>
-                      {!integrationApiKeys.length &&
-                      !integrationApiKeysQuery.isPending ? (
-                        <Text c="dimmed" size="sm" mt="md">
-                          This integration client has no API keys yet.
-                        </Text>
-                      ) : null}
-                    </Card>
-                  ) : (
-                    <Text c="dimmed" size="sm">
-                      Select an integration client to inspect and rotate its API
-                      keys.
-                    </Text>
-                  )}
-                </Stack>
-              ) : (
-                <Text c="dimmed" size="sm">
-                  Select a tenant to manage tenant-scoped technical clients and
-                  their API keys.
-                </Text>
-              )}
-              {selectedTenant &&
-              !integrationClients.length &&
-              !integrationClientsQuery.isPending ? (
-                <Text c="dimmed" size="sm" mt="md">
-                  This tenant has no integration clients yet.
-                </Text>
-              ) : null}
-            </Card>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Select a tenant to inspect its membership boundary.
+                  </Text>
+                )}
+                {selectedTenant &&
+                !memberships.length &&
+                !membershipsQuery.isPending ? (
+                  <Text c="dimmed" size="sm" mt="md">
+                    This tenant has no memberships yet.
+                  </Text>
+                ) : null}
+              </Card>
             </Tabs.Panel>
 
-            <Tabs.Panel value="model-rules">
-            <Card className="section-card">
-              <Group justify="space-between" mb="md">
-                <SectionTitle
-                  title="Model Access Rules"
-                  help="Allow or deny rules for provider models, evaluated by priority. At equal priority, deny wins over allow."
-                />
-                <Group gap="sm">
+            <Tabs.Panel value="policies">
+              <Card className="section-card">
+                <Group justify="space-between" mb="md">
+                  <SectionTitle
+                    title="Policies & Limits"
+                    help="Operational guardrails like request rates, budget ceilings, token ceilings, logging posture, and retention defaults. Some fields are enforced now, while others are persisted for future hardening."
+                  />
                   {selectedTenant ? (
-                    <Badge variant="light">{modelAccessRules.length} rules</Badge>
+                    <Badge variant="light">App-enforced</Badge>
                   ) : null}
-                  <Button
-                    size="xs"
-                    onClick={onOpenCreateModelAccessRule}
-                    disabled={!selectedTenant}
-                  >
-                    Add rule
-                  </Button>
                 </Group>
-              </Group>
-              {selectedTenant ? (
-                <Table.ScrollContainer minWidth={860}>
-                  <Table highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Provider</Table.Th>
-                        <Table.Th>Pattern</Table.Th>
-                        <Table.Th>Capability</Table.Th>
-                        <Table.Th>Effect</Table.Th>
-                        <Table.Th>Limits</Table.Th>
-                        <Table.Th>Priority</Table.Th>
-                        <Table.Th>Actions</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {modelAccessRules.map((rule) => (
-                        <Table.Tr key={rule.id}>
-                          <Table.Td>
-                            <Text fw={600}>{rule.providerId}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text fw={600}>{rule.modelPattern}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge variant="light">{rule.capability}</Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge
-                              color={rule.effect === 'allow' ? 'teal' : 'red'}
-                              variant="light"
-                            >
-                              {rule.effect}
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm">
-                              In: {rule.maxInputTokens ?? 'n/a'} / Out:{' '}
-                              {rule.maxOutputTokens ?? 'n/a'}
-                            </Text>
-                            <Text size="sm">
-                              Images: {rule.maxImagesPerRequest ?? 'n/a'} / Res:{' '}
-                              {rule.maxResolution ?? 'n/a'}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>{rule.priority}</Table.Td>
-                          <Table.Td>
+                {selectedTenant ? (
+                  <form onSubmit={handleUpdateTenantPolicySubmit}>
+                    <Stack gap="md">
+                      <Text size="sm" c="dimmed">
+                        The gateway currently enforces request windows, monthly
+                        budget, monthly token totals, and monthly image request
+                        counts from the usage ledger. Logging and retention
+                        fields are persisted now so we can harden the next layer
+                        without redesigning the contract.
+                      </Text>
+                      <Group grow>
+                        <TextInput
+                          label={
+                            <FieldLabel
+                              label="Monthly budget (USD)"
+                              help="Soft budget ceiling for this tenant's monthly usage. Once reached, the gateway blocks further requests with a quota event."
+                            />
+                          }
+                          placeholder="250.00"
+                          value={editPolicyMonthlyBudgetUsd}
+                          onChange={(event) =>
+                            onEditPolicyMonthlyBudgetUsdChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                        <TextInput
+                          label={
+                            <FieldLabel
+                              label="Retention days"
+                              help="Planned retention posture for tenant-owned telemetry and operational records."
+                            />
+                          }
+                          value={editPolicyRetentionDays}
+                          onChange={(event) =>
+                            onEditPolicyRetentionDaysChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                      </Group>
+                      <Group grow>
+                        <TextInput
+                          label={
+                            <FieldLabel
+                              label="Requests per minute"
+                              help="Per-tenant request rate ceiling across gateway calls."
+                            />
+                          }
+                          value={editPolicyRequestsPerMinute}
+                          onChange={(event) =>
+                            onEditPolicyRequestsPerMinuteChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                        <TextInput
+                          label={
+                            <FieldLabel
+                              label="Tokens per minute"
+                              help="Per-tenant rolling token ceiling across compatible requests."
+                            />
+                          }
+                          value={editPolicyTokensPerMinute}
+                          onChange={(event) =>
+                            onEditPolicyTokensPerMinuteChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                      </Group>
+                      <Group grow>
+                        <TextInput
+                          label="Daily request limit"
+                          value={editPolicyDailyRequestLimit}
+                          onChange={(event) =>
+                            onEditPolicyDailyRequestLimitChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                        <TextInput
+                          label="Monthly request limit"
+                          value={editPolicyMonthlyRequestLimit}
+                          onChange={(event) =>
+                            onEditPolicyMonthlyRequestLimitChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                      </Group>
+                      <Group grow>
+                        <TextInput
+                          label="Monthly token limit"
+                          value={editPolicyMonthlyTokenLimit}
+                          onChange={(event) =>
+                            onEditPolicyMonthlyTokenLimitChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                        <TextInput
+                          label="Image requests per month"
+                          value={editPolicyImageRequestsPerMonth}
+                          onChange={(event) =>
+                            onEditPolicyImageRequestsPerMonthChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                      </Group>
+                      <Group grow>
+                        <TextInput
+                          label="Max input tokens"
+                          value={editPolicyMaxInputTokens}
+                          onChange={(event) =>
+                            onEditPolicyMaxInputTokensChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                        <TextInput
+                          label="Max output tokens"
+                          value={editPolicyMaxOutputTokens}
+                          onChange={(event) =>
+                            onEditPolicyMaxOutputTokensChange(
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                      </Group>
+                      <Group grow>
+                        <Switch
+                          checked={editPolicyAllowPromptLogging}
+                          label="Allow prompt logging"
+                          onChange={(event) =>
+                            onEditPolicyAllowPromptLoggingChange(
+                              event.currentTarget.checked,
+                            )
+                          }
+                        />
+                        <Switch
+                          checked={editPolicyAllowResponseLogging}
+                          label="Allow response logging"
+                          onChange={(event) =>
+                            onEditPolicyAllowResponseLoggingChange(
+                              event.currentTarget.checked,
+                            )
+                          }
+                        />
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        {tenantPolicy?.createdAt
+                          ? `Policy row persisted and last updated ${new Date(
+                              tenantPolicy.updatedAt ?? tenantPolicy.createdAt,
+                            ).toLocaleString()}.`
+                          : 'No policy row has been persisted yet. Saving here will materialize the tenant defaults.'}
+                      </Text>
+                      <Group justify="flex-end">
+                        <Button
+                          loading={isUpdateTenantPolicyPending}
+                          type="submit"
+                        >
+                          Save policy
+                        </Button>
+                      </Group>
+                    </Stack>
+                  </form>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Select a tenant to configure its cost guardrails, quota
+                    thresholds, and logging posture.
+                  </Text>
+                )}
+                {selectedTenant &&
+                !tenantPolicy &&
+                !tenantPolicyQuery.isPending ? (
+                  <Text c="dimmed" size="sm" mt="md">
+                    The gateway is currently using implicit defaults for this
+                    tenant.
+                  </Text>
+                ) : null}
+              </Card>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="providers">
+              <Card className="section-card">
+                <Group justify="space-between" mb="md">
+                  <SectionTitle
+                    title="Provider Configurations"
+                    help="Controls whether a provider is available to this tenant, which default models it uses, and how credentials are resolved between platform, tenant, and user scopes."
+                  />
+                  {selectedTenant ? (
+                    <Badge variant="light">
+                      {providerConfigurations.length} providers
+                    </Badge>
+                  ) : null}
+                </Group>
+                {selectedTenant ? (
+                  <Table.ScrollContainer minWidth={760}>
+                    <Table highlightOnHover>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Provider</Table.Th>
+                          <Table.Th>Status</Table.Th>
+                          <Table.Th>Credential path</Table.Th>
+                          <Table.Th>Defaults</Table.Th>
+                          <Table.Th>Actions</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {providerConfigurations.map((configuration) => (
+                          <Table.Tr key={configuration.providerId}>
+                            <Table.Td>
+                              <Text fw={600}>
+                                {configuration.providerDisplayName}
+                              </Text>
+                              <Text size="sm" c="dimmed">
+                                {configuration.providerId}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="xs" wrap="wrap">
+                                <Badge
+                                  color={configuration.enabled ? 'moss' : 'red'}
+                                  variant="light"
+                                >
+                                  {configuration.enabled
+                                    ? 'enabled'
+                                    : 'disabled'}
+                                </Badge>
+                                <Badge
+                                  color={
+                                    configuration.providerStatus === 'active'
+                                      ? 'blue'
+                                      : 'gray'
+                                  }
+                                  variant="outline"
+                                >
+                                  platform {configuration.providerStatus}
+                                </Badge>
+                              </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text fw={600}>
+                                {configuration.credentialMode}
+                              </Text>
+                              <Text size="sm" c="dimmed">
+                                {configuration.preferUserCredentials
+                                  ? 'User-first'
+                                  : 'Tenant-first'}
+                                {' / '}
+                                {configuration.allowTenantFallback
+                                  ? 'tenant fallback'
+                                  : 'no tenant fallback'}
+                                {' / '}
+                                {configuration.allowPlatformFallback
+                                  ? 'platform fallback'
+                                  : 'no platform fallback'}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">
+                                Text:{' '}
+                                {configuration.defaultTextModel ??
+                                  'No tenant default'}
+                              </Text>
+                              <Text size="sm">
+                                Image:{' '}
+                                {configuration.defaultImageModel ??
+                                  'No tenant default'}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Button
+                                size="xs"
+                                variant="light"
+                                onClick={() =>
+                                  onOpenEditProviderConfiguration(configuration)
+                                }
+                              >
+                                Edit config
+                              </Button>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </Table.ScrollContainer>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Select a tenant to manage provider enablement, defaults, and
+                    credential routing.
+                  </Text>
+                )}
+                {selectedTenant &&
+                !providerConfigurations.length &&
+                !providerConfigurationsQuery.isPending ? (
+                  <Text c="dimmed" size="sm" mt="md">
+                    This tenant has no provider configurations yet.
+                  </Text>
+                ) : null}
+              </Card>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="integration-clients">
+              <Card className="section-card">
+                <Group justify="space-between" mb="md">
+                  <SectionTitle
+                    title="Integration Clients"
+                    help="Technical identities for apps like Open WebUI. They are tenant-bound, scoped, and own one or more rotatable API keys."
+                  />
+                  <Group gap="sm">
+                    {selectedTenant ? (
+                      <Badge variant="light">
+                        {integrationClients.length} clients
+                      </Badge>
+                    ) : null}
+                    <Button
+                      size="xs"
+                      onClick={onOpenCreateIntegrationClient}
+                      disabled={!selectedTenant}
+                    >
+                      Add client
+                    </Button>
+                  </Group>
+                </Group>
+                {selectedTenant ? (
+                  <Stack gap="md">
+                    {revealedIntegrationApiKey ? (
+                      <Alert
+                        color="yellow"
+                        variant="light"
+                        title="Copy this API key now"
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm">
+                            This secret for{' '}
+                            <Text span fw={700}>
+                              {revealedIntegrationApiKey.clientDisplayName}
+                            </Text>{' '}
+                            /{' '}
+                            <Text span fw={700}>
+                              {revealedIntegrationApiKey.label}
+                            </Text>{' '}
+                            is shown only once.
+                          </Text>
+                          <Code block>{revealedIntegrationApiKey.apiKey}</Code>
+                          <Group justify="flex-end">
                             <Button
                               size="xs"
                               variant="light"
-                              onClick={() => onOpenEditModelAccessRule(rule)}
+                              onClick={onDismissRevealedIntegrationApiKey}
                             >
-                              Edit rule
+                              Dismiss
                             </Button>
-                          </Table.Td>
+                          </Group>
+                        </Stack>
+                      </Alert>
+                    ) : null}
+                    <Table.ScrollContainer minWidth={860}>
+                      <Table highlightOnHover>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Client</Table.Th>
+                            <Table.Th>Identity</Table.Th>
+                            <Table.Th>Scopes</Table.Th>
+                            <Table.Th>Status</Table.Th>
+                            <Table.Th>Actions</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {integrationClients.map((client) => (
+                            <Table.Tr
+                              key={client.id}
+                              style={{
+                                backgroundColor:
+                                  selectedIntegrationClient?.id === client.id
+                                    ? 'var(--mantine-color-teal-0)'
+                                    : undefined,
+                              }}
+                            >
+                              <Table.Td>
+                                <Text fw={600}>{client.displayName}</Text>
+                                <Text size="sm" c="dimmed">
+                                  {client.clientId}
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                  App: {client.applicationId}
+                                </Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Text size="sm">
+                                  Default user:{' '}
+                                  {client.defaultUserDisplayName ??
+                                    'No default user'}
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                  Forwarded identity:{' '}
+                                  {client.trustedForwardedIdentityEnabled
+                                    ? 'trusted'
+                                    : 'disabled'}
+                                </Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Group gap="xs" wrap="wrap">
+                                  {client.scopes.map((scope) => (
+                                    <Badge key={scope} variant="light">
+                                      {scope}
+                                    </Badge>
+                                  ))}
+                                </Group>
+                              </Table.Td>
+                              <Table.Td>
+                                <Group gap="xs" wrap="wrap">
+                                  <Badge
+                                    color={
+                                      client.status === 'active'
+                                        ? 'moss'
+                                        : 'red'
+                                    }
+                                    variant="light"
+                                  >
+                                    {client.status}
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    {client.apiKeyCount} keys
+                                  </Badge>
+                                </Group>
+                              </Table.Td>
+                              <Table.Td>
+                                <Group gap="xs">
+                                  <Button
+                                    size="xs"
+                                    variant="subtle"
+                                    onClick={() =>
+                                      onSelectIntegrationClient(client)
+                                    }
+                                  >
+                                    View keys
+                                  </Button>
+                                  <Button
+                                    size="xs"
+                                    variant="light"
+                                    onClick={() =>
+                                      onOpenEditIntegrationClient(client)
+                                    }
+                                  >
+                                    Edit client
+                                  </Button>
+                                  <Button
+                                    size="xs"
+                                    onClick={() =>
+                                      onOpenCreateIntegrationApiKey(client)
+                                    }
+                                  >
+                                    Create key
+                                  </Button>
+                                </Group>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </Table.ScrollContainer>
+                    {selectedIntegrationClient ? (
+                      <Card withBorder radius="lg">
+                        <Group justify="space-between" mb="md">
+                          <div>
+                            <Text fw={700}>
+                              API keys for{' '}
+                              {selectedIntegrationClient.displayName}
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                              {selectedIntegrationClient.clientId}
+                            </Text>
+                          </div>
+                          <Button
+                            size="xs"
+                            onClick={() =>
+                              onOpenCreateIntegrationApiKey(
+                                selectedIntegrationClient,
+                              )
+                            }
+                          >
+                            Create key
+                          </Button>
+                        </Group>
+                        <Table.ScrollContainer minWidth={760}>
+                          <Table highlightOnHover>
+                            <Table.Thead>
+                              <Table.Tr>
+                                <Table.Th>Label</Table.Th>
+                                <Table.Th>Hint</Table.Th>
+                                <Table.Th>Scopes</Table.Th>
+                                <Table.Th>Status</Table.Th>
+                                <Table.Th>Last used</Table.Th>
+                                <Table.Th>Actions</Table.Th>
+                              </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                              {integrationApiKeys.map((apiKey) => (
+                                <Table.Tr key={apiKey.id}>
+                                  <Table.Td>
+                                    <Text fw={600}>{apiKey.label}</Text>
+                                    <Text size="sm" c="dimmed">
+                                      {apiKey.expiresAt
+                                        ? `Expires ${new Date(apiKey.expiresAt).toLocaleString()}`
+                                        : 'No expiry'}
+                                    </Text>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Code>{apiKey.keyHint ?? 'hidden'}</Code>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Group gap="xs" wrap="wrap">
+                                      {apiKey.scopes.map((scope) => (
+                                        <Badge key={scope} variant="light">
+                                          {scope}
+                                        </Badge>
+                                      ))}
+                                    </Group>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Badge
+                                      color={
+                                        apiKey.status === 'active'
+                                          ? 'moss'
+                                          : 'red'
+                                      }
+                                      variant="light"
+                                    >
+                                      {apiKey.status}
+                                    </Badge>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Text size="sm">
+                                      {apiKey.lastUsedAt
+                                        ? new Date(
+                                            apiKey.lastUsedAt,
+                                          ).toLocaleString()
+                                        : 'Never'}
+                                    </Text>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    <Group gap="xs">
+                                      <Button
+                                        size="xs"
+                                        variant="light"
+                                        onClick={() =>
+                                          onOpenEditIntegrationApiKey(
+                                            selectedIntegrationClient,
+                                            apiKey,
+                                          )
+                                        }
+                                      >
+                                        Edit key
+                                      </Button>
+                                      <Button
+                                        size="xs"
+                                        variant="subtle"
+                                        onClick={() =>
+                                          onOpenEditIntegrationApiKey(
+                                            selectedIntegrationClient,
+                                            apiKey,
+                                          )
+                                        }
+                                      >
+                                        Select
+                                      </Button>
+                                    </Group>
+                                  </Table.Td>
+                                </Table.Tr>
+                              ))}
+                            </Table.Tbody>
+                          </Table>
+                        </Table.ScrollContainer>
+                        {!integrationApiKeys.length &&
+                        !integrationApiKeysQuery.isPending ? (
+                          <Text c="dimmed" size="sm" mt="md">
+                            This integration client has no API keys yet.
+                          </Text>
+                        ) : null}
+                      </Card>
+                    ) : (
+                      <Text c="dimmed" size="sm">
+                        Select an integration client to inspect and rotate its
+                        API keys.
+                      </Text>
+                    )}
+                  </Stack>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Select a tenant to manage tenant-scoped technical clients
+                    and their API keys.
+                  </Text>
+                )}
+                {selectedTenant &&
+                !integrationClients.length &&
+                !integrationClientsQuery.isPending ? (
+                  <Text c="dimmed" size="sm" mt="md">
+                    This tenant has no integration clients yet.
+                  </Text>
+                ) : null}
+              </Card>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="model-rules">
+              <Card className="section-card">
+                <Group justify="space-between" mb="md">
+                  <SectionTitle
+                    title="Model Access Rules"
+                    help="Allow or deny rules for provider models, evaluated by priority. At equal priority, deny wins over allow."
+                  />
+                  <Group gap="sm">
+                    {selectedTenant ? (
+                      <Badge variant="light">
+                        {modelAccessRules.length} rules
+                      </Badge>
+                    ) : null}
+                    <Button
+                      size="xs"
+                      onClick={onOpenCreateModelAccessRule}
+                      disabled={!selectedTenant}
+                    >
+                      Add rule
+                    </Button>
+                  </Group>
+                </Group>
+                {selectedTenant ? (
+                  <Table.ScrollContainer minWidth={860}>
+                    <Table highlightOnHover>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Provider</Table.Th>
+                          <Table.Th>Pattern</Table.Th>
+                          <Table.Th>Capability</Table.Th>
+                          <Table.Th>Effect</Table.Th>
+                          <Table.Th>Limits</Table.Th>
+                          <Table.Th>Priority</Table.Th>
+                          <Table.Th>Actions</Table.Th>
                         </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Table.ScrollContainer>
-              ) : (
-                <Text c="dimmed" size="sm">
-                  Select a tenant to control which models and capabilities are
-                  exposed.
-                </Text>
-              )}
-              {selectedTenant &&
-              !modelAccessRules.length &&
-              !modelAccessRulesQuery.isPending ? (
-                <Text c="dimmed" size="sm" mt="md">
-                  No model access rules are defined yet. The current behavior is
-                  allow-by-default unless a matching rule denies access.
-                </Text>
-              ) : null}
-            </Card>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {modelAccessRules.map((rule) => (
+                          <Table.Tr key={rule.id}>
+                            <Table.Td>
+                              <Text fw={600}>{rule.providerId}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text fw={600}>{rule.modelPattern}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge variant="light">{rule.capability}</Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge
+                                color={rule.effect === 'allow' ? 'teal' : 'red'}
+                                variant="light"
+                              >
+                                {rule.effect}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">
+                                In: {rule.maxInputTokens ?? 'n/a'} / Out:{' '}
+                                {rule.maxOutputTokens ?? 'n/a'}
+                              </Text>
+                              <Text size="sm">
+                                Images: {rule.maxImagesPerRequest ?? 'n/a'} /
+                                Res: {rule.maxResolution ?? 'n/a'}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>{rule.priority}</Table.Td>
+                            <Table.Td>
+                              <Button
+                                size="xs"
+                                variant="light"
+                                onClick={() => onOpenEditModelAccessRule(rule)}
+                              >
+                                Edit rule
+                              </Button>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </Table.ScrollContainer>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Select a tenant to control which models and capabilities are
+                    exposed.
+                  </Text>
+                )}
+                {selectedTenant &&
+                !modelAccessRules.length &&
+                !modelAccessRulesQuery.isPending ? (
+                  <Text c="dimmed" size="sm" mt="md">
+                    No model access rules are defined yet. The current behavior
+                    is allow-by-default unless a matching rule denies access.
+                  </Text>
+                ) : null}
+              </Card>
             </Tabs.Panel>
           </Tabs>
         </Grid.Col>
       </Grid>
 
-      <Modal opened={createOpened} onClose={onCloseCreate} title="Create tenant">
+      <Modal
+        opened={createOpened}
+        onClose={onCloseCreate}
+        title="Create tenant"
+      >
         <form onSubmit={handleCreateTenantSubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Provision a new tenant isolation boundary with a stable slug and an
-              explicit BYOK override policy.
+              Provision a new tenant isolation boundary with a stable slug and
+              an explicit BYOK override policy.
             </Text>
             <TextInput
               label={
@@ -1243,7 +1317,9 @@ export function TenantsPage() {
               }
               placeholder="customer-acme"
               value={createSlug}
-              onChange={(event) => onCreateSlugChange(event.currentTarget.value)}
+              onChange={(event) =>
+                onCreateSlugChange(event.currentTarget.value)
+              }
             />
             <TextInput
               label={
@@ -1354,7 +1430,11 @@ export function TenantsPage() {
               ]}
             />
             <Group justify="space-between">
-              <Button onClick={onCloseCreateMember} type="button" variant="light">
+              <Button
+                onClick={onCloseCreateMember}
+                type="button"
+                variant="light"
+              >
                 Cancel
               </Button>
               <Button
@@ -1637,7 +1717,8 @@ export function TenantsPage() {
                 disabled={
                   !editIntegrationClientDisplayName.trim() ||
                   !editIntegrationClientApplicationId.trim() ||
-                  (!selectedIntegrationClient && !editIntegrationClientId.trim())
+                  (!selectedIntegrationClient &&
+                    !editIntegrationClientId.trim())
                 }
               >
                 {selectedIntegrationClient ? 'Save client' : 'Create client'}
@@ -1655,8 +1736,8 @@ export function TenantsPage() {
         <form onSubmit={handleUpsertTenantIntegrationApiKeySubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              API keys inherit tenant isolation from their integration client and
-              can be narrowed further with their own scope set.
+              API keys inherit tenant isolation from their integration client
+              and can be narrowed further with their own scope set.
             </Text>
             {selectedIntegrationClient ? (
               <div>
@@ -1772,7 +1853,11 @@ export function TenantsPage() {
       <Modal
         opened={editModelAccessRuleOpened}
         onClose={onCloseEditModelAccessRule}
-        title={selectedModelAccessRule ? 'Edit model access rule' : 'Add model access rule'}
+        title={
+          selectedModelAccessRule
+            ? 'Edit model access rule'
+            : 'Add model access rule'
+        }
       >
         <form onSubmit={handleUpsertTenantModelAccessRuleSubmit}>
           <Stack gap="md">
@@ -1870,7 +1955,9 @@ export function TenantsPage() {
                 label="Max output tokens"
                 value={editModelRuleMaxOutputTokens}
                 onChange={(event) =>
-                  onEditModelRuleMaxOutputTokensChange(event.currentTarget.value)
+                  onEditModelRuleMaxOutputTokensChange(
+                    event.currentTarget.value,
+                  )
                 }
               />
             </Group>
