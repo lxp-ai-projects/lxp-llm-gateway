@@ -19,6 +19,8 @@ import { ProviderEntity } from './persistence/entities/provider.entity';
 import { ApiKeyEntity } from './persistence/entities/api-key.entity';
 import { IntegrationClientEntity } from './persistence/entities/integration-client.entity';
 import { TenantEntity } from './persistence/entities/tenant.entity';
+import { TenantPublicHostEntity } from './persistence/entities/tenant-public-host.entity';
+import { TenantRegistrationSettingsEntity } from './persistence/entities/tenant-registration-settings.entity';
 import { TenantMembershipEntity } from './persistence/entities/tenant-membership.entity';
 import { TenantModelAccessRuleEntity } from './persistence/entities/tenant-model-access-rule.entity';
 import { TenantProviderConfigurationEntity } from './persistence/entities/tenant-provider-configuration.entity';
@@ -34,6 +36,8 @@ import { AdminProviderCredentialService } from './admin/admin-provider-credentia
 import { AdminService } from './admin/admin.service';
 import { ConversationTransferController } from './conversation-transfer/conversation-transfer.controller';
 import { ConversationTransferService } from './conversation-transfer/conversation-transfer.service';
+import { TenantPublicHostResolverService } from './registration/tenant-public-host-resolver.service';
+import { TenantRegistrationService } from './registration/tenant-registration.service';
 
 @Module({
   imports: [
@@ -53,6 +57,8 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
       IntegrationClientEntity,
       ApiKeyEntity,
       TenantEntity,
+      TenantPublicHostEntity,
+      TenantRegistrationSettingsEntity,
       TenantMembershipEntity,
       TenantModelAccessRuleEntity,
       TenantProviderConfigurationEntity,
@@ -78,6 +84,8 @@ import { ConversationTransferService } from './conversation-transfer/conversatio
     AdminProviderCredentialService,
     AdminService,
     ConversationTransferService,
+    TenantPublicHostResolverService,
+    TenantRegistrationService,
   ],
 })
 export class AppModule {}

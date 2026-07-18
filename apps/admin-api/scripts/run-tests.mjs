@@ -18,6 +18,7 @@ const testFiles = [
   'src/security/email-protection.service.test.ts',
   'src/security/password.service.test.ts',
   'src/persistence/database.integration.test.ts',
+  'src/registration/tenant-public-host-resolver.service.test.ts',
 ];
 
 const args = [tsxCliPath, '--test', '--test-concurrency=1'];

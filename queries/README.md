@@ -28,6 +28,11 @@ Use the `dev` environment when running the requests locally.
 - `provider-credentials.http`
 - `gateway-api.http`
 
+`admin-api.http` also includes tenant registration foundation requests. Set
+`tenantId`, `publicHostname`, and `publicHostId` in `http-client.private.env.json` before using
+them. The runtime request sends `Host: {{publicHostname}}` to exercise public
+tenant resolution locally.
+
 ## Notes
 
 - Do not save real API tokens into committed files.

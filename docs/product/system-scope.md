@@ -1,5 +1,12 @@
 # System Scope
 
+## Tenant-aware registration foundation
+
+Public runtime configuration can resolve one active tenant by explicit hostname.
+With multiple active tenants, an exact enabled mapping is required. This release
+only exposes registration eligibility; account creation and role assignment are
+out of scope.
+
 ## Goal
 
 `lxp-llm-gateway` is a BYOK (bring your own key) platform foundation for routing LLM traffic through a consistent gateway while keeping provider integrations isolated behind a stable adapter seam.

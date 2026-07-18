@@ -112,6 +112,10 @@ That guide now includes Linux and PowerShell helpers for generating a coherent V
 
 ## VPS Deploy
 
+Public registration is disabled by default. Set `LXP_TRUST_PROXY=true` only when
+`admin-api` is behind a controlled reverse proxy; this permits resolution from
+the proxy-provided `X-Forwarded-Host` header.
+
 For a production-like single-host VPS install, use:
 
 - [docs/setup/vps.md](docs/setup/vps.md)

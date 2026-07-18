@@ -182,6 +182,9 @@ Recommended minimal posture:
 - terminate TLS at the reverse proxy
 - allow public traffic to the proxy only
 - keep Docker-published ports on loopback
+- set `LXP_TRUST_PROXY=true` for `admin-api` only when this reverse proxy is the
+  controlled public entrypoint; it permits tenant resolution from Caddy's
+  `X-Forwarded-Host` header
 
 ## 5. Bootstrap The First Admin
 
