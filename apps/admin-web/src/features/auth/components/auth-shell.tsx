@@ -1,0 +1,15 @@
+import { Container } from '@mantine/core';
+import type { PropsWithChildren } from 'react';
+
+import { AnimatedWaveBackground } from './animated-wave-background';
+
+export function AuthShell({ children }: PropsWithChildren) {
+  return (
+    <main className="auth-page" data-testid="auth-shell">
+      <AnimatedWaveBackground />
+      <Container className="auth-shell-container" size={1180}>
+        {children}
+      </Container>
+    </main>
+  );
+}

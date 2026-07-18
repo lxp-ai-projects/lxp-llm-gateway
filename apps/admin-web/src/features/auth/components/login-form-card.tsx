@@ -44,11 +44,21 @@ export function LoginFormCard({
   sessionTimeoutMessage,
 }: LoginFormCardProps) {
   return (
-    <Card className="hero-card auth-form-card">
+    <Card
+      className="auth-form-card"
+      component="form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
       <Stack gap="lg">
         <div>
-          <Text className="page-kicker">Login</Text>
+          <Text className="auth-form-kicker">Secure sign in</Text>
           <Title order={2}>Welcome back</Title>
+          <Text c="dimmed" mt="xs">
+            Sign in to continue to your LXP workspace.
+          </Text>
         </div>
 
         {loginErrorMessage ? (
@@ -109,8 +119,8 @@ export function LoginFormCard({
           disabled={!acceptedPolicies || !email || !password}
           leftSection={<IconLockPassword size={16} />}
           loading={isPending}
-          onClick={onSubmit}
           size="md"
+          type="submit"
         >
           Sign in
         </Button>

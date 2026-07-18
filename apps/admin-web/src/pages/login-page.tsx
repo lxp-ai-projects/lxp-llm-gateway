@@ -1,10 +1,10 @@
-import { Container } from '@mantine/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { AuthBrandPanel } from '../features/auth/components/auth-brand-panel';
+import { AuthShell } from '../features/auth/components/auth-shell';
 import { LoginFormCard } from '../features/auth/components/login-form-card';
-import { LoginHeroCard } from '../features/auth/components/login-hero-card';
 import {
   adminApiClient,
   SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
@@ -64,36 +64,34 @@ export function LoginPage() {
   });
 
   return (
-    <div className="auth-page">
-      <Container size={1180}>
-        <div className="auth-grid">
-          <LoginHeroCard />
-          <LoginFormCard
-            acceptedPolicies={acceptedPolicies}
-            email={email}
-            forgotPasswordEnabled={Boolean(
-              runtimeConfigQuery.data?.forgotPasswordEnabled,
-            )}
-            isPending={loginMutation.isPending}
-            loginErrorMessage={
-              loginMutation.isError
-                ? loginMutation.error instanceof Error
-                  ? loginMutation.error.message
-                  : 'Unable to authenticate with the current credentials.'
-                : null
-            }
-            onAcceptedPoliciesChange={handleAcceptedPoliciesChange}
-            onEmailChange={handleEmailChange}
-            onPasswordChange={handlePasswordChange}
-            onSubmit={() => loginMutation.mutate()}
-            password={password}
-            registrationEnabled={Boolean(
-              runtimeConfigQuery.data?.registrationEnabled,
-            )}
-            sessionTimeoutMessage={sessionTimeoutMessage}
-          />
-        </div>
-      </Container>
-    </div>
+    <AuthShell>
+      <div className="auth-grid">
+        <AuthBrandPanel />
+        <LoginFormCard
+          acceptedPolicies={acceptedPolicies}
+          email={email}
+          forgotPasswordEnabled={Boolean(
+            runtimeConfigQuery.data?.forgotPasswordEnabled,
+          )}
+          isPending={loginMutation.isPending}
+          loginErrorMessage={
+            loginMutation.isError
+              ? loginMutation.error instanceof Error
+                ? loginMutation.error.message
+                : 'Unable to authenticate with the current credentials.'
+              : null
+          }
+          onAcceptedPoliciesChange={handleAcceptedPoliciesChange}
+          onEmailChange={handleEmailChange}
+          onPasswordChange={handlePasswordChange}
+          onSubmit={() => loginMutation.mutate()}
+          password={password}
+          registrationEnabled={Boolean(
+            runtimeConfigQuery.data?.registrationEnabled,
+          )}
+          sessionTimeoutMessage={sessionTimeoutMessage}
+        />
+      </div>
+    </AuthShell>
   );
 }

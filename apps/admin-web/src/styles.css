@@ -36,13 +36,196 @@ a {
 }
 
 .auth-page {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
   min-height: 100vh;
-  padding: 24px 12px;
+  padding: clamp(20px, 5vw, 72px) 12px;
+  background:
+    radial-gradient(
+      circle at 78% 18%,
+      rgba(38, 196, 209, 0.28),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 15% 84%,
+      rgba(20, 132, 180, 0.3),
+      transparent 32%
+    ),
+    linear-gradient(135deg, #03172b 0%, #06304b 52%, #04233c 100%);
+  color: #e9fcff;
+}
+
+.auth-shell-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
 }
 
 .auth-grid {
   display: grid;
-  gap: 24px;
+  gap: clamp(24px, 5vw, 76px);
+  align-items: center;
+}
+
+.auth-grid > * {
+  min-width: 0;
+}
+
+.auth-wave-background {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.auth-wave-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.auth-wave path {
+  fill: url(#auth-wave-cyan);
+}
+
+.auth-wave-far {
+  opacity: 0.65;
+  animation: auth-wave-drift 28s ease-in-out infinite alternate;
+}
+
+.auth-wave-mid {
+  opacity: 0.82;
+  animation: auth-wave-drift 22s ease-in-out infinite alternate-reverse;
+}
+
+.auth-wave-near {
+  opacity: 0.96;
+  animation: auth-wave-drift 34s ease-in-out infinite alternate;
+}
+
+.auth-wave-line {
+  fill: none;
+  stroke: url(#auth-wave-blue);
+  stroke-width: 2;
+}
+
+.auth-wave-line-one {
+  animation: auth-wave-drift 25s ease-in-out infinite alternate-reverse;
+}
+
+.auth-wave-line-two {
+  animation: auth-wave-drift 31s ease-in-out infinite alternate;
+}
+
+.auth-brand-panel {
+  max-width: 590px;
+  padding: clamp(8px, 2vw, 28px) 0;
+}
+
+.auth-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border: 1px solid rgba(195, 255, 250, 0.48);
+  border-radius: 22px;
+  background: linear-gradient(
+    145deg,
+    rgba(153, 255, 239, 0.3),
+    rgba(33, 133, 184, 0.16)
+  );
+  box-shadow:
+    0 20px 50px rgba(0, 12, 32, 0.3),
+    inset 0 1px rgba(255, 255, 255, 0.28);
+  color: #dffffa;
+  font-family: 'Aptos Display', Aptos, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.auth-brand-badge {
+  margin-bottom: 16px;
+  border: 1px solid rgba(178, 255, 244, 0.24);
+  background: rgba(179, 255, 244, 0.12);
+  color: #c9fff6;
+}
+
+.auth-brand-panel h1 {
+  max-width: 11ch;
+  color: #f3ffff;
+  font-size: clamp(2.6rem, 6vw, 5.35rem);
+  line-height: 0.96;
+  letter-spacing: -0.055em;
+}
+
+.auth-brand-copy {
+  max-width: 46ch;
+  color: rgba(224, 248, 252, 0.8);
+  line-height: 1.65;
+}
+
+.auth-brand-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(224, 248, 252, 0.76);
+}
+
+.auth-brand-note-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #7ff4e2;
+  box-shadow: 0 0 18px #7ff4e2;
+}
+
+.auth-form-card {
+  width: min(100%, 480px);
+  margin-left: auto;
+  padding: clamp(22px, 4vw, 38px);
+  border: 1px solid rgba(225, 255, 252, 0.38);
+  background: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(232, 249, 250, 0.92)
+  );
+  box-shadow:
+    0 28px 80px rgba(0, 11, 30, 0.36),
+    inset 0 1px rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(18px);
+}
+
+.auth-form-card .mantine-Input-input {
+  min-height: 46px;
+  border-color: rgba(15, 81, 100, 0.2);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.auth-form-card .mantine-Input-input:focus {
+  border-color: #087f8c;
+  box-shadow: 0 0 0 3px rgba(10, 161, 169, 0.18);
+}
+
+.auth-form-card .mantine-Button-root {
+  min-height: 48px;
+  background: linear-gradient(100deg, #057b88, #0564a0);
+  box-shadow: 0 12px 24px rgba(5, 100, 160, 0.24);
+}
+
+.auth-form-card .mantine-Button-root:hover:not(:disabled) {
+  background: linear-gradient(100deg, #046b77, #07578d);
+}
+
+.auth-form-kicker {
+  margin-bottom: 8px;
+  color: #08717d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
 .hero-card {
@@ -55,16 +238,6 @@ a {
     ),
     rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(12px);
-}
-
-.auth-story {
-  min-height: 100%;
-  justify-content: center;
-}
-
-.auth-form-card {
-  max-width: 520px;
-  margin-left: auto;
 }
 
 .hero-highlight {
@@ -380,12 +553,7 @@ a {
 }
 
 .markdown-code-pre code {
-  font-family:
-    'SFMono-Regular',
-    Consolas,
-    'Liberation Mono',
-    Menlo,
-    monospace;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 .chat-bubble.streaming {
@@ -595,11 +763,7 @@ a {
   white-space: pre-wrap;
   word-break: break-word;
   font-family:
-    'SFMono-Regular',
-    'Cascadia Code',
-    'Fira Code',
-    Consolas,
-    monospace;
+    SFMono-Regular, 'Cascadia Code', 'Fira Code', Consolas, monospace;
 }
 
 .image-result-card {
@@ -632,8 +796,17 @@ a {
   overflow: hidden;
   border-radius: 16px;
   background:
-    radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.52), transparent 22%),
-    linear-gradient(135deg, rgba(4, 54, 74, 0.98), rgba(17, 108, 126, 0.94) 42%, rgba(230, 120, 24, 0.88));
+    radial-gradient(
+      circle at 24% 18%,
+      rgba(255, 255, 255, 0.52),
+      transparent 22%
+    ),
+    linear-gradient(
+      135deg,
+      rgba(4, 54, 74, 0.98),
+      rgba(17, 108, 126, 0.94) 42%,
+      rgba(230, 120, 24, 0.88)
+    );
 }
 
 .image-result-loading-plasma,
@@ -648,24 +821,39 @@ a {
 
 .image-result-loading-plasma {
   background:
-    radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.72), transparent 18%),
-    radial-gradient(circle at 68% 38%, rgba(92, 246, 255, 0.78), transparent 20%),
-    radial-gradient(circle at 44% 72%, rgba(255, 196, 77, 0.72), transparent 23%),
-    radial-gradient(circle at 76% 74%, rgba(255, 121, 198, 0.62), transparent 18%);
+    radial-gradient(
+      circle at 32% 30%,
+      rgba(255, 255, 255, 0.72),
+      transparent 18%
+    ),
+    radial-gradient(
+      circle at 68% 38%,
+      rgba(92, 246, 255, 0.78),
+      transparent 20%
+    ),
+    radial-gradient(
+      circle at 44% 72%,
+      rgba(255, 196, 77, 0.72),
+      transparent 23%
+    ),
+    radial-gradient(
+      circle at 76% 74%,
+      rgba(255, 121, 198, 0.62),
+      transparent 18%
+    );
   animation: image-plasma-drift 8s ease-in-out infinite alternate;
 }
 
 .image-result-loading-glow {
   inset: -12%;
-  background:
-    conic-gradient(
-      from 0deg,
-      rgba(255, 255, 255, 0.05),
-      rgba(125, 240, 255, 0.3),
-      rgba(255, 191, 87, 0.26),
-      rgba(255, 255, 255, 0.08),
-      rgba(125, 240, 255, 0.3)
-    );
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(125, 240, 255, 0.3),
+    rgba(255, 191, 87, 0.26),
+    rgba(255, 255, 255, 0.08),
+    rgba(125, 240, 255, 0.3)
+  );
   animation: image-plasma-spin 9s linear infinite;
 }
 
@@ -709,25 +897,52 @@ a {
   }
 }
 
-@media (min-width: 960px) {
-  .auth-page {
-    display: flex;
-    align-items: center;
+@keyframes auth-wave-drift {
+  from {
+    transform: translate3d(-3%, -1%, 0) scale(1.03);
   }
 
+  to {
+    transform: translate3d(3%, 2%, 0) scale(1);
+  }
+}
+
+@media (min-width: 960px) {
   .auth-grid {
     grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
-    align-items: stretch;
   }
 }
 
 @media (max-width: 47.99em) {
+  .auth-page {
+    display: block;
+    padding-top: 28px;
+  }
+
   .auth-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .auth-brand-panel {
+    width: calc(100vw - 56px);
+    padding: 0;
+  }
+
+  .auth-brand-panel .mantine-Stack-root {
+    gap: 1rem;
+  }
+
+  .auth-brand-panel h1 {
+    display: none;
+  }
+
+  .auth-brand-copy {
+    display: none;
+  }
+
   .auth-form-card {
-    max-width: 100%;
+    width: calc(100vw - 56px);
+    max-width: calc(100vw - 56px);
     margin-left: 0;
   }
 
@@ -939,5 +1154,15 @@ a {
 
   .shell-status-meta {
     gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-wave-far,
+  .auth-wave-mid,
+  .auth-wave-near,
+  .auth-wave-line-one,
+  .auth-wave-line-two {
+    animation: none;
   }
 }
