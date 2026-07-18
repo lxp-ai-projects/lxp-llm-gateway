@@ -763,7 +763,7 @@ a {
   white-space: pre-wrap;
   word-break: break-word;
   font-family:
-    'SFMono-Regular', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    SFMono-Regular, 'Cascadia Code', 'Fira Code', Consolas, monospace;
 }
 
 .image-result-card {
