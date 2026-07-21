@@ -366,6 +366,7 @@ export function TenantsPage() {
                 </Group>
                 {selectedTenant ? (
                   <TenantRegistrationPanel
+                    key={selectedTenant.id}
                     tenantId={selectedTenant.id}
                     activeTenantCount={
                       tenantCards.filter((tenant) => tenant.status === 'active')

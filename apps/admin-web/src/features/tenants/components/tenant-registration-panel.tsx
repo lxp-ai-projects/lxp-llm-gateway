@@ -70,6 +70,11 @@ export function TenantRegistrationPanel({
     createHost.isPending ||
     deleteHost.isPending ||
     updateHost.isPending;
+  const mutationFailed =
+    updateSettings.isError ||
+    createHost.isError ||
+    deleteHost.isError ||
+    updateHost.isError;
 
   if (settings.isPending || hosts.isPending)
     return <Loader aria-label="Loading registration settings" />;
@@ -80,7 +85,12 @@ export function TenantRegistrationPanel({
 
   return (
     <Stack gap="md">
-      {activeTenantCount > 1 && !hosts.data.length ? (
+      {mutationFailed ? (
+        <Alert color="red">
+          Registration settings could not be saved. Please try again.
+        </Alert>
+      ) : null}
+      {activeTenantCount > 1 && !hosts.data.some((host) => host.enabled) ? (
         <Alert color="yellow">
           A public hostname mapping is required when more than one active tenant
           exists.
@@ -119,6 +129,7 @@ export function TenantRegistrationPanel({
           <Group gap="xs">
             <Switch
               label="Enabled"
+              aria-label={`Enabled ${host.hostname}`}
               checked={host.enabled}
               disabled={pending}
               onChange={(event) =>
@@ -130,6 +141,7 @@ export function TenantRegistrationPanel({
             />
             <Switch
               label="Primary"
+              aria-label={`Primary ${host.hostname}`}
               checked={host.isPrimary}
               disabled={pending}
               onChange={(event) =>
@@ -148,6 +160,7 @@ export function TenantRegistrationPanel({
                   deleteHost.mutate(host.id);
               }}
               disabled={pending}
+              aria-label={`Remove ${host.hostname}`}
             >
               Remove
             </Button>

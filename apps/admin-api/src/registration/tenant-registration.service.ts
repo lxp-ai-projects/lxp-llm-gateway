@@ -92,9 +92,6 @@ export class TenantRegistrationService {
   }
 
   async resolvePublicContext(hostname: string | null) {
-    const activeTenants = await this.tenantRepository.find({
-      where: { status: 'active' },
-    });
     let tenant: TenantEntity | null = null;
     if (hostname) {
       const host = await this.hostRepository.findOne({
@@ -102,8 +99,13 @@ export class TenantRegistrationService {
         relations: { tenant: true },
       });
       if (host?.tenant.status === 'active') tenant = host.tenant;
-    } else if (activeTenants.length === 1) {
-      tenant = activeTenants[0];
+    }
+    if (!tenant) {
+      const activeTenants = await this.tenantRepository.find({
+        where: { status: 'active' },
+        take: 2,
+      });
+      if (activeTenants.length === 1) tenant = activeTenants[0];
     }
     if (!tenant) return { registrationEnabled: false, tenant: null };
     const settings = await this.getOrCreateSettings(tenant.id);

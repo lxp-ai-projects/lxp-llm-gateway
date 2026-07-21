@@ -3,15 +3,17 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { TenantEntity } from './tenant.entity';
 
 @Entity({ name: 'tenant_public_hosts' })
-@Index('ux_tenant_public_hosts_hostname', ['hostname'], { unique: true })
+@Unique('UQ_tenant_public_hosts_hostname', ['hostname'])
 @Index('ix_tenant_public_hosts_tenant_id', ['tenantId'])
 export class TenantPublicHostEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -36,5 +38,6 @@ export class TenantPublicHostEntity {
   updatedAt!: Date;
 
   @ManyToOne(() => TenantEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tenant_id' })
   tenant!: TenantEntity;
 }

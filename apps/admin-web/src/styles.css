@@ -553,7 +553,7 @@ a {
 }
 
 .markdown-code-pre code {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 .chat-bubble.streaming {

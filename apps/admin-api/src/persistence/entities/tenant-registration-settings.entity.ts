@@ -2,7 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
+  JoinColumn,
   ManyToOne,
   PrimaryColumn,
   UpdateDateColumn,
@@ -11,7 +11,6 @@ import {
 import { TenantEntity } from './tenant.entity';
 
 @Entity({ name: 'tenant_registration_settings' })
-@Index('ux_tenant_registration_settings_tenant', ['tenantId'], { unique: true })
 export class TenantRegistrationSettingsEntity {
   @PrimaryColumn({ name: 'tenant_id', type: 'uuid' })
   tenantId!: string;
@@ -26,5 +25,6 @@ export class TenantRegistrationSettingsEntity {
   updatedAt!: Date;
 
   @ManyToOne(() => TenantEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tenant_id' })
   tenant!: TenantEntity;
 }
