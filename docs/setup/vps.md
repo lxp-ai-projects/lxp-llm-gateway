@@ -383,4 +383,4 @@ Check:
 
 ## Registration SMTP
 
-Enable SMTP only after adding valid deployment secrets. Incomplete SMTP configuration leaves the application running but does not advertise the email verification channel. Use `LXP_SMTP_REQUIRE_TLS=true` for submission transports.
+Choose an explicit transport with `LXP_EMAIL_DELIVERY_PROVIDER=smtp|mailersend`. SMTP requires its existing host credentials; MailerSend requires `LXP_MAILERSEND_API_KEY` and a verified `LXP_MAILERSEND_FROM_EMAIL`. Incomplete selected-provider configuration leaves the application running but does not advertise the email verification channel. Use `LXP_SMTP_REQUIRE_TLS=true` for SMTP submission transports.

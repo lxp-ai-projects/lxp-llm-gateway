@@ -86,8 +86,16 @@ export function validateRuntimeConfig(
   getRequiredString(env, 'LXP_JWT_PRIVATE_KEY', { allowEmptyInLocal: true });
   getRequiredString(env, 'REDIS_URL', { allowEmptyInLocal: true });
 
-  if (env.LXP_SMTP_ENABLED === 'true') {
+  if (
+    (env.LXP_EMAIL_DELIVERY_PROVIDER ?? 'smtp') === 'smtp' &&
+    env.LXP_SMTP_ENABLED === 'true'
+  ) {
     for (const key of ['LXP_SMTP_HOST', 'LXP_SMTP_USER', 'LXP_SMTP_PASSWORD', 'LXP_SMTP_FROM_EMAIL']) {
+      getRequiredString(env, key);
+    }
+  }
+  if (env.LXP_EMAIL_DELIVERY_PROVIDER === 'mailersend') {
+    for (const key of ['LXP_MAILERSEND_API_KEY', 'LXP_MAILERSEND_FROM_EMAIL']) {
       getRequiredString(env, key);
     }
   }
