@@ -36,6 +36,10 @@ import { UpdateIntegrationClientApiKeyDto } from './admin/dto/update-integration
 import { UpdateTenantModelAccessRuleDto } from './admin/dto/update-tenant-model-access-rule.dto';
 import { UpdateGlobalRolesDto } from './admin/dto/update-global-roles.dto';
 import { UpdateUserDto } from './admin/dto/update-user.dto';
+import { CreateTenantPublicHostDto } from './registration/dto/create-tenant-public-host.dto';
+import { UpdateTenantPublicHostDto } from './registration/dto/update-tenant-public-host.dto';
+import { UpdateTenantRegistrationSettingsDto } from './registration/dto/update-tenant-registration-settings.dto';
+import { TenantRegistrationService } from './registration/tenant-registration.service';
 import { AccessTokenGuard } from './auth/access-token.guard';
 import type { RequestWithAuthUser } from './auth/auth-request.types';
 import { RolesGuard } from './auth/roles.guard';
@@ -46,6 +50,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly adminCatalogService: AdminCatalogService,
+    private readonly tenantRegistrationService: TenantRegistrationService,
   ) {}
 
   @Post('bootstrap/admin')
@@ -469,6 +474,48 @@ export class AdminController {
   @UseGuards(AccessTokenGuard)
   getOwnVideoCatalog(@Req() request: RequestWithAuthUser) {
     return this.adminService.getOwnVideoCatalog(request.authAccessToken!);
+  }
+
+  @Get('admin/tenants/:tenantId/registration-settings')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  getTenantRegistrationSettings(@Param('tenantId') tenantId: string) {
+    return this.tenantRegistrationService.getSettings(tenantId);
+  }
+
+  @Patch('admin/tenants/:tenantId/registration-settings')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  updateTenantRegistrationSettings(@Param('tenantId') tenantId: string, @Body() dto: UpdateTenantRegistrationSettingsDto) {
+    return this.tenantRegistrationService.updateSettings(tenantId, dto);
+  }
+
+  @Get('admin/tenants/:tenantId/public-hosts')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  listTenantPublicHosts(@Param('tenantId') tenantId: string) {
+    return this.tenantRegistrationService.listHosts(tenantId);
+  }
+
+  @Post('admin/tenants/:tenantId/public-hosts')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  createTenantPublicHost(@Param('tenantId') tenantId: string, @Body() dto: CreateTenantPublicHostDto) {
+    return this.tenantRegistrationService.createHost(tenantId, dto);
+  }
+
+  @Patch('admin/tenants/:tenantId/public-hosts/:hostId')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  updateTenantPublicHost(@Param('tenantId') tenantId: string, @Param('hostId') hostId: string, @Body() dto: UpdateTenantPublicHostDto) {
+    return this.tenantRegistrationService.updateHost(tenantId, hostId, dto);
+  }
+
+  @Delete('admin/tenants/:tenantId/public-hosts/:hostId')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  deleteTenantPublicHost(@Param('tenantId') tenantId: string, @Param('hostId') hostId: string) {
+    return this.tenantRegistrationService.deleteHost(tenantId, hostId);
   }
 
   @Post('chat')

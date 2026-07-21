@@ -6,6 +6,8 @@ import { IntegrationClientEntity } from '../persistence/entities/integration-cli
 import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { RoleEntity } from '../persistence/entities/role.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
+import { TenantPublicHostEntity } from '../persistence/entities/tenant-public-host.entity';
+import { TenantRegistrationSettingsEntity } from '../persistence/entities/tenant-registration-settings.entity';
 import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { TenantModelAccessRuleEntity } from '../persistence/entities/tenant-model-access-rule.entity';
 import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
@@ -105,6 +107,8 @@ function getBaseDataSourceOptions(): DataSourceOptions {
       IntegrationClientEntity,
       ApiKeyEntity,
       TenantEntity,
+      TenantPublicHostEntity,
+      TenantRegistrationSettingsEntity,
       TenantMembershipEntity,
       TenantModelAccessRuleEntity,
       TenantPolicyEntity,

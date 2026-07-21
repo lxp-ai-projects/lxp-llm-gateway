@@ -1,5 +1,13 @@
 # Architecture Overview
 
+## Public Tenant Resolution
+
+`admin-api` resolves public registration context through explicit tenant hostname
+mappings and disabled-by-default tenant settings. A single active tenant can be
+the default; multi-tenant deployments require an exact enabled mapping. The
+runtime endpoint returns only a public tenant slug, display name, and effective
+registration flag. See ADR-010 for hostname and proxy trust rules.
+
 ## System Context
 
 The platform separates the data plane from the control plane.

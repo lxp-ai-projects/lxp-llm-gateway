@@ -105,6 +105,7 @@ The repository now treats multi-tenancy as a first-class architectural concern:
 - `usage_events` is now being used as the durable tenant usage ledger, including capability, credential-scope attribution, and blocked-by-policy or blocked-by-quota statuses
 - `admin-api` and `admin-web` now expose a first tenant-scoped analytics surface backed directly by that usage ledger
 - tenant-owned policies and limits are now explicitly modeled through `tenant_policies`, with an initial app-level enforcement slice for request windows, monthly budget, monthly token totals, and monthly image request counts
+- public registration configuration is tenant-aware, disabled by default, and resolved from explicit tenant hostname mappings
 
 ## Recommended Stack
 

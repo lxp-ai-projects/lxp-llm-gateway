@@ -38,3 +38,47 @@ Authorization: Bearer {{accessToken}}
 {
   "password": "Sup3rS3cret!"
 }
+
+### Public Runtime Config
+GET {{adminApiBaseUrl}}/api/v1/public/runtime-config
+Host: {{publicHostname}}
+
+### Get Tenant Registration Settings
+GET {{adminApiBaseUrl}}/api/v1/admin/tenants/{{tenantId}}/registration-settings
+Authorization: Bearer {{accessToken}}
+
+### Enable Tenant Registration
+PATCH {{adminApiBaseUrl}}/api/v1/admin/tenants/{{tenantId}}/registration-settings
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "enabled": true
+}
+
+### List Tenant Public Hosts
+GET {{adminApiBaseUrl}}/api/v1/admin/tenants/{{tenantId}}/public-hosts
+Authorization: Bearer {{accessToken}}
+
+### Create Tenant Public Host
+POST {{adminApiBaseUrl}}/api/v1/admin/tenants/{{tenantId}}/public-hosts
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "hostname": "{{publicHostname}}",
+  "isPrimary": true
+}
+
+### Disable Tenant Registration
+PATCH {{adminApiBaseUrl}}/api/v1/admin/tenants/{{tenantId}}/registration-settings
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "enabled": false
+}
+
+### Delete Tenant Public Host
+DELETE {{adminApiBaseUrl}}/api/v1/admin/tenants/{{tenantId}}/public-hosts/{{publicHostId}}
+Authorization: Bearer {{accessToken}}

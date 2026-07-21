@@ -1,5 +1,13 @@
 # UI Architecture
 
+## Tenant Registration Administration
+
+The super-admin Tenant Control page contains a dedicated Registration tab. It
+uses tenant-scoped control-plane endpoints to toggle the disabled-by-default
+registration setting and manage exact public hostname mappings. The interface
+warns when a multi-tenant deployment has no mapping and keeps mutations pending
+to prevent duplicate submissions.
+
 ## Scope
 
 `admin-web` is the single SPA for Phase 1.

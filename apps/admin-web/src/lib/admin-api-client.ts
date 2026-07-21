@@ -22,6 +22,8 @@ import type {
   AdminTenantProviderConfigurationSummary,
   AdminTenantProviderConfigurationTestResult,
   AdminTenantSummary,
+  AdminTenantPublicHost,
+  AdminTenantRegistrationSettings,
   AdminTenantUsageByModelSummary,
   AdminTenantUsageByProviderSummary,
   AdminTenantUsageEventSummary,
@@ -153,6 +155,63 @@ export const adminApiClient = {
 
   async getTenants(): Promise<AdminTenantSummary[]> {
     return request<AdminTenantSummary[]>(`${adminApiUrl}/api/v1/admin/tenants`);
+  },
+
+  async getTenantRegistrationSettings(
+    tenantId: string,
+  ): Promise<AdminTenantRegistrationSettings> {
+    return request<AdminTenantRegistrationSettings>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/registration-settings`,
+    );
+  },
+
+  async updateTenantRegistrationSettings(
+    tenantId: string,
+    enabled: boolean,
+  ): Promise<AdminTenantRegistrationSettings> {
+    return request<AdminTenantRegistrationSettings>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/registration-settings`,
+      { method: 'PATCH', body: JSON.stringify({ enabled }) },
+    );
+  },
+
+  async getTenantPublicHosts(
+    tenantId: string,
+  ): Promise<AdminTenantPublicHost[]> {
+    return request<AdminTenantPublicHost[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/public-hosts`,
+    );
+  },
+
+  async createTenantPublicHost(
+    tenantId: string,
+    hostname: string,
+  ): Promise<AdminTenantPublicHost> {
+    return request<AdminTenantPublicHost>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/public-hosts`,
+      { method: 'POST', body: JSON.stringify({ hostname }) },
+    );
+  },
+
+  async updateTenantPublicHost(
+    tenantId: string,
+    hostId: string,
+    payload: { enabled?: boolean; isPrimary?: boolean },
+  ): Promise<AdminTenantPublicHost> {
+    return request<AdminTenantPublicHost>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/public-hosts/${hostId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    );
+  },
+
+  async deleteTenantPublicHost(
+    tenantId: string,
+    hostId: string,
+  ): Promise<void> {
+    await request<void>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/public-hosts/${hostId}`,
+      { method: 'DELETE' },
+    );
   },
 
   async createTenant(

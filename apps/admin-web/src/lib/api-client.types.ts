@@ -4,9 +4,27 @@ import type { GatewayVideoRetryRequest } from '@lxp/contracts';
 
 export type RuntimeConfig = {
   registrationEnabled: boolean;
+  tenant?: { slug: string; displayName: string } | null;
   forgotPasswordEnabled: boolean;
   gatewayOnline: boolean;
   supportedProviders: Array<{ providerId: string; displayName: string }>;
+};
+
+export type AdminTenantRegistrationSettings = {
+  tenantId: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminTenantPublicHost = {
+  id: string;
+  tenantId: string;
+  hostname: string;
+  isPrimary: boolean;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type SessionTenantSummary = {
@@ -753,7 +771,11 @@ export type AdminCreateIntegrationClientInput = {
   applicationId: string;
   defaultUserUuid?: string;
   scopes: Array<
-    'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+    | 'chat:completion'
+    | 'image:generate'
+    | 'image:edit'
+    | 'video:generate'
+    | 'models:list'
   >;
   trustedForwardedIdentityEnabled: boolean;
 };
@@ -763,7 +785,11 @@ export type AdminUpdateIntegrationClientInput = {
   applicationId?: string;
   defaultUserUuid?: string;
   scopes?: Array<
-    'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+    | 'chat:completion'
+    | 'image:generate'
+    | 'image:edit'
+    | 'video:generate'
+    | 'models:list'
   >;
   trustedForwardedIdentityEnabled?: boolean;
   status?: 'active' | 'disabled';
@@ -772,7 +798,11 @@ export type AdminUpdateIntegrationClientInput = {
 export type AdminCreateIntegrationApiKeyInput = {
   label: string;
   scopes?: Array<
-    'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+    | 'chat:completion'
+    | 'image:generate'
+    | 'image:edit'
+    | 'video:generate'
+    | 'models:list'
   >;
   expiresAt?: string;
 };
@@ -780,7 +810,11 @@ export type AdminCreateIntegrationApiKeyInput = {
 export type AdminUpdateIntegrationApiKeyInput = {
   label?: string;
   scopes?: Array<
-    'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+    | 'chat:completion'
+    | 'image:generate'
+    | 'image:edit'
+    | 'video:generate'
+    | 'models:list'
   >;
   status?: 'active' | 'disabled';
   expiresAt?: string;
@@ -803,4 +837,3 @@ export type ChatTransferConversation = {
   }>;
   updatedAt: string;
 };
-
