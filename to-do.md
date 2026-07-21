@@ -1,4 +1,4 @@
-# PR 2 — Tenant Registration Foundation
+# PR 3 — Registration Email Verification
 
 > **Document de travail destiné à Laurie Codex**
 >
@@ -8,12 +8,12 @@
 
 ## Métadonnées
 
-- **Branche :** `feature/tenant-registration-foundation`
-- **Départ :** `feature/user-profile-registration` après merge PR 1
+- **Branche :** `feature/registration-email-verification`
+- **Départ :** `feature/user-profile-registration` après merge PR 2
 - **Cible PR :** `feature/user-profile-registration`
-- **Nature :** backend, persistence, contrats, admin UI, docs
-- **Envoi de code :** hors périmètre
-- **Création de compte :** hors périmètre
+- **Nature :** backend, persistence, SMTP, sécurité, admin config, contrats
+- **Création finale de compte :** hors périmètre
+- **SMS :** hors périmètre
 
 ## Discipline de branche et de PR
 
@@ -42,7 +42,7 @@ Règles :
 Créer ensuite :
 
 ```bash
-git checkout -b feature/tenant-registration-foundation
+git checkout -b feature/registration-email-verification
 ```
 
 ## Lecture obligatoire avant toute modification
@@ -75,140 +75,236 @@ Le dépôt demeure la source de vérité. Les chemins proposés plus bas sont de
 
 ## Mandat
 
-Ajouter la fondation tenant-aware permettant d'activer l'inscription explicitement par tenant et de résoudre le tenant depuis l'URL publique.
+Implémenter une preuve sécurisée de possession du courriel pour le tenant résolu :
 
-La PR doit répondre à :
+1. demander un code ;
+2. envoyer via SMTP ;
+3. vérifier ;
+4. produire une preuve courte consommable par PR 4 ;
+5. gérer expiration, essais, renvoi et abuse limits ;
+6. configurer/tester le transport.
 
-1. Quel tenant correspond à la requête publique ?
-2. L'inscription est-elle autorisée globalement ?
-3. Le tenant l'a-t-il activée ?
-4. Que peut exposer le runtime public sans fuite ?
+Aucun `User`, `TenantMembership` ou rôle ne doit être créé.
 
-## Baseline à confirmer
+## Frontière
 
-- `GET /api/v1/public/runtime-config` lit actuellement `LXP_REGISTRATION_ENABLED`.
-- Aucun tenant n'est résolu depuis le hostname.
-- `TenantEntity` n'a pas de mapping public de hostname.
-- `/register` est encore un placeholder.
-- Les utilisateurs sont globaux et liés aux tenants par membership.
-- Une surface admin des tenants existe.
-
-## Décision fonctionnelle
-
-### Kill switch global
-
-`LXP_REGISTRATION_ENABLED` reste un kill switch.
-
-Si faux :
-
-- aucun tenant ne rend l'inscription disponible ;
-- les settings tenant restent stockés mais inactifs ;
-- le runtime n'annonce pas l'inscription.
-
-### Tenant unique
-
-Si exactement un tenant actif existe :
-
-- il peut être tenant public par défaut ;
-- aucun hostname n'est obligatoire ;
-- registration reste désactivée tant qu'un admin ne l'active pas.
-
-### Multi-tenant
-
-Si plusieurs tenants actifs existent :
-
-- mapping hostname explicite obligatoire ;
-- jamais de fallback vers le premier tenant ;
-- hostname inconnu => registration indisponible ;
-- le login global ne doit pas casser.
-
-### Nouveau tenant
-
-- registration disabled ;
-- aucun domaine présumé ;
-- aucune activation automatique ;
-- état admin « not configured » ou équivalent.
-
-## Modèle de données conceptuel
-
-### `tenant_public_hosts`
+Ne pas gonfler `AuthService`/`AuthController`. Créer une feature dédiée :
 
 ```text
-id
-tenant_id
-hostname
-is_primary
-enabled
-created_at
-updated_at
+registration-verification/
+  registration-verification.module.ts
+  registration-verification.controller.ts
+  registration-verification.service.ts
+  delivery/
+  dto/
 ```
 
-Contraintes :
+## Abstraction de livraison
 
-- hostname normalisé lowercase ;
-- port et point final retirés ;
-- unicité globale ;
-- FK explicite ;
-- index tenant ;
-- au plus un primary actif si cette notion est retenue ;
-- pas de wildcard dans cette version.
+Concept :
 
-### `tenant_registration_settings`
+```ts
+type VerificationChannel = 'email';
+
+interface VerificationDeliveryProvider {
+  readonly channel: VerificationChannel;
+  sendChallenge(input: {
+    tenantId: string;
+    tenantDisplayName: string;
+    destination: string;
+    code: string;
+    expiresInMinutes: number;
+  }): Promise<void>;
+}
+```
+
+- SMTP seul provider fonctionnel.
+- Pas de faux SMS.
+- Pas de framework de notification général.
+- Seam extensible sans types vendor dans le domaine.
+- Toute dépendance est justifiée.
+
+## Configuration SMTP
+
+Cible à adapter :
 
 ```text
-tenant_id
-enabled
-default_role_id ou stratégie équivalente
-created_at
-updated_at
+LXP_SMTP_ENABLED
+LXP_SMTP_HOST
+LXP_SMTP_PORT
+LXP_SMTP_SECURE
+LXP_SMTP_USER
+LXP_SMTP_PASSWORD
+LXP_SMTP_FROM_EMAIL
+LXP_SMTP_FROM_NAME
+LXP_SMTP_REQUIRE_TLS
 ```
 
 Principes :
 
-- une config par tenant ;
-- `enabled = false` par défaut ;
-- jamais `super_admin` ;
-- aucun rôle admin/opérateur self-assignable ;
-- aucun champ SMTP/SMS dans cette PR.
+- aucun secret public/log ;
+- config invalide => email non ready ;
+- app démarre si SMTP disabled ;
+- inscription active + SMTP down => canal non annoncé ;
+- timeouts bornés ;
+- pas de retry infini ;
+- tests sans envoi réel.
 
-Si `default_role_id` est dangereux ou inutile, proposer un rôle canonique `user`.
+Préférer transport global + activation tenant pour cette PR, sauf contrainte existante. Ne pas détourner les credentials LLM.
 
-## Hostname et proxy
-
-Créer un service testable qui :
-
-- lit le host réel ;
-- retire port ;
-- normalise casse ;
-- traite point final ;
-- rejette invalides ;
-- ne fait confiance à `X-Forwarded-Host` qu'avec proxy de confiance configuré ;
-- ne fait jamais confiance à un header arbitraire venant d'Internet.
-
-Auditer Caddy et `trust proxy`.
-
-## Service de résolution
-
-Le contrôleur public ne doit pas contenir toute la logique.
-
-Séparation possible :
+## Challenge conceptuel
 
 ```text
-public-registration-context.service.ts
-tenant-public-host-resolver.service.ts
-tenant-registration-settings.service.ts
+registration_verification_challenges
+  id
+  tenant_id
+  channel
+  destination_hash
+  code_digest
+  purpose
+  expires_at
+  verified_at
+  consumed_at
+  invalidated_at
+  attempt_count
+  resend_count
+  resend_available_at
+  completion_token_digest
+  completion_token_expires_at
+  created_at
+  updated_at
 ```
 
-Exigences :
+### Stockage
 
-- logique unitaire testable ;
-- pas de SQL dispersé ;
-- pas de fallback ambigu ;
-- pas de détail interne public.
+- Jamais code brut persisté/loggé.
+- Email normalisé comme l'identité.
+- Destination hash via mécanisme compatible existant.
+- Code court protégé par HMAC secret ou hash lent + pepper.
+- Completion token aléatoire, long, stocké en digest, retourné une fois.
+- Pas d'email clair durable si inutile.
 
-## Runtime public
+## Defaults de sécurité
 
-Cible minimale :
+- 6 chiffres via CSPRNG ;
+- expiration 10 min ;
+- 5 essais ;
+- resend cooldown 60 s ;
+- 3 resends/challenge ;
+- completion token 15 min ;
+- resend invalide l'ancien code ;
+- code vérifié non réutilisable ;
+- preuve consommée non réutilisable.
+
+Toute variation est expliquée.
+
+## Endpoints publics candidats
+
+```text
+POST /api/v1/public/registration/email/challenges
+POST /api/v1/public/registration/email/challenges/:challengeId/verify
+POST /api/v1/public/registration/email/challenges/:challengeId/resend
+```
+
+Demande :
+
+```json
+{
+  "email": "person@example.com"
+}
+```
+
+Réponse générique :
+
+```json
+{
+  "challengeId": "uuid",
+  "expiresAt": "ISO-8601",
+  "resendAvailableAt": "ISO-8601"
+}
+```
+
+Vérification :
+
+```json
+{
+  "code": "123456"
+}
+```
+
+Succès :
+
+```json
+{
+  "completionToken": "opaque-random-secret",
+  "expiresAt": "ISO-8601"
+}
+```
+
+Renvoi :
+
+- respecte cooldown ;
+- resoumet email si aucune destination claire stockée ;
+- vérifie correspondance ;
+- nouveau code ;
+- ancien invalidé ;
+- compteur incrémenté ;
+- vie non prolongée à l'infini.
+
+## Anti-enumeration
+
+Avant preuve :
+
+- réponse générique ;
+- ne pas dire si compte existe/membership ;
+- statuts HTTP cohérents ;
+- éviter gros écarts de timing.
+
+Il est acceptable d'envoyer un code à une adresse déjà existante ; PR 4 décidera après preuve.
+
+## Rate limiting
+
+Couvrir :
+
+- IP ;
+- tenant ;
+- destination hash ;
+- challenge ;
+- resend ;
+- verify.
+
+Utiliser Redis si cohérent.
+
+Defaults recommandés :
+
+- 5 demandes/h/destination/tenant ;
+- 20 demandes/h/IP ;
+- 5 verifies/challenge ;
+- 3 resends/challenge.
+
+Logs : challenge ID, tenant ID, channel, résultat ; jamais email/code/token brut.
+
+## Email
+
+Texte + HTML simple :
+
+- tenant display name ;
+- code ;
+- expiration ;
+- ignorer si non demandé ;
+- aucun tracking/pixel ;
+- aucun détail sensible.
+
+## Runtime readiness
+
+Annoncer `email` seulement si :
+
+- global actif ;
+- tenant résolu ;
+- tenant registration active ;
+- SMTP valide.
+
+Exemple :
 
 ```json
 {
@@ -216,199 +312,162 @@ Cible minimale :
   "tenant": {
     "slug": "lxp",
     "displayName": "LXP Technologies"
-  }
+  },
+  "verificationChannels": ["email"]
 }
 ```
 
-Règles :
+## Admin
 
-- `registrationEnabled` = global + tenant résolu + tenant enabled.
-- `tenant` null/absent si non résolu.
-- Aucun UUID interne.
-- Aucun secret, rôle ou hostname alternatif.
-- Les channels arrivent plus tard.
-- L'absence de tenant ne produit pas 500.
+Afficher :
 
-Un contrat structuré différent est possible après analyse de compatibilité.
+- SMTP disabled/invalid/ready ;
+- from address ;
+- test admin-only ;
+- message si registration active mais email non ready.
 
-## Administration
-
-Ajouter :
-
-- état registration ;
-- enable/disable ;
-- gestion des hostnames ;
-- indication tenant par défaut si tenant unique ;
-- validation du rôle standard ;
-- avertissement multi-tenant sans mapping ;
-- nouveaux tenants disabled.
-
-Toutes les mutations sont protégées par les guards existants.
-
-## Endpoints candidats
+Endpoint candidat :
 
 ```text
-GET    /api/v1/admin/tenants/:tenantId/registration-settings
-PATCH  /api/v1/admin/tenants/:tenantId/registration-settings
-GET    /api/v1/admin/tenants/:tenantId/public-hosts
-POST   /api/v1/admin/tenants/:tenantId/public-hosts
-PATCH  /api/v1/admin/tenants/:tenantId/public-hosts/:hostId
-DELETE /api/v1/admin/tenants/:tenantId/public-hosts/:hostId
+POST /api/v1/admin/tenants/:tenantId/registration/email/test
 ```
 
-Adapter aux conventions réelles.
-
-## Migration/backfill
-
-- Créer tables/colonnes.
-- Ajouter contraintes/indexes.
-- Créer settings disabled pour tenants existants, ou lazy creation sûre.
-- Ne jamais activer automatiquement.
-- Ne pas inventer de hostname.
-- Conserver les données.
-- `down` si requis.
-
-Tester base vide, 1 tenant, plusieurs tenants et rollback supporté.
+Le test est protégé, rate-limité et ne devient pas un relais arbitraire.
 
 ## Inclus
 
-- Hostnames publics.
-- Settings tenant.
-- Résolution sûre.
-- Runtime tenant-aware.
-- Endpoints admin.
-- UI admin.
-- Migrations.
-- Tests.
-- ADR hostname/tenant.
-- Docs proxy/deploy si nécessaire.
+- Module verification.
+- Entité/migration challenge.
+- SMTP adapter.
+- Config/validation.
+- Code sécurisé.
+- Completion token.
+- Expiration/attempts/resend.
+- Rate limits.
+- Templates.
+- Runtime readiness.
+- Admin test/readiness.
+- Tests/docs.
 
 ## Hors périmètre
 
-- Email/SMTP/SMS.
-- Code/challenge.
-- Création de compte.
-- Formulaire complet.
+- User/membership/rôle.
+- Formulaire final.
 - Auto-login.
-- Invitations/approval.
-- Wildcards.
-- Branding avancé.
-- Rôle privilégié.
-- Changement du modèle global d'identité.
+- SMS/téléphone.
+- Password reset.
+- Invitation.
+- Marketing.
+- Notification framework.
+- Queue distribuée sans besoin démontré.
 
 ## Fichiers candidats
 
 ```text
-apps/admin-api/src/public-config.controller.ts
-apps/admin-api/src/app.module.ts
-apps/admin-api/src/admin/**
-apps/admin-api/src/persistence/entities/tenant.entity.ts
-apps/admin-api/src/persistence/entities/tenant-public-host.entity.ts
-apps/admin-api/src/persistence/entities/tenant-registration-settings.entity.ts
+apps/admin-api/src/registration-verification/**
+apps/admin-api/src/persistence/entities/registration-verification-challenge.entity.ts
 apps/admin-api/src/persistence/migrations/*
 apps/admin-api/src/config/*
+apps/admin-api/src/app.module.ts
+apps/admin-api/src/public-config.controller.ts
+apps/admin-api/.env.example
 apps/admin-web/src/pages/tenants-page.tsx
-apps/admin-web/src/pages/tenants-page.test.tsx
 apps/admin-web/src/features/tenants/**
 apps/admin-web/src/lib/api-client*
 packages/contracts/**
-docs/SCOPE.md
-docs/product/system-scope.md
+docs/architecture/auth-flow.md
 docs/architecture/overview.md
-docs/architecture/ui-architecture.md
-docs/architecture/decisions/ADR-0xx-tenant-public-host-resolution.md
+docs/security/*
+docs/setup/quickstart.md
 docs/setup/vps.md
-infra/proxy/caddy/lxp-gateway.Caddyfile.example
+infra/compose/*
+scripts/generate-vps-env.sh
+scripts/Generate-VpsEnv.ps1
 ```
 
-## Tests backend
+## Tests
 
-### Résolution
+### Challenge
 
-- zéro tenant actif ;
-- un tenant actif ;
-- un tenant + host ;
-- multi + host exact ;
-- multi + host inconnu ;
-- casse/port/point final ;
-- host invalide ;
-- doublon rejeté ;
-- mapping disabled ;
-- tenant inactive ;
-- forwarded host ignoré sans trust proxy ;
-- forwarded host accepté seulement avec config approuvée.
+- email valide/normalisé ;
+- tenant non résolu ;
+- global/tenant disabled ;
+- SMTP non ready ;
+- code correct/incorrect/expiré ;
+- déjà vérifié ;
+- invalidé par resend ;
+- max attempts ;
+- resend avant/après cooldown ;
+- max resends ;
+- completion token une fois ;
+- digest seulement ;
+- preuve consommée ;
+- deux verify simultanés.
 
-### Activation
+### SMTP
 
-- global faux + tenant vrai => faux ;
-- global vrai + tenant faux => faux ;
-- global vrai + tenant vrai + résolu => vrai ;
-- non résolu => faux ;
-- nouveau tenant => faux ;
-- rôle privilégié => rejet.
+- disabled ;
+- config partielle ;
+- TLS/secure ;
+- timeout ;
+- succès/échec ;
+- pas de password leak ;
+- texte + HTML ;
+- aucun vrai envoi unit test.
 
-### Isolation
+### Anti-abus/confidentialité
 
-- admin non autorisé rejeté ;
-- isolation inter-tenant ;
-- runtime sans infos internes ;
-- erreurs sans fuite.
-
-## Tests frontend
-
-- disabled/enabled ;
-- tenant résolu ;
-- ajout host valide ;
-- invalid/doublon ;
-- suppression confirmée ;
-- warning multi sans mapping ;
-- nouveau tenant disabled ;
-- erreurs API ;
-- pending bloque doubles mutations.
+- IP/destination/tenant/challenge limits ;
+- Redis TTL ;
+- code/token/email absents des logs ;
+- runtime sans secret ;
+- réponse sans account enumeration.
 
 ## Critères d'acceptation
 
-- [ ] PR 1 mergée avant création.
-- [ ] Kill switch global conservé.
-- [ ] Tenant unique peut servir de défaut.
-- [ ] Multi exige host explicite.
-- [ ] Aucun fallback « premier tenant ».
-- [ ] Host inconnu => indisponible.
-- [ ] Forwarded headers seulement derrière proxy trusted.
-- [ ] Hostnames normalisés et uniques.
-- [ ] Nouveau tenant disabled.
-- [ ] Aucun tenant existant activé par migration.
-- [ ] Aucun rôle privilégié configurable.
-- [ ] Runtime expose seulement le nécessaire.
-- [ ] Login continue sans tenant public.
-- [ ] Admin gère settings/hosts.
-- [ ] Migrations base vide/existante passent.
-- [ ] Tests sécurité/isolation passent.
-- [ ] ADR/docs à jour.
-- [ ] Aucun SMTP/challenge/account/SMS.
+- [ ] PR 2 mergée.
+- [ ] Aucun user/membership créé.
+- [ ] SMTP seul provider fonctionnel.
+- [ ] Code via CSPRNG.
+- [ ] Code brut non stocké/loggé.
+- [ ] Protection adaptée aux codes courts.
+- [ ] Email normalisé comme l'existant.
+- [ ] Expiration/attempts/resend appliqués.
+- [ ] Ancien code invalidé au resend.
+- [ ] Completion token opaque, court, one-time, digest-only.
+- [ ] Anti-enumeration.
+- [ ] Rate limits IP/tenant/destination.
+- [ ] Email annoncé seulement si SMTP ready.
+- [ ] Test SMTP admin-only et borné.
+- [ ] Aucun secret exposé.
+- [ ] Templates testés.
+- [ ] Migrations/tests passent.
+- [ ] Env/VPS/scripts à jour.
+- [ ] Aucun formulaire final/account/SMS.
 
 ## Définition de terminé
 
-Résolution déterministe du tenant, posture disabled par défaut et contexte public sûr, sans prétendre fournir l'inscription complète.
+Un client peut obtenir et valider une preuve email et recevoir un completion token, sans création de compte.
 
 ## Titre suggéré
 
 ```text
-feat(admin-api): add tenant-aware registration configuration
+feat(admin-api): add SMTP registration email verification
 ```
 
 ## Description PR suggérée
 
 ```markdown
 ## Summary
-- Adds explicit public hostname mapping for tenants
-- Adds per-tenant registration settings, disabled by default
-- Makes runtime config tenant-aware
+- Adds tenant-aware email verification challenges
+- Adds SMTP delivery with readiness checks
+- Adds one-time completion tokens
 
 ## Security
-- No first-tenant fallback
-- Forwarded host trusted only behind configured proxy
-- Privileged roles blocked
+- No raw code/token persistence
+- Anti-enumeration
+- Redis-backed abuse limits
+- Expiration, attempt and resend controls
 
 ## Migrations
 [details]
@@ -417,7 +476,7 @@ feat(admin-api): add tenant-aware registration configuration
 [commands/results]
 
 ## Out of scope
-Verification delivery and account creation.
+User creation and SMS.
 ```
 
 ## Compte rendu final attendu de Laurie Codex

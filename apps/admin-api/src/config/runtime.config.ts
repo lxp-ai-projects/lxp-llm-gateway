@@ -8,6 +8,7 @@ import { RoleEntity } from '../persistence/entities/role.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
 import { TenantPublicHostEntity } from '../persistence/entities/tenant-public-host.entity';
 import { TenantRegistrationSettingsEntity } from '../persistence/entities/tenant-registration-settings.entity';
+import { RegistrationVerificationChallengeEntity } from '../persistence/entities/registration-verification-challenge.entity';
 import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import { TenantModelAccessRuleEntity } from '../persistence/entities/tenant-model-access-rule.entity';
 import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
@@ -85,6 +86,12 @@ export function validateRuntimeConfig(
   getRequiredString(env, 'LXP_JWT_PRIVATE_KEY', { allowEmptyInLocal: true });
   getRequiredString(env, 'REDIS_URL', { allowEmptyInLocal: true });
 
+  if (env.LXP_SMTP_ENABLED === 'true') {
+    for (const key of ['LXP_SMTP_HOST', 'LXP_SMTP_USER', 'LXP_SMTP_PASSWORD', 'LXP_SMTP_FROM_EMAIL']) {
+      getRequiredString(env, key);
+    }
+  }
+
   return env;
 }
 
@@ -109,6 +116,7 @@ function getBaseDataSourceOptions(): DataSourceOptions {
       TenantEntity,
       TenantPublicHostEntity,
       TenantRegistrationSettingsEntity,
+      RegistrationVerificationChallengeEntity,
       TenantMembershipEntity,
       TenantModelAccessRuleEntity,
       TenantPolicyEntity,

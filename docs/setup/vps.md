@@ -380,3 +380,7 @@ Check:
 - Provider credential can be stored and used
 - `/api/v1/openai/models` returns a usable model list
 - Open WebUI can send a message through the gateway and receive a response
+
+## Registration SMTP
+
+Enable SMTP only after adding valid deployment secrets. Incomplete SMTP configuration leaves the application running but does not advertise the email verification channel. Use `LXP_SMTP_REQUIRE_TLS=true` for submission transports.

@@ -21,6 +21,8 @@ import { IntegrationClientEntity } from './persistence/entities/integration-clie
 import { TenantEntity } from './persistence/entities/tenant.entity';
 import { TenantPublicHostEntity } from './persistence/entities/tenant-public-host.entity';
 import { TenantRegistrationSettingsEntity } from './persistence/entities/tenant-registration-settings.entity';
+import { RegistrationVerificationChallengeEntity } from './persistence/entities/registration-verification-challenge.entity';
+import { RegistrationVerificationModule } from './registration-verification/registration-verification.module';
 import { TenantMembershipEntity } from './persistence/entities/tenant-membership.entity';
 import { TenantModelAccessRuleEntity } from './persistence/entities/tenant-model-access-rule.entity';
 import { TenantProviderConfigurationEntity } from './persistence/entities/tenant-provider-configuration.entity';
@@ -59,6 +61,7 @@ import { TenantRegistrationService } from './registration/tenant-registration.se
       TenantEntity,
       TenantPublicHostEntity,
       TenantRegistrationSettingsEntity,
+      RegistrationVerificationChallengeEntity,
       TenantMembershipEntity,
       TenantModelAccessRuleEntity,
       TenantProviderConfigurationEntity,
@@ -67,6 +70,7 @@ import { TenantRegistrationService } from './registration/tenant-registration.se
       UserProviderCredentialEntity,
     ]),
     AuthModule,
+    RegistrationVerificationModule,
   ],
   controllers: [
     AdminController,
