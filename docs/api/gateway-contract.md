@@ -10,6 +10,8 @@
 
 The public runtime config adds `verificationChannels`, which contains `email` only when the resolved tenant has registration enabled and the global SMTP transport is ready. Public errors do not reveal whether an account or membership already exists.
 
+Super-admins can inspect non-secret transport readiness through `GET /api/v1/admin/tenants/:tenantId/registration/email/readiness`.
+
 ## Endpoint
 
 - `POST /api/v1/chat`
