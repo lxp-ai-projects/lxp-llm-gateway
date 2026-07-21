@@ -502,6 +502,13 @@ export class AdminController {
     }));
   }
 
+  @Post('admin/tenants/:tenantId/registration/email/test')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  testTenantRegistrationEmail(@Param('tenantId') tenantId: string) {
+    return this.registrationVerificationService.sendConfiguredTest(tenantId);
+  }
+
   @Get('admin/tenants/:tenantId/public-hosts')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')

@@ -7,6 +7,7 @@ import { TenantRegistrationPanel } from './tenant-registration-panel';
 const { client } = vi.hoisted(() => ({
   client: {
     getTenantRegistrationSettings: vi.fn(),
+    getTenantRegistrationEmailReadiness: vi.fn(),
     getTenantPublicHosts: vi.fn(),
     updateTenantRegistrationSettings: vi.fn(),
     createTenantPublicHost: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('../../../lib/admin-api-client', () => ({ adminApiClient: client }));
 
 beforeEach(() => {
   client.getTenantRegistrationSettings.mockResolvedValue({ enabled: false });
+  client.getTenantRegistrationEmailReadiness.mockResolvedValue({ provider: 'smtp', status: 'ready', fromEmail: 'noreply@example.com' });
   client.getTenantPublicHosts.mockResolvedValue([]);
   client.updateTenantRegistrationSettings.mockResolvedValue({ enabled: true });
   client.createTenantPublicHost.mockResolvedValue({ id: 'host-1' });

@@ -17,6 +17,13 @@ export type AdminTenantRegistrationSettings = {
   updatedAt: string;
 };
 
+export type AdminRegistrationEmailReadiness = {
+  tenantRegistrationEnabled: boolean;
+  provider: 'smtp' | 'mailersend';
+  status: 'ready' | 'not_ready';
+  fromEmail: string | null;
+};
+
 export type AdminTenantPublicHost = {
   id: string;
   tenantId: string;

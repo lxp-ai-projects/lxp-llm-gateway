@@ -24,6 +24,7 @@ import type {
   AdminTenantSummary,
   AdminTenantPublicHost,
   AdminTenantRegistrationSettings,
+  AdminRegistrationEmailReadiness,
   AdminTenantUsageByModelSummary,
   AdminTenantUsageByProviderSummary,
   AdminTenantUsageEventSummary,
@@ -163,6 +164,10 @@ export const adminApiClient = {
     return request<AdminTenantRegistrationSettings>(
       `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/registration-settings`,
     );
+  },
+
+  async getTenantRegistrationEmailReadiness(tenantId: string): Promise<AdminRegistrationEmailReadiness> {
+    return request<AdminRegistrationEmailReadiness>(`${adminApiUrl}/api/v1/admin/tenants/${tenantId}/registration/email/readiness`);
   },
 
   async updateTenantRegistrationSettings(
