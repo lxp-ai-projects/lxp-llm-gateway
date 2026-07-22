@@ -19,6 +19,7 @@ export type AdminTenantRegistrationSettings = {
 
 export type AdminRegistrationEmailReadiness = {
   tenantRegistrationEnabled: boolean;
+  globalRegistrationEnabled: boolean;
   provider: 'smtp' | 'mailersend';
   status: 'ready' | 'not_ready';
   fromEmail: string | null;

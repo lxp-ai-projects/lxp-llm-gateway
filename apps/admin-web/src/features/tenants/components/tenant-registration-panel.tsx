@@ -107,6 +107,14 @@ export function TenantRegistrationPanel({
           exists.
         </Alert>
       ) : null}
+      {!emailReadiness.data.globalRegistrationEnabled ? (
+        <Alert color="yellow" title="Global registration kill switch is off">
+          This tenant setting cannot enable public registration while
+          `LXP_REGISTRATION_ENABLED` is false. Set it to `true` in the
+          admin-api deployment environment and restart the service. Set it
+          back to `false` to temporarily disable registration for every tenant.
+        </Alert>
+      ) : null}
       <Alert color={emailReadiness.data.status === 'ready' ? 'teal' : 'yellow'} title={`Email delivery: ${emailReadiness.data.status === 'ready' ? 'ready' : 'not ready'}`}>
         Provider: {emailReadiness.data.provider}. From: {emailReadiness.data.fromEmail ?? 'not configured'}.
         {settings.data.enabled && emailReadiness.data.status !== 'ready' ? ' Public registration is enabled but email verification is unavailable.' : ''}
@@ -118,8 +126,9 @@ export function TenantRegistrationPanel({
         onChange={(event) => updateSettings.mutate(event.currentTarget.checked)}
       />
       <Text size="sm" c="dimmed">
-        The global registration kill switch must also be enabled. This release
-        does not create accounts.
+        This switch controls only the selected tenant. The deployment-level
+        kill switch can temporarily close registration for every tenant. This
+        release does not create accounts.
       </Text>
       <Group align="end">
         <TextInput

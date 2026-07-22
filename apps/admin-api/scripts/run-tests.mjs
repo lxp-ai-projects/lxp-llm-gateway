@@ -10,6 +10,7 @@ const testFiles = [
   'src/admin/admin.service.test.ts',
   'src/admin/admin-catalog.service.test.ts',
   'src/admin/admin-provider-credential.service.test.ts',
+  'src/admin/admin-provider-access.test.ts',
   'src/auth/auth-cookie.service.test.ts',
   'src/auth/auth.service.test.ts',
   'src/auth/super-admin-bootstrap.service.test.ts',

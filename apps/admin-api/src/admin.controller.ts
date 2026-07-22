@@ -498,6 +498,7 @@ export class AdminController {
   getTenantRegistrationEmailReadiness(@Param('tenantId') tenantId: string) {
     return this.tenantRegistrationService.getSettings(tenantId).then((settings) => ({
       tenantRegistrationEnabled: settings.enabled,
+      globalRegistrationEnabled: process.env.LXP_REGISTRATION_ENABLED === 'true',
       ...this.registrationVerificationService.getDeliveryReadiness(),
     }));
   }

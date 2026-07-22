@@ -20,7 +20,7 @@ vi.mock('../../../lib/admin-api-client', () => ({ adminApiClient: client }));
 
 beforeEach(() => {
   client.getTenantRegistrationSettings.mockResolvedValue({ enabled: false });
-  client.getTenantRegistrationEmailReadiness.mockResolvedValue({ provider: 'smtp', status: 'ready', fromEmail: 'noreply@example.com' });
+  client.getTenantRegistrationEmailReadiness.mockResolvedValue({ globalRegistrationEnabled: true, provider: 'smtp', status: 'ready', fromEmail: 'noreply@example.com' });
   client.getTenantPublicHosts.mockResolvedValue([]);
   client.updateTenantRegistrationSettings.mockResolvedValue({ enabled: true });
   client.createTenantPublicHost.mockResolvedValue({ id: 'host-1' });
