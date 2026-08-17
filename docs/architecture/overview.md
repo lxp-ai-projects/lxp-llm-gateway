@@ -430,6 +430,6 @@ That UI should remain behind the same backend boundaries already used for chat:
 
 ## Registration Email Verification
 
-`admin-api` owns tenant-aware registration email verification. It uses a global SMTP transport, digest-only challenge persistence and Redis abuse limits. It establishes only proof of email possession; account creation remains a separate flow.
+`admin-api` owns tenant-aware registration email verification. It uses a selected global SMTP or MailerSend provider, digest-only challenge persistence and Redis abuse limits. It establishes only proof of email possession; account creation remains a separate flow.
 
 

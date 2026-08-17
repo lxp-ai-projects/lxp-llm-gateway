@@ -381,6 +381,6 @@ Check:
 - `/api/v1/openai/models` returns a usable model list
 - Open WebUI can send a message through the gateway and receive a response
 
-## Registration SMTP
+## Registration Email Delivery
 
-Choose an explicit transport with `LXP_EMAIL_DELIVERY_PROVIDER=smtp|mailersend`. SMTP requires its existing host credentials; MailerSend requires `LXP_MAILERSEND_API_KEY` and a verified `LXP_MAILERSEND_FROM_EMAIL`. Incomplete selected-provider configuration leaves the application running but does not advertise the email verification channel. Use `LXP_SMTP_REQUIRE_TLS=true` for SMTP submission transports.
+Choose an explicit transport with `LXP_EMAIL_DELIVERY_PROVIDER=smtp|mailersend`. Enabled SMTP requires its existing host credentials; MailerSend requires `LXP_MAILERSEND_API_KEY` and a verified `LXP_MAILERSEND_FROM_EMAIL`. Missing variables required by the selected configuration fail runtime validation and prevent `admin-api` from starting. Use `LXP_SMTP_REQUIRE_TLS=true` for SMTP submission transports.

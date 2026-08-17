@@ -142,7 +142,7 @@ Redis should not become the durable source of truth for users or roles.
 ## Registration Email Verification
 
 1. A public client requests an email challenge for the tenant resolved from its host.
-2. `admin-api` stores only HMAC digests and sends a six-digit code through SMTP.
+2. `admin-api` stores only HMAC digests and sends a six-digit code through the selected email-delivery provider.
 3. A correct code returns a 15-minute, one-time completion token.
 4. The future account-creation flow must consume the token exactly once.
 

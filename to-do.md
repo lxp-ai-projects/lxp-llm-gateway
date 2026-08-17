@@ -1,4 +1,4 @@
-# PR 3 — Registration Email Verification
+# PR #21 — Registration Email Verification
 
 > **Document de travail destiné à Laurie Codex**
 >
@@ -9,9 +9,9 @@
 ## Métadonnées
 
 - **Branche :** `feature/registration-email-verification`
-- **Départ :** `feature/user-profile-registration` après merge PR 2
-- **Cible PR :** `feature/user-profile-registration`
-- **Nature :** backend, persistence, SMTP, sécurité, admin config, contrats
+- **Départ :** `main`
+- **Cible PR :** `main`
+- **Nature :** backend, persistence, email delivery, sécurité, admin config, contrats
 - **Création finale de compte :** hors périmètre
 - **SMS :** hors périmètre
 
@@ -21,8 +21,8 @@ Exécuter depuis un répertoire de travail propre :
 
 ```bash
 git fetch origin
-git checkout feature/user-profile-registration
-git pull --ff-only origin feature/user-profile-registration
+git checkout main
+git pull --ff-only origin main
 git status
 ```
 
@@ -30,9 +30,9 @@ Puis créer **la branche exacte de cette PR**. Si elle existe déjà localement 
 
 Règles :
 
-- La cible de la PR est `feature/user-profile-registration`.
-- La branche doit être créée seulement après que la PR précédente a été mergée dans cette cible.
-- Aucun commit direct sur `feature/user-profile-registration` ou `main`.
+- La cible de la PR est `main`.
+- La branche doit être créée depuis la version à jour de `main`.
+- Aucun commit direct sur `main`.
 - Aucun reformatage massif, renommage opportuniste ou upgrade de dépendances non nécessaire.
 - Aucun code de la PR suivante ne doit être préparé silencieusement.
 - Chaque changement hors périmètre doit être retiré ou justifié avant la PR.
@@ -78,7 +78,7 @@ Le dépôt demeure la source de vérité. Les chemins proposés plus bas sont de
 Implémenter une preuve sécurisée de possession du courriel pour le tenant résolu :
 
 1. demander un code ;
-2. envoyer via SMTP ;
+2. envoyer via le provider email sélectionné ;
 3. vérifier ;
 4. produire une preuve courte consommable par PR 4 ;
 5. gérer expiration, essais, renvoi et abuse limits ;
@@ -118,17 +118,18 @@ interface VerificationDeliveryProvider {
 }
 ```
 
-- SMTP seul provider fonctionnel.
+- SMTP et MailerSend sont les providers fonctionnels sélectionnables.
 - Pas de faux SMS.
 - Pas de framework de notification général.
 - Seam extensible sans types vendor dans le domaine.
 - Toute dépendance est justifiée.
 
-## Configuration SMTP
+## Configuration de livraison email
 
 Cible à adapter :
 
 ```text
+LXP_EMAIL_DELIVERY_PROVIDER
 LXP_SMTP_ENABLED
 LXP_SMTP_HOST
 LXP_SMTP_PORT
@@ -138,14 +139,17 @@ LXP_SMTP_PASSWORD
 LXP_SMTP_FROM_EMAIL
 LXP_SMTP_FROM_NAME
 LXP_SMTP_REQUIRE_TLS
+LXP_MAILERSEND_API_KEY
+LXP_MAILERSEND_FROM_EMAIL
+LXP_MAILERSEND_FROM_NAME
 ```
 
 Principes :
 
 - aucun secret public/log ;
-- config invalide => email non ready ;
-- app démarre si SMTP disabled ;
-- inscription active + SMTP down => canal non annoncé ;
+- config requise manquante pour le provider sélectionné => validation fatale ;
+- app démarre si SMTP est sélectionné mais disabled ;
+- inscription active + provider sélectionné non ready => canal non annoncé ;
 - timeouts bornés ;
 - pas de retry infini ;
 - tests sans envoi réel.
@@ -302,7 +306,7 @@ Annoncer `email` seulement si :
 - global actif ;
 - tenant résolu ;
 - tenant registration active ;
-- SMTP valide.
+- provider sélectionné valide et ready.
 
 Exemple :
 
@@ -321,7 +325,7 @@ Exemple :
 
 Afficher :
 
-- SMTP disabled/invalid/ready ;
+- provider sélectionné et statut disabled/invalid/ready ;
 - from address ;
 - test admin-only ;
 - message si registration active mais email non ready.
@@ -338,7 +342,7 @@ Le test est protégé, rate-limité et ne devient pas un relais arbitraire.
 
 - Module verification.
 - Entité/migration challenge.
-- SMTP adapter.
+- adapters SMTP et MailerSend derrière un contrat provider-neutral.
 - Config/validation.
 - Code sécurisé.
 - Completion token.
@@ -392,7 +396,7 @@ scripts/Generate-VpsEnv.ps1
 - email valide/normalisé ;
 - tenant non résolu ;
 - global/tenant disabled ;
-- SMTP non ready ;
+- provider sélectionné non ready ;
 - code correct/incorrect/expiré ;
 - déjà vérifié ;
 - invalidé par resend ;
@@ -404,13 +408,14 @@ scripts/Generate-VpsEnv.ps1
 - preuve consommée ;
 - deux verify simultanés.
 
-### SMTP
+### Providers de livraison
 
-- disabled ;
-- config partielle ;
-- TLS/secure ;
-- timeout ;
-- succès/échec ;
+- SMTP disabled ;
+- configuration SMTP partielle ;
+- SMTP TLS/secure ;
+- MailerSend sélectionné avec configuration complète ou incomplète ;
+- sélection et readiness du provider ;
+- timeout et succès/échec ;
 - pas de password leak ;
 - texte + HTML ;
 - aucun vrai envoi unit test.
@@ -427,7 +432,7 @@ scripts/Generate-VpsEnv.ps1
 
 - [ ] PR 2 mergée.
 - [ ] Aucun user/membership créé.
-- [ ] SMTP seul provider fonctionnel.
+- [ ] SMTP et MailerSend fonctionnent derrière le même contrat provider-neutral.
 - [ ] Code via CSPRNG.
 - [ ] Code brut non stocké/loggé.
 - [ ] Protection adaptée aux codes courts.
@@ -437,8 +442,8 @@ scripts/Generate-VpsEnv.ps1
 - [ ] Completion token opaque, court, one-time, digest-only.
 - [ ] Anti-enumeration.
 - [ ] Rate limits IP/tenant/destination.
-- [ ] Email annoncé seulement si SMTP ready.
-- [ ] Test SMTP admin-only et borné.
+- [ ] Email annoncé seulement si le provider sélectionné est ready.
+- [ ] Test du provider sélectionné admin-only et borné.
 - [ ] Aucun secret exposé.
 - [ ] Templates testés.
 - [ ] Migrations/tests passent.
@@ -452,7 +457,7 @@ Un client peut obtenir et valider une preuve email et recevoir un completion tok
 ## Titre suggéré
 
 ```text
-feat(admin-api): add SMTP registration email verification
+feat(admin-api): add registration email verification
 ```
 
 ## Description PR suggérée
@@ -460,7 +465,7 @@ feat(admin-api): add SMTP registration email verification
 ```markdown
 ## Summary
 - Adds tenant-aware email verification challenges
-- Adds SMTP delivery with readiness checks
+- Adds selectable SMTP and MailerSend delivery with readiness checks
 - Adds one-time completion tokens
 
 ## Security

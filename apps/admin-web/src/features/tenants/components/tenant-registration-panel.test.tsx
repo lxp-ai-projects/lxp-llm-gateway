@@ -20,7 +20,13 @@ vi.mock('../../../lib/admin-api-client', () => ({ adminApiClient: client }));
 
 beforeEach(() => {
   client.getTenantRegistrationSettings.mockResolvedValue({ enabled: false });
-  client.getTenantRegistrationEmailReadiness.mockResolvedValue({ globalRegistrationEnabled: true, provider: 'smtp', status: 'ready', fromEmail: 'noreply@example.com' });
+  client.getTenantRegistrationEmailReadiness.mockResolvedValue({
+    tenantRegistrationEnabled: false,
+    globalRegistrationEnabled: true,
+    provider: 'smtp',
+    status: 'ready',
+    fromEmail: 'noreply@example.com',
+  });
   client.getTenantPublicHosts.mockResolvedValue([]);
   client.updateTenantRegistrationSettings.mockResolvedValue({ enabled: true });
   client.createTenantPublicHost.mockResolvedValue({ id: 'host-1' });
@@ -63,4 +69,23 @@ test('submits a hostname and prevents an empty submission', async () => {
       'app.example.com',
     );
   });
+});
+
+test('warns when the selected email provider is not ready', async () => {
+  client.getTenantRegistrationEmailReadiness.mockResolvedValue({
+    tenantRegistrationEnabled: true,
+    globalRegistrationEnabled: true,
+    provider: 'mailersend',
+    status: 'not_ready',
+    fromEmail: null,
+  });
+
+  renderWithProviders(
+    <TenantRegistrationPanel tenantId="tenant-1" activeTenantCount={1} />,
+  );
+
+  expect(
+    await screen.findByText(/email delivery: not ready/i),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/provider: mailersend/i)).toBeInTheDocument();
 });

@@ -21,6 +21,7 @@ const testFiles = [
   'src/persistence/database.integration.test.ts',
   'src/registration/tenant-public-host-resolver.service.test.ts',
   'src/registration/tenant-registration.service.test.ts',
+  'src/registration-verification/registration-verification.controller.test.ts',
   'src/registration-verification/registration-verification.service.test.ts',
 ];
 

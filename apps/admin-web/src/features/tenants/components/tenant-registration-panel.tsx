@@ -87,9 +87,8 @@ export function TenantRegistrationPanel({
     const detail = error instanceof Error ? error.message : 'Unknown API error.';
     return (
       <Alert color="red" title="Registration settings could not be loaded.">
-        {detail} Restart `admin-api` from this branch, then apply the admin
-        migrations with `pnpm db:migration:admin`. Confirm that the signed-in
-        user has the `super_admin` role.
+        {detail} Retry the request or contact the deployment operator if the
+        problem continues.
       </Alert>
     );
   }
