@@ -89,3 +89,22 @@ test('warns when the selected email provider is not ready', async () => {
   ).toBeInTheDocument();
   expect(screen.getByText(/provider: mailersend/i)).toBeInTheDocument();
 });
+
+test('shows disabled delivery and the global registration warning', async () => {
+  client.getTenantRegistrationEmailReadiness.mockResolvedValue({
+    tenantRegistrationEnabled: false,
+    globalRegistrationEnabled: false,
+    provider: 'smtp',
+    status: 'disabled',
+    fromEmail: null,
+  });
+
+  renderWithProviders(
+    <TenantRegistrationPanel tenantId="tenant-1" activeTenantCount={1} />,
+  );
+
+  expect(
+    await screen.findByText(/global registration kill switch is off/i),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/email delivery: disabled/i)).toBeInTheDocument();
+});

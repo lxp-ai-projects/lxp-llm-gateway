@@ -15,14 +15,21 @@ const testFiles = [
   'src/auth/auth.service.test.ts',
   'src/auth/super-admin-bootstrap.service.test.ts',
   'src/conversation-transfer/conversation-transfer.service.test.ts',
+  'src/config/runtime.config.test.ts',
   'src/security/crypto.service.test.ts',
   'src/security/email-protection.service.test.ts',
   'src/security/password.service.test.ts',
   'src/persistence/database.integration.test.ts',
+  'src/persistence/registration-verification.migration.test.ts',
+  'src/public-config.controller.test.ts',
   'src/registration/tenant-public-host-resolver.service.test.ts',
   'src/registration/tenant-registration.service.test.ts',
   'src/registration-verification/registration-verification.controller.test.ts',
+  'src/registration-verification/registration-verification.dto.test.ts',
+  'src/registration-verification/registration-verification-rate-limit.service.test.ts',
   'src/registration-verification/registration-verification.service.test.ts',
+  'src/registration-verification/delivery/verification-delivery.service.test.ts',
+  'src/registration-verification/delivery/verification-email-content.test.ts',
 ];
 
 const args = [tsxCliPath, '--test', '--test-concurrency=1'];

@@ -254,6 +254,6 @@ pnpm setup:quickstart:logs
 - Existing developer flow with `docker-compose.dev.yml` and `pnpm dev` remains
   unchanged
 
-## Registration SMTP
+## Registration Email Delivery
 
 Set `LXP_REGISTRATION_ENABLED=true`. `LXP_EMAIL_DELIVERY_PROVIDER=smtp` (the default) uses `LXP_SMTP_ENABLED=true` with `LXP_SMTP_HOST`, `LXP_SMTP_PORT`, `LXP_SMTP_SECURE`, `LXP_SMTP_USER`, `LXP_SMTP_PASSWORD`, and `LXP_SMTP_FROM_EMAIL`. Alternatively set `LXP_EMAIL_DELIVERY_PROVIDER=mailersend` with `LXP_MAILERSEND_API_KEY` and a verified `LXP_MAILERSEND_FROM_EMAIL`. Keep these deployment secrets out of browser configuration. The tenant also needs registration enabled and a resolvable public host unless it is the sole active tenant.

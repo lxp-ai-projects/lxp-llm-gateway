@@ -60,6 +60,7 @@ export const adminApiClient = {
     } catch {
       return {
         registrationEnabled: false,
+        verificationChannels: [],
         forgotPasswordEnabled: false,
         gatewayOnline: true,
         supportedProviders: [...SUPPORTED_PROVIDERS],
@@ -166,8 +167,12 @@ export const adminApiClient = {
     );
   },
 
-  async getTenantRegistrationEmailReadiness(tenantId: string): Promise<AdminRegistrationEmailReadiness> {
-    return request<AdminRegistrationEmailReadiness>(`${adminApiUrl}/api/v1/admin/tenants/${tenantId}/registration/email/readiness`);
+  async getTenantRegistrationEmailReadiness(
+    tenantId: string,
+  ): Promise<AdminRegistrationEmailReadiness> {
+    return request<AdminRegistrationEmailReadiness>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/registration/email/readiness`,
+    );
   },
 
   async updateTenantRegistrationSettings(
