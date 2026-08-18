@@ -138,3 +138,12 @@ Redis should not become the durable source of truth for users or roles.
 - `admin-api` can sync configured global super-admin users from `LXP_SUPER_ADMIN_EMAILS` at startup and when matching users are created
 - global `super_admin` promotion or demotion should use an explicit super-admin-only control-plane workflow, separate from tenant membership editing
 - a `super_admin` must not be able to remove their own global access accidentally through the administration UI
+
+## Registration Email Verification
+
+1. A public client requests an email challenge for the tenant resolved from its host.
+2. `admin-api` stores only HMAC digests and sends a six-digit code through the selected email-delivery provider.
+3. A correct code returns a 15-minute, one-time completion token.
+4. The future account-creation flow must consume the token exactly once.
+
+No user, membership, role, or session is created during these steps.

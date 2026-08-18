@@ -30,6 +30,10 @@ export function TenantRegistrationPanel({
     queryKey: ['tenant-public-hosts', tenantId],
     queryFn: () => adminApiClient.getTenantPublicHosts(tenantId),
   });
+  const emailReadiness = useQuery({
+    queryKey: ['tenant-registration-email-readiness', tenantId],
+    queryFn: () => adminApiClient.getTenantRegistrationEmailReadiness(tenantId),
+  });
   const invalidate = async () => {
     await queryClient.invalidateQueries({
       queryKey: ['tenant-registration-settings', tenantId],
@@ -76,12 +80,26 @@ export function TenantRegistrationPanel({
     deleteHost.isError ||
     updateHost.isError;
 
-  if (settings.isPending || hosts.isPending)
+  if (settings.isPending || hosts.isPending || emailReadiness.isPending)
     return <Loader aria-label="Loading registration settings" />;
-  if (settings.isError || hosts.isError)
+  if (settings.isError || hosts.isError || emailReadiness.isError) {
+    const error = settings.error ?? hosts.error ?? emailReadiness.error;
+    const detail =
+      error instanceof Error ? error.message : 'Unknown API error.';
     return (
-      <Alert color="red">Registration settings could not be loaded.</Alert>
+      <Alert color="red" title="Registration settings could not be loaded.">
+        {detail} Retry the request or contact the deployment operator if the
+        problem continues.
+      </Alert>
     );
+  }
+
+  const emailReadinessLabel =
+    emailReadiness.data.status === 'ready'
+      ? 'ready'
+      : emailReadiness.data.status === 'disabled'
+        ? 'disabled'
+        : 'not ready';
 
   return (
     <Stack gap="md">
@@ -96,6 +114,24 @@ export function TenantRegistrationPanel({
           exists.
         </Alert>
       ) : null}
+      {!emailReadiness.data.globalRegistrationEnabled ? (
+        <Alert color="yellow" title="Global registration kill switch is off">
+          This tenant setting cannot enable public registration while
+          `LXP_REGISTRATION_ENABLED` is false. Set it to `true` in the admin-api
+          deployment environment and restart the service. Set it back to `false`
+          to temporarily disable registration for every tenant.
+        </Alert>
+      ) : null}
+      <Alert
+        color={emailReadiness.data.status === 'ready' ? 'teal' : 'yellow'}
+        title={`Email delivery: ${emailReadinessLabel}`}
+      >
+        Provider: {emailReadiness.data.provider}. From:{' '}
+        {emailReadiness.data.fromEmail ?? 'not configured'}.
+        {settings.data.enabled && emailReadiness.data.status !== 'ready'
+          ? ' Public registration is enabled but email verification is unavailable.'
+          : ''}
+      </Alert>
       <Switch
         label="Allow public registration"
         checked={settings.data.enabled}
@@ -103,7 +139,8 @@ export function TenantRegistrationPanel({
         onChange={(event) => updateSettings.mutate(event.currentTarget.checked)}
       />
       <Text size="sm" c="dimmed">
-        The global registration kill switch must also be enabled. This release
+        This switch controls only the selected tenant. The deployment-level kill
+        switch can temporarily close registration for every tenant. This release
         does not create accounts.
       </Text>
       <Group align="end">

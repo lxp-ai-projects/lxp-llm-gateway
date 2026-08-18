@@ -4,12 +4,14 @@ import type { Request } from 'express';
 
 import { TenantPublicHostResolverService } from './registration/tenant-public-host-resolver.service';
 import { TenantRegistrationService } from './registration/tenant-registration.service';
+import { RegistrationVerificationService } from './registration-verification/registration-verification.service';
 
 @Controller('public/runtime-config')
 export class PublicConfigController {
   constructor(
     private readonly hostResolver: TenantPublicHostResolverService,
     private readonly registrationService: TenantRegistrationService,
+    private readonly verificationService: RegistrationVerificationService,
   ) {}
 
   @Get()
@@ -19,6 +21,10 @@ export class PublicConfigController {
     );
     return {
       registrationEnabled: context.registrationEnabled,
+      verificationChannels:
+        context.registrationEnabled && context.tenant && this.verificationService.isEmailReady()
+          ? ['email']
+          : [],
       tenant: context.tenant,
       forgotPasswordEnabled: process.env.LXP_FORGOT_PASSWORD_ENABLED === 'true',
       gatewayOnline: process.env.LXP_GATEWAY_ONLINE !== 'false',

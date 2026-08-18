@@ -37,6 +37,7 @@ test('adminApiClient.getRuntimeConfig falls back to safe defaults when the reque
 
   await expect(adminApiClient.getRuntimeConfig()).resolves.toEqual({
     registrationEnabled: false,
+    verificationChannels: [],
     forgotPasswordEnabled: false,
     gatewayOnline: true,
     supportedProviders: [

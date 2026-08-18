@@ -537,4 +537,6 @@ The current implementation now also includes:
 
 That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.
 
+Public registration also includes tenant-aware email verification through the selected SMTP or MailerSend provider with short-lived, digest-only challenges. This is deliberately separate from account creation.
+
 

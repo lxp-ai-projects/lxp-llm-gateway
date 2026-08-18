@@ -428,4 +428,8 @@ That UI should remain behind the same backend boundaries already used for chat:
 - provider credential reuse should follow the existing BYOK model
 - reference image upload, prompting, result display, save actions, and history pagination should be capability-specific UI concerns, not provider-specific page logic
 
+## Registration Email Verification
+
+`admin-api` owns tenant-aware registration email verification. It uses a selected global SMTP or MailerSend provider, digest-only challenge persistence and Redis abuse limits. It establishes only proof of email possession; account creation remains a separate flow.
+
 

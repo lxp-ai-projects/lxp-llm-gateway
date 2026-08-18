@@ -157,9 +157,14 @@ Current Open WebUI posture is:
 - tenant-scoped analytics can now read directly from the durable usage ledger for summary, provider, and model breakdowns
 - the first database-level isolation backstop is now in place for telemetry through transaction-scoped `app.tenant_id` plus PostgreSQL RLS on `audit_logs` and `usage_events`
 - technical-client authentication now also uses a database-level backstop by resolving API keys inside a transaction-scoped `app.api_key_hash` context before switching to `app.tenant_id`
+
 - technical-client traffic is now scoped at the application layer by operation, with explicit `chat:completion`, `models:list`, `image:generate`, and `image:edit` checks before provider dispatch
 - provider model listing and image catalog exposure are now filtered through tenant model-access rules before they are returned to callers
 - image asset access and image job persistence now also run behind a database-level tenant backstop through transaction-scoped `app.tenant_id` plus PostgreSQL RLS
 - BYOK credential reads and writes now also run behind a database-level tenant backstop through transaction-scoped `app.tenant_id` plus PostgreSQL RLS
+
+## Registration Email Verification
+
+The public registration foundation can establish email possession for a resolved tenant when tenant registration is enabled and the selected SMTP or MailerSend provider is ready. It does not create a user, membership, role, password, or session.
 
 

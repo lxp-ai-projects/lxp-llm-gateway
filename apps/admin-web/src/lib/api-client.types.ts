@@ -4,6 +4,7 @@ import type { GatewayVideoRetryRequest } from '@lxp/contracts';
 
 export type RuntimeConfig = {
   registrationEnabled: boolean;
+  verificationChannels: Array<'email'>;
   tenant?: { slug: string; displayName: string } | null;
   forgotPasswordEnabled: boolean;
   gatewayOnline: boolean;
@@ -15,6 +16,14 @@ export type AdminTenantRegistrationSettings = {
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AdminRegistrationEmailReadiness = {
+  tenantRegistrationEnabled: boolean;
+  globalRegistrationEnabled: boolean;
+  provider: 'smtp' | 'mailersend';
+  status: 'ready' | 'not_ready' | 'disabled';
+  fromEmail: string | null;
 };
 
 export type AdminTenantPublicHost = {

@@ -1,5 +1,17 @@
 # Gateway API Contract
 
+## Public Registration Email Verification
+
+`admin-api` exposes the following unauthenticated, tenant-host-resolved endpoints:
+
+- `POST /api/v1/public/registration/email/challenges` with `{ "email": "person@example.com" }` returns `{ "challengeId", "expiresAt", "resendAvailableAt" }`.
+- `POST /api/v1/public/registration/email/challenges/:challengeId/verify` with `{ "code": "123456" }` returns a one-time `{ "completionToken", "expiresAt" }`.
+- `POST /api/v1/public/registration/email/challenges/:challengeId/resend` with `{ "email": "person@example.com" }` returns the refreshed cooldown data.
+
+The public runtime config adds `verificationChannels`, which contains `email` only when the resolved tenant has registration enabled and the selected global email-delivery provider is ready. Public errors do not reveal whether an account or membership already exists.
+
+Super-admins can inspect non-secret transport readiness through `GET /api/v1/admin/tenants/:tenantId/registration/email/readiness`.
+
 ## Endpoint
 
 - `POST /api/v1/chat`

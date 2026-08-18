@@ -7,6 +7,7 @@ import { TenantRegistrationPanel } from './tenant-registration-panel';
 const { client } = vi.hoisted(() => ({
   client: {
     getTenantRegistrationSettings: vi.fn(),
+    getTenantRegistrationEmailReadiness: vi.fn(),
     getTenantPublicHosts: vi.fn(),
     updateTenantRegistrationSettings: vi.fn(),
     createTenantPublicHost: vi.fn(),
@@ -19,6 +20,13 @@ vi.mock('../../../lib/admin-api-client', () => ({ adminApiClient: client }));
 
 beforeEach(() => {
   client.getTenantRegistrationSettings.mockResolvedValue({ enabled: false });
+  client.getTenantRegistrationEmailReadiness.mockResolvedValue({
+    tenantRegistrationEnabled: false,
+    globalRegistrationEnabled: true,
+    provider: 'smtp',
+    status: 'ready',
+    fromEmail: 'noreply@example.com',
+  });
   client.getTenantPublicHosts.mockResolvedValue([]);
   client.updateTenantRegistrationSettings.mockResolvedValue({ enabled: true });
   client.createTenantPublicHost.mockResolvedValue({ id: 'host-1' });
@@ -61,4 +69,42 @@ test('submits a hostname and prevents an empty submission', async () => {
       'app.example.com',
     );
   });
+});
+
+test('warns when the selected email provider is not ready', async () => {
+  client.getTenantRegistrationEmailReadiness.mockResolvedValue({
+    tenantRegistrationEnabled: true,
+    globalRegistrationEnabled: true,
+    provider: 'mailersend',
+    status: 'not_ready',
+    fromEmail: null,
+  });
+
+  renderWithProviders(
+    <TenantRegistrationPanel tenantId="tenant-1" activeTenantCount={1} />,
+  );
+
+  expect(
+    await screen.findByText(/email delivery: not ready/i),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/provider: mailersend/i)).toBeInTheDocument();
+});
+
+test('shows disabled delivery and the global registration warning', async () => {
+  client.getTenantRegistrationEmailReadiness.mockResolvedValue({
+    tenantRegistrationEnabled: false,
+    globalRegistrationEnabled: false,
+    provider: 'smtp',
+    status: 'disabled',
+    fromEmail: null,
+  });
+
+  renderWithProviders(
+    <TenantRegistrationPanel tenantId="tenant-1" activeTenantCount={1} />,
+  );
+
+  expect(
+    await screen.findByText(/global registration kill switch is off/i),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/email delivery: disabled/i)).toBeInTheDocument();
 });

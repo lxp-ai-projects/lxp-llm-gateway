@@ -40,6 +40,7 @@ import { CreateTenantPublicHostDto } from './registration/dto/create-tenant-publ
 import { UpdateTenantPublicHostDto } from './registration/dto/update-tenant-public-host.dto';
 import { UpdateTenantRegistrationSettingsDto } from './registration/dto/update-tenant-registration-settings.dto';
 import { TenantRegistrationService } from './registration/tenant-registration.service';
+import { RegistrationVerificationService } from './registration-verification/registration-verification.service';
 import { AccessTokenGuard } from './auth/access-token.guard';
 import type { RequestWithAuthUser } from './auth/auth-request.types';
 import { RolesGuard } from './auth/roles.guard';
@@ -51,6 +52,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly adminCatalogService: AdminCatalogService,
     private readonly tenantRegistrationService: TenantRegistrationService,
+    private readonly registrationVerificationService: RegistrationVerificationService,
   ) {}
 
   @Post('bootstrap/admin')
@@ -488,6 +490,24 @@ export class AdminController {
   @Roles('super_admin')
   updateTenantRegistrationSettings(@Param('tenantId') tenantId: string, @Body() dto: UpdateTenantRegistrationSettingsDto) {
     return this.tenantRegistrationService.updateSettings(tenantId, dto);
+  }
+
+  @Get('admin/tenants/:tenantId/registration/email/readiness')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  getTenantRegistrationEmailReadiness(@Param('tenantId') tenantId: string) {
+    return this.tenantRegistrationService.getSettings(tenantId).then((settings) => ({
+      tenantRegistrationEnabled: settings.enabled,
+      globalRegistrationEnabled: process.env.LXP_REGISTRATION_ENABLED === 'true',
+      ...this.registrationVerificationService.getDeliveryReadiness(),
+    }));
+  }
+
+  @Post('admin/tenants/:tenantId/registration/email/test')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  testTenantRegistrationEmail(@Param('tenantId') tenantId: string) {
+    return this.registrationVerificationService.sendConfiguredTest(tenantId);
   }
 
   @Get('admin/tenants/:tenantId/public-hosts')
