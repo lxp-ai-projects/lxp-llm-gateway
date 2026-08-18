@@ -1,4 +1,12 @@
-import { Body, Controller, Ip, Param, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Ip,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 
 import { TenantPublicHostResolverService } from '../registration/tenant-public-host-resolver.service';
@@ -25,7 +33,8 @@ export class RegistrationVerificationController {
     );
   }
   @Post(':challengeId/verify') verify(
-    @Param('challengeId') challengeId: string,
+    @Param('challengeId', new ParseUUIDPipe({ version: '4' }))
+    challengeId: string,
     @Ip() ip: string,
     @Body() dto: VerifyEmailChallengeDto,
   ) {
@@ -33,7 +42,8 @@ export class RegistrationVerificationController {
   }
   @Post(':challengeId/resend') resend(
     @Req() request: Request,
-    @Param('challengeId') challengeId: string,
+    @Param('challengeId', new ParseUUIDPipe({ version: '4' }))
+    challengeId: string,
     @Ip() ip: string,
     @Body() dto: ResendEmailChallengeDto,
   ) {

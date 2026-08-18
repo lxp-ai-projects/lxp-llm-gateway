@@ -4,18 +4,23 @@ import test from 'node:test';
 import { RegistrationVerificationRateLimitService } from './registration-verification-rate-limit.service';
 
 test('registration rate limiting sets a TTL and rejects requests over the limit', async () => {
-  const calls: string[] = [];
+  const calls: Array<{
+    script: string;
+    keys: string[];
+    arguments: string[];
+  }> = [];
   let count = 0;
+  let ttl: number | null = null;
   const service = new RegistrationVerificationRateLimitService();
   (service as unknown as { client: unknown }).client = {
-    incr: async (key: string) => {
-      calls.push(`incr:${key}`);
+    eval: async (
+      script: string,
+      options: { keys: string[]; arguments: string[] },
+    ) => {
+      calls.push({ script, ...options });
       count += 1;
+      if (count === 1) ttl = Number(options.arguments[0]);
       return count;
-    },
-    expire: async (key: string, ttl: number) => {
-      calls.push(`expire:${key}:${ttl}`);
-      return true;
     },
   };
 
@@ -25,10 +30,16 @@ test('registration rate limiting sets a TTL and rejects requests over the limit'
     () => service.assertLimit('verify:challenge', 'challenge-1', 2, 60),
     /Please try again later/,
   );
-  assert.deepEqual(calls, [
-    'incr:registration-verification:verify:challenge:challenge-1',
-    'expire:registration-verification:verify:challenge:challenge-1:60',
-    'incr:registration-verification:verify:challenge:challenge-1',
-    'incr:registration-verification:verify:challenge:challenge-1',
-  ]);
+  assert.equal(calls.length, 3);
+  assert.equal(ttl, 60);
+  assert.ok(calls.every((call) => call.script.includes("redis.call('INCR'")));
+  assert.ok(calls.every((call) => call.script.includes("redis.call('EXPIRE'")));
+  assert.ok(
+    calls.every(
+      (call) =>
+        call.keys[0] ===
+          'registration-verification:verify:challenge:challenge-1' &&
+        call.arguments[0] === '60',
+    ),
+  );
 });

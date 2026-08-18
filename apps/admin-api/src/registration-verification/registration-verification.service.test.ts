@@ -21,6 +21,30 @@ type StoredChallenge = {
   completionTokenExpiresAt: Date | null;
 };
 
+function cloneChallenge(value: StoredChallenge): StoredChallenge {
+  return {
+    ...value,
+    expiresAt: new Date(value.expiresAt),
+    verifiedAt: value.verifiedAt ? new Date(value.verifiedAt) : null,
+    consumedAt: value.consumedAt ? new Date(value.consumedAt) : null,
+    invalidatedAt: value.invalidatedAt ? new Date(value.invalidatedAt) : null,
+    resendAvailableAt: new Date(value.resendAvailableAt),
+    completionTokenExpiresAt: value.completionTokenExpiresAt
+      ? new Date(value.completionTokenExpiresAt)
+      : null,
+  };
+}
+
+function deferred() {
+  let resolve!: () => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 function createService(options?: {
   deliveryReady?: boolean;
   deliveryFails?: boolean;
@@ -31,6 +55,9 @@ function createService(options?: {
   let transactionQueue = Promise.resolve();
   let deliveredCode = '';
   const deliveredInputs: Array<Record<string, unknown>> = [];
+  let deliveryHandler:
+    | ((input: { code: string } & Record<string, unknown>) => Promise<void>)
+    | null = null;
   let lockCount = 0;
   const protectedEmails: string[] = [];
   const manager = {
@@ -38,16 +65,26 @@ function createService(options?: {
       setLock: () => {
         lockCount += 1;
         return {
-          where: (_query: string, parameters: { challengeId: string }) => ({
-            getOne: async () =>
-              stored.find((item) => item.id === parameters.challengeId) ?? null,
+          where: (
+            _query: string,
+            parameters: { challengeId: string; tenantId?: string },
+          ) => ({
+            getOne: async () => {
+              const value = stored.find(
+                (item) =>
+                  item.id === parameters.challengeId &&
+                  (!parameters.tenantId ||
+                    item.tenantId === parameters.tenantId),
+              );
+              return value ? cloneChallenge(value) : null;
+            },
           }),
         };
       },
     }),
     save: async (value: StoredChallenge) => {
       const index = stored.findIndex((item) => item.id === value.id);
-      if (index >= 0) stored[index] = value;
+      if (index >= 0) stored[index] = cloneChallenge(value);
       return value;
     },
   };
@@ -62,18 +99,42 @@ function createService(options?: {
     }),
     save: async (value: StoredChallenge) => {
       const index = stored.findIndex((item) => item.id === value.id);
-      if (index >= 0) stored[index] = value;
-      else stored.push(value);
+      if (index >= 0) stored[index] = cloneChallenge(value);
+      else stored.push(cloneChallenge(value));
       return value;
     },
     remove: async (value: StoredChallenge) => {
-      const index = stored.indexOf(value);
+      const index = stored.findIndex((item) => item.id === value.id);
       if (index >= 0) stored.splice(index, 1);
     },
     findOneBy: async (where: StoredChallenge) =>
       stored.find((item) =>
         Object.entries(where).every(([key, value]) => item[key] === value),
       ) ?? null,
+    update: async (
+      criteria: Record<string, unknown>,
+      changes: Partial<StoredChallenge>,
+    ) => {
+      const index = stored.findIndex((item) =>
+        Object.entries(criteria).every(([key, expected]) => {
+          const actual = item[key as keyof StoredChallenge];
+          if (
+            expected &&
+            typeof expected === 'object' &&
+            '_type' in expected &&
+            expected._type === 'isNull'
+          ) {
+            return actual === null;
+          }
+          if (actual instanceof Date && expected instanceof Date)
+            return actual.getTime() === expected.getTime();
+          return actual === expected;
+        }),
+      );
+      if (index < 0) return { affected: 0 };
+      stored[index] = cloneChallenge({ ...stored[index], ...changes });
+      return { affected: 1 };
+    },
     manager: {
       transaction: <T>(operation: (value: typeof manager) => Promise<T>) => {
         const result = transactionQueue.then(() => operation(manager));
@@ -90,9 +151,10 @@ function createService(options?: {
     sendChallenge: async (
       input: { code: string } & Record<string, unknown>,
     ) => {
-      if (options?.deliveryFails) throw new Error('delivery failed');
       deliveredCode = input.code;
       deliveredInputs.push(input);
+      if (deliveryHandler) await deliveryHandler(input);
+      if (options?.deliveryFails) throw new Error('delivery failed');
     },
   };
   const limiterCalls: string[] = [];
@@ -143,6 +205,13 @@ function createService(options?: {
     getLockCount: () => lockCount,
     protectedEmails,
     deliveredInputs,
+    setDeliveryHandler: (
+      handler: (input: {
+        code: string;
+      } & Record<string, unknown>) => Promise<void>,
+    ) => {
+      deliveryHandler = handler;
+    },
   };
 }
 
@@ -260,7 +329,7 @@ test('resend rotates the code without extending expiry and enforces cooldown and
   stored[0].resendAvailableAt = new Date(Date.now() - 1);
   await service.resend(null, challenge.challengeId, 'person@example.com', 'ip');
   assert.notEqual(getDeliveredCode(), originalCode);
-  assert.equal(stored[0].expiresAt, originalExpiry);
+  assert.equal(stored[0].expiresAt.getTime(), originalExpiry.getTime());
   await assert.rejects(() =>
     service.verify(challenge.challengeId, originalCode, 'ip'),
   );
@@ -293,7 +362,108 @@ test('restores the prior challenge state when resend delivery fails', async () =
   );
   assert.equal(failing.stored[0].codeDigest, previous.codeDigest);
   assert.equal(failing.stored[0].resendCount, previous.resendCount);
-  assert.equal(failing.stored[0].resendAvailableAt, previous.resendAvailableAt);
+  assert.equal(
+    failing.stored[0].resendAvailableAt.getTime(),
+    previous.resendAvailableAt.getTime(),
+  );
+});
+
+test('serializes concurrent resends so only one rotates the challenge', async () => {
+  const { service, stored, setDeliveryHandler } = createService();
+  const challenge = await service.create(null, 'person@example.com', 'ip');
+  stored[0].resendAvailableAt = new Date(Date.now() - 1);
+  const deliveryStarted = deferred();
+  const releaseDelivery = deferred();
+  setDeliveryHandler(async () => {
+    deliveryStarted.resolve();
+    await releaseDelivery.promise;
+  });
+
+  const firstResend = service.resend(
+    null,
+    challenge.challengeId,
+    'person@example.com',
+    'ip',
+  );
+  await deliveryStarted.promise;
+  await assert.rejects(() =>
+    service.resend(
+      null,
+      challenge.challengeId,
+      'person@example.com',
+      'ip',
+    ),
+  );
+  releaseDelivery.resolve();
+  await firstResend;
+
+  assert.equal(stored[0].resendCount, 1);
+});
+
+test('does not let resend compensation overwrite a concurrent verification', async () => {
+  const { service, stored, setDeliveryHandler, getDeliveredCode } =
+    createService();
+  const challenge = await service.create(null, 'person@example.com', 'ip');
+  stored[0].resendAvailableAt = new Date(Date.now() - 1);
+  const deliveryStarted = deferred();
+  const failDelivery = deferred();
+  setDeliveryHandler(async () => {
+    deliveryStarted.resolve();
+    await failDelivery.promise;
+  });
+
+  const resend = service.resend(
+    null,
+    challenge.challengeId,
+    'person@example.com',
+    'ip',
+  );
+  await deliveryStarted.promise;
+  const resentCode = getDeliveredCode();
+  const verification = await service.verify(
+    challenge.challengeId,
+    resentCode,
+    'ip',
+  );
+  failDelivery.reject(new Error('delivery failed'));
+  await assert.rejects(() => resend, /temporarily unavailable/);
+
+  assert.equal(typeof verification.completionToken, 'string');
+  assert.ok(stored[0].verifiedAt);
+  assert.equal(stored[0].resendCount, 1);
+});
+
+test('failed resend compensation leaves a newer resend state untouched', async () => {
+  const { service, stored, setDeliveryHandler } = createService();
+  const challenge = await service.create(null, 'person@example.com', 'ip');
+  stored[0].resendAvailableAt = new Date(Date.now() - 1);
+  const deliveryStarted = deferred();
+  const failDelivery = deferred();
+  setDeliveryHandler(async () => {
+    deliveryStarted.resolve();
+    await failDelivery.promise;
+  });
+
+  const resend = service.resend(
+    null,
+    challenge.challengeId,
+    'person@example.com',
+    'ip',
+  );
+  await deliveryStarted.promise;
+  const newerAvailableAt = new Date(Date.now() + 120_000);
+  stored[0] = {
+    ...stored[0],
+    codeDigest: 'newer-code-digest',
+    resendCount: stored[0].resendCount + 1,
+    resendAvailableAt: newerAvailableAt,
+  };
+  failDelivery.reject(new Error('delivery failed'));
+  await assert.rejects(() => resend, /temporarily unavailable/);
+
+  assert.equal(stored[0].codeDigest, 'newer-code-digest');
+  assert.equal(stored[0].resendCount, 2);
+  assert.equal(stored[0].resendAvailableAt, newerAvailableAt);
 });
 
 test('removes a new challenge when initial delivery fails', async () => {
@@ -339,4 +509,22 @@ test('applies request, tenant, destination, resend, verify, and challenge limits
       'verify:challenge',
     ]),
   );
+});
+
+test('applies public IP limits before unresolved tenant context', async () => {
+  const { service, limiterCalls } = createService({ tenantResolved: false });
+
+  await assert.rejects(() =>
+    service.create('unknown.example.com', 'person@example.com', 'ip'),
+  );
+  await assert.rejects(() =>
+    service.resend(
+      'unknown.example.com',
+      '00000000-0000-4000-8000-000000000001',
+      'person@example.com',
+      'ip',
+    ),
+  );
+
+  assert.deepEqual(limiterCalls, ['request:ip', 'resend:ip']);
 });

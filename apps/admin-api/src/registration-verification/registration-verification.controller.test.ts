@@ -1,16 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RequestMethod } from '@nestjs/common';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { ParseUUIDPipe, RequestMethod } from '@nestjs/common';
+import {
+  METHOD_METADATA,
+  PATH_METADATA,
+  ROUTE_ARGS_METADATA,
+} from '@nestjs/common/constants';
 
 import { RegistrationVerificationController } from './registration-verification.controller';
 
 test('RegistrationVerificationController publishes and delegates all challenge routes', async () => {
+  const challengeId = '00000000-0000-4000-8000-000000000001';
   const calls: Array<{ method: string; args: unknown[] }> = [];
   const service = {
     create: async (...args: unknown[]) => {
       calls.push({ method: 'create', args });
-      return { challengeId: 'challenge-1' };
+      return { challengeId };
     },
     verify: async (...args: unknown[]) => {
       calls.push({ method: 'verify', args });
@@ -18,7 +23,7 @@ test('RegistrationVerificationController publishes and delegates all challenge r
     },
     resend: async (...args: unknown[]) => {
       calls.push({ method: 'resend', args });
-      return { challengeId: 'challenge-1' };
+      return { challengeId };
     },
   };
   const hosts = { resolveRequestHostname: () => 'tenant.example.com' };
@@ -56,8 +61,8 @@ test('RegistrationVerificationController publishes and delegates all challenge r
   await controller.create(request, '127.0.0.1', {
     email: 'person@example.com',
   });
-  await controller.verify('challenge-1', '127.0.0.1', { code: '123456' });
-  await controller.resend(request, 'challenge-1', '127.0.0.1', {
+  await controller.verify(challengeId, '127.0.0.1', { code: '123456' });
+  await controller.resend(request, challengeId, '127.0.0.1', {
     email: 'person@example.com',
   });
 
@@ -68,16 +73,40 @@ test('RegistrationVerificationController publishes and delegates all challenge r
     },
     {
       method: 'verify',
-      args: ['challenge-1', '123456', '127.0.0.1'],
+      args: [challengeId, '123456', '127.0.0.1'],
     },
     {
       method: 'resend',
       args: [
         'tenant.example.com',
-        'challenge-1',
+        challengeId,
         'person@example.com',
         '127.0.0.1',
       ],
     },
   ]);
+});
+
+test('verify and resend reject malformed challenge UUIDs at the route boundary', async () => {
+  for (const handler of ['verify', 'resend'] as const) {
+    const routeArguments = Reflect.getMetadata(
+      ROUTE_ARGS_METADATA,
+      RegistrationVerificationController,
+      handler,
+    ) as Record<string, { pipes: unknown[] }>;
+    const uuidPipe = Object.values(routeArguments)
+      .flatMap((argument) => argument.pipes)
+      .find((pipe): pipe is ParseUUIDPipe => pipe instanceof ParseUUIDPipe);
+
+    assert.ok(uuidPipe);
+    await assert.rejects(
+      () =>
+        uuidPipe.transform('not-a-uuid', {
+          type: 'param',
+          metatype: String,
+          data: 'challengeId',
+        }),
+      /Validation failed \(uuid v 4 is expected\)/,
+    );
+  }
 });

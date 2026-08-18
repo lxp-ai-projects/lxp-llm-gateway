@@ -10,7 +10,7 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 
 import { RegistrationVerificationChallengeEntity } from '../persistence/entities/registration-verification-challenge.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
@@ -61,9 +61,9 @@ export class RegistrationVerificationService {
   }
 
   async create(hostname: string | null, email: string, ip: string) {
+    await this.rateLimit.assertLimit('request:ip', ip, 20, 3600);
     const tenant = await this.getReadyTenant(hostname);
     const protectedEmail = this.emailProtection.protect(email);
-    await this.rateLimit.assertLimit('request:ip', ip, 20, 3600);
     await this.rateLimit.assertLimit('request:tenant', tenant.id, 100, 3600);
     await this.rateLimit.assertLimit(
       'request:destination',
@@ -162,9 +162,9 @@ export class RegistrationVerificationService {
     email: string,
     ip: string,
   ) {
+    await this.rateLimit.assertLimit('resend:ip', ip, 20, 3600);
     const tenant = await this.getReadyTenant(hostname);
     const protectedEmail = this.emailProtection.protect(email);
-    await this.rateLimit.assertLimit('resend:ip', ip, 20, 3600);
     await this.rateLimit.assertLimit('resend:tenant', tenant.id, 100, 3600);
     await this.rateLimit.assertLimit(
       'resend:destination',
@@ -173,31 +173,55 @@ export class RegistrationVerificationService {
       3600,
     );
     await this.rateLimit.assertLimit('resend:challenge', challengeId, 3, 3600);
-    const challenge = await this.challenges.findOneBy({
-      id: challengeId,
-      tenantId: tenant.id,
-    });
-    const now = new Date();
-    if (
-      !challenge ||
-      challenge.destinationHash !== protectedEmail.emailHash ||
-      challenge.invalidatedAt ||
-      challenge.verifiedAt ||
-      challenge.expiresAt <= now ||
-      challenge.resendCount >= 3 ||
-      challenge.resendAvailableAt > now
-    )
-      throw this.invalidChallenge();
     const code = this.generateCode();
-    const previousState = {
-      codeDigest: challenge.codeDigest,
-      resendCount: challenge.resendCount,
-      resendAvailableAt: challenge.resendAvailableAt,
-    };
-    challenge.codeDigest = this.digest('code', code);
-    challenge.resendCount += 1;
-    challenge.resendAvailableAt = new Date(now.getTime() + RESEND_COOLDOWN_MS);
-    await this.challenges.save(challenge);
+    const transition = await this.challenges.manager.transaction(
+      async (manager) => {
+        const challenge = await manager
+          .createQueryBuilder(
+            RegistrationVerificationChallengeEntity,
+            'challenge',
+          )
+          .setLock('pessimistic_write')
+          .where(
+            'challenge.id = :challengeId AND challenge.tenantId = :tenantId',
+            { challengeId, tenantId: tenant.id },
+          )
+          .getOne();
+        const now = new Date();
+        if (
+          !challenge ||
+          challenge.destinationHash !== protectedEmail.emailHash ||
+          challenge.invalidatedAt ||
+          challenge.verifiedAt ||
+          challenge.expiresAt <= now ||
+          challenge.resendCount >= 3 ||
+          challenge.resendAvailableAt > now
+        ) {
+          return null;
+        }
+        const previousState = {
+          codeDigest: challenge.codeDigest,
+          resendCount: challenge.resendCount,
+          resendAvailableAt: challenge.resendAvailableAt,
+        };
+        challenge.codeDigest = this.digest('code', code);
+        challenge.resendCount += 1;
+        challenge.resendAvailableAt = new Date(
+          now.getTime() + RESEND_COOLDOWN_MS,
+        );
+        await manager.save(challenge);
+        return {
+          challengeId: challenge.id,
+          expiresAt: challenge.expiresAt,
+          resendAvailableAt: challenge.resendAvailableAt,
+          codeDigest: challenge.codeDigest,
+          resendCount: challenge.resendCount,
+          previousState,
+          transitionedAt: now,
+        };
+      },
+    );
+    if (!transition) throw this.invalidChallenge();
     try {
       await this.delivery.sendChallenge({
         tenantDisplayName: tenant.displayName,
@@ -205,22 +229,34 @@ export class RegistrationVerificationService {
         code,
         expiresInMinutes: Math.max(
           1,
-          Math.ceil((challenge.expiresAt.getTime() - now.getTime()) / 60_000),
+          Math.ceil(
+            (transition.expiresAt.getTime() -
+              transition.transitionedAt.getTime()) /
+              60_000,
+          ),
         ),
       });
     } catch {
-      challenge.codeDigest = previousState.codeDigest;
-      challenge.resendCount = previousState.resendCount;
-      challenge.resendAvailableAt = previousState.resendAvailableAt;
-      await this.challenges.save(challenge);
+      await this.challenges.update(
+        {
+          id: transition.challengeId,
+          tenantId: tenant.id,
+          codeDigest: transition.codeDigest,
+          resendCount: transition.resendCount,
+          resendAvailableAt: transition.resendAvailableAt,
+          verifiedAt: IsNull(),
+          invalidatedAt: IsNull(),
+        },
+        transition.previousState,
+      );
       throw new ServiceUnavailableException(
         'Email verification is temporarily unavailable.',
       );
     }
     return {
-      challengeId: challenge.id,
-      expiresAt: challenge.expiresAt.toISOString(),
-      resendAvailableAt: challenge.resendAvailableAt.toISOString(),
+      challengeId: transition.challengeId,
+      expiresAt: transition.expiresAt.toISOString(),
+      resendAvailableAt: transition.resendAvailableAt.toISOString(),
     };
   }
 

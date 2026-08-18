@@ -7,6 +7,14 @@ import {
 } from '@nestjs/common';
 import { createClient, type RedisClientType } from 'redis';
 
+const INCREMENT_WITH_FIXED_WINDOW_TTL = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+`;
+
 @Injectable()
 export class RegistrationVerificationRateLimitService
   implements OnModuleInit, OnModuleDestroy
@@ -30,8 +38,12 @@ export class RegistrationVerificationRateLimitService
     if (!client)
       throw new Error('Registration rate limiter is not initialized.');
     const key = `registration-verification:${scope}:${value}`;
-    const count = await client.incr(key);
-    if (count === 1) await client.expire(key, ttlSeconds);
+    const count = Number(
+      await client.eval(INCREMENT_WITH_FIXED_WINDOW_TTL, {
+        keys: [key],
+        arguments: [String(ttlSeconds)],
+      }),
+    );
     if (count > limit)
       throw new HttpException(
         'Please try again later.',
