@@ -152,7 +152,8 @@ The tenant boundary is now modeled explicitly:
 - `tenant_policies` now define per-tenant operational guardrails such as request windows, monthly budget, monthly token totals, image request volume, logging posture, and retention defaults
 - tenant-aware credential resolution prefers user-scoped credentials only when the tenant allows override, then falls back to tenant defaults
 - technical clients such as `Open WebUI` should authenticate through tenant-scoped `integration_clients` and `api_keys`, with forwarded human identity treated only as an optional bounded enhancement
-- tenant-scoped technical clients can now authenticate against the direct gateway chat, model-listing, and image-generation/edit endpoints, with operation scopes enforced before provider dispatch
+- tenant-scoped technical clients can now authenticate against direct gateway chat, model-listing, image-generation/edit, and structured-evaluation endpoints, with operation scopes enforced before provider dispatch
+- structured evaluation resolves an allowlisted server profile into the existing tenant policy, model-access, credential, provider, audit, and usage seams; it is a terminal inference route that returns evidence only, leaving PGS or another caller as the policy decision point
 - control-plane operators can now manage those tenant-scoped technical clients through the `super_admin` tenant-control surface, including API key creation, rotation, and disablement
 - `audit_logs` and `usage_events` now also use PostgreSQL row-level security as a second line of defense, with the gateway setting `app.tenant_id` transactionally before telemetry writes
 - `integration_clients` and `api_keys` now also use PostgreSQL row-level security, with technical-client key lookup bootstrapped through a transaction-scoped `app.api_key_hash` before the gateway narrows the session to `app.tenant_id`

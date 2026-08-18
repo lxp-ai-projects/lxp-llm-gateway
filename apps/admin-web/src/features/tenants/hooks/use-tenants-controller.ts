@@ -118,7 +118,7 @@ export function useTenantsController() {
     useState('');
   const [editIntegrationClientScopes, setEditIntegrationClientScopes] = useState<
     Array<
-      'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+      'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
     >
   >(['chat:completion']);
   const [
@@ -131,7 +131,7 @@ export function useTenantsController() {
   const [editIntegrationApiKeyLabel, setEditIntegrationApiKeyLabel] = useState('');
   const [editIntegrationApiKeyScopes, setEditIntegrationApiKeyScopes] = useState<
     Array<
-      'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+      'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
     >
   >([]);
   const [editIntegrationApiKeyExpiresAt, setEditIntegrationApiKeyExpiresAt] =
@@ -1122,7 +1122,7 @@ export function useTenantsController() {
       );
       setEditIntegrationClientScopes(
         integrationClient.scopes as Array<
-          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
         >,
       );
       setEditIntegrationClientTrustedForwardedIdentityEnabled(
@@ -1147,7 +1147,7 @@ export function useTenantsController() {
     onEditIntegrationClientScopesChange: (value: string[]) =>
       setEditIntegrationClientScopes(
         value as Array<
-          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
         >,
       ),
     onEditIntegrationClientTrustedForwardedIdentityEnabledChange:
@@ -1175,7 +1175,7 @@ export function useTenantsController() {
       setEditIntegrationApiKeyLabel(apiKey.label);
       setEditIntegrationApiKeyScopes(
         apiKey.scopes as Array<
-          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
         >,
       );
       setEditIntegrationApiKeyExpiresAt(
@@ -1193,7 +1193,7 @@ export function useTenantsController() {
     onEditIntegrationApiKeyScopesChange: (value: string[]) =>
       setEditIntegrationApiKeyScopes(
         value as Array<
-          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'models:list'
+          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
         >,
       ),
     onEditIntegrationApiKeyExpiresAtChange: setEditIntegrationApiKeyExpiresAt,

@@ -1667,6 +1667,7 @@ export function TenantsPage() {
                 { value: 'chat:completion', label: 'chat:completion' },
                 { value: 'models:list', label: 'models:list' },
                 { value: 'image:generate', label: 'image:generate' },
+                { value: 'evaluation:invoke', label: 'evaluation:invoke' },
                 { value: 'image:edit', label: 'image:edit' },
               ]}
             />
@@ -1776,6 +1777,7 @@ export function TenantsPage() {
                 { value: 'chat:completion', label: 'chat:completion' },
                 { value: 'models:list', label: 'models:list' },
                 { value: 'image:generate', label: 'image:generate' },
+                { value: 'evaluation:invoke', label: 'evaluation:invoke' },
                 { value: 'image:edit', label: 'image:edit' },
               ]}
             />

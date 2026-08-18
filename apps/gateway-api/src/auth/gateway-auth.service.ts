@@ -145,6 +145,26 @@ export class GatewayAuthService {
     return this.authenticateAccessToken(authorizationHeader, accessTokenCookie);
   }
 
+  async authenticateIntegrationClientRequest(
+    authorizationHeader?: string,
+    requestHeaders?: Record<string, string | string[] | undefined>,
+  ): Promise<GatewayAuthContext> {
+    const bearerToken = this.tryExtractBearerToken(authorizationHeader);
+    if (!bearerToken) {
+      throw new UnauthorizedException('Integration client API key is required.');
+    }
+
+    const authContext = await this.tryAuthenticateIntegrationClient(
+      bearerToken,
+      requestHeaders,
+    );
+    if (!authContext) {
+      throw new UnauthorizedException('Integration client API key is invalid.');
+    }
+
+    return authContext;
+  }
+
   private async tryAuthenticateIntegrationClient(
     bearerToken: string,
     requestHeaders?: Record<string, string | string[] | undefined>,

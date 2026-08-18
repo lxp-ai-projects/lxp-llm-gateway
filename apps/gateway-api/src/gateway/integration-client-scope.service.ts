@@ -7,6 +7,7 @@ export type IntegrationClientScope =
   | 'image:generate'
   | 'image:edit'
   | 'video:generate'
+  | 'evaluation:invoke'
   | 'models:list'
   | 'usage:read';
 

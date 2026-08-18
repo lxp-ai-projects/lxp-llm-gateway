@@ -11,6 +11,7 @@ const SUPPORTED_INTEGRATION_CLIENT_SCOPES = [
   'chat:completion',
   'image:generate',
   'image:edit',
+  'evaluation:invoke',
   'models:list',
 ] as const;
 

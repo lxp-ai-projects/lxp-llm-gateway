@@ -98,7 +98,8 @@ The repository now treats multi-tenancy as a first-class architectural concern:
 - tenant-aware BYOK provider credentials now have a PostgreSQL RLS slice protecting `user_provider_credentials`
 - `admin-api` and `admin-web` now expose an initial `super_admin` tenant-control surface for tenant listing, tenant settings, and membership visibility
 - the `super_admin` tenant-control surface now also manages provider configurations per tenant, including provider enablement, tenant defaults, and credential-mode fallback policy
-- tenant-aware technical clients can now call direct gateway chat, model-listing, and image-generation/edit endpoints through tenant-scoped API keys, with minimal scope enforcement on `chat:completion`, `models:list`, `image:generate`, and `image:edit`
+- tenant-aware technical clients can now call direct gateway chat, model-listing, image-generation/edit, and structured-evaluation endpoints through tenant-scoped API keys, with operation scopes including `evaluation:invoke`
+- structured evaluation is a reusable terminal inference capability: server-controlled profiles return validated evidence while downstream services such as PGS retain all policy and capability authority
 - tenant-aware usage telemetry now attributes technical traffic down to both `integrationClientId` and `apiKeyId`
 - `admin-api` and `admin-web` now expose a super-admin tenant-control surface for tenant-scoped `integration_clients` and `api_keys`, including create, disable, and rotate workflows
 - tenant-owned model access is now explicitly modeled through `tenant_model_access_rules`, with an initial super-admin UI for allow/deny rules, provider/model-pattern scoping, and image-oriented request limits

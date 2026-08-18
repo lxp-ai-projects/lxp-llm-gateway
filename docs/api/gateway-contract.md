@@ -15,8 +15,14 @@ Super-admins can inspect non-secret transport readiness through `GET /api/v1/adm
 ## Endpoint
 
 - `POST /api/v1/chat`
+- `POST /api/v1/evaluations`
 - `GET /api/v1/openai/models`
 - `POST /api/v1/openai/chat/completions`
+
+`POST /api/v1/evaluations` is a service-to-service structured evidence route.
+It accepts only allowlisted evaluator profiles, requires a tenant-scoped
+integration client with `evaluation:invoke`, and never accepts arbitrary
+provider/model/prompt controls. See [Structured Evaluation API](structured-evaluations.md).
 
 The gateway supports two response modes:
 

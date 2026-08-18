@@ -65,7 +65,8 @@ The repository now contains:
 - provider model discovery through provider adapters, including capability-specific model metadata
 - tenant-aware control-plane and gateway foundations based on global users, tenant memberships, and an active tenant context
 - tenant-aware technical client foundations based on integration clients and API keys
-- tenant-aware technical client execution on direct gateway chat, model-listing, and image-generation/edit endpoints with minimal scope enforcement
+- tenant-aware technical client execution on direct gateway chat, model-listing, image-generation/edit, and structured-evaluation endpoints with minimal scope enforcement
+- reusable structured evaluator profiles that return validated evidence without granting policy, grounding, authorization, or capability authority to the Gateway
 - tenant-aware technical client administration on the `super_admin` surface, including tenant-bound integration clients, API key creation, key rotation, and key disablement
 - tenant-aware provider configuration foundations based on per-tenant provider enablement, default model selection, and credential-routing policy
 - tenant-aware model access foundations based on per-tenant rules for provider/model-pattern allow-deny control and image-oriented request limits

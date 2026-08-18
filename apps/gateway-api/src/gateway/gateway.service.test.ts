@@ -411,6 +411,37 @@ test('GatewayService routes chat requests through the provider registry', async 
   assert.equal(auditService.startedEvents[0]?.stream, false);
 });
 
+test('GatewayService routes controlled evaluation chat without requiring chat scope', async () => {
+  const auditService = new FakeGatewayAuditService();
+  const service = new GatewayService(
+    auditService as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+
+  const response = await service.evaluateProfileChat(
+    {
+      providerId: 'nanogpt',
+      model: 'controlled-evaluator',
+      maxOutputTokens: 512,
+      messages: [{ role: 'user', content: '{"bounded":true}' }],
+    } as GatewayChatRequestDto,
+    buildAuthContext({
+      integrationClientId: 'pgs',
+      integrationClientScopes: ['evaluation:invoke'],
+    }),
+  );
+
+  assert.equal(response.providerId, 'nanogpt');
+  assert.equal(response.model, 'controlled-evaluator');
+  assert.equal(response.message.content, '{"bounded":true}');
+});
+
 test('GatewayService audit includes compatibility identity attribution', async () => {
   const auditService = new FakeGatewayAuditService();
   const service = new GatewayService(

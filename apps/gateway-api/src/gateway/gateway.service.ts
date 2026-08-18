@@ -120,6 +120,25 @@ export class GatewayService {
       authContext,
       'chat:completion',
     );
+    return this.executeControlledChat(request, authContext, '/api/v1/chat');
+  }
+
+  async evaluateProfileChat(
+    request: GatewayChatRequestDto,
+    authContext: GatewayAuthContext,
+  ): Promise<GatewayChatResponse> {
+    return this.executeControlledChat(
+      request,
+      authContext,
+      '/api/v1/evaluations',
+    );
+  }
+
+  private async executeControlledChat(
+    request: GatewayChatRequestDto,
+    authContext: GatewayAuthContext,
+    route: string,
+  ): Promise<GatewayChatResponse> {
     const providerId = this.resolveProviderId(request.providerId, authContext);
     const configuration =
       await this.tenantProviderConfigurationService.assertProviderEnabled(
@@ -246,7 +265,7 @@ export class GatewayService {
           requestId,
           providerId: provider.providerId,
           model,
-          route: '/api/v1/chat',
+          route,
           latencyMs: Date.now() - startedAt,
           stream: false,
           messageSummary,
@@ -268,7 +287,7 @@ export class GatewayService {
             model,
             operation: 'chat',
             capability: 'text',
-            route: '/api/v1/chat',
+            route,
             latencyMs: Date.now() - startedAt,
             error: errorMessage,
             errorCode: 'model_access_denied',
@@ -288,7 +307,7 @@ export class GatewayService {
             model,
             operation: 'chat',
             capability: 'text',
-            route: '/api/v1/chat',
+            route,
             latencyMs: Date.now() - startedAt,
             error: errorMessage,
             errorCode: error.errorCode,
@@ -312,7 +331,7 @@ export class GatewayService {
           requestId,
           providerId: provider.providerId,
           model,
-          route: '/api/v1/chat',
+          route,
           latencyMs: Date.now() - startedAt,
           stream: false,
           messageSummary,

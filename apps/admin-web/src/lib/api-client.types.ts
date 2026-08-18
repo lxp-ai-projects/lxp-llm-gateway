@@ -784,6 +784,7 @@ export type AdminCreateIntegrationClientInput = {
     | 'image:generate'
     | 'image:edit'
     | 'video:generate'
+    | 'evaluation:invoke'
     | 'models:list'
   >;
   trustedForwardedIdentityEnabled: boolean;
@@ -798,6 +799,7 @@ export type AdminUpdateIntegrationClientInput = {
     | 'image:generate'
     | 'image:edit'
     | 'video:generate'
+    | 'evaluation:invoke'
     | 'models:list'
   >;
   trustedForwardedIdentityEnabled?: boolean;
@@ -811,6 +813,7 @@ export type AdminCreateIntegrationApiKeyInput = {
     | 'image:generate'
     | 'image:edit'
     | 'video:generate'
+    | 'evaluation:invoke'
     | 'models:list'
   >;
   expiresAt?: string;
@@ -823,6 +826,7 @@ export type AdminUpdateIntegrationApiKeyInput = {
     | 'image:generate'
     | 'image:edit'
     | 'video:generate'
+    | 'evaluation:invoke'
     | 'models:list'
   >;
   status?: 'active' | 'disabled';
