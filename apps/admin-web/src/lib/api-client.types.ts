@@ -638,6 +638,17 @@ export type AdminTenantIntegrationApiKeySecretSummary = {
   summary: AdminTenantIntegrationApiKeySummary;
 };
 
+export type AdminTenantIntegrationClientTestResult = {
+  ready: boolean;
+  checkedAt: string;
+  gatewayReachable: boolean;
+  clientId: string;
+  identityMode: AdminTenantIntegrationClientSummary['identityMode'];
+  principalKind: 'SERVICE' | 'USER' | null;
+  scopes: string[];
+  message: string;
+};
+
 export type AdminTenantUsageEventSummary = {
   id: string;
   requestId: string;

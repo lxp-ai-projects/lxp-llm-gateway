@@ -58,6 +58,7 @@ import { VideoApplicationService } from '../videos/video-application.service';
 import { EvaluationController } from '../evaluations/evaluation.controller';
 import { EvaluationProfileRegistry } from '../evaluations/evaluation-profile.registry';
 import { EvaluationService } from '../evaluations/evaluation.service';
+import { IntegrationClientDiagnosticsController } from '../integration-client-diagnostics.controller';
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { EvaluationService } from '../evaluations/evaluation.service';
     VideosController,
     OpenAiCompatibleController,
     EvaluationController,
+    IntegrationClientDiagnosticsController,
   ],
   providers: [
     GatewayAuthService,

@@ -229,6 +229,19 @@ export class AdminController {
     );
   }
 
+  @Post('admin/tenants/:tenantId/integration-clients/:integrationClientId/test')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  testTenantIntegrationClient(
+    @Param('tenantId') tenantId: string,
+    @Param('integrationClientId') integrationClientId: string,
+  ) {
+    return this.adminService.testTenantIntegrationClient(
+      tenantId,
+      integrationClientId,
+    );
+  }
+
   @Delete('admin/tenants/:tenantId/integration-clients/:integrationClientId')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')

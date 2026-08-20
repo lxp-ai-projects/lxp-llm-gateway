@@ -127,6 +127,7 @@ export function TenantsPage() {
     handleCreateTenantUserSubmit,
     handleDeleteTenantModelAccessRule,
     handleTestTenantProviderConfiguration,
+    onTestIntegrationClient,
     handleUpsertTenantModelAccessRuleSubmit,
     handleUpdateGlobalRolesSubmit,
     handleUpdateTenantPolicySubmit,
@@ -141,6 +142,7 @@ export function TenantsPage() {
     isDeleteTenantModelAccessRulePending,
     isDeleteTenantIntegrationApiKeyPending,
     isDeleteTenantIntegrationClientPending,
+    isTestTenantIntegrationClientPending,
     isRotateTenantIntegrationApiKeyPending,
     isUpdateGlobalRolesPending,
     isUpdateTenantIntegrationApiKeyPending,
@@ -259,6 +261,8 @@ export function TenantsPage() {
     onEditProviderEnabledChange,
     onEditProviderPreferUserCredentialsChange,
     testTenantProviderConfigurationResult,
+    testingIntegrationClientId,
+    testTenantIntegrationClientResult,
     updateGlobalRolesError,
   } = useTenantsController();
   const [activeTab, setActiveTab] = useState<string>('settings');
@@ -954,6 +958,47 @@ export function TenantsPage() {
                         </Stack>
                       </Alert>
                     ) : null}
+                    {testTenantIntegrationClientResult ? (
+                      <Alert
+                        color={
+                          testTenantIntegrationClientResult.ready
+                            ? 'teal'
+                            : 'red'
+                        }
+                        variant="light"
+                        title={
+                          testTenantIntegrationClientResult.ready
+                            ? 'Integration client authentication succeeded'
+                            : 'Integration client authentication failed'
+                        }
+                      >
+                        <Stack gap={4}>
+                          <Text size="sm">
+                            {testTenantIntegrationClientResult.message}
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            Client: {testTenantIntegrationClientResult.clientId}
+                            {' · '}Identity:{' '}
+                            {testTenantIntegrationClientResult.principalKind ??
+                              testTenantIntegrationClientResult.identityMode}
+                            {' · '}Scopes:{' '}
+                            {testTenantIntegrationClientResult.scopes.join(
+                              ', ',
+                            ) || 'none'}
+                          </Text>
+                          {testTenantIntegrationClientResult.scopes.includes(
+                            'evaluation:invoke',
+                          ) ? (
+                            <Text size="sm" c="dimmed">
+                              Evaluation readiness also requires an enabled
+                              profile provider, an allowed model, and a tenant
+                              credential or explicitly permitted platform
+                              fallback.
+                            </Text>
+                          ) : null}
+                        </Stack>
+                      </Alert>
+                    ) : null}
                     <Table.ScrollContainer minWidth={860}>
                       <Table highlightOnHover>
                         <Table.Thead>
@@ -1041,6 +1086,19 @@ export function TenantsPage() {
                                     }
                                   >
                                     View keys
+                                  </Button>
+                                  <Button
+                                    size="xs"
+                                    variant="light"
+                                    loading={
+                                      isTestTenantIntegrationClientPending &&
+                                      testingIntegrationClientId === client.id
+                                    }
+                                    onClick={() =>
+                                      onTestIntegrationClient(client)
+                                    }
+                                  >
+                                    Test client
                                   </Button>
                                   <Button
                                     size="xs"

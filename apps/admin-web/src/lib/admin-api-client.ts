@@ -21,6 +21,7 @@ import type {
   AdminTenantIntegrationApiKeySecretSummary,
   AdminTenantIntegrationApiKeySummary,
   AdminTenantIntegrationClientSummary,
+  AdminTenantIntegrationClientTestResult,
   AdminTenantMembershipSummary,
   AdminTenantModelAccessRuleSummary,
   AdminTenantPolicySummary,
@@ -379,6 +380,16 @@ export const adminApiClient = {
     return request<void>(
       `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}`,
       { method: 'DELETE' },
+    );
+  },
+
+  async testTenantIntegrationClient(
+    tenantId: string,
+    integrationClientId: string,
+  ): Promise<AdminTenantIntegrationClientTestResult> {
+    return request<AdminTenantIntegrationClientTestResult>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}/test`,
+      { method: 'POST' },
     );
   },
 

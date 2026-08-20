@@ -298,6 +298,12 @@ The structured evaluation route supports service-only clients directly. Other
 routes that still require user-owned resources fail closed when no delegated or
 default user exists.
 
+`POST /api/v1/integration-clients/self-test` is a diagnostic route for an
+integration client to validate its own authentication, tenant binding, identity
+kind, and effective scopes. It returns no secret and invokes no provider. Admin
+Web uses an automatically deleted temporary key when `Test client` is selected,
+so provider readiness must still be tested independently.
+
 Instead it:
 
 1. validates the access token

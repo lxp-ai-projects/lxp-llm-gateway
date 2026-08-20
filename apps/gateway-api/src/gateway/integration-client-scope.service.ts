@@ -26,8 +26,13 @@ export class IntegrationClientScopeService {
       return;
     }
 
-    throw new ForbiddenException(
-      `Integration client "${authContext.integrationClientId}" is missing the required scope "${requiredScope}".`,
-    );
+    throw new ForbiddenException({
+      statusCode: 403,
+      code:
+        requiredScope === 'evaluation:invoke'
+          ? 'evaluation_service_forbidden'
+          : 'integration_client_scope_forbidden',
+      message: `Integration client "${authContext.integrationClientId}" is missing the required scope "${requiredScope}".`,
+    });
   }
 }

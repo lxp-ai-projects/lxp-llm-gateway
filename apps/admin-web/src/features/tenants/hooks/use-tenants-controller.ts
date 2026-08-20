@@ -537,6 +537,13 @@ export function useTenantsController() {
       });
     },
   });
+  const testTenantIntegrationClientMutation = useMutation({
+    mutationFn: (integrationClient: AdminTenantIntegrationClientSummary) =>
+      adminApiClient.testTenantIntegrationClient(
+        selectedTenantId!,
+        integrationClient.id,
+      ),
+  });
   const createTenantIntegrationApiKeyMutation = useMutation({
     mutationFn: () =>
       adminApiClient.createTenantIntegrationApiKey(
@@ -1108,6 +1115,12 @@ export function useTenantsController() {
       updateTenantIntegrationClientMutation.isPending,
     isDeleteTenantIntegrationClientPending:
       deleteTenantIntegrationClientMutation.isPending,
+    isTestTenantIntegrationClientPending:
+      testTenantIntegrationClientMutation.isPending,
+    testingIntegrationClientId:
+      testTenantIntegrationClientMutation.variables?.id ?? null,
+    testTenantIntegrationClientResult:
+      testTenantIntegrationClientMutation.data ?? null,
     isCreateTenantIntegrationApiKeyPending:
       createTenantIntegrationApiKeyMutation.isPending,
     isUpdateTenantIntegrationApiKeyPending:
@@ -1183,6 +1196,9 @@ export function useTenantsController() {
         : null,
     onDismissRevealedIntegrationApiKey: () =>
       setRevealedIntegrationApiKey(null),
+    onTestIntegrationClient: (
+      integrationClient: AdminTenantIntegrationClientSummary,
+    ) => testTenantIntegrationClientMutation.mutate(integrationClient),
     onSelectIntegrationClient: (
       integrationClient: AdminTenantIntegrationClientSummary,
     ) => {

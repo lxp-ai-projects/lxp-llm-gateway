@@ -211,6 +211,17 @@ type TenantIntegrationApiKeySecretSummary = {
   summary: TenantIntegrationApiKeySummary;
 };
 
+type TenantIntegrationClientTestResult = {
+  ready: boolean;
+  checkedAt: string;
+  gatewayReachable: boolean;
+  clientId: string;
+  identityMode: TenantIntegrationClientSummary['identityMode'];
+  principalKind: 'SERVICE' | 'USER' | null;
+  scopes: string[];
+  message: string;
+};
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -986,6 +997,96 @@ export class AdminService {
         integrationClient,
       } as ApiKeyEntity),
     };
+  }
+
+  async testTenantIntegrationClient(
+    tenantId: string,
+    integrationClientId: string,
+  ): Promise<TenantIntegrationClientTestResult> {
+    const integrationClient = await this.assertTenantIntegrationClient(
+      tenantId,
+      integrationClientId,
+    );
+    const identityMode =
+      this.resolveIntegrationClientIdentityMode(integrationClient);
+    const temporaryKey = await this.createTenantIntegrationApiKey(
+      tenantId,
+      integrationClientId,
+      {
+        label: `Connectivity test ${randomUUID().slice(0, 8)}`,
+        scopes: integrationClient.scopes,
+      },
+    );
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5_000);
+
+    try {
+      const response = await fetch(
+        `${this.readGatewayApiUrl()}/api/v1/integration-clients/self-test`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${temporaryKey.apiKey}`,
+            'X-Lxp-Expected-Tenant-Id': tenantId,
+          },
+          signal: controller.signal,
+        },
+      );
+      const body = await this.readIntegrationClientTestResponse(response);
+      const valid =
+        response.ok &&
+        body?.status === 'ok' &&
+        body.tenantId === tenantId &&
+        body.clientId === integrationClient.clientId;
+
+      if (!valid) {
+        return {
+          ready: false,
+          checkedAt: new Date().toISOString(),
+          gatewayReachable: true,
+          clientId: integrationClient.clientId,
+          identityMode,
+          principalKind: null,
+          scopes: [...integrationClient.scopes].sort(),
+          message:
+            response.status === 401
+              ? 'The Gateway rejected this integration client configuration.'
+              : 'The Gateway returned an invalid integration client diagnostic response.',
+        };
+      }
+
+      return {
+        ready: true,
+        checkedAt: new Date().toISOString(),
+        gatewayReachable: true,
+        clientId: integrationClient.clientId,
+        identityMode,
+        principalKind: body.principalKind,
+        scopes: body.scopes,
+        message:
+          'Gateway authentication succeeded. Provider credentials and model policy are tested separately.',
+      };
+    } catch {
+      return {
+        ready: false,
+        checkedAt: new Date().toISOString(),
+        gatewayReachable: false,
+        clientId: integrationClient.clientId,
+        identityMode,
+        principalKind: null,
+        scopes: [...integrationClient.scopes].sort(),
+        message:
+          'The Gateway integration-client diagnostic endpoint is unavailable.',
+      };
+    } finally {
+      clearTimeout(timeout);
+      await this.apiKeyRepository.delete({
+        id: temporaryKey.summary.id,
+        tenantId,
+        integrationClientId,
+      });
+    }
   }
 
   async rotateTenantIntegrationApiKey(
@@ -2116,6 +2217,52 @@ export class AdminService {
       return hasDefaultUser ? 'FORWARDED_USER_WITH_DEFAULT' : 'FORWARDED_USER';
     }
     return hasDefaultUser ? 'DEFAULT_USER' : 'SERVICE_ONLY';
+  }
+
+  private readGatewayApiUrl(): string {
+    return (
+      process.env.GATEWAY_API_URL?.trim() || 'http://127.0.0.1:3001'
+    ).replace(/\/$/u, '');
+  }
+
+  private async readIntegrationClientTestResponse(response: Response): Promise<{
+    status: 'ok';
+    principalKind: 'SERVICE' | 'USER';
+    tenantId: string;
+    clientId: string;
+    scopes: string[];
+  } | null> {
+    let candidate: unknown;
+    try {
+      candidate = JSON.parse(await response.text()) as unknown;
+    } catch {
+      return null;
+    }
+    if (
+      !candidate ||
+      typeof candidate !== 'object' ||
+      Array.isArray(candidate)
+    ) {
+      return null;
+    }
+    const record = candidate as Record<string, unknown>;
+    if (
+      record.status !== 'ok' ||
+      (record.principalKind !== 'SERVICE' && record.principalKind !== 'USER') ||
+      typeof record.tenantId !== 'string' ||
+      typeof record.clientId !== 'string' ||
+      !Array.isArray(record.scopes) ||
+      record.scopes.some((scope) => typeof scope !== 'string')
+    ) {
+      return null;
+    }
+    return record as {
+      status: 'ok';
+      principalKind: 'SERVICE' | 'USER';
+      tenantId: string;
+      clientId: string;
+      scopes: string[];
+    };
   }
 
   private mapTenantIntegrationApiKeySummary(

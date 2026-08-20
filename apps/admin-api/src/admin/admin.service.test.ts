@@ -617,6 +617,50 @@ test('AdminService creates, rotates, and updates tenant integration api keys', a
   assert.deepEqual(updatedKey.scopes, ['chat:completion', 'models:list']);
 });
 
+test('AdminService verifies integration-client authentication with a temporary key', async () => {
+  const { actor, service, repositories } = createAdminService();
+  const client = await service.createTenantIntegrationClient(
+    actor.activeTenantId,
+    {
+      clientId: 'pgs',
+      displayName: 'Presence Grounding Service',
+      applicationId: 'presence-grounding-service',
+      scopes: ['evaluation:invoke'],
+      trustedForwardedIdentityEnabled: false,
+    },
+  );
+  const originalFetch = global.fetch;
+  global.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+    const headers = init?.headers as Record<string, string>;
+    assert.match(headers.Authorization, /^Bearer lxp_/);
+    assert.equal(headers['X-Lxp-Expected-Tenant-Id'], actor.activeTenantId);
+    return new Response(
+      JSON.stringify({
+        status: 'ok',
+        principalKind: 'SERVICE',
+        identitySource: 'integration-client-service',
+        tenantId: actor.activeTenantId,
+        clientId: 'pgs',
+        scopes: ['evaluation:invoke'],
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+
+  try {
+    const result = await service.testTenantIntegrationClient(
+      actor.activeTenantId,
+      client.id,
+    );
+    assert.equal(result.ready, true);
+    assert.equal(result.principalKind, 'SERVICE');
+    assert.deepEqual(result.scopes, ['evaluation:invoke']);
+    assert.equal(repositories.apiKeyRepository.data.length, 0);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('AdminService deletes tenant-bound integration api keys and clients', async () => {
   const { actor, service } = createAdminService();
   const client = await service.createTenantIntegrationClient(

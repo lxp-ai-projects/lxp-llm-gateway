@@ -56,7 +56,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Missing evaluation:invoke or blocked by tenant policy
+          description: >-
+            Missing evaluation:invoke (evaluation_service_forbidden) or model
+            denied by tenant policy (evaluation_model_forbidden)
           content:
             application/json:
               schema:
@@ -80,7 +82,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
-          description: Profile not configured or evaluator provider unavailable
+          description: >-
+            Profile not configured, provider credential unavailable
+            (evaluation_provider_credential_unavailable), or evaluator provider unavailable
           content:
             application/json:
               schema:
@@ -91,6 +95,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/integration-clients/self-test:
+    post:
+      summary: Validate the calling integration-client identity
+      description: >-
+        Returns the authenticated client, tenant, identity kind, and effective
+        scopes without invoking a provider or validating provider credentials.
+      operationId: testIntegrationClientIdentity
+      security:
+        - integrationClientBearer: []
+      responses:
+        '200':
+          description: Integration-client authentication succeeded
+        '401':
+          description: Missing, invalid, inactive, or expired integration identity
   /api/v1/admin/evaluation-profiles:
     get:
       summary: List safe Evaluation Lab profile metadata
@@ -146,7 +164,9 @@ paths:
           }
         '503':
           {
-            description: Service identity not configured or evaluator unavailable,
+            description: Service identity,
+            provider credential,
+            or evaluator unavailable,
           }
         '504': { description: Evaluation timed out }
 components:

@@ -16,6 +16,7 @@ export type {
   AdminTenantIntegrationApiKeySecretSummary,
   AdminTenantIntegrationApiKeySummary,
   AdminTenantIntegrationClientSummary,
+  AdminTenantIntegrationClientTestResult,
   AdminTenantMembershipSummary,
   AdminTenantModelAccessRuleSummary,
   AdminTenantPolicySummary,

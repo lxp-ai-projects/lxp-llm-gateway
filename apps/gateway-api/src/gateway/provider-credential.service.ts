@@ -34,6 +34,8 @@ type ProviderCredentialAuthContext =
   | Pick<GatewayAuthContext, 'activeTenantId' | 'emailHash' | 'userId'>
   | Pick<GatewayServiceAuthContext, 'activeTenantId' | 'emailHash' | 'userId'>;
 
+export class ProviderCredentialUnavailableException extends ForbiddenException {}
+
 @Injectable()
 export class ProviderCredentialService {
   constructor(
@@ -164,7 +166,7 @@ export class ProviderCredentialService {
       },
     );
     if (!resolvedProviderAccess) {
-      throw new ForbiddenException(
+      throw new ProviderCredentialUnavailableException(
         `No active credential path is configured for provider ${providerId} in tenant ${authContext.activeTenantId}.`,
       );
     }

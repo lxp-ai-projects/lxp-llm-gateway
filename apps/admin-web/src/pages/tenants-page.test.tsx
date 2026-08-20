@@ -112,6 +112,7 @@ function createController(overrides: Record<string, unknown> = {}) {
     handleDeleteTenantModelAccessRule: vi.fn(),
     handleRotateTenantIntegrationApiKey: vi.fn(),
     handleTestTenantProviderConfiguration: vi.fn(),
+    onTestIntegrationClient: vi.fn(),
     handleUpdateGlobalRolesSubmit: vi.fn(),
     handleUpdateTenantPolicySubmit: vi.fn(),
     handleUpdateTenantProviderConfigurationSubmit: vi.fn(),
@@ -137,6 +138,7 @@ function createController(overrides: Record<string, unknown> = {}) {
     isDeleteTenantModelAccessRulePending: false,
     isRotateTenantIntegrationApiKeyPending: false,
     isTestTenantProviderConfigurationPending: false,
+    isTestTenantIntegrationClientPending: false,
     isUpdateGlobalRolesPending: false,
     isUpdatePending: false,
     isUpdateTenantIntegrationApiKeyPending: false,
@@ -263,6 +265,8 @@ function createController(overrides: Record<string, unknown> = {}) {
     tenantPolicyQuery: { isPending: false },
     tenantsQuery: { isPending: false },
     testTenantProviderConfigurationResult: null,
+    testingIntegrationClientId: null,
+    testTenantIntegrationClientResult: null,
     updateGlobalRolesError: null,
     activeTenantLabel: 'Tenant One (tenant-one)',
     ...overrides,
@@ -319,6 +323,11 @@ test('TenantsPage forwards integration client and api key actions', () => {
     controller.selectedIntegrationClient,
   );
 
+  fireEvent.click(screen.getByRole('button', { name: 'Test client' }));
+  expect(controller.onTestIntegrationClient).toHaveBeenCalledWith(
+    controller.selectedIntegrationClient,
+  );
+
   fireEvent.click(screen.getByRole('button', { name: 'Delete key' }));
   expect(controller.handleDeleteTenantIntegrationApiKey).toHaveBeenCalledWith(
     controller.selectedIntegrationClient,
@@ -329,6 +338,37 @@ test('TenantsPage forwards integration client and api key actions', () => {
   expect(controller.handleDeleteTenantIntegrationClient).toHaveBeenCalledWith(
     controller.selectedIntegrationClient,
   );
+});
+
+test('TenantsPage explains successful service-only authentication separately from provider readiness', () => {
+  useTenantsControllerMock.mockReturnValue(
+    createController({
+      testTenantIntegrationClientResult: {
+        ready: true,
+        checkedAt: '2026-08-20T00:00:00.000Z',
+        gatewayReachable: true,
+        clientId: 'pgs',
+        identityMode: 'SERVICE_ONLY',
+        principalKind: 'SERVICE',
+        scopes: ['evaluation:invoke'],
+        message:
+          'Gateway authentication succeeded. Provider credentials and model policy are tested separately.',
+      },
+    }),
+  );
+
+  renderWithProviders(<TenantsPage />);
+  openIntegrationClientsTab();
+
+  expect(
+    screen.getByText('Integration client authentication succeeded'),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Provider credentials and model policy/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Evaluation readiness also requires/),
+  ).toBeInTheDocument();
 });
 
 test('TenantsPage shows the api key modal and rotates the selected key', () => {

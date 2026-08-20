@@ -1,12 +1,20 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 
-import { ValidationPipe } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
-import express from 'express';
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
 
 import { AppModule } from './app.module';
+
+const requestIdPattern = /^[A-Za-z0-9._-]{1,128}$/u;
 
 function resolveCorsOrigins(): string[] {
   const configuredOrigins = (
@@ -27,8 +35,36 @@ function resolveCorsOrigins(): string[] {
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  const httpLogger = new Logger('AdminHttp');
   const requestBodyLimit = process.env.LXP_REQUEST_BODY_LIMIT ?? '10mb';
   app.setGlobalPrefix('api/v1');
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    const candidate = request.header('x-request-id');
+    const requestId =
+      candidate && requestIdPattern.test(candidate) ? candidate : randomUUID();
+    const startedAt = Date.now();
+    request.headers['x-request-id'] = requestId;
+    response.setHeader('x-request-id', requestId);
+    httpLogger.log({
+      event: 'admin.http_request',
+      status: 'received',
+      requestId,
+      method: request.method,
+      path: request.path,
+    });
+    response.on('finish', () => {
+      httpLogger.log({
+        event: 'admin.http_request',
+        status: 'completed',
+        requestId,
+        method: request.method,
+        path: request.path,
+        statusCode: response.statusCode,
+        latencyMs: Date.now() - startedAt,
+      });
+    });
+    next();
+  });
   app.use(express.json({ limit: requestBodyLimit }));
   app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
   app.use(cookieParser(process.env.LXP_COOKIE_SECRET ?? ''));

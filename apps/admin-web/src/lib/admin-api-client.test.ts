@@ -168,6 +168,17 @@ test('adminApiClient deletes tenant-bound integration clients and keys', async (
   );
 });
 
+test('adminApiClient tests a tenant integration client', async () => {
+  requestMock.mockResolvedValue({ ready: true });
+
+  await adminApiClient.testTenantIntegrationClient('tenant-1', 'client-1');
+
+  expect(requestMock).toHaveBeenCalledWith(
+    'http://localhost:3002/api/v1/admin/tenants/tenant-1/integration-clients/client-1/test',
+    { method: 'POST' },
+  );
+});
+
 test('adminApiClient login posts credentials then resolves the session through getSession', async () => {
   requestMock.mockResolvedValue({});
   const getSessionSpy = vi
