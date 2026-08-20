@@ -118,7 +118,9 @@ function createService(fixtures?: {
         return createManagerRepositoryMock(fixtures?.integrationClients ?? []);
       }
 
-      throw new Error(`Unexpected repository request in test: ${String(entity)}`);
+      throw new Error(
+        `Unexpected repository request in test: ${String(entity)}`,
+      );
     },
   };
   const tenantRlsService = {
@@ -214,14 +216,30 @@ test('GatewayAuthService resolves a tenant-scoped integration client default use
         `Bearer ${apiKey}`,
       );
 
-      assert.equal(authContext.identitySource, 'integration-client-default-user');
+      assert.equal(
+        authContext.identitySource,
+        'integration-client-default-user',
+      );
       assert.equal(authContext.activeTenantId, tenant.id);
       assert.equal(authContext.integrationClientId, 'open-webui-demo');
-      assert.deepEqual(
-        authContext.integrationClientScopes,
-        ['chat:completion', 'models:list'],
-      );
+      assert.deepEqual(authContext.integrationClientScopes, [
+        'chat:completion',
+        'models:list',
+      ]);
       assert.equal(authContext.userUuid, 'uuid-1');
+
+      const evaluationContext =
+        await service.authenticateIntegrationClientRequest(`Bearer ${apiKey}`, {
+          'x-lxp-expected-tenant-id': tenant.id,
+        });
+      assert.equal(evaluationContext.activeTenantId, tenant.id);
+      await assert.rejects(
+        service.authenticateIntegrationClientRequest(`Bearer ${apiKey}`, {
+          'x-lxp-expected-tenant-id': 'tenant-spoof',
+        }),
+        (error: unknown) =>
+          (error as { getStatus(): number }).getStatus() === 401,
+      );
     },
   );
 });
@@ -420,9 +438,13 @@ test('GatewayAuthService rejects a trusted forwarded user from a different tenan
     async () => {
       await assert.rejects(
         () =>
-          service.authenticateOpenAiCompatibleRequest(`Bearer ${apiKey}`, undefined, {
-            'x-openwebui-user-email': 'bob@example.com',
-          }),
+          service.authenticateOpenAiCompatibleRequest(
+            `Bearer ${apiKey}`,
+            undefined,
+            {
+              'x-openwebui-user-email': 'bob@example.com',
+            },
+          ),
         /not a member of the integration tenant/i,
       );
     },

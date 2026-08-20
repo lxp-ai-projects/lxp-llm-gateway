@@ -162,6 +162,9 @@ test('AppShellLayout shows admin navigation and offline gateway state', async ()
   expect(screen.getByRole('link', { name: /analytics/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /health/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /image lab/i })).toBeInTheDocument();
+  expect(
+    screen.getByRole('link', { name: /evaluation lab/i }),
+  ).toBeInTheDocument();
 });
 
 test('AppShellLayout shows online gateway state from the real gateway health check', async () => {

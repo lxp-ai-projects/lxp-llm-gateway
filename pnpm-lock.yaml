@@ -35,6 +35,9 @@ importers:
 
   apps/admin-api:
     dependencies:
+      '@lxp/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@lxp/domain':
         specifier: workspace:*
         version: link:../../packages/domain

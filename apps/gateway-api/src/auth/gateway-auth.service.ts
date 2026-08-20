@@ -1,9 +1,5 @@
 import { createHash, createHmac } from 'node:crypto';
-import {
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { GlobalRole, TenantRole } from '@lxp/domain';
@@ -101,9 +97,8 @@ export class GatewayAuthService {
 
     const configuredApiKey = process.env.LXP_OPENAI_COMPAT_API_KEY?.trim();
     if (configuredApiKey && bearerToken === configuredApiKey) {
-      const authContext = await this.authenticateTrustedOpenAiCompatibleUser(
-        requestHeaders,
-      );
+      const authContext =
+        await this.authenticateTrustedOpenAiCompatibleUser(requestHeaders);
       this.logCompatibilityRequestAccepted(authContext);
       if (debugEnabled) {
         this.logger.debug(
@@ -151,7 +146,9 @@ export class GatewayAuthService {
   ): Promise<GatewayAuthContext> {
     const bearerToken = this.tryExtractBearerToken(authorizationHeader);
     if (!bearerToken) {
-      throw new UnauthorizedException('Integration client API key is required.');
+      throw new UnauthorizedException(
+        'Integration client API key is required.',
+      );
     }
 
     const authContext = await this.tryAuthenticateIntegrationClient(
@@ -160,6 +157,15 @@ export class GatewayAuthService {
     );
     if (!authContext) {
       throw new UnauthorizedException('Integration client API key is invalid.');
+    }
+
+    const expectedTenantId = readSingleHeader(
+      requestHeaders?.['x-lxp-expected-tenant-id'],
+    );
+    if (expectedTenantId && expectedTenantId !== authContext.activeTenantId) {
+      throw new UnauthorizedException(
+        'Integration client API key is not bound to the expected tenant.',
+      );
     }
 
     return authContext;
@@ -174,8 +180,9 @@ export class GatewayAuthService {
       keyHash,
       async (manager) => {
         const apiKeyRepository = manager.getRepository(ApiKeyEntity);
-        const integrationClientRepository =
-          manager.getRepository(IntegrationClientEntity);
+        const integrationClientRepository = manager.getRepository(
+          IntegrationClientEntity,
+        );
         const apiKey =
           (await apiKeyRepository.findOne({
             where: {
@@ -208,7 +215,10 @@ export class GatewayAuthService {
             defaultUser: true,
           },
         });
-        if (!integrationClient || integrationClient.tenant?.status !== 'active') {
+        if (
+          !integrationClient ||
+          integrationClient.tenant?.status !== 'active'
+        ) {
           throw new UnauthorizedException(
             'Integration client is not active for the supplied API key.',
           );
@@ -441,8 +451,10 @@ export class GatewayAuthService {
 
   private isTrustedIdentityCorrelationEnabled(): boolean {
     return (
-      process.env.LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED ?? ''
-    ).toLowerCase() === 'true';
+      (
+        process.env.LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED ?? ''
+      ).toLowerCase() === 'true'
+    );
   }
 
   private computeEmailHash(email: string): string {
@@ -626,7 +638,9 @@ export class GatewayAuthService {
       activeTenantId: activeMembership.tenantId,
       activeTenantSlug: activeMembership.tenant.slug,
       roles: memberships
-        .filter((membership) => membership.tenantId === activeMembership.tenantId)
+        .filter(
+          (membership) => membership.tenantId === activeMembership.tenantId,
+        )
         .map((membership) => membership.role),
       globalRoles: [],
     };
@@ -649,7 +663,9 @@ export class GatewayAuthService {
     ];
   }
 
-  private logCompatibilityRequestAccepted(authContext: GatewayAuthContext): void {
+  private logCompatibilityRequestAccepted(
+    authContext: GatewayAuthContext,
+  ): void {
     this.logger.log(
       JSON.stringify({
         event: 'gateway.compatibility.request.accepted',
@@ -697,4 +713,11 @@ export class GatewayAuthService {
   private isOpenAiCompatDebugEnabled(): boolean {
     return (process.env.LXP_OPENAI_COMPAT_DEBUG ?? '').toLowerCase() === 'true';
   }
+}
+
+function readSingleHeader(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(value)) return value.length === 1 ? value[0] : undefined;
+  return value?.trim() || undefined;
 }

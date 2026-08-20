@@ -146,6 +146,28 @@ test('adminApiClient delegates CRUD endpoints to request with the expected paylo
   );
 });
 
+test('adminApiClient deletes tenant-bound integration clients and keys', async () => {
+  requestMock.mockResolvedValue(undefined);
+
+  await adminApiClient.deleteTenantIntegrationApiKey(
+    'tenant-1',
+    'client-1',
+    'key-1',
+  );
+  await adminApiClient.deleteTenantIntegrationClient('tenant-1', 'client-1');
+
+  expect(requestMock).toHaveBeenNthCalledWith(
+    1,
+    'http://localhost:3002/api/v1/admin/tenants/tenant-1/integration-clients/client-1/api-keys/key-1',
+    { method: 'DELETE' },
+  );
+  expect(requestMock).toHaveBeenNthCalledWith(
+    2,
+    'http://localhost:3002/api/v1/admin/tenants/tenant-1/integration-clients/client-1',
+    { method: 'DELETE' },
+  );
+});
+
 test('adminApiClient login posts credentials then resolves the session through getSession', async () => {
   requestMock.mockResolvedValue({});
   const getSessionSpy = vi

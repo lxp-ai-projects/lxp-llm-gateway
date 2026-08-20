@@ -15,6 +15,8 @@ const testFiles = [
   'src/auth/auth.service.test.ts',
   'src/auth/super-admin-bootstrap.service.test.ts',
   'src/conversation-transfer/conversation-transfer.service.test.ts',
+  'src/evaluation-lab/evaluation-lab.controller.test.ts',
+  'src/evaluation-lab/evaluation-lab.service.test.ts',
   'src/config/runtime.config.test.ts',
   'src/security/crypto.service.test.ts',
   'src/security/email-protection.service.test.ts',

@@ -106,6 +106,8 @@ function createController(overrides: Record<string, unknown> = {}) {
     editStatus: 'active',
     handleCreateTenantSubmit: vi.fn(),
     handleCreateTenantUserSubmit: vi.fn(),
+    handleDeleteTenantIntegrationApiKey: vi.fn(),
+    handleDeleteTenantIntegrationClient: vi.fn(),
     handleDeleteTenantModelAccessRule: vi.fn(),
     handleRotateTenantIntegrationApiKey: vi.fn(),
     handleTestTenantProviderConfiguration: vi.fn(),
@@ -129,6 +131,8 @@ function createController(overrides: Record<string, unknown> = {}) {
     isCreateTenantIntegrationClientPending: false,
     isCreateTenantModelAccessRulePending: false,
     isCreateTenantUserPending: false,
+    isDeleteTenantIntegrationApiKeyPending: false,
+    isDeleteTenantIntegrationClientPending: false,
     isDeleteTenantModelAccessRulePending: false,
     isRotateTenantIntegrationApiKeyPending: false,
     isTestTenantProviderConfigurationPending: false,
@@ -285,9 +289,7 @@ test('TenantsPage renders the integration client surface and revealed api key', 
   expect(screen.getAllByText('open-webui-demo').length).toBeGreaterThan(0);
   expect(screen.getByText('Copy this API key now')).toBeInTheDocument();
   expect(screen.getByText('lxp_super_secret_key')).toBeInTheDocument();
-  expect(
-    screen.getByText('API keys for Open WebUI Demo'),
-  ).toBeInTheDocument();
+  expect(screen.getByText('API keys for Open WebUI Demo')).toBeInTheDocument();
   expect(screen.getAllByText('Primary key').length).toBeGreaterThan(0);
 });
 
@@ -315,6 +317,17 @@ test('TenantsPage forwards integration client and api key actions', () => {
   expect(controller.onOpenEditIntegrationClient).toHaveBeenCalledWith(
     controller.selectedIntegrationClient,
   );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Delete key' }));
+  expect(controller.handleDeleteTenantIntegrationApiKey).toHaveBeenCalledWith(
+    controller.selectedIntegrationClient,
+    controller.selectedIntegrationApiKey,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Delete client' }));
+  expect(controller.handleDeleteTenantIntegrationClient).toHaveBeenCalledWith(
+    controller.selectedIntegrationClient,
+  );
 });
 
 test('TenantsPage shows the api key modal and rotates the selected key', () => {
@@ -326,10 +339,10 @@ test('TenantsPage shows the api key modal and rotates the selected key', () => {
   renderWithProviders(<TenantsPage />);
 
   const dialog = screen.getByRole('dialog', { name: 'Edit API key' });
-  expect(
-    within(dialog).getByText('Rotation'),
-  ).toBeInTheDocument();
+  expect(within(dialog).getByText('Rotation')).toBeInTheDocument();
 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Rotate key' }));
-  expect(controller.handleRotateTenantIntegrationApiKey).toHaveBeenCalledTimes(1);
+  expect(controller.handleRotateTenantIntegrationApiKey).toHaveBeenCalledTimes(
+    1,
+  );
 });

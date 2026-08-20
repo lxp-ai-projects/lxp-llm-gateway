@@ -549,7 +549,9 @@ test('AdminService creates and lists tenant integration clients', async () => {
   assert.deepEqual(client.scopes, ['chat:completion', 'models:list']);
   assert.equal(client.apiKeyCount, 0);
 
-  const listed = await service.listTenantIntegrationClients(actor.activeTenantId);
+  const listed = await service.listTenantIntegrationClients(
+    actor.activeTenantId,
+  );
   assert.equal(listed.length, 1);
   assert.equal(listed[0]?.clientId, 'open-webui-demo');
 });
@@ -601,6 +603,55 @@ test('AdminService creates, rotates, and updates tenant integration api keys', a
   assert.equal(updatedKey.label, 'Rotated key');
   assert.equal(updatedKey.status, 'disabled');
   assert.deepEqual(updatedKey.scopes, ['chat:completion', 'models:list']);
+});
+
+test('AdminService deletes tenant-bound integration api keys and clients', async () => {
+  const { actor, service } = createAdminService();
+  const client = await service.createTenantIntegrationClient(
+    actor.activeTenantId,
+    {
+      clientId: 'disposable-client',
+      displayName: 'Disposable client',
+      applicationId: 'test-suite',
+      scopes: ['evaluation:invoke'],
+      trustedForwardedIdentityEnabled: false,
+    },
+  );
+  const createdKey = await service.createTenantIntegrationApiKey(
+    actor.activeTenantId,
+    client.id,
+    { label: 'Disposable key', scopes: ['evaluation:invoke'] },
+  );
+
+  assert.deepEqual(
+    await service.deleteTenantIntegrationApiKey(
+      actor.activeTenantId,
+      client.id,
+      createdKey.summary.id,
+    ),
+    { deleted: true },
+  );
+  assert.equal(
+    (
+      await service.listTenantIntegrationApiKeys(
+        actor.activeTenantId,
+        client.id,
+      )
+    ).length,
+    0,
+  );
+
+  assert.deepEqual(
+    await service.deleteTenantIntegrationClient(
+      actor.activeTenantId,
+      client.id,
+    ),
+    { deleted: true },
+  );
+  assert.equal(
+    (await service.listTenantIntegrationClients(actor.activeTenantId)).length,
+    0,
+  );
 });
 
 test('AdminService upserts tenant provider configurations with normalized credential settings', async () => {
@@ -859,10 +910,10 @@ test('AdminService lists both tenant-scoped and user-scoped provider credentials
     createdUser.userUuid,
   );
 
-  assert.deepEqual(
-    credentials.map((credential) => credential.scope).sort(),
-    ['tenant', 'user'],
-  );
+  assert.deepEqual(credentials.map((credential) => credential.scope).sort(), [
+    'tenant',
+    'user',
+  ]);
   assert.equal(credentials.length, 2);
 });
 
@@ -873,12 +924,15 @@ test('AdminService updates an owned provider credential without exposing the raw
     password: 'Sup3rS3cret!',
     displayName: 'Patrick',
   });
-  const createdCredential = await service.storeProviderCredentialForActor(actor, {
-    userUuid: createdUser.userUuid,
-    providerId: 'nanogpt',
-    label: 'primary',
-    apiToken: 'nano-secret-token',
-  });
+  const createdCredential = await service.storeProviderCredentialForActor(
+    actor,
+    {
+      userUuid: createdUser.userUuid,
+      providerId: 'nanogpt',
+      label: 'primary',
+      apiToken: 'nano-secret-token',
+    },
+  );
 
   const updatedCredential = await service.updateOwnProviderCredential(
     {
@@ -1163,12 +1217,15 @@ test('AdminService rejects updating a provider credential when the new label alr
     displayName: 'Patrick',
   });
 
-  const primaryCredential = await service.storeProviderCredentialForActor(actor, {
-    userUuid: createdUser.userUuid,
-    providerId: 'nanogpt',
-    label: 'primary',
-    apiToken: 'nano-secret-token',
-  });
+  const primaryCredential = await service.storeProviderCredentialForActor(
+    actor,
+    {
+      userUuid: createdUser.userUuid,
+      providerId: 'nanogpt',
+      label: 'primary',
+      apiToken: 'nano-secret-token',
+    },
+  );
   await service.storeProviderCredentialForActor(actor, {
     userUuid: createdUser.userUuid,
     providerId: 'nanogpt',
@@ -1249,7 +1306,10 @@ test('AdminService lists models directly from the provider instead of the gatewa
     const response = await service.listOwnModels(authenticatedUser, 'nanogpt');
 
     assert.equal(response.providerId, 'nanogpt');
-    assert.deepEqual(response.models.map((model) => model.id), ['glm-4.6']);
+    assert.deepEqual(
+      response.models.map((model) => model.id),
+      ['glm-4.6'],
+    );
     assert.equal(
       fetchCalls.some((url) => url.startsWith('http://gateway.example.test')),
       false,

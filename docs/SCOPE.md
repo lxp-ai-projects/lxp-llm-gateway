@@ -100,6 +100,7 @@ The repository now treats multi-tenancy as a first-class architectural concern:
 - the `super_admin` tenant-control surface now also manages provider configurations per tenant, including provider enablement, tenant defaults, and credential-mode fallback policy
 - tenant-aware technical clients can now call direct gateway chat, model-listing, image-generation/edit, and structured-evaluation endpoints through tenant-scoped API keys, with operation scopes including `evaluation:invoke`
 - structured evaluation is a reusable terminal inference capability: server-controlled profiles return validated evidence while downstream services such as PGS retain all policy and capability authority
+- the authenticated Evaluation Lab lets `operator` and `tenant_admin` users probe those profiles through a tenant-bound Admin API service identity without exposing M2M or provider credentials to the browser
 - tenant-aware usage telemetry now attributes technical traffic down to both `integrationClientId` and `apiKeyId`
 - `admin-api` and `admin-web` now expose a super-admin tenant-control surface for tenant-scoped `integration_clients` and `api_keys`, including create, disable, and rotate workflows
 - tenant-owned model access is now explicitly modeled through `tenant_model_access_rules`, with an initial super-admin UI for allow/deny rules, provider/model-pattern scoping, and image-oriented request limits

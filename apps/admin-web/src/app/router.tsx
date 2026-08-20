@@ -60,6 +60,11 @@ const HealthPage = lazy(async () =>
     default: module.HealthPage,
   })),
 );
+const EvaluationLabPage = lazy(async () =>
+  import('../pages/evaluation-lab-page').then((module) => ({
+    default: module.EvaluationLabPage,
+  })),
+);
 const LoginPage = lazy(async () =>
   import('../pages/login-page').then((module) => ({
     default: module.LoginPage,
@@ -102,8 +107,8 @@ function RouteErrorPage() {
     <Stack gap="md" maw={640} mx="auto" mt="xl" p="lg">
       <Title order={2}>Application Error</Title>
       <Text c="dimmed">
-        The page could not finish loading. This often happens when the local
-        dev servers are down or running on unexpected ports.
+        The page could not finish loading. This often happens when the local dev
+        servers are down or running on unexpected ports.
       </Text>
       <Alert color="red" title="Details">
         {message}
@@ -165,6 +170,14 @@ export const router = createBrowserRouter([
       { path: 'chat', element: withSuspense(<ChatPage />) },
       { path: 'images', element: withSuspense(<ImageGenerationPage />) },
       { path: 'videos', element: withSuspense(<VideoGenerationPage />) },
+      {
+        path: 'developer/evaluations',
+        element: withSuspense(
+          <RoleGuard allowedRoles={['operator', 'tenant_admin', 'super_admin']}>
+            <EvaluationLabPage />
+          </RoleGuard>,
+        ),
+      },
       {
         path: 'admin/users',
         element: withSuspense(

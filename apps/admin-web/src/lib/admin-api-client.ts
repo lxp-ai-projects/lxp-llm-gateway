@@ -7,6 +7,11 @@ import {
 } from './api-base';
 import { SUPPORTED_PROVIDERS } from '@lxp/domain';
 import type {
+  EvaluationProbeRequest,
+  EvaluationProbeResult,
+  EvaluationProfileMetadata,
+} from '@lxp/contracts';
+import type {
   AdminCreateTenantInput,
   AdminCreateIntegrationApiKeyInput,
   AdminCreateIntegrationClientInput,
@@ -52,6 +57,25 @@ import type {
 } from './api-client.types';
 
 export const adminApiClient = {
+  async getEvaluationProfiles(): Promise<EvaluationProfileMetadata[]> {
+    return request<EvaluationProfileMetadata[]>(
+      `${adminApiUrl}/api/v1/admin/evaluation-profiles`,
+    );
+  },
+
+  async executeEvaluationProbe(
+    payload: EvaluationProbeRequest,
+  ): Promise<EvaluationProbeResult> {
+    return request<EvaluationProbeResult>(
+      `${adminApiUrl}/api/v1/admin/evaluation-probes`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 40_000,
+      },
+    );
+  },
+
   async getRuntimeConfig(): Promise<RuntimeConfig> {
     try {
       return await request<RuntimeConfig>(
@@ -348,6 +372,16 @@ export const adminApiClient = {
     );
   },
 
+  async deleteTenantIntegrationClient(
+    tenantId: string,
+    integrationClientId: string,
+  ): Promise<void> {
+    return request<void>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}`,
+      { method: 'DELETE' },
+    );
+  },
+
   async getTenantIntegrationApiKeys(
     tenantId: string,
     integrationClientId: string,
@@ -396,6 +430,17 @@ export const adminApiClient = {
         method: 'PATCH',
         body: JSON.stringify(payload),
       },
+    );
+  },
+
+  async deleteTenantIntegrationApiKey(
+    tenantId: string,
+    integrationClientId: string,
+    apiKeyId: string,
+  ): Promise<void> {
+    return request<void>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}/api-keys/${apiKeyId}`,
+      { method: 'DELETE' },
     );
   },
 

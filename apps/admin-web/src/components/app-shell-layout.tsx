@@ -18,6 +18,7 @@ import {
   IconActivityHeartbeat,
   IconBolt,
   IconChartBar,
+  IconFlask,
   IconKey,
   IconLogout,
   IconMessageCircleCog,
@@ -37,7 +38,10 @@ import {
 } from 'react-router-dom';
 
 import { adminApiClient, gatewayApiClient } from '../lib/api-client';
-import { getActiveTenantLabel, getTenantOptionLabel } from '../lib/tenant-context';
+import {
+  getActiveTenantLabel,
+  getTenantOptionLabel,
+} from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 import { InstallAppButton } from './install-app-button';
 
@@ -46,6 +50,7 @@ type NavigationItem = {
   to: string;
   icon: typeof IconBolt;
   requiresTenantAdmin?: boolean;
+  requiresOperator?: boolean;
   requiresSuperAdmin?: boolean;
   group: 'workspace' | 'tenant-admin' | 'global-control-plane';
 };
@@ -85,6 +90,13 @@ const navigationItems: NavigationItem[] = [
     label: 'Video Lab',
     to: '/app/videos',
     icon: IconVideo,
+    group: 'workspace',
+  },
+  {
+    label: 'Evaluation Lab',
+    to: '/app/developer/evaluations',
+    icon: IconFlask,
+    requiresOperator: true,
     group: 'workspace',
   },
   {
@@ -137,7 +149,8 @@ export function AppShellLayout() {
     },
   });
   const switchTenantMutation = useMutation({
-    mutationFn: (tenantId: string) => adminApiClient.switchActiveTenant(tenantId),
+    mutationFn: (tenantId: string) =>
+      adminApiClient.switchActiveTenant(tenantId),
     onSuccess: async (nextSession) => {
       queryClient.setQueryData(['session'], nextSession);
       await queryClient.invalidateQueries({
@@ -148,6 +161,7 @@ export function AppShellLayout() {
 
   const currentUser = sessionQuery.data;
   const isTenantAdmin = currentUser?.roles?.includes('tenant_admin') ?? false;
+  const isOperator = currentUser?.roles?.includes('operator') ?? false;
   const isSuperAdmin =
     currentUser?.globalRoles?.includes('super_admin') ?? false;
   const gatewayOnline = gatewayHealthQuery.data?.status === 'ok';
@@ -171,6 +185,7 @@ export function AppShellLayout() {
   const availableItems = navigationItems.filter(
     (item) =>
       (!item.requiresTenantAdmin || isTenantAdmin || isSuperAdmin) &&
+      (!item.requiresOperator || isOperator || isTenantAdmin || isSuperAdmin) &&
       (!item.requiresSuperAdmin || isSuperAdmin),
   );
   const workspaceItems = availableItems.filter(
@@ -190,7 +205,8 @@ export function AppShellLayout() {
 
     if (
       typeof scrollTo === 'function' &&
-      (scrollTo.mock || !window.navigator.userAgent.toLowerCase().includes('jsdom'))
+      (scrollTo.mock ||
+        !window.navigator.userAgent.toLowerCase().includes('jsdom'))
     ) {
       scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }
@@ -251,7 +267,11 @@ export function AppShellLayout() {
                 {gatewayOnline ? 'Gateway online' : 'Gateway offline'}
               </Badge>
               <Group className="shell-status-meta" gap={6} wrap="nowrap">
-                <Badge className="shell-tenant-badge" variant="outline" color="ink">
+                <Badge
+                  className="shell-tenant-badge"
+                  variant="outline"
+                  color="ink"
+                >
                   Active tenant: {activeTenantLabel}
                 </Badge>
                 <Badge

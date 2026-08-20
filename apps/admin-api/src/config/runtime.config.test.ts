@@ -81,3 +81,28 @@ test('runtime config accepts complete providers and rejects unknown providers', 
     /must be smtp or mailersend/,
   );
 });
+
+test('runtime config validates tenant-bound Evaluation Lab service keys', () => {
+  assert.doesNotThrow(() =>
+    validateRuntimeConfig(
+      createEnvironment({
+        LXP_ADMIN_EVALUATION_API_KEYS_JSON:
+          '{"tenant-1":"integration-api-key"}',
+      }),
+    ),
+  );
+  assert.throws(
+    () =>
+      validateRuntimeConfig(
+        createEnvironment({ LXP_ADMIN_EVALUATION_API_KEYS_JSON: 'not-json' }),
+      ),
+    /must be valid JSON/,
+  );
+  assert.throws(
+    () =>
+      validateRuntimeConfig(
+        createEnvironment({ LXP_ADMIN_EVALUATION_API_KEYS_JSON: '[]' }),
+      ),
+    /must map tenant IDs/,
+  );
+});

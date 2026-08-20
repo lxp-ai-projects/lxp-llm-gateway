@@ -1,4 +1,4 @@
-import {createHash, randomBytes, randomUUID} from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -6,44 +6,44 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {InjectRepository} from '@nestjs/typeorm';
-import type {GlobalRole, ProviderId, TenantRole} from '@lxp/domain';
-import {IsNull, Repository} from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { GlobalRole, ProviderId, TenantRole } from '@lxp/domain';
+import { IsNull, Repository } from 'typeorm';
 
-import {ProviderEntity} from '../persistence/entities/provider.entity';
-import {RoleEntity} from '../persistence/entities/role.entity';
-import {ApiKeyEntity} from '../persistence/entities/api-key.entity';
-import {IntegrationClientEntity} from '../persistence/entities/integration-client.entity';
-import {TenantMembershipEntity} from '../persistence/entities/tenant-membership.entity';
+import { ProviderEntity } from '../persistence/entities/provider.entity';
+import { RoleEntity } from '../persistence/entities/role.entity';
+import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
+import { IntegrationClientEntity } from '../persistence/entities/integration-client.entity';
+import { TenantMembershipEntity } from '../persistence/entities/tenant-membership.entity';
 import {
   type TenantModelAccessCapability,
   type TenantModelAccessEffect,
   TenantModelAccessRuleEntity,
 } from '../persistence/entities/tenant-model-access-rule.entity';
-import {TenantEntity} from '../persistence/entities/tenant.entity';
+import { TenantEntity } from '../persistence/entities/tenant.entity';
 import {
   TenantProviderConfigurationEntity,
   type TenantProviderCredentialMode,
 } from '../persistence/entities/tenant-provider-configuration.entity';
-import {TenantPolicyEntity} from '../persistence/entities/tenant-policy.entity';
-import {TenantRlsService} from '../persistence/tenant-rls.service';
-import {UsageEventEntity} from '../persistence/entities/usage-event.entity';
-import {UserProviderCredentialEntity} from '../persistence/entities/user-provider-credential.entity';
-import {UserRoleEntity} from '../persistence/entities/user-role.entity';
-import {UserEntity} from '../persistence/entities/user.entity';
-import {SuperAdminBootstrapService} from '../auth/super-admin-bootstrap.service';
-import {EmailProtectionService} from '../security/email-protection.service';
-import {EncryptionService} from '../security/encryption.service';
-import {PasswordService} from '../security/password.service';
-import {AdminCatalogService} from './admin-catalog.service';
-import {getValidatedPlatformProviderAccess} from './admin-provider-access';
-import {AdminProviderCredentialService} from './admin-provider-credential.service';
-import {CreateTenantMembershipDto} from './dto/create-tenant-membership.dto';
-import {CreateUserDto} from './dto/create-user.dto';
-import {StoreProviderCredentialDto} from './dto/store-provider-credential.dto';
-import {UpdateProviderCredentialDto} from './dto/update-provider-credential.dto';
-import {UpdateProviderSettingsDto} from './dto/update-provider-settings.dto';
-import {UpdateUserDto} from './dto/update-user.dto';
+import { TenantPolicyEntity } from '../persistence/entities/tenant-policy.entity';
+import { TenantRlsService } from '../persistence/tenant-rls.service';
+import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
+import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
+import { UserRoleEntity } from '../persistence/entities/user-role.entity';
+import { UserEntity } from '../persistence/entities/user.entity';
+import { SuperAdminBootstrapService } from '../auth/super-admin-bootstrap.service';
+import { EmailProtectionService } from '../security/email-protection.service';
+import { EncryptionService } from '../security/encryption.service';
+import { PasswordService } from '../security/password.service';
+import { AdminCatalogService } from './admin-catalog.service';
+import { getValidatedPlatformProviderAccess } from './admin-provider-access';
+import { AdminProviderCredentialService } from './admin-provider-credential.service';
+import { CreateTenantMembershipDto } from './dto/create-tenant-membership.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { StoreProviderCredentialDto } from './dto/store-provider-credential.dto';
+import { UpdateProviderCredentialDto } from './dto/update-provider-credential.dto';
+import { UpdateProviderSettingsDto } from './dto/update-provider-settings.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 type ProviderAccessConfig = {
   baseUrl?: string;
@@ -277,7 +277,7 @@ export class AdminService {
   ) {
     const protectedEmail = this.emailProtectionService.protect(dto.email);
     let user = await this.userRepository.findOne({
-      where: {emailHash: protectedEmail.emailHash},
+      where: { emailHash: protectedEmail.emailHash },
     });
     if (!user) {
       if (!dto.password || dto.password.trim().length < 8) {
@@ -290,7 +290,9 @@ export class AdminService {
           'A display name is required when provisioning a new global user.',
         );
       }
-      const passwordHash = await this.passwordService.hashPassword(dto.password);
+      const passwordHash = await this.passwordService.hashPassword(
+        dto.password,
+      );
       user = this.userRepository.create({
         userUuid: randomUUID(),
         emailHash: protectedEmail.emailHash,
@@ -399,9 +401,12 @@ export class AdminService {
       );
     }
 
-    return this.mapUserSummary(user, tenant.id, ['tenant_admin'], [
-      'super_admin',
-    ]);
+    return this.mapUserSummary(
+      user,
+      tenant.id,
+      ['tenant_admin'],
+      ['super_admin'],
+    );
   }
 
   async listTenants() {
@@ -436,7 +441,9 @@ export class AdminService {
       where: { slug },
     });
     if (existingTenant) {
-      throw new ConflictException('Unable to create tenant with the provided data.');
+      throw new ConflictException(
+        'Unable to create tenant with the provided data.',
+      );
     }
 
     const tenant = this.tenantRepository.create({
@@ -523,10 +530,7 @@ export class AdminService {
     const globalRoleMap = await this.getUserGlobalRoleMap(
       memberships.map((membership) => membership.userId),
     );
-    const membershipsByUserId = new Map<
-      string,
-      (typeof memberships)[number]
-    >();
+    const membershipsByUserId = new Map<string, (typeof memberships)[number]>();
 
     for (const membership of memberships) {
       if (!membership.user || membershipsByUserId.has(membership.userId)) {
@@ -568,7 +572,10 @@ export class AdminService {
         where: { tenantId },
       });
     const configurationByProviderId = new Map(
-      configurations.map((configuration) => [configuration.providerId, configuration]),
+      configurations.map((configuration) => [
+        configuration.providerId,
+        configuration,
+      ]),
     );
 
     return providers.map((provider) =>
@@ -652,7 +659,12 @@ export class AdminService {
     const [userCredentialAvailable, tenantCredentialAvailable] =
       await Promise.all([
         testedUser
-          ? this.hasActiveCredential(tenantId, testedUser.id, provider.id, 'user')
+          ? this.hasActiveCredential(
+              tenantId,
+              testedUser.id,
+              provider.id,
+              'user',
+            )
           : Promise.resolve(false),
         this.hasActiveCredential(tenantId, null, provider.id, 'tenant'),
       ]);
@@ -766,7 +778,9 @@ export class AdminService {
       },
     });
 
-    return clients.map((client) => this.mapTenantIntegrationClientSummary(client));
+    return clients.map((client) =>
+      this.mapTenantIntegrationClientSummary(client),
+    );
   }
 
   async createTenantIntegrationClient(
@@ -781,7 +795,10 @@ export class AdminService {
     },
   ): Promise<TenantIntegrationClientSummary> {
     await this.assertTenantExists(tenantId);
-    const normalized = await this.normalizeIntegrationClientInput(tenantId, dto);
+    const normalized = await this.normalizeIntegrationClientInput(
+      tenantId,
+      dto,
+    );
     const existingClient = await this.integrationClientRepository.findOne({
       where: {
         tenantId,
@@ -805,7 +822,8 @@ export class AdminService {
         normalized.trustedForwardedIdentityEnabled,
       status: 'active',
     });
-    const savedClient = await this.integrationClientRepository.save(createdClient);
+    const savedClient =
+      await this.integrationClientRepository.save(createdClient);
 
     return this.mapTenantIntegrationClientSummary({
       ...savedClient,
@@ -874,6 +892,24 @@ export class AdminService {
     } as IntegrationClientEntity);
   }
 
+  async deleteTenantIntegrationClient(
+    tenantId: string,
+    integrationClientId: string,
+  ) {
+    await this.assertTenantExists(tenantId);
+    const integrationClient = await this.assertTenantIntegrationClient(
+      tenantId,
+      integrationClientId,
+    );
+
+    // The database FK removes this client's API keys in the same transaction.
+    await this.integrationClientRepository.delete({
+      tenantId,
+      id: integrationClient.id,
+    });
+    return { deleted: true };
+  }
+
   async listTenantIntegrationApiKeys(
     tenantId: string,
     integrationClientId: string,
@@ -896,7 +932,9 @@ export class AdminService {
       },
     });
 
-    return apiKeys.map((apiKey) => this.mapTenantIntegrationApiKeySummary(apiKey));
+    return apiKeys.map((apiKey) =>
+      this.mapTenantIntegrationApiKeySummary(apiKey),
+    );
   }
 
   async createTenantIntegrationApiKey(
@@ -1012,6 +1050,30 @@ export class AdminService {
     } as ApiKeyEntity);
   }
 
+  async deleteTenantIntegrationApiKey(
+    tenantId: string,
+    integrationClientId: string,
+    apiKeyId: string,
+  ) {
+    await this.assertTenantExists(tenantId);
+    const integrationClient = await this.assertTenantIntegrationClient(
+      tenantId,
+      integrationClientId,
+    );
+    const apiKey = await this.assertTenantIntegrationApiKey(
+      tenantId,
+      integrationClient.id,
+      apiKeyId,
+    );
+
+    await this.apiKeyRepository.delete({
+      tenantId,
+      integrationClientId: integrationClient.id,
+      id: apiKey.id,
+    });
+    return { deleted: true };
+  }
+
   async listTenantModelAccessRules(
     tenantId: string,
   ): Promise<TenantModelAccessRuleSummary[]> {
@@ -1103,8 +1165,7 @@ export class AdminService {
       capability: dto.capability ?? rule.capability,
       effect: dto.effect ?? rule.effect,
       maxInputTokens: dto.maxInputTokens ?? rule.maxInputTokens ?? undefined,
-      maxOutputTokens:
-        dto.maxOutputTokens ?? rule.maxOutputTokens ?? undefined,
+      maxOutputTokens: dto.maxOutputTokens ?? rule.maxOutputTokens ?? undefined,
       maxImagesPerRequest:
         dto.maxImagesPerRequest ?? rule.maxImagesPerRequest ?? undefined,
       maxResolution: dto.maxResolution ?? rule.maxResolution ?? undefined,
@@ -1294,10 +1355,9 @@ export class AdminService {
       }
     }
 
-    const roleMap = await this.getTenantRoleMap(
-      resolvedActor.activeTenantId,
-      [...usersById.keys()],
-    );
+    const roleMap = await this.getTenantRoleMap(resolvedActor.activeTenantId, [
+      ...usersById.keys(),
+    ]);
 
     return [...usersById.values()].map((user) =>
       this.mapUserSummary(
@@ -1599,7 +1659,10 @@ export class AdminService {
         : await this.resolveActor(actorOrUserUuid);
     const userUuid =
       typeof actorOrUserUuid === 'string' ? actorOrUserUuid : maybeUserUuid!;
-    const user = await this.assertTenantScopedUser(actor.activeTenantId, userUuid);
+    const user = await this.assertTenantScopedUser(
+      actor.activeTenantId,
+      userUuid,
+    );
 
     return {
       userUuid: user.userUuid,
@@ -1638,7 +1701,10 @@ export class AdminService {
       typeof actorOrUserUuid === 'string'
         ? (userUuidOrDto as UpdateProviderSettingsDto)
         : maybeDto!;
-    const user = await this.assertTenantScopedUser(actor.activeTenantId, userUuid);
+    const user = await this.assertTenantScopedUser(
+      actor.activeTenantId,
+      userUuid,
+    );
     const providerIdWasUpdated = Object.prototype.hasOwnProperty.call(
       dto,
       'defaultProviderId',
@@ -1819,7 +1885,10 @@ export class AdminService {
       }
 
       distinctMembershipKeys.add(distinctKey);
-      counts.set(membership.tenantId, (counts.get(membership.tenantId) ?? 0) + 1);
+      counts.set(
+        membership.tenantId,
+        (counts.get(membership.tenantId) ?? 0) + 1,
+      );
     }
 
     return counts;
@@ -1943,7 +2012,8 @@ export class AdminService {
     provider: ProviderEntity,
     configuration: TenantProviderConfigurationEntity | null,
   ): TenantProviderConfigurationSummary {
-    const implicitDefaults = this.getImplicitTenantProviderConfiguration(tenant);
+    const implicitDefaults =
+      this.getImplicitTenantProviderConfiguration(tenant);
     return {
       id: configuration?.id ?? null,
       tenantId: tenant.id,
@@ -1962,7 +2032,8 @@ export class AdminService {
         configuration?.allowPlatformFallback ??
         implicitDefaults.allowPlatformFallback,
       allowTenantFallback:
-        configuration?.allowTenantFallback ?? implicitDefaults.allowTenantFallback,
+        configuration?.allowTenantFallback ??
+        implicitDefaults.allowTenantFallback,
       createdAt: configuration?.createdAt ?? null,
       updatedAt: configuration?.updatedAt ?? null,
     };
@@ -1977,7 +2048,8 @@ export class AdminService {
     return {
       tenantId,
       monthlyBudgetUsd: policy?.monthlyBudgetUsd ?? defaults.monthlyBudgetUsd,
-      dailyRequestLimit: policy?.dailyRequestLimit ?? defaults.dailyRequestLimit,
+      dailyRequestLimit:
+        policy?.dailyRequestLimit ?? defaults.dailyRequestLimit,
       monthlyRequestLimit:
         policy?.monthlyRequestLimit ?? defaults.monthlyRequestLimit,
       requestsPerMinute:
@@ -2011,8 +2083,7 @@ export class AdminService {
       defaultUserUuid: client.defaultUser?.userUuid ?? null,
       defaultUserDisplayName: client.defaultUser?.displayName ?? null,
       scopes: [...client.scopes].sort(),
-      trustedForwardedIdentityEnabled:
-        client.trustedForwardedIdentityEnabled,
+      trustedForwardedIdentityEnabled: client.trustedForwardedIdentityEnabled,
       status: client.status,
       apiKeyCount: client.apiKeys?.length ?? 0,
       createdAt: client.createdAt,
@@ -2027,7 +2098,8 @@ export class AdminService {
       id: apiKey.id,
       tenantId: apiKey.tenantId,
       integrationClientId: apiKey.integrationClientId,
-      integrationClientClientId: apiKey.integrationClient?.clientId ?? 'unknown',
+      integrationClientClientId:
+        apiKey.integrationClient?.clientId ?? 'unknown',
       label: apiKey.label,
       keyHint: apiKey.keyHint,
       scopes: [...apiKey.scopes].sort(),
@@ -2075,7 +2147,9 @@ export class AdminService {
     | 'updatedAt'
   > {
     return {
-      credentialMode: tenant.allowUserCredentialOverride ? 'hybrid' : 'tenant_byok',
+      credentialMode: tenant.allowUserCredentialOverride
+        ? 'hybrid'
+        : 'tenant_byok',
       preferUserCredentials: tenant.allowUserCredentialOverride,
       allowPlatformFallback: false,
       allowTenantFallback: true,
@@ -2223,8 +2297,7 @@ export class AdminService {
       imageRequestsPerMonth: dto.imageRequestsPerMonth ?? null,
       maxInputTokens: dto.maxInputTokens ?? null,
       maxOutputTokens: dto.maxOutputTokens ?? null,
-      allowPromptLogging:
-        dto.allowPromptLogging ?? defaults.allowPromptLogging,
+      allowPromptLogging: dto.allowPromptLogging ?? defaults.allowPromptLogging,
       allowResponseLogging:
         dto.allowResponseLogging ?? defaults.allowResponseLogging,
       retentionDays: dto.retentionDays ?? defaults.retentionDays,
@@ -2244,7 +2317,10 @@ export class AdminService {
   ) {
     const defaultUser =
       dto.defaultUserUuid && dto.defaultUserUuid.trim()
-        ? await this.assertTenantScopedUser(tenantId, dto.defaultUserUuid.trim())
+        ? await this.assertTenantScopedUser(
+            tenantId,
+            dto.defaultUserUuid.trim(),
+          )
         : null;
 
     return {
@@ -2265,13 +2341,9 @@ export class AdminService {
     return {
       label: dto.label.trim(),
       scopes:
-        dto.scopes === undefined
-          ? undefined
-          : [...new Set(dto.scopes)].sort(),
+        dto.scopes === undefined ? undefined : [...new Set(dto.scopes)].sort(),
       expiresAt:
-        dto.expiresAt && dto.expiresAt.trim()
-          ? new Date(dto.expiresAt)
-          : null,
+        dto.expiresAt && dto.expiresAt.trim() ? new Date(dto.expiresAt) : null,
     };
   }
 
@@ -2331,7 +2403,10 @@ export class AdminService {
       return 'user';
     }
 
-    if (configuration.allowTenantFallback && availability.tenantCredentialAvailable) {
+    if (
+      configuration.allowTenantFallback &&
+      availability.tenantCredentialAvailable
+    ) {
       return 'tenant';
     }
 
@@ -2391,7 +2466,10 @@ export class AdminService {
         : 'No test user was supplied and no tenant-scoped fallback resolved this provider.';
     }
 
-    if (input.configuration.allowTenantFallback && !input.tenantCredentialAvailable) {
+    if (
+      input.configuration.allowTenantFallback &&
+      !input.tenantCredentialAvailable
+    ) {
       return 'No active tenant-scoped BYOK credential is configured for this provider.';
     }
 
@@ -2408,7 +2486,10 @@ export class AdminService {
   private getPlatformProviderAccess(
     providerId: ProviderId,
   ): ProviderAccessConfig | null {
-    const envByProvider: Record<ProviderId, { apiKey?: string; baseUrl?: string }> = {
+    const envByProvider: Record<
+      ProviderId,
+      { apiKey?: string; baseUrl?: string }
+    > = {
       anthropic: {
         apiKey: process.env.ANTHROPIC_API_KEY,
         baseUrl: process.env.ANTHROPIC_BASE_URL,
@@ -2567,7 +2648,9 @@ export class AdminService {
       last24Hours: events.filter(
         (event) => event.createdAt.getTime() >= last24Hours,
       ),
-      last7Days: events.filter((event) => event.createdAt.getTime() >= last7Days),
+      last7Days: events.filter(
+        (event) => event.createdAt.getTime() >= last7Days,
+      ),
       last30Days: events.filter(
         (event) => event.createdAt.getTime() >= last30Days,
       ),
@@ -2662,7 +2745,8 @@ export class AdminService {
       roles: memberships
         .filter((entry) => entry.tenantId === membership.tenantId)
         .map((entry) => entry.role),
-      globalRoles: (await this.getUserGlobalRoleMap([user.id])).get(user.id) ?? [],
+      globalRoles:
+        (await this.getUserGlobalRoleMap([user.id])).get(user.id) ?? [],
     };
   }
 

@@ -366,3 +366,4 @@ export interface GatewayErrorResponse {
 }
 
 export * from './video-generation.js';
+export * from './structured-evaluations.js';

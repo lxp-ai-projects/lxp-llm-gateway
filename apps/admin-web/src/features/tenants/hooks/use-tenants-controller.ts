@@ -44,13 +44,12 @@ export function useTenantsController() {
   const [selectedMembership, setSelectedMembership] =
     useState<AdminTenantMembershipSummary | null>(null);
   const [editMemberRoles, setEditMemberRoles] = useState<string[]>([]);
-  const [editMemberStatus, setEditMemberStatus] =
-    useState<'active' | 'disabled'>('active');
+  const [editMemberStatus, setEditMemberStatus] = useState<
+    'active' | 'disabled'
+  >('active');
   const [editGlobalRoles, setEditGlobalRoles] = useState<string[]>([]);
-  const [
-    selectedProviderConfiguration,
-    setSelectedProviderConfiguration,
-  ] = useState<AdminTenantProviderConfigurationSummary | null>(null);
+  const [selectedProviderConfiguration, setSelectedProviderConfiguration] =
+    useState<AdminTenantProviderConfigurationSummary | null>(null);
   const [selectedModelAccessRule, setSelectedModelAccessRule] =
     useState<AdminTenantModelAccessRuleSummary | null>(null);
   const [selectedIntegrationClient, setSelectedIntegrationClient] =
@@ -65,10 +64,14 @@ export function useTenantsController() {
   const [editProviderCredentialMode, setEditProviderCredentialMode] = useState<
     'platform_default' | 'tenant_byok' | 'user_byok' | 'hybrid'
   >('hybrid');
-  const [editProviderPreferUserCredentials, setEditProviderPreferUserCredentials] =
-    useState(true);
-  const [editProviderAllowPlatformFallback, setEditProviderAllowPlatformFallback] =
-    useState(false);
+  const [
+    editProviderPreferUserCredentials,
+    setEditProviderPreferUserCredentials,
+  ] = useState(true);
+  const [
+    editProviderAllowPlatformFallback,
+    setEditProviderAllowPlatformFallback,
+  ] = useState(false);
   const [editProviderAllowTenantFallback, setEditProviderAllowTenantFallback] =
     useState(true);
   const [editPolicyMonthlyBudgetUsd, setEditPolicyMonthlyBudgetUsd] =
@@ -86,13 +89,15 @@ export function useTenantsController() {
   const [editPolicyImageRequestsPerMonth, setEditPolicyImageRequestsPerMonth] =
     useState('');
   const [editPolicyMaxInputTokens, setEditPolicyMaxInputTokens] = useState('');
-  const [editPolicyMaxOutputTokens, setEditPolicyMaxOutputTokens] = useState('');
+  const [editPolicyMaxOutputTokens, setEditPolicyMaxOutputTokens] =
+    useState('');
   const [editPolicyAllowPromptLogging, setEditPolicyAllowPromptLogging] =
     useState(false);
   const [editPolicyAllowResponseLogging, setEditPolicyAllowResponseLogging] =
     useState(false);
   const [editPolicyRetentionDays, setEditPolicyRetentionDays] = useState('30');
-  const [editModelRuleProviderId, setEditModelRuleProviderId] = useState('nanogpt');
+  const [editModelRuleProviderId, setEditModelRuleProviderId] =
+    useState('nanogpt');
   const [editModelRulePattern, setEditModelRulePattern] = useState('*');
   const [editModelRuleCapability, setEditModelRuleCapability] = useState<
     'text' | 'image' | 'video' | 'stt' | 'tts' | 'embedding'
@@ -105,40 +110,59 @@ export function useTenantsController() {
     useState('');
   const [editModelRuleMaxOutputTokens, setEditModelRuleMaxOutputTokens] =
     useState('');
-  const [editModelRuleMaxImagesPerRequest, setEditModelRuleMaxImagesPerRequest] =
-    useState('');
+  const [
+    editModelRuleMaxImagesPerRequest,
+    setEditModelRuleMaxImagesPerRequest,
+  ] = useState('');
   const [editModelRuleMaxResolution, setEditModelRuleMaxResolution] =
     useState('');
   const [editIntegrationClientId, setEditIntegrationClientId] = useState('');
-  const [editIntegrationClientDisplayName, setEditIntegrationClientDisplayName] =
-    useState('');
-  const [editIntegrationClientApplicationId, setEditIntegrationClientApplicationId] =
-    useState('');
-  const [editIntegrationClientDefaultUserUuid, setEditIntegrationClientDefaultUserUuid] =
-    useState('');
-  const [editIntegrationClientScopes, setEditIntegrationClientScopes] = useState<
-    Array<
-      'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
-    >
-  >(['chat:completion']);
+  const [
+    editIntegrationClientDisplayName,
+    setEditIntegrationClientDisplayName,
+  ] = useState('');
+  const [
+    editIntegrationClientApplicationId,
+    setEditIntegrationClientApplicationId,
+  ] = useState('');
+  const [
+    editIntegrationClientDefaultUserUuid,
+    setEditIntegrationClientDefaultUserUuid,
+  ] = useState('');
+  const [editIntegrationClientScopes, setEditIntegrationClientScopes] =
+    useState<
+      Array<
+        | 'chat:completion'
+        | 'image:generate'
+        | 'image:edit'
+        | 'video:generate'
+        | 'evaluation:invoke'
+        | 'models:list'
+      >
+    >(['chat:completion']);
   const [
     editIntegrationClientTrustedForwardedIdentityEnabled,
     setEditIntegrationClientTrustedForwardedIdentityEnabled,
   ] = useState(false);
-  const [editIntegrationClientStatus, setEditIntegrationClientStatus] = useState<
-    'active' | 'disabled'
-  >('active');
-  const [editIntegrationApiKeyLabel, setEditIntegrationApiKeyLabel] = useState('');
-  const [editIntegrationApiKeyScopes, setEditIntegrationApiKeyScopes] = useState<
-    Array<
-      'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
-    >
-  >([]);
+  const [editIntegrationClientStatus, setEditIntegrationClientStatus] =
+    useState<'active' | 'disabled'>('active');
+  const [editIntegrationApiKeyLabel, setEditIntegrationApiKeyLabel] =
+    useState('');
+  const [editIntegrationApiKeyScopes, setEditIntegrationApiKeyScopes] =
+    useState<
+      Array<
+        | 'chat:completion'
+        | 'image:generate'
+        | 'image:edit'
+        | 'video:generate'
+        | 'evaluation:invoke'
+        | 'models:list'
+      >
+    >([]);
   const [editIntegrationApiKeyExpiresAt, setEditIntegrationApiKeyExpiresAt] =
     useState('');
-  const [editIntegrationApiKeyStatus, setEditIntegrationApiKeyStatus] = useState<
-    'active' | 'disabled'
-  >('active');
+  const [editIntegrationApiKeyStatus, setEditIntegrationApiKeyStatus] =
+    useState<'active' | 'disabled'>('active');
   const [revealedIntegrationApiKey, setRevealedIntegrationApiKey] = useState<{
     clientDisplayName: string;
     label: string;
@@ -180,7 +204,8 @@ export function useTenantsController() {
   });
   const providerConfigurationsQuery = useQuery({
     queryKey: ['admin-tenant-provider-configurations', selectedTenantId],
-    queryFn: () => adminApiClient.getTenantProviderConfigurations(selectedTenantId!),
+    queryFn: () =>
+      adminApiClient.getTenantProviderConfigurations(selectedTenantId!),
     enabled: Boolean(selectedTenantId),
   });
   const modelAccessRulesQuery = useQuery({
@@ -195,7 +220,8 @@ export function useTenantsController() {
   });
   const integrationClientsQuery = useQuery({
     queryKey: ['admin-tenant-integration-clients', selectedTenantId],
-    queryFn: () => adminApiClient.getTenantIntegrationClients(selectedTenantId!),
+    queryFn: () =>
+      adminApiClient.getTenantIntegrationClients(selectedTenantId!),
     enabled: Boolean(selectedTenantId),
   });
   const integrationApiKeysQuery = useQuery({
@@ -344,7 +370,7 @@ export function useTenantsController() {
       adminApiClient.testTenantProviderConfiguration(
         selectedTenantId!,
         selectedProviderConfiguration!.providerId,
-    ),
+      ),
   });
   const updateTenantPolicyMutation = useMutation({
     mutationFn: () =>
@@ -380,7 +406,9 @@ export function useTenantsController() {
         effect: editModelRuleEffect,
         maxInputTokens: parseOptionalNumber(editModelRuleMaxInputTokens),
         maxOutputTokens: parseOptionalNumber(editModelRuleMaxOutputTokens),
-        maxImagesPerRequest: parseOptionalNumber(editModelRuleMaxImagesPerRequest),
+        maxImagesPerRequest: parseOptionalNumber(
+          editModelRuleMaxImagesPerRequest,
+        ),
         maxResolution: editModelRuleMaxResolution.trim() || undefined,
         priority: parseOptionalNumber(editModelRulePriority) ?? 100,
       }),
@@ -404,7 +432,9 @@ export function useTenantsController() {
           effect: editModelRuleEffect,
           maxInputTokens: parseOptionalNumber(editModelRuleMaxInputTokens),
           maxOutputTokens: parseOptionalNumber(editModelRuleMaxOutputTokens),
-          maxImagesPerRequest: parseOptionalNumber(editModelRuleMaxImagesPerRequest),
+          maxImagesPerRequest: parseOptionalNumber(
+            editModelRuleMaxImagesPerRequest,
+          ),
           maxResolution: editModelRuleMaxResolution.trim() || undefined,
           priority: parseOptionalNumber(editModelRulePriority) ?? 100,
         },
@@ -439,7 +469,8 @@ export function useTenantsController() {
         clientId: editIntegrationClientId.trim(),
         displayName: editIntegrationClientDisplayName.trim(),
         applicationId: editIntegrationClientApplicationId.trim(),
-        defaultUserUuid: editIntegrationClientDefaultUserUuid.trim() || undefined,
+        defaultUserUuid:
+          editIntegrationClientDefaultUserUuid.trim() || undefined,
         scopes: editIntegrationClientScopes,
         trustedForwardedIdentityEnabled:
           editIntegrationClientTrustedForwardedIdentityEnabled,
@@ -484,6 +515,30 @@ export function useTenantsController() {
       });
     },
   });
+  const deleteTenantIntegrationClientMutation = useMutation({
+    mutationFn: (integrationClientId: string) =>
+      adminApiClient.deleteTenantIntegrationClient(
+        selectedTenantId!,
+        integrationClientId,
+      ),
+    onSuccess: async (_result, integrationClientId) => {
+      editIntegrationClientControls.close();
+      setSelectedIntegrationApiKey(null);
+      setSelectedIntegrationClient((current) =>
+        current?.id === integrationClientId ? null : current,
+      );
+      queryClient.removeQueries({
+        queryKey: [
+          'admin-tenant-integration-api-keys',
+          selectedTenantId,
+          integrationClientId,
+        ],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['admin-tenant-integration-clients', selectedTenantId],
+      });
+    },
+  });
   const createTenantIntegrationApiKeyMutation = useMutation({
     mutationFn: () =>
       adminApiClient.createTenantIntegrationApiKey(
@@ -502,7 +557,8 @@ export function useTenantsController() {
       setSelectedIntegrationApiKey(result.summary);
       setRevealedIntegrationApiKey({
         clientDisplayName:
-          selectedIntegrationClient?.displayName ?? result.summary.integrationClientClientId,
+          selectedIntegrationClient?.displayName ??
+          result.summary.integrationClientClientId,
         label: result.summary.label,
         apiKey: result.apiKey,
       });
@@ -546,6 +602,36 @@ export function useTenantsController() {
       });
     },
   });
+  const deleteTenantIntegrationApiKeyMutation = useMutation({
+    mutationFn: ({
+      integrationClientId,
+      apiKeyId,
+    }: {
+      integrationClientId: string;
+      apiKeyId: string;
+    }) =>
+      adminApiClient.deleteTenantIntegrationApiKey(
+        selectedTenantId!,
+        integrationClientId,
+        apiKeyId,
+      ),
+    onSuccess: async (_result, { integrationClientId, apiKeyId }) => {
+      editIntegrationApiKeyControls.close();
+      setSelectedIntegrationApiKey((current) =>
+        current?.id === apiKeyId ? null : current,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: [
+          'admin-tenant-integration-api-keys',
+          selectedTenantId,
+          integrationClientId,
+        ],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['admin-tenant-integration-clients', selectedTenantId],
+      });
+    },
+  });
   const rotateTenantIntegrationApiKeyMutation = useMutation({
     mutationFn: () =>
       adminApiClient.rotateTenantIntegrationApiKey(
@@ -557,7 +643,8 @@ export function useTenantsController() {
       setSelectedIntegrationApiKey(result.summary);
       setRevealedIntegrationApiKey({
         clientDisplayName:
-          selectedIntegrationClient?.displayName ?? result.summary.integrationClientClientId,
+          selectedIntegrationClient?.displayName ??
+          result.summary.integrationClientClientId,
         label: result.summary.label,
         apiKey: result.apiKey,
       });
@@ -839,7 +926,8 @@ export function useTenantsController() {
     onCreateMemberEmailChange: setMemberEmail,
     onCreateMemberPasswordChange: setMemberPassword,
     onCreateMemberRolesChange: setMemberRoles,
-    onSelectTenant: (tenant: AdminTenantSummary) => setSelectedTenantId(tenant.id),
+    onSelectTenant: (tenant: AdminTenantSummary) =>
+      setSelectedTenantId(tenant.id),
     onEditAllowOverrideChange: setEditAllowOverride,
     onEditDisplayNameChange: setEditDisplayName,
     onEditGlobalRolesChange: setEditGlobalRoles,
@@ -872,12 +960,8 @@ export function useTenantsController() {
       setEditProviderDefaultTextModel(configuration.defaultTextModel ?? '');
       setEditProviderDefaultImageModel(configuration.defaultImageModel ?? '');
       setEditProviderCredentialMode(configuration.credentialMode);
-      setEditProviderPreferUserCredentials(
-        configuration.preferUserCredentials,
-      );
-      setEditProviderAllowPlatformFallback(
-        configuration.allowPlatformFallback,
-      );
+      setEditProviderPreferUserCredentials(configuration.preferUserCredentials);
+      setEditProviderAllowPlatformFallback(configuration.allowPlatformFallback);
       setEditProviderAllowTenantFallback(configuration.allowTenantFallback);
       testTenantProviderConfigurationMutation.reset();
       editProviderConfigurationControls.open();
@@ -892,9 +976,7 @@ export function useTenantsController() {
       resetModelRuleForm();
       editModelAccessRuleControls.open();
     },
-    onOpenEditModelAccessRule: (
-      rule: AdminTenantModelAccessRuleSummary,
-    ) => {
+    onOpenEditModelAccessRule: (rule: AdminTenantModelAccessRuleSummary) => {
       setSelectedModelAccessRule(rule);
       setEditModelRuleProviderId(rule.providerId);
       setEditModelRulePattern(rule.modelPattern);
@@ -962,8 +1044,7 @@ export function useTenantsController() {
     onEditPolicyRequestsPerMinuteChange: setEditPolicyRequestsPerMinute,
     onEditPolicyTokensPerMinuteChange: setEditPolicyTokensPerMinute,
     onEditPolicyMonthlyTokenLimitChange: setEditPolicyMonthlyTokenLimit,
-    onEditPolicyImageRequestsPerMonthChange:
-      setEditPolicyImageRequestsPerMonth,
+    onEditPolicyImageRequestsPerMonthChange: setEditPolicyImageRequestsPerMonth,
     onEditPolicyMaxInputTokensChange: setEditPolicyMaxInputTokens,
     onEditPolicyMaxOutputTokensChange: setEditPolicyMaxOutputTokens,
     onEditPolicyAllowPromptLoggingChange: setEditPolicyAllowPromptLogging,
@@ -1027,10 +1108,14 @@ export function useTenantsController() {
       createTenantIntegrationClientMutation.isPending,
     isUpdateTenantIntegrationClientPending:
       updateTenantIntegrationClientMutation.isPending,
+    isDeleteTenantIntegrationClientPending:
+      deleteTenantIntegrationClientMutation.isPending,
     isCreateTenantIntegrationApiKeyPending:
       createTenantIntegrationApiKeyMutation.isPending,
     isUpdateTenantIntegrationApiKeyPending:
       updateTenantIntegrationApiKeyMutation.isPending,
+    isDeleteTenantIntegrationApiKeyPending:
+      deleteTenantIntegrationApiKeyMutation.isPending,
     isRotateTenantIntegrationApiKeyPending:
       rotateTenantIntegrationApiKeyMutation.isPending,
     handleUpdateTenantProviderConfigurationSubmit: (
@@ -1098,7 +1183,8 @@ export function useTenantsController() {
       updateGlobalRolesMutation.error instanceof Error
         ? updateGlobalRolesMutation.error.message
         : null,
-    onDismissRevealedIntegrationApiKey: () => setRevealedIntegrationApiKey(null),
+    onDismissRevealedIntegrationApiKey: () =>
+      setRevealedIntegrationApiKey(null),
     onSelectIntegrationClient: (
       integrationClient: AdminTenantIntegrationClientSummary,
     ) => {
@@ -1122,7 +1208,12 @@ export function useTenantsController() {
       );
       setEditIntegrationClientScopes(
         integrationClient.scopes as Array<
-          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
+          | 'chat:completion'
+          | 'image:generate'
+          | 'image:edit'
+          | 'video:generate'
+          | 'evaluation:invoke'
+          | 'models:list'
         >,
       );
       setEditIntegrationClientTrustedForwardedIdentityEnabled(
@@ -1147,7 +1238,12 @@ export function useTenantsController() {
     onEditIntegrationClientScopesChange: (value: string[]) =>
       setEditIntegrationClientScopes(
         value as Array<
-          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
+          | 'chat:completion'
+          | 'image:generate'
+          | 'image:edit'
+          | 'video:generate'
+          | 'evaluation:invoke'
+          | 'models:list'
         >,
       ),
     onEditIntegrationClientTrustedForwardedIdentityEnabledChange:
@@ -1158,6 +1254,20 @@ export function useTenantsController() {
       }
     },
     handleUpsertTenantIntegrationClientSubmit,
+    handleDeleteTenantIntegrationClient: (
+      integrationClient: AdminTenantIntegrationClientSummary,
+    ) => {
+      if (
+        !selectedTenantId ||
+        !window.confirm(
+          `Delete integration client "${integrationClient.displayName}" and its ${integrationClient.apiKeyCount} API key(s)? This cannot be undone.`,
+        )
+      ) {
+        return;
+      }
+
+      deleteTenantIntegrationClientMutation.mutate(integrationClient.id);
+    },
     onOpenCreateIntegrationApiKey: (
       integrationClient: AdminTenantIntegrationClientSummary,
     ) => {
@@ -1175,7 +1285,12 @@ export function useTenantsController() {
       setEditIntegrationApiKeyLabel(apiKey.label);
       setEditIntegrationApiKeyScopes(
         apiKey.scopes as Array<
-          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
+          | 'chat:completion'
+          | 'image:generate'
+          | 'image:edit'
+          | 'video:generate'
+          | 'evaluation:invoke'
+          | 'models:list'
         >,
       );
       setEditIntegrationApiKeyExpiresAt(
@@ -1193,7 +1308,12 @@ export function useTenantsController() {
     onEditIntegrationApiKeyScopesChange: (value: string[]) =>
       setEditIntegrationApiKeyScopes(
         value as Array<
-          'chat:completion' | 'image:generate' | 'image:edit' | 'video:generate' | 'evaluation:invoke' | 'models:list'
+          | 'chat:completion'
+          | 'image:generate'
+          | 'image:edit'
+          | 'video:generate'
+          | 'evaluation:invoke'
+          | 'models:list'
         >,
       ),
     onEditIntegrationApiKeyExpiresAtChange: setEditIntegrationApiKeyExpiresAt,
@@ -1203,8 +1323,30 @@ export function useTenantsController() {
       }
     },
     handleUpsertTenantIntegrationApiKeySubmit,
+    handleDeleteTenantIntegrationApiKey: (
+      integrationClient: AdminTenantIntegrationClientSummary,
+      apiKey: AdminTenantIntegrationApiKeySummary,
+    ) => {
+      if (
+        !selectedTenantId ||
+        !window.confirm(
+          `Delete API key "${apiKey.label}" (${apiKey.keyHint ?? 'hidden'})? This cannot be undone.`,
+        )
+      ) {
+        return;
+      }
+
+      deleteTenantIntegrationApiKeyMutation.mutate({
+        integrationClientId: integrationClient.id,
+        apiKeyId: apiKey.id,
+      });
+    },
     handleRotateTenantIntegrationApiKey: () => {
-      if (!selectedTenantId || !selectedIntegrationClient || !selectedIntegrationApiKey) {
+      if (
+        !selectedTenantId ||
+        !selectedIntegrationClient ||
+        !selectedIntegrationApiKey
+      ) {
         return;
       }
 

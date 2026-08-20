@@ -91,12 +91,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/evaluation-profiles:
+    get:
+      summary: List safe Evaluation Lab profile metadata
+      operationId: listEvaluationProfiles
+      description: Requires an authenticated operator or tenant administrator session.
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Server-known evaluation profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvaluationProfileMetadata'
+        '401': { description: Missing or expired operator session }
+        '403': { description: Operator role is absent in the active tenant }
+  /api/v1/admin/evaluation-probes:
+    post:
+      summary: Execute an operator structured-evaluation probe
+      operationId: createEvaluationProbe
+      description: >-
+        The Admin API derives the tenant from the authenticated operator and
+        calls the M2M evaluation API with a tenant-bound service identity.
+        Browser payloads cannot select tenant, provider, model, prompt,
+        endpoint, or service credentials.
+      security:
+        - adminSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationProbeRequest'
+      responses:
+        '200':
+          description: Sanitized structured evidence and diagnostic metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationProbeResponse'
+        '400':
+          { description: Invalid profile input or forbidden execution control }
+        '401': { description: Missing or expired operator session }
+        '403': { description: Operator role is absent in the active tenant }
+        '429': { description: Evaluator rate limited }
+        '502':
+          {
+            description: Service identity,
+            provider authentication,
+            or output failure,
+          }
+        '503':
+          {
+            description: Service identity not configured or evaluator unavailable,
+          }
+        '504': { description: Evaluation timed out }
 components:
   securitySchemes:
     integrationClientBearer:
       type: http
       scheme: bearer
       bearerFormat: tenant-scoped integration-client API key
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: lxp_access_token
   schemas:
     EvaluationRequest:
       type: object
@@ -111,6 +173,42 @@ components:
           enum: [pgs-grounding-v1]
         input:
           $ref: '#/components/schemas/PgsGroundingInput'
+    EvaluationProfileMetadata:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          profileId,
+          profileVersion,
+          schemaVersion,
+          displayName,
+          description,
+          inputKind,
+        ]
+      properties:
+        profileId: { type: string, const: pgs-grounding-v1 }
+        profileVersion: { type: string, const: '1' }
+        schemaVersion: { type: string, const: '1' }
+        displayName: { type: string }
+        description: { type: string }
+        inputKind: { type: string, const: pgs-grounding }
+    EvaluationProbeRequest:
+      type: object
+      additionalProperties: false
+      required: [profileId, input]
+      properties:
+        profileId: { type: string, const: pgs-grounding-v1 }
+        input:
+          $ref: '#/components/schemas/PgsGroundingInput'
+    EvaluationProbeResponse:
+      allOf:
+        - $ref: '#/components/schemas/EvaluationResponse'
+        - type: object
+          required: [latencyMs, timestamp, requestId]
+          properties:
+            latencyMs: { type: integer, minimum: 0 }
+            timestamp: { type: string, format: date-time }
+            requestId: { type: string, format: uuid }
     PgsGroundingInput:
       type: object
       additionalProperties: false

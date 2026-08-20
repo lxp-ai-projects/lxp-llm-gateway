@@ -24,6 +24,12 @@ It accepts only allowlisted evaluator profiles, requires a tenant-scoped
 integration client with `evaluation:invoke`, and never accepts arbitrary
 provider/model/prompt controls. See [Structured Evaluation API](structured-evaluations.md).
 
+Authenticated operators can exercise the same data-plane capability through
+the Admin API Evaluation Lab bridge. The browser retains only its normal admin
+session; the Admin API uses a tenant-bound service identity and the Lab neither
+bypasses M2M protection nor executes PGS policy. See
+[Evaluation Lab](evaluation-lab.md).
+
 The gateway supports two response modes:
 
 - non-stream JSON response

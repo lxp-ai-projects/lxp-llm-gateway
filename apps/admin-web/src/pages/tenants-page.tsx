@@ -119,6 +119,8 @@ export function TenantsPage() {
     editPolicyTokensPerMinute,
     editStatus,
     handleRotateTenantIntegrationApiKey,
+    handleDeleteTenantIntegrationApiKey,
+    handleDeleteTenantIntegrationClient,
     handleCreateTenantSubmit,
     handleUpsertTenantIntegrationApiKeySubmit,
     handleUpsertTenantIntegrationClientSubmit,
@@ -137,6 +139,8 @@ export function TenantsPage() {
     isCreateTenantModelAccessRulePending,
     isCreateTenantUserPending,
     isDeleteTenantModelAccessRulePending,
+    isDeleteTenantIntegrationApiKeyPending,
+    isDeleteTenantIntegrationClientPending,
     isRotateTenantIntegrationApiKeyPending,
     isUpdateGlobalRolesPending,
     isUpdateTenantIntegrationApiKeyPending,
@@ -1048,6 +1052,21 @@ export function TenantsPage() {
                                   >
                                     Create key
                                   </Button>
+                                  <Button
+                                    color="red"
+                                    loading={
+                                      isDeleteTenantIntegrationClientPending
+                                    }
+                                    size="xs"
+                                    variant="subtle"
+                                    onClick={() =>
+                                      handleDeleteTenantIntegrationClient(
+                                        client,
+                                      )
+                                    }
+                                  >
+                                    Delete client
+                                  </Button>
                                 </Group>
                               </Table.Td>
                             </Table.Tr>
@@ -1159,6 +1178,22 @@ export function TenantsPage() {
                                         }
                                       >
                                         Select
+                                      </Button>
+                                      <Button
+                                        color="red"
+                                        loading={
+                                          isDeleteTenantIntegrationApiKeyPending
+                                        }
+                                        size="xs"
+                                        variant="subtle"
+                                        onClick={() =>
+                                          handleDeleteTenantIntegrationApiKey(
+                                            selectedIntegrationClient,
+                                            apiKey,
+                                          )
+                                        }
+                                      >
+                                        Delete key
                                       </Button>
                                     </Group>
                                   </Table.Td>

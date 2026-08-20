@@ -58,7 +58,9 @@ function resolveAdminApiBaseUrl(explicitUrl: string | undefined): string {
   return window.location.origin.replace(/\/$/, '');
 }
 
-export const adminApiUrl = resolveAdminApiBaseUrl(import.meta.env.VITE_ADMIN_API_URL);
+export const adminApiUrl = resolveAdminApiBaseUrl(
+  import.meta.env.VITE_ADMIN_API_URL,
+);
 export const gatewayApiUrl = resolveApiBaseUrl(
   import.meta.env.VITE_GATEWAY_API_URL,
   3001,
@@ -204,7 +206,8 @@ function resolveRefreshUrl(preferredRequestUrl?: string): string {
     const preferredUrl = new URL(preferredRequestUrl, window.location.origin);
     const shouldPreferRequestHost =
       refreshUrl.hostname !== preferredUrl.hostname &&
-      (isLoopbackHost(refreshUrl.hostname) || isLoopbackHost(preferredUrl.hostname));
+      (isLoopbackHost(refreshUrl.hostname) ||
+        isLoopbackHost(preferredUrl.hostname));
 
     if (shouldPreferRequestHost) {
       refreshUrl.protocol = preferredUrl.protocol;
@@ -277,8 +280,8 @@ export async function uploadFileWithSessionRefresh<T>(
       return uploadFileWithSessionRefresh<T>(url, file, true);
     }
 
-      const body = await response.text();
-      throw createApiError(body, response.status);
+    const body = await response.text();
+    throw createApiError(body, response.status);
   }
 
   return response.json() as Promise<T>;
@@ -333,6 +336,7 @@ function parseApiError(body: string, status: number): ParsedApiError {
 
   try {
     const parsed = JSON.parse(trimmedBody) as {
+      code?: string;
       message?: string | string[];
       error?:
         | string
@@ -361,6 +365,7 @@ function parseApiError(body: string, status: number): ParsedApiError {
       return {
         status,
         message: parsed.message.trim(),
+        code: parsed.code,
       };
     }
 

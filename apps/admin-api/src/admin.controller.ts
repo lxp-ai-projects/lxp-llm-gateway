@@ -229,7 +229,22 @@ export class AdminController {
     );
   }
 
-  @Get('admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys')
+  @Delete('admin/tenants/:tenantId/integration-clients/:integrationClientId')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  deleteTenantIntegrationClient(
+    @Param('tenantId') tenantId: string,
+    @Param('integrationClientId') integrationClientId: string,
+  ) {
+    return this.adminService.deleteTenantIntegrationClient(
+      tenantId,
+      integrationClientId,
+    );
+  }
+
+  @Get(
+    'admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys',
+  )
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
   listTenantIntegrationApiKeys(
@@ -242,7 +257,9 @@ export class AdminController {
     );
   }
 
-  @Post('admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys')
+  @Post(
+    'admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys',
+  )
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
   createTenantIntegrationApiKey(
@@ -257,7 +274,9 @@ export class AdminController {
     );
   }
 
-  @Post('admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys/:apiKeyId/rotate')
+  @Post(
+    'admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys/:apiKeyId/rotate',
+  )
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
   rotateTenantIntegrationApiKey(
@@ -272,7 +291,9 @@ export class AdminController {
     );
   }
 
-  @Patch('admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys/:apiKeyId')
+  @Patch(
+    'admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys/:apiKeyId',
+  )
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
   updateTenantIntegrationApiKey(
@@ -286,6 +307,23 @@ export class AdminController {
       integrationClientId,
       apiKeyId,
       dto,
+    );
+  }
+
+  @Delete(
+    'admin/tenants/:tenantId/integration-clients/:integrationClientId/api-keys/:apiKeyId',
+  )
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  deleteTenantIntegrationApiKey(
+    @Param('tenantId') tenantId: string,
+    @Param('integrationClientId') integrationClientId: string,
+    @Param('apiKeyId') apiKeyId: string,
+  ) {
+    return this.adminService.deleteTenantIntegrationApiKey(
+      tenantId,
+      integrationClientId,
+      apiKeyId,
     );
   }
 
@@ -488,7 +526,10 @@ export class AdminController {
   @Patch('admin/tenants/:tenantId/registration-settings')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
-  updateTenantRegistrationSettings(@Param('tenantId') tenantId: string, @Body() dto: UpdateTenantRegistrationSettingsDto) {
+  updateTenantRegistrationSettings(
+    @Param('tenantId') tenantId: string,
+    @Body() dto: UpdateTenantRegistrationSettingsDto,
+  ) {
     return this.tenantRegistrationService.updateSettings(tenantId, dto);
   }
 
@@ -496,11 +537,14 @@ export class AdminController {
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
   getTenantRegistrationEmailReadiness(@Param('tenantId') tenantId: string) {
-    return this.tenantRegistrationService.getSettings(tenantId).then((settings) => ({
-      tenantRegistrationEnabled: settings.enabled,
-      globalRegistrationEnabled: process.env.LXP_REGISTRATION_ENABLED === 'true',
-      ...this.registrationVerificationService.getDeliveryReadiness(),
-    }));
+    return this.tenantRegistrationService
+      .getSettings(tenantId)
+      .then((settings) => ({
+        tenantRegistrationEnabled: settings.enabled,
+        globalRegistrationEnabled:
+          process.env.LXP_REGISTRATION_ENABLED === 'true',
+        ...this.registrationVerificationService.getDeliveryReadiness(),
+      }));
   }
 
   @Post('admin/tenants/:tenantId/registration/email/test')
@@ -520,21 +564,31 @@ export class AdminController {
   @Post('admin/tenants/:tenantId/public-hosts')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
-  createTenantPublicHost(@Param('tenantId') tenantId: string, @Body() dto: CreateTenantPublicHostDto) {
+  createTenantPublicHost(
+    @Param('tenantId') tenantId: string,
+    @Body() dto: CreateTenantPublicHostDto,
+  ) {
     return this.tenantRegistrationService.createHost(tenantId, dto);
   }
 
   @Patch('admin/tenants/:tenantId/public-hosts/:hostId')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
-  updateTenantPublicHost(@Param('tenantId') tenantId: string, @Param('hostId') hostId: string, @Body() dto: UpdateTenantPublicHostDto) {
+  updateTenantPublicHost(
+    @Param('tenantId') tenantId: string,
+    @Param('hostId') hostId: string,
+    @Body() dto: UpdateTenantPublicHostDto,
+  ) {
     return this.tenantRegistrationService.updateHost(tenantId, hostId, dto);
   }
 
   @Delete('admin/tenants/:tenantId/public-hosts/:hostId')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('super_admin')
-  deleteTenantPublicHost(@Param('tenantId') tenantId: string, @Param('hostId') hostId: string) {
+  deleteTenantPublicHost(
+    @Param('tenantId') tenantId: string,
+    @Param('hostId') hostId: string,
+  ) {
     return this.tenantRegistrationService.deleteHost(tenantId, hostId);
   }
 
@@ -571,10 +625,7 @@ export class AdminController {
 
   @Post('images/edits')
   @UseGuards(AccessTokenGuard)
-  editOwnImage(
-    @Req() request: RequestWithAuthUser,
-    @Body() payload: unknown,
-  ) {
+  editOwnImage(@Req() request: RequestWithAuthUser, @Body() payload: unknown) {
     return this.adminCatalogService.proxyGatewayJson(
       request.authAccessToken!,
       '/api/v1/images/edits',
@@ -667,9 +718,7 @@ export class AdminController {
     @Req() request: RequestWithAuthUser,
     @Query('page') page?: string,
   ) {
-    const queryString = page
-      ? `?page=${encodeURIComponent(page)}`
-      : '';
+    const queryString = page ? `?page=${encodeURIComponent(page)}` : '';
 
     return this.adminCatalogService.proxyGatewayJson(
       request.authAccessToken!,
@@ -776,9 +825,7 @@ export class AdminController {
     @Req() request: RequestWithAuthUser,
     @Query('page') page?: string,
   ) {
-    const queryString = page
-      ? `?page=${encodeURIComponent(page)}`
-      : '';
+    const queryString = page ? `?page=${encodeURIComponent(page)}` : '';
 
     return this.adminCatalogService.proxyGatewayJson(
       request.authAccessToken!,
