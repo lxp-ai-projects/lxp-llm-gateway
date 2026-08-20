@@ -16,7 +16,10 @@ import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { UserEntity } from '../persistence/entities/user.entity';
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
 import { EncryptionService } from '../security/encryption.service';
-import type { GatewayAuthContext } from '../auth/auth.types';
+import type {
+  GatewayAuthContext,
+  GatewayServiceAuthContext,
+} from '../auth/auth.types';
 import {
   type ResolvedTenantProviderConfiguration,
   TenantProviderConfigurationService,
@@ -26,6 +29,10 @@ export type ResolvedProviderAccess = {
   providerAccess: ProviderAccessConfig;
   credentialScopeUsed: 'platform' | 'tenant' | 'user';
 };
+
+type ProviderCredentialAuthContext =
+  | Pick<GatewayAuthContext, 'activeTenantId' | 'emailHash' | 'userId'>
+  | Pick<GatewayServiceAuthContext, 'activeTenantId' | 'emailHash' | 'userId'>;
 
 @Injectable()
 export class ProviderCredentialService {
@@ -44,10 +51,7 @@ export class ProviderCredentialService {
   ) {}
 
   async resolveProviderAccess(
-    authContext: Pick<
-      GatewayAuthContext,
-      'activeTenantId' | 'emailHash' | 'userId'
-    >,
+    authContext: ProviderCredentialAuthContext,
     providerId: ProviderId,
   ): Promise<ProviderAccessConfig> {
     const resolved = await this.resolveProviderAccessWithSource(
@@ -58,23 +62,23 @@ export class ProviderCredentialService {
   }
 
   async resolveProviderAccessWithSource(
-    authContext: Pick<
-      GatewayAuthContext,
-      'activeTenantId' | 'emailHash' | 'userId'
-    >,
+    authContext: ProviderCredentialAuthContext,
     providerId: ProviderId,
   ): Promise<ResolvedProviderAccess> {
-    if (!authContext.emailHash) {
+    if (authContext.userId !== null && !authContext.emailHash) {
       throw new BadRequestException('Missing authenticated user email hash.');
     }
 
-    const user = await this.userRepository.findOne({
-      where: {
-        emailHash: authContext.emailHash,
-        status: 'active',
-      },
-    });
-    if (!user) {
+    const user =
+      authContext.userId === null
+        ? null
+        : await this.userRepository.findOne({
+            where: {
+              emailHash: authContext.emailHash!,
+              status: 'active',
+            },
+          });
+    if (authContext.userId !== null && !user) {
       throw new NotFoundException(
         'Unable to resolve the provider credential for the authenticated request.',
       );
@@ -110,17 +114,20 @@ export class ProviderCredentialService {
       await this.tenantRlsService.withTenantContext(
         tenant.id,
         async (manager) => {
-          const credentialRepository =
-            manager.getRepository(UserProviderCredentialEntity);
-          const userCredentials = await credentialRepository.find({
-            where: {
-              tenantId: tenant.id,
-              userId: user.id,
-              providerId: provider.id,
-              scope: 'user',
-              isActive: true,
-            },
-          });
+          const credentialRepository = manager.getRepository(
+            UserProviderCredentialEntity,
+          );
+          const userCredentials = user
+            ? await credentialRepository.find({
+                where: {
+                  tenantId: tenant.id,
+                  userId: user.id,
+                  providerId: provider.id,
+                  scope: 'user',
+                  isActive: true,
+                },
+              })
+            : [];
           const userCredential =
             this.selectMostRecentCredential(userCredentials);
 
@@ -274,7 +281,10 @@ export class ProviderCredentialService {
       };
     }
 
-    if (configuration.allowTenantFallback && candidates.tenantCredentialAccess) {
+    if (
+      configuration.allowTenantFallback &&
+      candidates.tenantCredentialAccess
+    ) {
       return {
         providerAccess: candidates.tenantCredentialAccess,
         credentialScopeUsed: 'tenant',
@@ -308,7 +318,10 @@ export class ProviderCredentialService {
   private getPlatformProviderAccess(
     providerId: ProviderId,
   ): ProviderAccessConfig | null {
-    const envByProvider: Record<ProviderId, { apiKey?: string; baseUrl?: string }> = {
+    const envByProvider: Record<
+      ProviderId,
+      { apiKey?: string; baseUrl?: string }
+    > = {
       anthropic: {
         apiKey: process.env.ANTHROPIC_API_KEY,
         baseUrl: process.env.ANTHROPIC_BASE_URL,

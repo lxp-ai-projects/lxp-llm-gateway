@@ -986,10 +986,17 @@ export function TenantsPage() {
                                 </Text>
                               </Table.Td>
                               <Table.Td>
+                                <Badge variant="light" mb={4}>
+                                  {client.identityMode
+                                    .toLowerCase()
+                                    .replaceAll('_', ' ')}
+                                </Badge>
                                 <Text size="sm">
-                                  Default user:{' '}
-                                  {client.defaultUserDisplayName ??
-                                    'No default user'}
+                                  Service principal: {client.clientId}
+                                </Text>
+                                <Text size="sm">
+                                  Default user fallback:{' '}
+                                  {client.defaultUserDisplayName ?? 'None'}
                                 </Text>
                                 <Text size="sm" c="dimmed">
                                   Forwarded identity:{' '}
@@ -1628,6 +1635,13 @@ export function TenantsPage() {
               Technical clients are tenant-bound roots of trust for Open WebUI
               and similar integrations. Scopes stay narrow by default.
             </Text>
+            {!editIntegrationClientTrustedForwardedIdentityEnabled &&
+            !editIntegrationClientDefaultUserUuid ? (
+              <Alert color="teal" title="Service identity only">
+                The integration client itself is the authenticated service
+                principal. No human user is associated with its requests.
+              </Alert>
+            ) : null}
             <TextInput
               disabled={Boolean(selectedIntegrationClient)}
               label={
@@ -1678,10 +1692,10 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label="Default user"
-                  help="Optional tenant member used when the integration does not forward a trusted human identity."
+                  help="Optional fallback used only when no validated delegated user is supplied. Leave empty for a service-only client."
                 />
               }
-              placeholder="Optional tenant user"
+              placeholder="None - use service identity"
               data={integrationClientMemberOptions}
               value={editIntegrationClientDefaultUserUuid || null}
               onChange={(value) =>
@@ -1711,7 +1725,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label="Trust forwarded human identity"
-                  help="Allows a trusted proxy to forward a human identity. Only enable this behind a boundary you fully control."
+                  help="Allows a validated delegated user to supplement the service caller. The integration client remains attributable as the technical caller."
                 />
               }
               description="Only enable this behind a trusted proxy boundary."

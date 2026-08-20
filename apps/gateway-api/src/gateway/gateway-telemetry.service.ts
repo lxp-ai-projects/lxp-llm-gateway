@@ -6,7 +6,7 @@ import type {
 } from '@lxp/contracts';
 import type { EntityManager } from 'typeorm';
 
-import type { GatewayAuthContext } from '../auth/auth.types';
+import type { GatewayIntegrationClientAuthContext as GatewayAuthContext } from '../auth/auth.types';
 import { AuditLogEntity } from '../persistence/entities/audit-log.entity';
 import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { UsageEventEntity } from '../persistence/entities/usage-event.entity';
@@ -23,9 +23,7 @@ type MessageSummary = {
 
 @Injectable()
 export class GatewayTelemetryService {
-  constructor(
-    private readonly tenantRlsService: TenantRlsService,
-  ) {}
+  constructor(private readonly tenantRlsService: TenantRlsService) {}
 
   async reserveChatUsageEvent(
     params: {
@@ -33,6 +31,7 @@ export class GatewayTelemetryService {
       requestId: string;
       providerId: string;
       model: string;
+      route: string;
       stream: boolean;
       messageSummary: MessageSummary;
     },
@@ -44,7 +43,7 @@ export class GatewayTelemetryService {
         userId: params.authContext.userId,
         userUuid: params.authContext.userUuid,
         requestId: params.requestId,
-        operation: 'chat',
+        operation: this.chatOperation(params.route),
         capability: 'text',
         providerId: params.providerId,
         model: params.model,
@@ -177,11 +176,12 @@ export class GatewayTelemetryService {
           userUuid: params.authContext.userUuid,
           requestId: params.requestId,
           route: params.route,
-          action: params.stream ? 'chat.stream' : 'chat',
+          action: this.chatAuditAction(params.route, params.stream),
           providerId: params.providerId,
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
           status: 'success',
           messageCount: params.messageSummary.messageCount ?? null,
           messageCharacters: params.messageSummary.messageCharacters ?? null,
@@ -200,7 +200,7 @@ export class GatewayTelemetryService {
             userId: params.authContext.userId,
             userUuid: params.authContext.userUuid,
             requestId: params.requestId,
-            operation: 'chat',
+            operation: this.chatOperation(params.route),
             capability: 'text',
             providerId: params.providerId,
             model: params.model,
@@ -252,11 +252,12 @@ export class GatewayTelemetryService {
           userUuid: params.authContext.userUuid,
           requestId: params.requestId,
           route: params.route,
-          action: params.stream ? 'chat.stream' : 'chat',
+          action: this.chatAuditAction(params.route, params.stream),
           providerId: params.providerId,
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
           status: 'failure',
           messageCount: params.messageSummary.messageCount ?? null,
           messageCharacters: params.messageSummary.messageCharacters ?? null,
@@ -274,7 +275,7 @@ export class GatewayTelemetryService {
             userId: params.authContext.userId,
             userUuid: params.authContext.userUuid,
             requestId: params.requestId,
-            operation: 'chat',
+            operation: this.chatOperation(params.route),
             capability: 'text',
             providerId: params.providerId,
             model: params.model,
@@ -330,6 +331,7 @@ export class GatewayTelemetryService {
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
           status: 'success',
           messageCount: 1,
           messageCharacters: params.promptLength,
@@ -401,6 +403,7 @@ export class GatewayTelemetryService {
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
           status: 'failure',
           messageCount: 1,
           messageCharacters: params.promptLength,
@@ -468,6 +471,7 @@ export class GatewayTelemetryService {
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
           status: 'success',
           messageCount: 1,
           messageCharacters: params.promptLength,
@@ -539,6 +543,7 @@ export class GatewayTelemetryService {
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
           status: 'failure',
           messageCount: 1,
           messageCharacters: params.promptLength,
@@ -588,6 +593,7 @@ export class GatewayTelemetryService {
     model: string;
     operation:
       | 'chat'
+      | 'evaluation'
       | 'image_generation'
       | 'image_edit'
       | 'video_generation_submit'
@@ -624,6 +630,7 @@ export class GatewayTelemetryService {
     model: string;
     operation:
       | 'chat'
+      | 'evaluation'
       | 'image_generation'
       | 'image_edit'
       | 'video_generation_submit'
@@ -658,6 +665,7 @@ export class GatewayTelemetryService {
     requestId: string;
     operation:
       | 'chat'
+      | 'evaluation'
       | 'image_generation'
       | 'image_edit'
       | 'video_generation_submit'
@@ -688,6 +696,7 @@ export class GatewayTelemetryService {
           model: params.model,
           identitySource: params.authContext.identitySource,
           integrationClientId: params.authContext.integrationClientId ?? null,
+          apiKeyId: params.authContext.integrationClientKeyId ?? null,
           status: 'failure',
           messageCount: null,
           messageCharacters: null,
@@ -735,6 +744,15 @@ export class GatewayTelemetryService {
     await this.upsertUsageEvent(manager, entry);
   }
 
+  private chatOperation(route: string): 'chat' | 'evaluation' {
+    return route === '/api/v1/evaluations' ? 'evaluation' : 'chat';
+  }
+
+  private chatAuditAction(route: string, stream: boolean): string {
+    if (route === '/api/v1/evaluations') return 'evaluation.invoke';
+    return stream ? 'chat.stream' : 'chat';
+  }
+
   private async upsertUsageEvent(
     manager: EntityManager,
     entry: Partial<UsageEventEntity> & { tenantId: string; requestId: string },
@@ -752,8 +770,6 @@ export class GatewayTelemetryService {
       ...entry,
     });
   }
-
-
 
   private extractCostEstimateUsd(
     providerMetadata: Record<string, unknown> | null | undefined,
@@ -786,7 +802,12 @@ export class GatewayTelemetryService {
     }
 
     const usage = providerMetadata['usage'];
-    if (usage && typeof usage === 'object' && usage !== null && 'cost' in usage) {
+    if (
+      usage &&
+      typeof usage === 'object' &&
+      usage !== null &&
+      'cost' in usage
+    ) {
       const cost = (usage as Record<string, unknown>).cost;
       if (typeof cost === 'number' && Number.isFinite(cost)) {
         return cost.toFixed(6);

@@ -75,6 +75,9 @@ The repository now contains:
 - tenant-aware policy and limit foundations based on `tenant_policies`, with an initial gateway enforcement slice for request windows, monthly budget, monthly token totals, and monthly image request counts
 - tenant-aware audit and usage telemetry with an initial PostgreSQL RLS slice on telemetry tables
 - tenant-aware technical client auth with an initial PostgreSQL RLS slice on `integration_clients` and `api_keys`
+- first-class service-only integration-client identity, with tenant authority,
+  scoped permissions, optional delegated/default users, and truthful audit and
+  usage attribution
 - tenant-aware image storage and history with an initial PostgreSQL RLS slice on `image_assets`, `image_jobs`, and `image_job_results`
 - tenant-aware BYOK credential management with a PostgreSQL RLS slice on `user_provider_credentials`
 - an initial `super_admin` tenant administration surface for cross-tenant listing, tenant policy editing, and membership visibility
@@ -168,5 +171,3 @@ Current Open WebUI posture is:
 ## Registration Email Verification
 
 The public registration foundation can establish email possession for a resolved tenant when tenant registration is enabled and the selected SMTP or MailerSend provider is ready. It does not create a user, membership, role, password, or session.
-
-

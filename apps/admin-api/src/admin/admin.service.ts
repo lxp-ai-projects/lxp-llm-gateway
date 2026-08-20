@@ -97,9 +97,17 @@ type TenantModelAccessRuleSummary = {
 type TenantUsageEventSummary = {
   id: string;
   requestId: string;
-  userUuid: string;
-  operation: 'chat' | 'image_generation' | 'image_edit';
-  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding' | null;
+  userUuid: string | null;
+  operation:
+    | 'chat'
+    | 'evaluation'
+    | 'image_generation'
+    | 'image_edit'
+    | 'video_generation_submit'
+    | 'video_generation_poll'
+    | 'video_generation_download'
+    | 'video_generation_cancel';
+  capability: 'text' | 'image' | 'video' | 'stt' | 'tts' | 'embedding' | null;
   providerId: string;
   model: string;
   identitySource: string;
@@ -137,7 +145,7 @@ type TenantUsageByProviderSummary = {
 type TenantUsageByModelSummary = {
   providerId: string;
   model: string;
-  capability: 'text' | 'image' | 'stt' | 'tts' | 'embedding' | null;
+  capability: 'text' | 'image' | 'video' | 'stt' | 'tts' | 'embedding' | null;
   requests30d: number;
   blockedRequests30d: number;
   estimatedCostUsd30d: string;
@@ -170,6 +178,11 @@ type TenantIntegrationClientSummary = {
   applicationId: string;
   defaultUserUuid: string | null;
   defaultUserDisplayName: string | null;
+  identityMode:
+    | 'SERVICE_ONLY'
+    | 'DEFAULT_USER'
+    | 'FORWARDED_USER'
+    | 'FORWARDED_USER_WITH_DEFAULT';
   scopes: string[];
   trustedForwardedIdentityEnabled: boolean;
   status: 'active' | 'disabled';
@@ -789,7 +802,7 @@ export class AdminService {
       clientId: string;
       displayName: string;
       applicationId: string;
-      defaultUserUuid?: string;
+      defaultUserUuid?: string | null;
       scopes: string[];
       trustedForwardedIdentityEnabled: boolean;
     },
@@ -838,7 +851,7 @@ export class AdminService {
     dto: {
       displayName?: string;
       applicationId?: string;
-      defaultUserUuid?: string;
+      defaultUserUuid?: string | null;
       scopes?: string[];
       trustedForwardedIdentityEnabled?: boolean;
       status?: 'active' | 'disabled';
@@ -2082,6 +2095,7 @@ export class AdminService {
       applicationId: client.applicationId,
       defaultUserUuid: client.defaultUser?.userUuid ?? null,
       defaultUserDisplayName: client.defaultUser?.displayName ?? null,
+      identityMode: this.resolveIntegrationClientIdentityMode(client),
       scopes: [...client.scopes].sort(),
       trustedForwardedIdentityEnabled: client.trustedForwardedIdentityEnabled,
       status: client.status,
@@ -2089,6 +2103,19 @@ export class AdminService {
       createdAt: client.createdAt,
       updatedAt: client.updatedAt,
     };
+  }
+
+  private resolveIntegrationClientIdentityMode(
+    client: Pick<
+      IntegrationClientEntity,
+      'defaultUserId' | 'defaultUser' | 'trustedForwardedIdentityEnabled'
+    >,
+  ): TenantIntegrationClientSummary['identityMode'] {
+    const hasDefaultUser = Boolean(client.defaultUserId || client.defaultUser);
+    if (client.trustedForwardedIdentityEnabled) {
+      return hasDefaultUser ? 'FORWARDED_USER_WITH_DEFAULT' : 'FORWARDED_USER';
+    }
+    return hasDefaultUser ? 'DEFAULT_USER' : 'SERVICE_ONLY';
   }
 
   private mapTenantIntegrationApiKeySummary(
@@ -2310,7 +2337,7 @@ export class AdminService {
       clientId: string;
       displayName: string;
       applicationId: string;
-      defaultUserUuid?: string;
+      defaultUserUuid?: string | null;
       scopes: string[];
       trustedForwardedIdentityEnabled: boolean;
     },

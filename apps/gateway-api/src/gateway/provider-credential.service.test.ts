@@ -72,7 +72,11 @@ function createService(fixtures?: {
   resolvedConfiguration?: {
     providerStatus?: 'active' | 'disabled';
     enabled?: boolean;
-    credentialMode?: 'platform_default' | 'tenant_byok' | 'user_byok' | 'hybrid';
+    credentialMode?:
+      | 'platform_default'
+      | 'tenant_byok'
+      | 'user_byok'
+      | 'hybrid';
     preferUserCredentials?: boolean;
     allowPlatformFallback?: boolean;
     allowTenantFallback?: boolean;
@@ -86,7 +90,9 @@ function createService(fixtures?: {
         return createRepositoryMock(credentials);
       }
 
-      throw new Error(`Unexpected repository request in test: ${String(entity)}`);
+      throw new Error(
+        `Unexpected repository request in test: ${String(entity)}`,
+      );
     },
   };
   const tenantRlsService = {
@@ -220,6 +226,110 @@ test('ProviderCredentialService resolves a user-scoped credential when tenant ov
   );
 
   assert.equal(providerAccess.apiKey, 'nano-secret-token');
+});
+
+test('ProviderCredentialService excludes user overrides for a service principal', async () => {
+  const service = createService({
+    users: [{ id: 'user-1', emailHash: 'hash-1', status: 'active' }],
+    tenants: [
+      {
+        id: 'tenant-1',
+        status: 'active',
+        allowUserCredentialOverride: true,
+      },
+    ],
+    providers: [
+      {
+        id: 'provider-1',
+        providerId: 'nanogpt',
+        status: 'active',
+      },
+    ],
+    credentials: [
+      {
+        id: 'cred-user',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        providerId: 'provider-1',
+        scope: 'user',
+        isActive: true,
+        encryptedSecret: 'cipher-user',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+      {
+        id: 'cred-tenant',
+        tenantId: 'tenant-1',
+        userId: null,
+        providerId: 'provider-1',
+        scope: 'tenant',
+        isActive: true,
+        encryptedSecret: 'cipher-tenant',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+    ],
+    decryptResult: JSON.stringify({ apiKey: 'tenant-secret-token' }),
+  });
+
+  const resolved = await service.resolveProviderAccessWithSource(
+    {
+      activeTenantId: 'tenant-1',
+      userId: null,
+      emailHash: null,
+    },
+    'nanogpt',
+  );
+
+  assert.equal(resolved.credentialScopeUsed, 'tenant');
+  assert.equal(resolved.providerAccess.apiKey, 'tenant-secret-token');
+});
+
+test('ProviderCredentialService fails closed when a service principal only has a user credential', async () => {
+  const service = createService({
+    users: [{ id: 'user-1', emailHash: 'hash-1', status: 'active' }],
+    tenants: [{ id: 'tenant-1', status: 'active' }],
+    providers: [{ id: 'provider-1', providerId: 'nanogpt', status: 'active' }],
+    credentials: [
+      {
+        id: 'cred-user',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        providerId: 'provider-1',
+        scope: 'user',
+        isActive: true,
+        encryptedSecret: 'cipher-user',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+    ],
+    resolvedConfiguration: {
+      credentialMode: 'hybrid',
+      preferUserCredentials: true,
+      allowTenantFallback: true,
+      allowPlatformFallback: false,
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.resolveProviderAccessWithSource(
+        {
+          activeTenantId: 'tenant-1',
+          userId: null,
+          emailHash: null,
+        },
+        'nanogpt',
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof ForbiddenException);
+      assert.match(String(error), /No active credential path is configured/);
+      return true;
+    },
+  );
 });
 
 test('ProviderCredentialService falls back to the tenant credential when user override is disabled', async () => {

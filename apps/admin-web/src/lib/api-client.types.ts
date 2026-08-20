@@ -605,6 +605,11 @@ export type AdminTenantIntegrationClientSummary = {
   applicationId: string;
   defaultUserUuid: string | null;
   defaultUserDisplayName: string | null;
+  identityMode:
+    | 'SERVICE_ONLY'
+    | 'DEFAULT_USER'
+    | 'FORWARDED_USER'
+    | 'FORWARDED_USER_WITH_DEFAULT';
   scopes: string[];
   trustedForwardedIdentityEnabled: boolean;
   status: 'active' | 'disabled';
@@ -636,9 +641,10 @@ export type AdminTenantIntegrationApiKeySecretSummary = {
 export type AdminTenantUsageEventSummary = {
   id: string;
   requestId: string;
-  userUuid: string;
+  userUuid: string | null;
   operation:
     | 'chat'
+    | 'evaluation'
     | 'image_generation'
     | 'image_edit'
     | 'video_generation_submit'
@@ -778,7 +784,7 @@ export type AdminCreateIntegrationClientInput = {
   clientId: string;
   displayName: string;
   applicationId: string;
-  defaultUserUuid?: string;
+  defaultUserUuid?: string | null;
   scopes: Array<
     | 'chat:completion'
     | 'image:generate'
@@ -793,7 +799,7 @@ export type AdminCreateIntegrationClientInput = {
 export type AdminUpdateIntegrationClientInput = {
   displayName?: string;
   applicationId?: string;
-  defaultUserUuid?: string;
+  defaultUserUuid?: string | null;
   scopes?: Array<
     | 'chat:completion'
     | 'image:generate'

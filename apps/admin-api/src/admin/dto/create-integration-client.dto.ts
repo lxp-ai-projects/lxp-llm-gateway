@@ -30,7 +30,7 @@ export class CreateIntegrationClientDto {
 
   @IsOptional()
   @IsString()
-  defaultUserUuid?: string;
+  defaultUserUuid?: string | null;
 
   @IsArray()
   @IsIn(SUPPORTED_INTEGRATION_CLIENT_SCOPES, { each: true })

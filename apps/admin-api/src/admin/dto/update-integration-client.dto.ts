@@ -28,7 +28,7 @@ export class UpdateIntegrationClientDto {
 
   @IsOptional()
   @IsString()
-  defaultUserUuid?: string;
+  defaultUserUuid?: string | null;
 
   @IsOptional()
   @IsArray()

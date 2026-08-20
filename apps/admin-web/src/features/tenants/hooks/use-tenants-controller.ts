@@ -469,8 +469,7 @@ export function useTenantsController() {
         clientId: editIntegrationClientId.trim(),
         displayName: editIntegrationClientDisplayName.trim(),
         applicationId: editIntegrationClientApplicationId.trim(),
-        defaultUserUuid:
-          editIntegrationClientDefaultUserUuid.trim() || undefined,
+        defaultUserUuid: editIntegrationClientDefaultUserUuid.trim() || null,
         scopes: editIntegrationClientScopes,
         trustedForwardedIdentityEnabled:
           editIntegrationClientTrustedForwardedIdentityEnabled,
@@ -492,8 +491,7 @@ export function useTenantsController() {
         {
           displayName: editIntegrationClientDisplayName.trim(),
           applicationId: editIntegrationClientApplicationId.trim(),
-          defaultUserUuid:
-            editIntegrationClientDefaultUserUuid.trim() || undefined,
+          defaultUserUuid: editIntegrationClientDefaultUserUuid.trim() || null,
           scopes: editIntegrationClientScopes,
           trustedForwardedIdentityEnabled:
             editIntegrationClientTrustedForwardedIdentityEnabled,

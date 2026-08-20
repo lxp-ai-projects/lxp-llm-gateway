@@ -45,7 +45,8 @@ The gateway validates the access token, resolves the caller through `emailHash`,
 Each successful or failed gateway execution should also produce tenant-aware audit and usage records that capture:
 
 - tenant context
-- effective user
+- technical caller and API-key identifier when present
+- delegated/default user when present
 - provider and model
 - identity source
 - latency and outcome
@@ -286,6 +287,16 @@ For native Ollama `/api/chat` streams, the adapter converts provider-native NDJS
 ## Identity Resolution
 
 The gateway does not trust a caller-provided `userId`.
+
+Integration-client authentication separates the tenant, the technical caller,
+and the optional delegated user. A machine-to-machine client may therefore be
+authenticated as `SERVICE:<clientId>` with no human user. Trusted forwarded
+identity supplements that service caller; a configured default user is only a
+fallback and never replaces service attribution.
+
+The structured evaluation route supports service-only clients directly. Other
+routes that still require user-owned resources fail closed when no delegated or
+default user exists.
 
 Instead it:
 

@@ -18,11 +18,11 @@ export class AuditLogEntity {
   @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId!: string;
 
-  @Column({ name: 'user_id', type: 'uuid' })
-  userId!: string;
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
+  userId!: string | null;
 
-  @Column({ name: 'user_uuid', type: 'uuid' })
-  userUuid!: string;
+  @Column({ name: 'user_uuid', type: 'uuid', nullable: true })
+  userUuid!: string | null;
 
   @Column({ name: 'request_id', type: 'varchar', length: 100 })
   requestId!: string;
@@ -42,8 +42,16 @@ export class AuditLogEntity {
   @Column({ name: 'identity_source', type: 'varchar', length: 60 })
   identitySource!: GatewayAuthIdentitySource;
 
-  @Column({ name: 'integration_client_id', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'integration_client_id',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   integrationClientId!: string | null;
+
+  @Column({ name: 'api_key_id', type: 'uuid', nullable: true })
+  apiKeyId!: string | null;
 
   @Column({ name: 'status', type: 'varchar', length: 30 })
   status!: 'success' | 'failure';

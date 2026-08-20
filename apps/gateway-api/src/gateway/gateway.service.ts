@@ -9,7 +9,10 @@ import type { ProviderId } from '@lxp/domain';
 import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
-import type { GatewayAuthContext } from '../auth/auth.types';
+import type {
+  GatewayAuthContext,
+  GatewayIntegrationClientAuthContext,
+} from '../auth/auth.types';
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayTelemetryService } from './gateway-telemetry.service';
@@ -122,7 +125,7 @@ export class GatewayService {
 
   async evaluateProfileChat(
     request: GatewayChatRequest,
-    authContext: GatewayAuthContext,
+    authContext: GatewayIntegrationClientAuthContext,
   ): Promise<GatewayChatResponse> {
     return this.executeControlledChat(
       request,
@@ -133,7 +136,7 @@ export class GatewayService {
 
   private async executeControlledChat(
     request: GatewayChatRequest,
-    authContext: GatewayAuthContext,
+    authContext: GatewayIntegrationClientAuthContext,
     route: string,
   ): Promise<GatewayChatResponse> {
     const providerId = this.resolveProviderId(request.providerId, authContext);
@@ -163,6 +166,9 @@ export class GatewayService {
       requestId,
       providerId: provider.providerId,
       model,
+      principalKind: this.principalKind(authContext),
+      integrationClientId: authContext.integrationClientId ?? null,
+      apiKeyId: authContext.integrationClientKeyId ?? null,
       resolvedUserUuid: authContext.userUuid,
       userFingerprint: this.gatewayAuditService.fingerprint(
         authContext.emailHash,
@@ -230,6 +236,7 @@ export class GatewayService {
               requestId,
               providerId: provider.providerId,
               model,
+              route,
               stream: false,
               messageSummary,
             },
@@ -246,7 +253,7 @@ export class GatewayService {
         },
         {
           requestId,
-          userId: authContext.userId,
+          userId: this.providerPrincipalId(authContext),
           providerAccess,
         },
       );
@@ -282,7 +289,7 @@ export class GatewayService {
             requestId,
             providerId: provider.providerId,
             model,
-            operation: 'chat',
+            operation: this.usageOperation(route),
             capability: 'text',
             route,
             latencyMs: Date.now() - startedAt,
@@ -302,7 +309,7 @@ export class GatewayService {
             requestId,
             providerId: provider.providerId,
             model,
-            operation: 'chat',
+            operation: this.usageOperation(route),
             capability: 'text',
             route,
             latencyMs: Date.now() - startedAt,
@@ -454,6 +461,7 @@ export class GatewayService {
               requestId,
               providerId: provider.providerId,
               model,
+              route: '/api/v1/chat',
               stream: true,
               messageSummary,
             },
@@ -655,7 +663,7 @@ export class GatewayService {
 
   private resolveProviderId(
     requestedProviderId: ProviderId | undefined,
-    authContext: GatewayAuthContext,
+    authContext: GatewayIntegrationClientAuthContext,
   ): ProviderId {
     if (requestedProviderId) {
       return requestedProviderId;
@@ -672,7 +680,7 @@ export class GatewayService {
 
   private async assertMaxInputTokensIfSupported(params: {
     request: GatewayChatRequestDto;
-    authContext: GatewayAuthContext;
+    authContext: GatewayIntegrationClientAuthContext;
     provider: ReturnType<ProviderRegistryService['getProvider']>;
     providerAccess: ProviderExecutionContext['providerAccess'];
     providerId: ProviderId;
@@ -701,7 +709,7 @@ export class GatewayService {
       },
       {
         requestId: crypto.randomUUID(),
-        userId: params.authContext.userId,
+        userId: this.providerPrincipalId(params.authContext),
         providerAccess: params.providerAccess,
       },
     );
@@ -711,6 +719,24 @@ export class GatewayService {
         `Text requests for ${params.providerId}/${params.model} cannot exceed ${maxInputTokens} input token(s) for this tenant.`,
       );
     }
+  }
+
+  private principalKind(
+    authContext: GatewayIntegrationClientAuthContext,
+  ): 'USER' | 'SERVICE' {
+    return authContext.identitySource === 'integration-client-service'
+      ? 'SERVICE'
+      : 'USER';
+  }
+
+  private providerPrincipalId(
+    authContext: GatewayIntegrationClientAuthContext,
+  ): string {
+    return authContext.userId ?? `service:${authContext.integrationClientId}`;
+  }
+
+  private usageOperation(route: string): 'chat' | 'evaluation' {
+    return route === '/api/v1/evaluations' ? 'evaluation' : 'chat';
   }
 
   private resolveEffectiveMaxInputTokens(

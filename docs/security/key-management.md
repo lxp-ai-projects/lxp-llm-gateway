@@ -138,3 +138,7 @@ The same masking rule applies to tenant-scoped integration API keys:
 - store only a one-way hash plus a short masked hint for lookup and operator support
 - never persist the raw key after issuance
 - never rely on forwarded identity headers as the root trust primitive without an authenticated technical client
+- treat the integration client as the authoritative service principal; a human
+  user is optional and must never be synthesized or inherited from the creator
+- retain tenant, integration-client, and API-key attribution even when no
+  delegated/default user exists

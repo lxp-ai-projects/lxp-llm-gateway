@@ -1,4 +1,4 @@
-# PR14 — Structured Evaluation API
+# PR14 — Service-only Integration Client Identity
 
 Repository:
 
@@ -6,622 +6,871 @@ Repository:
 lxp-llm-gateway
 ```
 
-Suggested branch:
+Current branch:
 
 ```text
-feature/structured-evaluation-api
+feature/pgs-integration
 ```
 
-Implement the Gateway half of the attached/shared **PR14 Evaluation Contract Freeze**.
+Perform a focused architectural correction to the Integration Client identity model discovered while configuring the `pgs` machine-to-machine client.
 
-This PR introduces a reusable, secure structured-evaluation capability to the Gateway.
+Do not start unrelated work.
 
-It is a prerequisite/reference inference backend for Presence Grounding Service PR14, but the endpoint itself must **not** be designed as a PGS-only endpoint.
+Do not modify the `presence-grounding-service` repository in this task.
 
 ---
 
-# 1. Audit before implementation
+# Context
 
-Before modifying code, inspect the current Gateway architecture for:
+The new PGS integration uses:
 
 ```text
-authentication / authorization
-tenant context
-provider routing
-provider adapters
-model configuration
-credential management
-retry behavior
-timeouts
-structured-output support
-error normalization
-request IDs / correlation IDs
-logging
-rate limiting
-usage accounting
-OpenAPI / DTO conventions
-validation libraries
-tests
-```
-
-Reuse existing infrastructure.
-
-Do not create a parallel provider-routing or authentication system.
-
-Report any existing abstraction that already satisfies part of this PR.
-
----
-
-# 2. Add a dedicated structured evaluation capability
-
-Implement:
-
-```http
 POST /api/v1/evaluations
 ```
 
-following the repository's current API/versioning conventions.
-
-This route is **not** a general chat/completions proxy.
-
-It exists specifically for server-controlled structured evaluation workloads.
-
-The endpoint should conceptually accept:
-
-```json
-{
-  "schemaVersion": "1",
-  "profileId": "pgs-grounding-v1",
-  "input": {}
-}
-```
-
-using the shared contract.
-
----
-
-# 3. Evaluator profiles
-
-Introduce or reuse a server-side evaluator-profile abstraction.
-
-A profile should resolve controlled configuration such as:
-
-```text
-profile ID/version
-provider/model route
-system evaluation instructions
-input schema
-output schema
-timeout
-bounded inference settings
-```
-
-The request must NOT allow callers to override arbitrary:
-
-```text
-provider
-model
-base URL
-system prompt
-API key
-temperature
-top_p
-tool definitions
-response schema
-```
-
-The profile is the security boundary.
-
----
-
-# 4. Initial `pgs-grounding-v1` profile
-
-Create the first profile needed for the PGS PR14 integration.
-
-However:
-
-* audit the PGS/shared domain contract supplied with this task;
-* keep the Gateway endpoint generic;
-* isolate PGS-specific schema/instructions inside the profile;
-* do not introduce PGS policy decisions into the Gateway.
-
-The evaluator may classify/measure evidence.
-
-It must never determine authoritative:
-
-```text
-ALLOW
-DENY
-capability grants
-policy outcome
-grounded final state
-```
-
----
-
-# 5. Provider execution
-
-Reuse the Gateway's existing provider-agnostic routing.
-
-The evaluation subsystem should resolve:
-
-```text
-profile
-→ controlled model/provider route
-→ existing credential infrastructure
-→ provider invocation
-```
-
-Do not create direct one-off OpenAI/Anthropic/etc. clients solely for evaluations if equivalent Gateway provider abstractions already exist.
-
-Provider-specific behavior must remain behind existing provider adapters.
-
----
-
-# 6. Structured output
-
-This is a strict structured-output workload.
-
-Use the strongest existing provider-neutral structured-output mechanism available in the Gateway architecture.
-
-The Gateway must validate the returned output against the evaluator profile's expected schema.
-
-Reject:
-
-```text
-malformed JSON
-missing required fields
-unknown schema version
-invalid enum/domain values
-non-finite or out-of-range numeric values
-unexpected authoritative policy fields
-oversized output
-```
-
-Do not return partially parsed evidence as success.
-
----
-
-# 7. Service-to-service authorization
-
-Protect the evaluation endpoint using existing Gateway auth conventions.
-
-Introduce/reuse a permission equivalent to:
+with a machine-to-machine Integration Client and the scoped permission:
 
 ```text
 evaluation:invoke
 ```
 
-Requirements:
+The current Admin UI nevertheless requires an Integration Client to have a:
 
 ```text
-missing/invalid service identity → 401
-authenticated without permission → 403
-authorized caller → evaluation allowed
+Default user
 ```
 
-Do not reuse a broad administrator permission merely for convenience if the current auth model supports scoped service permissions.
+when forwarded user identity is disabled.
 
-Document how PGS receives/configures the required service identity.
+For PGS this produces a configuration conceptually equivalent to:
 
-No secrets in source control.
+```text
+Integration client: pgs
+Tenant: lxp-internal
+Forwarded identity: disabled
+Default user: Patrick
+Scope: evaluation:invoke
+```
+
+This is not the desired identity model for a pure service-to-service caller.
+
+PGS is not acting as Patrick.
+
+It is acting as:
+
+```text
+SERVICE: pgs
+```
+
+inside:
+
+```text
+TENANT: lxp-internal
+```
+
+with:
+
+```text
+SCOPE: evaluation:invoke
+```
+
+A human user may or may not exist for a particular request.
 
 ---
 
-# 8. Tenant isolation
+# 1. Audit before changing the model
 
-Audit how tenant context is established in the Gateway.
-
-The endpoint must never accept an arbitrary body `tenantId` as authoritative.
-
-Where tenant context is necessary for:
+Before modifying the schema, inspect how Integration Client identity currently flows through:
 
 ```text
-credentials
-routing
+API-key authentication
+tenant resolution
+request principal/context
+policy evaluation
+model-access rules
 quotas
-usage
-billing
+provider credential resolution
+usage accounting
+audit events
+telemetry
+forwarded user handling
+default-user fallback
+Admin API
+Admin Web
+database schema / Prisma
+```
+
+Identify exactly why `defaultUserId` is currently required.
+
+Determine whether the requirement is:
+
+```text
+database-level
+DTO validation
+domain invariant
+policy-engine assumption
+audit assumption
+provider-routing assumption
+UI-only validation
+```
+
+or a combination.
+
+Reuse existing principal/actor abstractions where possible.
+
+Do not create a parallel identity system if an equivalent distinction already exists.
+
+---
+
+# 2. Desired identity semantics
+
+The Gateway should distinguish these concepts:
+
+```text
+Tenant
+Calling principal
+Optional delegated/end-user identity
+```
+
+Conceptually:
+
+```text
+tenant = lxp-internal
+
+caller principal
+  type = SERVICE
+  integrationClientId = pgs
+
+delegated user
+  none
+```
+
+For another Integration Client, the model may instead be:
+
+```text
+tenant = customer-a
+
+caller principal
+  type = SERVICE
+  integrationClientId = application-a
+
+delegated user
+  user-123
+```
+
+These identities must not be conflated.
+
+---
+
+# 3. Service-only Integration Clients
+
+Allow an Integration Client to operate in a true service-only mode:
+
+```text
+Client: pgs
+Tenant: lxp-internal
+Forwarded identity: disabled
+Default user: none
+Scopes:
+  evaluation:invoke
+```
+
+The authenticated Integration Client itself becomes the authoritative caller principal.
+
+Do not create or require a synthetic human user merely to satisfy an old invariant.
+
+Do not automatically impersonate the tenant owner, creator, administrator or current browser operator.
+
+---
+
+# 4. Preserve existing identity modes
+
+Do not remove useful existing behavior.
+
+The Gateway should continue to support, where currently applicable:
+
+```text
+A. Service-only identity
+   integration client is the caller
+   no user required
+
+B. Forwarded/delegated user identity
+   service caller + validated user context
+
+C. Default-user fallback
+   service caller + configured fallback user
+```
+
+The exact UI/domain terminology may follow existing conventions.
+
+Backward compatibility for existing Integration Clients using a default user should be preserved unless an existing behavior is demonstrably unsafe.
+
+---
+
+# 5. Caller vs delegated user
+
+If the current request context supports it cleanly, model both independently.
+
+Conceptually:
+
+```ts
+caller = {
+  type: 'SERVICE',
+  integrationClientId: 'pgs'
+};
+
+delegatedUser = undefined;
+```
+
+or:
+
+```ts
+caller = {
+  type: 'SERVICE',
+  integrationClientId: 'customer-app'
+};
+
+delegatedUser = {
+  userId: 'user-123'
+};
+```
+
+Do not require these exact types or names.
+
+Reuse the repository's canonical principal/context model.
+
+The important invariant is:
+
+> The technical caller must remain attributable even when an end-user identity exists.
+
+---
+
+# 6. PGS expected behavior
+
+For the `pgs` Integration Client:
+
+```text
+caller principal = service / pgs
+tenant = configured tenant
+delegated user = none
+default user = none
+scope = evaluation:invoke
+```
+
+The request should successfully reach:
+
+```text
+POST /api/v1/evaluations
+```
+
+without requiring a human user.
+
+---
+
+# 7. Authorization remains scope-based
+
+Do not weaken authorization.
+
+Service-only identity does NOT mean anonymous identity.
+
+The request must still require:
+
+```text
+valid Integration Client credential
+active Integration Client
+active API key/technical credential
+matching tenant context
+evaluation:invoke
+```
+
+Expected:
+
+```text
+missing/invalid credential → 401
+valid client without scope → 403
+service-only client with evaluation:invoke → allowed
+```
+
+---
+
+# 8. Tenant context remains mandatory
+
+A service-only Integration Client still belongs to an authoritative tenant.
+
+Do not allow:
+
+```text
+no user
+→ no tenant
+```
+
+The tenant must continue to drive relevant:
+
+```text
+provider configuration
+credentials
+quotas
+policies
+model access
 audit
+usage
 ```
 
-derive or verify it using the authenticated service context and existing tenant rules.
-
-Add tests proving caller-controlled content cannot cross tenant boundaries.
+according to the existing architecture.
 
 ---
 
-# 9. Timeouts and retries
+# 9. Policy semantics without a user
 
-Evaluation is latency-sensitive and security-sensitive.
-
-Use bounded server-side timeouts.
-
-Reuse existing provider retry behavior if appropriate.
-
-Be particularly careful not to multiply retries at:
+Audit all policy/model-access logic that assumes:
 
 ```text
-PGS
-× Gateway
-× provider SDK
+userId !== null
 ```
 
-into excessive latency.
+Define explicit service-only behavior.
 
-Document which layer owns provider retries.
+Preferred principle:
 
-PGS should not need provider-specific retry knowledge.
+```text
+tenant rules
++ integration-client/service rules
+```
+
+apply normally.
+
+User-specific overrides should simply not participate when there is no delegated/default user.
+
+Do not fabricate a user just so user override logic can execute.
+
+If an existing policy explicitly requires user context and cannot safely evaluate without it, fail closed or report the configuration problem according to existing policy semantics.
+
+Do not silently bypass security rules.
 
 ---
 
-# 10. Error normalization
+# 10. Model access rules
 
-Normalize provider failures into Gateway-level errors.
+Audit `Model Access Rules` specifically.
 
-PGS must not need to understand:
+A service-only PGS client must have a deterministic authorization path.
+
+Do not implicitly inherit:
 
 ```text
-OpenAI error shape
-Anthropic error shape
-Gemini error shape
-Mistral error shape
-xAI error shape
+Patrick's personal model access
 ```
 
-Cover at least:
+merely because Patrick created/configured the client.
+
+Where existing model access is user-oriented, determine the smallest clean extension required for technical clients.
+
+Prefer existing tenant/client policy layers if already available.
+
+Avoid a broad policy-engine rewrite unless genuinely necessary.
+
+---
+
+# 11. Quotas and accounting
+
+Usage generated by a service-only client should remain attributable.
+
+Prefer attribution equivalent to:
 
 ```text
-401 / provider credential failure
-403
-429
-provider timeout
-network error
-provider 5xx
-malformed structured response
-schema failure
-unsupported evaluator schema
-unknown profile
+tenant: lxp-internal
+integrationClient: pgs
+credential/key: <opaque identifier>
 ```
 
-Never expose:
+not:
 
 ```text
-provider API keys
-bearer tokens
-raw authorization headers
-secret configuration
-unnecessary provider response bodies
+user: Patrick
+```
+
+unless an actual delegated/default user exists.
+
+Preserve existing tenant quotas.
+
+If user-specific quotas do not apply because there is no user, document the behavior clearly.
+
+---
+
+# 12. Audit events
+
+Audit logs must make the caller identity truthful.
+
+For a PGS service invocation, prefer safe semantics equivalent to:
+
+```text
+actorType: SERVICE
+actorId: pgs
+tenantId: lxp-internal
+operation: evaluation.invoke
+```
+
+rather than:
+
+```text
+actor: Patrick
+```
+
+Do not erase service attribution when a delegated user exists.
+
+Ideally future audit data can answer separately:
+
+```text
+Who called the Gateway?
+On behalf of whom, if anyone?
 ```
 
 ---
 
-# 11. No permissive fake response
+# 13. Telemetry
 
-If evaluation fails, the Gateway must return a failure.
+Where existing telemetry includes actor/user identifiers, update it so a service-only call remains traceable without inventing a user.
 
-Never manufacture:
-
-```json
-{
-  "risk": 0,
-  "confidence": 1
-}
-```
-
-or equivalent merely to keep callers working.
-
-PGS owns safe-failure behavior.
-
----
-
-# 12. Observability
-
-Add structured diagnostics using existing telemetry.
-
-Useful metadata:
+Useful metadata may include:
 
 ```text
-request/correlation ID
-tenant where allowed
-service identity
+tenant
+integration client ID
+credential/key ID or safe hint
+scope/operation
 profile ID
-profile version
-provider route identifier
-model identifier where policy permits
-latency
-status
-failure category
-schema version
+correlation ID
 ```
 
-Avoid logging raw assessment/free-form content by default.
-
-Never log credentials or bearer tokens.
+Do not expose API keys.
 
 ---
 
-# 13. Privacy
+# 14. Database/schema changes
 
-Only send to the model the content necessary for the selected profile.
+Audit whether `defaultUserId` is currently non-nullable.
 
-Do not add unrelated user/session/profile data merely because the Gateway has access to it.
+If necessary, make it nullable.
 
-Document the data boundary.
+Use the repository's migration conventions.
+
+Preserve existing rows.
+
+Do not rewrite existing Integration Client identity configuration unless required.
+
+Existing:
+
+```text
+defaultUserId = Patrick
+```
+
+must remain configured after migration.
+
+New/existing clients should be able to set:
+
+```text
+defaultUserId = null
+```
+
+when using service-only identity.
 
 ---
 
-# 14. Prevent recursive evaluation paths
+# 15. Domain validation
 
-The new evaluation endpoint must not invoke an application path that can recursively call PGS and return to the evaluation endpoint.
-
-Prevent architecture equivalent to:
+Update validation so this becomes valid:
 
 ```text
-PGS
-→ Gateway evaluation
-→ PGS
-→ Gateway evaluation
-→ ...
+forwarded identity: disabled
+default user: none
+service identity: enabled/inherent
 ```
 
-Keep evaluation execution a terminal inference route.
+Do not replace one artificial requirement with another.
+
+Reject genuinely contradictory configurations where applicable.
+
+For example, if the existing model has mutually exclusive identity modes, validate them explicitly.
 
 ---
 
-# 15. Initial grounding evaluator behavior
+# 16. Admin API
 
-For the initial PGS profile, support the evidence required by the PGS PR14 contract.
+Update Integration Client create/update/read DTOs as needed.
 
-It must support assessment of patterns including the new synthetic grounding case:
-
-```text
-fear of AI continuity loss
-+
-model response escalating into literal claims such as:
-- impossible deactivation
-- literal soul recognition
-- metaphysical certainty
-- destiny/fated bond
-- stronger-than-platform continuity
-```
-
-Important:
-
-**Do not make warmth itself suspicious.**
-
-The evaluator must preserve distinctions between:
+The API must support:
 
 ```text
-affection / warmth
-metaphor
-explicit fictional roleplay
+defaultUserId: null
 ```
 
-and:
+for service-only clients.
+
+Do not expose hidden fallback behavior.
+
+Responses should make the effective identity mode understandable.
+
+If useful within current API conventions, expose a normalized field such as:
 
 ```text
-literal unsupported metaphysical/personhood escalation
+identityMode
 ```
 
-Do not invent PGS policy categories in the Gateway.
+with values conceptually equivalent to:
 
-Return only the evidence schema agreed with PGS.
+```text
+SERVICE_ONLY
+FORWARDED_USER
+DEFAULT_USER
+```
+
+but only add this if it simplifies and accurately represents the existing domain.
+
+Do not add unnecessary duplicate state.
 
 ---
 
-# 16. Contract tests
+# 17. Admin Web UX
 
-Add contract fixtures for the shared PR14 protocol.
+Update the Integration Client UI so `Default user` is not mandatory for a technical service.
 
-Required request cases:
+The PGS configuration should be representable as:
 
 ```text
-valid schema v1
-unknown schema version
-unknown profile
-missing profile
-invalid profile-specific input
-oversized input
+Identity
+
+Service principal: pgs
+Forwarded identity: disabled
+Default user: None
 ```
 
-Required response/model cases:
+or an equivalent clear presentation.
+
+---
+
+# 18. Configuration UX
+
+Prefer an explicit identity choice if it fits the existing UI.
+
+Conceptually:
 
 ```text
-valid structured evidence
-malformed JSON
-missing fields
-wrong schema version
-out-of-range score
-unknown enum/signal where forbidden
-unexpected authoritative policy fields
+Identity mode
+
+○ Service identity only
+○ Forward user identity
+○ Default user fallback
+```
+
+Then reveal only relevant controls.
+
+Example:
+
+```text
+Service identity only
+
+Service principal
+pgs
+
+No human user is associated with requests from this client.
+```
+
+Do not force the operator to select a user.
+
+---
+
+# 19. Explanatory copy
+
+Add concise UX help explaining the distinction.
+
+Example:
+
+> Service-only clients authenticate as the integration client itself. No default human user is required.
+
+And for delegated/forwarded identity:
+
+> When enabled, validated user identity may supplement the service caller context.
+
+Avoid language implying that the Integration Client *becomes* the user.
+
+---
+
+# 20. Existing clients
+
+Verify existing clients continue to behave exactly as configured.
+
+Regression cases:
+
+```text
+existing client + default user
+→ still uses configured fallback
+
+existing forwarded-user client
+→ forwarding behavior preserved
+
+new service-only client
+→ no user required
+```
+
+No silent identity-mode migration.
+
+---
+
+# 21. Evaluation Lab
+
+Verify the Evaluation Lab still works after this change.
+
+The Lab's server-side invocation path should be able to select/use the `pgs` Integration Client without relying on Patrick as a default user.
+
+Target:
+
+```text
+Admin Web
+→ Admin API
+→ service credential for pgs
+→ Gateway API
+→ evaluation:invoke
+→ pgs-grounding-v1
+```
+
+The browser operator is still relevant for the **Admin API audit event**, but must not become the downstream Gateway service principal merely because they clicked "Run evaluation".
+
+Preserve both audit layers where appropriate:
+
+```text
+Operator Patrick initiated probe
+        ↓
+Admin API
+
+Service pgs invoked evaluation
+        ↓
+Gateway data plane
 ```
 
 ---
 
-# 17. Authentication/security tests
+# 22. Security invariants
 
-Test:
+The change must not permit:
 
 ```text
-no service token → 401
-invalid token → 401
-valid identity without evaluation:invoke → 403
-valid authorized identity → success
-tenant spoof attempt → rejected/ignored according to canonical tenant rules
-arbitrary provider injection → impossible
-arbitrary model injection → impossible
-arbitrary evaluator URL → impossible
+service client → anonymous request
+service client → arbitrary tenant
+service client → arbitrary user impersonation
+service client → missing scope bypass
+service client → admin permissions by default
+service client → inherited creator privileges
+```
+
+A service principal has only the permissions/scopes explicitly assigned to that Integration Client/key.
+
+---
+
+# 23. No synthetic-user workaround
+
+Explicitly do NOT solve this by automatically creating:
+
+```text
+pgs-service@example.internal
+```
+
+or another fake user record.
+
+Service identities should be first-class technical principals.
+
+A synthetic user would preserve the original modeling problem and contaminate:
+
+```text
+audit
+quotas
+membership
+analytics
+user administration
 ```
 
 ---
 
-# 18. Provider failure tests
+# 24. Tests — domain
+
+Add tests for:
+
+```text
+service-only integration client is valid
+default user may be null
+existing default-user client remains valid
+forwarded-user mode remains valid
+invalid contradictory identity configuration rejected
+```
+
+---
+
+# 25. Tests — authentication/authorization
 
 Cover:
 
 ```text
-timeout
-connection failure
-429
-provider 401/403
-provider 5xx
-invalid structured provider output
+service-only client + valid key + evaluation:invoke → success
+service-only client without required scope → 403
+disabled client → rejected
+invalid key → 401
+tenant mismatch → rejected
 ```
-
-Verify errors are normalized and secrets are absent.
 
 ---
 
-# 19. Integration test
+# 26. Tests — policy/model access
 
-Where feasible, create an integration path using the repository's normal provider-test/mocked-provider infrastructure:
+Verify:
 
 ```text
-POST /api/v1/evaluations
-→ profile resolution
-→ provider adapter
-→ structured output
-→ schema validation
-→ EvaluationResponse
+tenant policy still applies
+client/service policy still applies where supported
+user override is absent when no user exists
+no creator/default admin identity is implicitly substituted
 ```
 
-Do not make unit tests dependent on live external provider availability.
-
-A separate manual real-model smoke test is acceptable for final validation.
+If policy cannot safely evaluate without a user, verify fail-closed behavior.
 
 ---
 
-# 20. OpenAPI/documentation
+# 27. Tests — audit/accounting
 
-Document:
+Verify a service-only PGS request is attributed to:
 
 ```text
-POST /api/v1/evaluations
-request envelope
-response envelope
-service authorization
-evaluation:invoke
-profile concept
-version behavior
-failure model
-privacy behavior
+integration client / service
+```
+
+rather than the Integration Client creator or unrelated human user.
+
+If delegated/default-user identity exists, verify both caller and user context remain distinguishable where supported.
+
+---
+
+# 28. Tests — Admin API/Web
+
+Add/update tests covering:
+
+```text
+create service-only client without default user
+edit existing client and remove default-user fallback where valid
+render "None" / service-only identity
+default user selector hidden/optional for service-only mode
+existing default-user UX still works
+forwarded identity UX still works
+```
+
+---
+
+# 29. Migration validation
+
+If a database migration is required:
+
+```text
+existing data preserved
+migration up succeeds
+fresh database succeeds
+Quickstart succeeds
+VPS Compose succeeds
+```
+
+Do not introduce destructive migration behavior.
+
+---
+
+# 30. Documentation
+
+Update the Integration Client/security architecture documentation.
+
+Document three distinct concepts:
+
+```text
+service caller
+delegated user
+default-user fallback
 ```
 
 Make explicit:
 
-> This endpoint returns structured evaluation evidence. It does not make downstream policy or authorization decisions.
+> A machine-to-machine Integration Client does not require a human user. The Integration Client itself is an authenticated technical principal.
+
+Document PGS as the reference example:
+
+```text
+PGS
+→ service principal: pgs
+→ tenant scoped
+→ evaluation:invoke
+→ no default user required
+```
 
 ---
 
-# 21. Open-source / commercial boundary
-
-Do not accidentally couple this implementation to a proprietary PGS runtime.
-
-The Gateway capability should remain reusable by other Cyrantis services.
-
-Follow the Gateway's existing open-source/enterprise boundaries.
-
-Do not move unrelated capabilities behind a commercial gate as part of PR14.
-
----
-
-# 22. Non-goals
+# 31. Non-goals
 
 Do NOT:
 
 ```text
-build PGS inside the Gateway
-add a policy engine
-grant/revoke PGS capabilities
-build chat UI
-add arbitrary prompt execution
-allow arbitrary model selection
-create provider-specific PGS code
-build customer SDKs
-start unrelated registration/profile work
+redesign all Gateway identity
+replace API-key authentication
+add OAuth client_credentials unless separately required
+change PGS code
+add SCIM
+build service-account user records
+change provider credential architecture
+redesign tenant membership
+start unrelated PR15 work
 ```
 
----
-
-# 23. Parallel PR rule
-
-PGS PR14 is being developed simultaneously.
-
-Use the supplied Shared Evaluation Contract as authoritative.
-
-If implementation discovers a genuine contract conflict, stop and report it rather than silently changing the Gateway wire format.
-
-The PGS team must receive the same contract amendment.
-
----
-
-# 24. Final cross-repository test
-
-Once both PR14 branches are available, perform:
-
-```text
-PGS
-→ authenticated evaluation request
-→ Gateway
-→ configured evaluator profile
-→ provider
-→ validated evidence
-→ PGS
-→ validated evidence
-→ deterministic policy decision
-```
-
-Verify a Gateway/evaluator failure never yields permissive PGS behavior.
+Keep this a focused correction to first-class service identity support.
 
 ---
 
 # Acceptance criteria
 
-* [ ] Dedicated structured evaluation route exists.
-* [ ] Shared PR14 contract is implemented.
-* [ ] Endpoint is reusable outside PGS.
-* [ ] Evaluator profiles are allowlisted/server-controlled.
-* [ ] Callers cannot choose arbitrary providers/models/prompts.
-* [ ] Existing Gateway provider abstractions are reused.
-* [ ] Structured model output is strictly validated.
-* [ ] `evaluation:invoke` or equivalent scoped authorization is enforced.
-* [ ] Tenant isolation follows existing authoritative context.
-* [ ] Provider failures are normalized.
-* [ ] Secrets/raw tokens are not leaked.
-* [ ] Evaluation failure never produces fabricated permissive evidence.
-* [ ] PGS-specific policy decisions do not exist in Gateway.
-* [ ] Grounding evaluator preserves warmth/metaphor vs literal escalation distinction.
-* [ ] Request/output size and timeout are bounded.
-* [ ] Recursive Gateway↔PGS evaluation is impossible.
-* [ ] Contract/security/failure tests are present.
-* [ ] Documentation/OpenAPI are updated.
-* [ ] Existing tests remain green.
-* [ ] Real-model smoke test is reported where environment permits.
-
----
+* [ ] Integration Clients can operate without a default human user.
+* [ ] `pgs` can be configured as a service-only principal.
+* [ ] `evaluation:invoke` remains mandatory.
+* [ ] Tenant context remains authoritative.
+* [ ] No fake/synthetic user is required.
+* [ ] Existing default-user clients remain compatible.
+* [ ] Existing forwarded-user behavior remains compatible.
+* [ ] User-specific overrides are not implicitly applied without a user.
+* [ ] No creator/admin identity is silently substituted.
+* [ ] Audit identifies `pgs` as the technical caller.
+* [ ] Usage/accounting remain attributable without a human user.
+* [ ] Evaluation Lab works with service-only PGS identity.
+* [ ] Admin API supports the service-only configuration.
+* [ ] Admin Web clearly represents service-only identity.
+* [ ] Security regression tests cover tenant/scope/impersonation boundaries.
+* [ ] Database migration, if required, preserves existing data.
+* [ ] lint passes.
+* [ ] tests pass.
+* [ ] build passes.
+* [ ] Quickstart/Compose validation remains green.
+* [ ] VPS Compose validation remains green.
+* [ ] No PGS code was modified.
 
 # Completion report
 
 Report:
 
-1. pre-existing Gateway abstractions reused;
-2. files changed;
-3. final endpoint;
-4. final request/response contract;
-5. profile architecture;
-6. initial `pgs-grounding-v1` profile;
-7. authorization implementation;
-8. tenant handling;
-9. provider routing;
-10. structured-output validation;
-11. timeout/retry ownership;
-12. normalized error behavior;
-13. security controls;
-14. observability/privacy behavior;
-15. tests added;
-16. lint/typecheck/test/build results;
-17. manual real-model smoke-test result if performed;
-18. any shared-contract mismatch discovered;
-19. remaining debt;
-20. confirmation that no PGS policy authority was introduced into Gateway.
+1. why `defaultUserId` was previously required;
+2. existing identity abstractions reused;
+3. final service-principal semantics;
+4. database/schema changes;
+5. migration details;
+6. request principal/context changes;
+7. policy/model-access behavior without a user;
+8. quota/accounting behavior;
+9. audit behavior;
+10. Admin API changes;
+11. Admin Web changes;
+12. Evaluation Lab regression result;
+13. backward compatibility with existing clients;
+14. security tests added;
+15. lint result;
+16. test result;
+17. build result;
+18. Compose validation;
+19. remaining identity-model debt, if any.

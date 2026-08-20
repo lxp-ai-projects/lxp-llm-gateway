@@ -14,6 +14,8 @@ import { UserEntity } from '../persistence/entities/user.entity';
 import type {
   GatewayAuthContext,
   GatewayAuthIdentitySource,
+  GatewayIntegrationClientAuthContext,
+  GatewayServiceAuthContext,
   GatewayAuthTokenPayload,
 } from './auth.types';
 
@@ -143,7 +145,7 @@ export class GatewayAuthService {
   async authenticateIntegrationClientRequest(
     authorizationHeader?: string,
     requestHeaders?: Record<string, string | string[] | undefined>,
-  ): Promise<GatewayAuthContext> {
+  ): Promise<GatewayIntegrationClientAuthContext> {
     const bearerToken = this.tryExtractBearerToken(authorizationHeader);
     if (!bearerToken) {
       throw new UnauthorizedException(
@@ -154,6 +156,7 @@ export class GatewayAuthService {
     const authContext = await this.tryAuthenticateIntegrationClient(
       bearerToken,
       requestHeaders,
+      { allowServiceOnly: true },
     );
     if (!authContext) {
       throw new UnauthorizedException('Integration client API key is invalid.');
@@ -173,8 +176,19 @@ export class GatewayAuthService {
 
   private async tryAuthenticateIntegrationClient(
     bearerToken: string,
+    requestHeaders: Record<string, string | string[] | undefined> | undefined,
+    options: { allowServiceOnly: true },
+  ): Promise<GatewayIntegrationClientAuthContext | null>;
+  private async tryAuthenticateIntegrationClient(
+    bearerToken: string,
     requestHeaders?: Record<string, string | string[] | undefined>,
-  ): Promise<GatewayAuthContext | null> {
+    options?: { allowServiceOnly?: false },
+  ): Promise<GatewayAuthContext | null>;
+  private async tryAuthenticateIntegrationClient(
+    bearerToken: string,
+    requestHeaders?: Record<string, string | string[] | undefined>,
+    options: { allowServiceOnly?: boolean } = {},
+  ): Promise<GatewayIntegrationClientAuthContext | null> {
     const keyHash = this.computeApiKeyHash(bearerToken);
     return this.tenantRlsService.withApiKeyHashContext(
       keyHash,
@@ -232,6 +246,39 @@ export class GatewayAuthService {
           throw new UnauthorizedException(
             'Trusted forwarded identity is not enabled for the supplied integration client.',
           );
+        }
+
+        if (
+          !trustedIdentity &&
+          !integrationClient.defaultUserId &&
+          options.allowServiceOnly
+        ) {
+          await apiKeyRepository.update(
+            { id: apiKey.id },
+            { lastUsedAt: new Date() },
+          );
+          const authContext: GatewayServiceAuthContext = {
+            userId: null,
+            userUuid: null,
+            emailHash: null,
+            activeTenantId: integrationClient.tenantId,
+            activeTenantSlug: integrationClient.tenant.slug,
+            identitySource: 'integration-client-service',
+            roles: [],
+            globalRoles: [],
+            integrationClientId: integrationClient.clientId,
+            integrationClientKeyId: apiKey.id,
+            integrationClientScopes: this.mergeScopes(
+              integrationClient.scopes,
+              apiKey.scopes,
+            ),
+            defaultProviderId: null,
+            defaultModel: null,
+            defaultImageProviderId: null,
+            defaultImageModel: null,
+          };
+          this.logServiceIdentityResolved(authContext);
+          return authContext;
         }
 
         const user = trustedIdentity
@@ -702,6 +749,22 @@ export class GatewayAuthService {
         trustedHeaderName: trustedHeaderName ?? null,
         resolvedUserUuid: user.userUuid,
         userFingerprint: this.fingerprintEmailHash(user.emailHash),
+      }),
+    );
+  }
+
+  private logServiceIdentityResolved(
+    authContext: GatewayServiceAuthContext,
+  ): void {
+    this.logger.log(
+      JSON.stringify({
+        event: 'gateway.integration_client.identity.resolved',
+        principalKind: 'SERVICE',
+        integrationClientId: authContext.integrationClientId,
+        apiKeyId: authContext.integrationClientKeyId,
+        tenantId: authContext.activeTenantId,
+        delegatedUserUuid: null,
+        identitySource: authContext.identitySource,
       }),
     );
   }

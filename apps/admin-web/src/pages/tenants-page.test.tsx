@@ -21,6 +21,7 @@ function createController(overrides: Record<string, unknown> = {}) {
     applicationId: 'open-webui',
     defaultUserUuid: 'user-1',
     defaultUserDisplayName: 'Patrick',
+    identityMode: 'FORWARDED_USER_WITH_DEFAULT',
     scopes: ['chat:completion', 'models:list'],
     trustedForwardedIdentityEnabled: true,
     status: 'active' as const,

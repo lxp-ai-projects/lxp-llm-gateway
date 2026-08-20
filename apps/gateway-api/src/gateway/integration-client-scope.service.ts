@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 
-import type { GatewayAuthContext } from '../auth/auth.types';
+import type { GatewayIntegrationClientAuthContext } from '../auth/auth.types';
 
 export type IntegrationClientScope =
   | 'chat:completion'
@@ -14,7 +14,7 @@ export type IntegrationClientScope =
 @Injectable()
 export class IntegrationClientScopeService {
   assertScope(
-    authContext: GatewayAuthContext,
+    authContext: GatewayIntegrationClientAuthContext,
     requiredScope: IntegrationClientScope,
   ): void {
     if (!authContext.integrationClientId) {

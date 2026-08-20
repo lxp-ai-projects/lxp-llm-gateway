@@ -546,6 +546,7 @@ test('AdminService creates and lists tenant integration clients', async () => {
 
   assert.equal(client.clientId, 'open-webui-demo');
   assert.equal(client.defaultUserUuid, createdUser.userUuid);
+  assert.equal(client.identityMode, 'FORWARDED_USER_WITH_DEFAULT');
   assert.deepEqual(client.scopes, ['chat:completion', 'models:list']);
   assert.equal(client.apiKeyCount, 0);
 
@@ -554,6 +555,17 @@ test('AdminService creates and lists tenant integration clients', async () => {
   );
   assert.equal(listed.length, 1);
   assert.equal(listed[0]?.clientId, 'open-webui-demo');
+
+  const serviceOnly = await service.updateTenantIntegrationClient(
+    actor.activeTenantId,
+    client.id,
+    {
+      defaultUserUuid: null,
+      trustedForwardedIdentityEnabled: false,
+    },
+  );
+  assert.equal(serviceOnly.defaultUserUuid, null);
+  assert.equal(serviceOnly.identityMode, 'SERVICE_ONLY');
 });
 
 test('AdminService creates, rotates, and updates tenant integration api keys', async () => {

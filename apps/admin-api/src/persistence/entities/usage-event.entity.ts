@@ -16,17 +16,25 @@ export class UsageEventEntity {
   @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId!: string;
 
-  @Column({ name: 'user_id', type: 'uuid' })
-  userId!: string;
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
+  userId!: string | null;
 
-  @Column({ name: 'user_uuid', type: 'uuid' })
-  userUuid!: string;
+  @Column({ name: 'user_uuid', type: 'uuid', nullable: true })
+  userUuid!: string | null;
 
   @Column({ name: 'request_id', type: 'varchar', length: 100 })
   requestId!: string;
 
   @Column({ name: 'operation', type: 'varchar', length: 50 })
-  operation!: 'chat' | 'image_generation' | 'image_edit';
+  operation!:
+    | 'chat'
+    | 'evaluation'
+    | 'image_generation'
+    | 'image_edit'
+    | 'video_generation_submit'
+    | 'video_generation_poll'
+    | 'video_generation_download'
+    | 'video_generation_cancel';
 
   @Column({ name: 'capability', type: 'varchar', length: 20, nullable: true })
   capability!: 'text' | 'image' | 'stt' | 'tts' | 'embedding' | null;

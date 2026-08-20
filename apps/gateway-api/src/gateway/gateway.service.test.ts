@@ -11,6 +11,7 @@ import type {
   ProviderExecutionContext,
 } from '@lxp/provider-sdk';
 
+import type { GatewayServiceAuthContext } from '../auth/auth.types';
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayService } from './gateway.service';
@@ -40,7 +41,9 @@ class FakeProvider implements LlmProviderAdapter {
         ? lastContent
         : (lastContent ?? [])
             .map((part) =>
-              part.type === 'text' ? part.text : `[image:${part.image_url.url}]`,
+              part.type === 'text'
+                ? part.text
+                : `[image:${part.image_url.url}]`,
             )
             .join('\n');
 
@@ -75,7 +78,6 @@ class FakeProvider implements LlmProviderAdapter {
       inputTokens: 12,
     };
   }
-
 }
 
 class FakeProviderRegistryService {
@@ -86,7 +88,9 @@ class FakeProviderRegistryService {
 
 class FailingListModelsProvider extends FakeProvider {
   async listModels(): Promise<never> {
-    throw new Error('xAI model listing failed with status 500: Internal server error');
+    throw new Error(
+      'xAI model listing failed with status 500: Internal server error',
+    );
   }
 }
 
@@ -142,7 +146,9 @@ class FakeTenantProviderConfigurationService {
     providerId: 'nanogpt' | 'xai' | 'anthropic',
   ) {
     if (tenantId === 'tenant-disabled') {
-      throw new Error(`Provider ${providerId} is disabled for tenant ${tenantId}.`);
+      throw new Error(
+        `Provider ${providerId} is disabled for tenant ${tenantId}.`,
+      );
     }
 
     return {
@@ -251,7 +257,11 @@ class FakeTenantModelAccessRuleService {
   }
 
   async filterTextModels<
-    T extends Array<{ id: string; displayName: string; capabilities?: unknown }>,
+    T extends Array<{
+      id: string;
+      displayName: string;
+      capabilities?: unknown;
+    }>,
   >(_tenantId: string, _providerId: string, models: T): Promise<T> {
     return models;
   }
@@ -310,7 +320,9 @@ class FakeGatewayAuditService {
     return emailHash;
   }
 
-  summarizeMessages(messages: Array<{ content: string | GatewayChatContentPart[] }>) {
+  summarizeMessages(
+    messages: Array<{ content: string | GatewayChatContentPart[] }>,
+  ) {
     return {
       messageCount: messages.length,
       messageCharacters: messages.reduce(
@@ -431,15 +443,32 @@ test('GatewayService routes controlled evaluation chat without requiring chat sc
       maxOutputTokens: 512,
       messages: [{ role: 'user', content: '{"bounded":true}' }],
     } as GatewayChatRequestDto,
-    buildAuthContext({
+    {
+      userId: null,
+      userUuid: null,
+      emailHash: null,
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'lxp-internal',
+      identitySource: 'integration-client-service',
+      roles: [],
+      globalRoles: [],
       integrationClientId: 'pgs',
+      integrationClientKeyId: 'key-pgs',
       integrationClientScopes: ['evaluation:invoke'],
-    }),
+      defaultProviderId: null,
+      defaultModel: null,
+      defaultImageProviderId: null,
+      defaultImageModel: null,
+    } satisfies GatewayServiceAuthContext,
   );
 
   assert.equal(response.providerId, 'nanogpt');
   assert.equal(response.model, 'controlled-evaluator');
   assert.equal(response.message.content, '{"bounded":true}');
+  assert.equal(auditService.startedEvents[0]?.principalKind, 'SERVICE');
+  assert.equal(auditService.startedEvents[0]?.integrationClientId, 'pgs');
+  assert.equal(auditService.startedEvents[0]?.apiKeyId, 'key-pgs');
+  assert.equal(auditService.startedEvents[0]?.resolvedUserUuid, null);
 });
 
 test('GatewayService audit includes compatibility identity attribution', async () => {

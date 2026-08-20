@@ -244,6 +244,68 @@ test('GatewayAuthService resolves a tenant-scoped integration client default use
   );
 });
 
+test('GatewayAuthService authenticates a service-only integration client without fabricating a user', async () => {
+  const apiKey = 'lxp_service_only_key';
+  const tenant = {
+    id: 'tenant-1',
+    slug: 'lxp-internal',
+    status: 'active',
+  };
+  const integrationClient = {
+    id: 'integration-pgs',
+    tenantId: tenant.id,
+    tenant,
+    clientId: 'pgs',
+    displayName: 'Presence Grounding Service',
+    applicationId: 'pgs',
+    defaultUserId: null,
+    defaultUser: null,
+    scopes: ['evaluation:invoke'],
+    trustedForwardedIdentityEnabled: false,
+    status: 'active',
+  };
+  const service = createService({
+    tenants: [tenant],
+    integrationClients: [integrationClient],
+    apiKeys: [
+      {
+        id: 'key-pgs',
+        tenantId: tenant.id,
+        integrationClientId: integrationClient.id,
+        keyHash: computeApiKeyHash(apiKey),
+        scopes: [],
+        status: 'active',
+        expiresAt: null,
+      },
+    ],
+  });
+
+  const authContext = await service.authenticateIntegrationClientRequest(
+    `Bearer ${apiKey}`,
+    { 'x-lxp-expected-tenant-id': tenant.id },
+  );
+
+  assert.equal(authContext.identitySource, 'integration-client-service');
+  assert.equal(authContext.integrationClientId, 'pgs');
+  assert.equal(authContext.integrationClientKeyId, 'key-pgs');
+  assert.equal(authContext.activeTenantId, tenant.id);
+  assert.equal(authContext.userId, null);
+  assert.equal(authContext.userUuid, null);
+  assert.deepEqual(authContext.integrationClientScopes, ['evaluation:invoke']);
+
+  await assert.rejects(
+    () => service.authenticateGatewayRequest(`Bearer ${apiKey}`),
+    /requires a default user or a trusted forwarded identity/i,
+  );
+  await assert.rejects(
+    () =>
+      service.authenticateIntegrationClientRequest(`Bearer ${apiKey}`, {
+        'x-lxp-expected-tenant-id': 'tenant-spoof',
+      }),
+    (error: unknown) => (error as { getStatus(): number }).getStatus() === 401,
+  );
+});
+
 test('GatewayAuthService resolves a trusted forwarded user for an integration client in the same tenant', async () => {
   const lookupKey = randomBytes(32);
   const aliceHash = computeEmailHash('alice@example.com', lookupKey);

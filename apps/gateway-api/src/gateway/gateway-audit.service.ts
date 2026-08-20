@@ -7,8 +7,11 @@ type GatewayAuditBase = {
   requestId: string;
   providerId: string;
   model: string;
-  resolvedUserUuid: string;
-  userFingerprint: string;
+  principalKind?: 'USER' | 'SERVICE';
+  integrationClientId?: string | null;
+  apiKeyId?: string | null;
+  resolvedUserUuid: string | null;
+  userFingerprint: string | null;
   identitySource: GatewayAuthIdentitySource;
   tenantId?: string;
   tenantSlug?: string;
@@ -59,8 +62,8 @@ export class GatewayAuditService {
     );
   }
 
-  fingerprint(emailHash: string): string {
-    return emailHash.slice(0, 16);
+  fingerprint(emailHash: string | null): string | null {
+    return emailHash?.slice(0, 16) ?? null;
   }
 
   summarizeMessages(
@@ -72,7 +75,8 @@ export class GatewayAuditService {
     return {
       messageCount: messages.length,
       messageCharacters: messages.reduce(
-        (total, message) => total + this.measureContentCharacters(message.content),
+        (total, message) =>
+          total + this.measureContentCharacters(message.content),
         0,
       ),
     };

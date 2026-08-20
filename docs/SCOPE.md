@@ -468,6 +468,9 @@ These rules apply from the scaffold stage:
 - do not rely long-term on weak gateway authentication conventions
 - encrypt provider credentials at rest
 - keep caller identity, user identity, and provider credentials clearly separated
+- allow tenant-bound machine clients to authenticate as service principals
+  without fabricating a human user; delegated/default users remain optional and
+  separately attributable
 
 The implementation may begin simply, but the boundaries must be sound from the beginning.
 
@@ -540,5 +543,3 @@ The current implementation now also includes:
 That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.
 
 Public registration also includes tenant-aware email verification through the selected SMTP or MailerSend provider with short-lived, digest-only challenges. This is deliberately separate from account creation.
-
-
