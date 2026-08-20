@@ -153,7 +153,7 @@ The tenant boundary is now modeled explicitly:
 - tenant-aware credential resolution prefers user-scoped credentials only when the tenant allows override, then falls back to tenant defaults
 - technical clients such as `Open WebUI` should authenticate through tenant-scoped `integration_clients` and `api_keys`, with forwarded human identity treated only as an optional bounded enhancement
 - tenant-scoped technical clients can now authenticate against direct gateway chat, model-listing, image-generation/edit, and structured-evaluation endpoints, with operation scopes enforced before provider dispatch
-- structured evaluation resolves an allowlisted server profile into the existing tenant policy, model-access, credential, provider, audit, and usage seams; it is a terminal inference route that returns evidence only, leaving PGS or another caller as the policy decision point
+- structured evaluation resolves an allowlisted server profile into the existing tenant policy, model-access, credential, provider, audit, and usage seams; server-controlled output constraints remain canonical at the provider seam and are translated only inside supporting adapters; it is a terminal inference route that returns evidence only, leaving PGS or another caller as the policy decision point
 - the Evaluation Lab is a control-plane bridge: the Admin API derives the active tenant from an authenticated `operator` or `tenant_admin`, selects a tenant-bound `evaluation:invoke` key server-side, and rejects any mismatch between the expected tenant and the tenant resolved by the Gateway; React never receives the key or arbitrary execution controls
 - control-plane operators can now manage those tenant-scoped technical clients through the `super_admin` tenant-control surface, including API key creation, rotation, and disablement
 - `audit_logs` and `usage_events` now also use PostgreSQL row-level security as a second line of defense, with the gateway setting `app.tenant_id` transactionally before telemetry writes
@@ -433,5 +433,3 @@ That UI should remain behind the same backend boundaries already used for chat:
 ## Registration Email Verification
 
 `admin-api` owns tenant-aware registration email verification. It uses a selected global SMTP or MailerSend provider, digest-only challenge persistence and Redis abuse limits. It establishes only proof of email possession; account creation remains a separate flow.
-
-

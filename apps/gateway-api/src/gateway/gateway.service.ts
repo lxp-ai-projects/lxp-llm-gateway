@@ -6,7 +6,7 @@ import {
   NotImplementedException,
 } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
-import type { GatewayChatResponse } from '@lxp/contracts';
+import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import type { ProviderExecutionContext } from '@lxp/provider-sdk';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
@@ -60,10 +60,7 @@ export class GatewayService {
   ) {}
 
   async listModels(query: ListModelsQueryDto, authContext: GatewayAuthContext) {
-    this.integrationClientScopeService.assertScope(
-      authContext,
-      'models:list',
-    );
+    this.integrationClientScopeService.assertScope(authContext, 'models:list');
     const providerId = this.resolveProviderId(query.providerId, authContext);
     await this.tenantProviderConfigurationService.assertProviderEnabled(
       authContext.activeTenantId,
@@ -124,7 +121,7 @@ export class GatewayService {
   }
 
   async evaluateProfileChat(
-    request: GatewayChatRequestDto,
+    request: GatewayChatRequest,
     authContext: GatewayAuthContext,
   ): Promise<GatewayChatResponse> {
     return this.executeControlledChat(
@@ -135,7 +132,7 @@ export class GatewayService {
   }
 
   private async executeControlledChat(
-    request: GatewayChatRequestDto,
+    request: GatewayChatRequest,
     authContext: GatewayAuthContext,
     route: string,
   ): Promise<GatewayChatResponse> {
@@ -181,30 +178,30 @@ export class GatewayService {
     try {
       const { modelAccessRule, tenantPolicy } =
         await this.tenantRlsService.withTenantLockContext(
-        authContext.activeTenantId,
-        async (manager) => {
-          const resolvedModelAccessRule =
-            await this.tenantModelAccessRuleService.assertTextModelAllowed(
-              authContext.activeTenantId,
-              providerId,
-              model,
-            );
-          const resolvedTenantPolicy =
-            await this.tenantPolicyService?.assertTextRequestAllowed(
-              {
-                tenantId: authContext.activeTenantId,
+          authContext.activeTenantId,
+          async (manager) => {
+            const resolvedModelAccessRule =
+              await this.tenantModelAccessRuleService.assertTextModelAllowed(
+                authContext.activeTenantId,
                 providerId,
                 model,
-              },
-              manager,
-            );
+              );
+            const resolvedTenantPolicy =
+              await this.tenantPolicyService?.assertTextRequestAllowed(
+                {
+                  tenantId: authContext.activeTenantId,
+                  providerId,
+                  model,
+                },
+                manager,
+              );
 
-          return {
-            modelAccessRule: resolvedModelAccessRule,
-            tenantPolicy: resolvedTenantPolicy,
-          };
-        },
-      );
+            return {
+              modelAccessRule: resolvedModelAccessRule,
+              tenantPolicy: resolvedTenantPolicy,
+            };
+          },
+        );
       const { providerAccess, credentialScopeUsed } =
         await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
@@ -405,30 +402,30 @@ export class GatewayService {
     try {
       const { modelAccessRule, tenantPolicy } =
         await this.tenantRlsService.withTenantLockContext(
-        authContext.activeTenantId,
-        async (manager) => {
-          const resolvedModelAccessRule =
-            await this.tenantModelAccessRuleService.assertTextModelAllowed(
-              authContext.activeTenantId,
-              providerId,
-              model,
-            );
-          const resolvedTenantPolicy =
-            await this.tenantPolicyService?.assertTextRequestAllowed(
-              {
-                tenantId: authContext.activeTenantId,
+          authContext.activeTenantId,
+          async (manager) => {
+            const resolvedModelAccessRule =
+              await this.tenantModelAccessRuleService.assertTextModelAllowed(
+                authContext.activeTenantId,
                 providerId,
                 model,
-              },
-              manager,
-            );
+              );
+            const resolvedTenantPolicy =
+              await this.tenantPolicyService?.assertTextRequestAllowed(
+                {
+                  tenantId: authContext.activeTenantId,
+                  providerId,
+                  model,
+                },
+                manager,
+              );
 
-          return {
-            modelAccessRule: resolvedModelAccessRule,
-            tenantPolicy: resolvedTenantPolicy,
-          };
-        },
-      );
+            return {
+              modelAccessRule: resolvedModelAccessRule,
+              tenantPolicy: resolvedTenantPolicy,
+            };
+          },
+        );
       const { providerAccess, credentialScopeUsed } =
         await this.providerCredentialService.resolveProviderAccessWithSource(
           authContext,
@@ -731,7 +728,9 @@ export class GatewayService {
     return Math.min(...numericCandidates);
   }
 
-  private async recordTelemetrySafely(work: () => Promise<void>): Promise<void> {
+  private async recordTelemetrySafely(
+    work: () => Promise<void>,
+  ): Promise<void> {
     try {
       await work();
     } catch (error) {
