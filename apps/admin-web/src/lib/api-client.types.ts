@@ -480,7 +480,7 @@ export type GatewayImageHistoryResponse = {
 
 export type ProviderCredentialSummary = {
   id: string;
-  userUuid: string;
+  userUuid: string | null;
   providerId: string;
   providerDisplayName: string;
   label: string;
@@ -756,6 +756,20 @@ export type AdminUpdateTenantProviderConfigurationInput = {
   preferUserCredentials: boolean;
   allowPlatformFallback: boolean;
   allowTenantFallback: boolean;
+};
+
+export type AdminStoreTenantProviderCredentialInput = {
+  providerId: string;
+  label: string;
+  apiToken?: string;
+  baseUrl?: string;
+};
+
+export type AdminUpdateTenantProviderCredentialInput = {
+  label?: string;
+  apiToken?: string;
+  baseUrl?: string;
+  isActive?: boolean;
 };
 
 export type AdminUpdateTenantPolicyInput = {

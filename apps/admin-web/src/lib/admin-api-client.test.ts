@@ -179,6 +179,46 @@ test('adminApiClient tests a tenant integration client', async () => {
   );
 });
 
+test('adminApiClient manages tenant provider credentials on tenant routes', async () => {
+  requestMock.mockResolvedValue({});
+
+  await adminApiClient.getTenantProviderCredentials('tenant-1');
+  await adminApiClient.createTenantProviderCredential('tenant-1', {
+    providerId: 'openai',
+    label: 'Evaluation',
+    apiToken: 'secret',
+  });
+  await adminApiClient.updateTenantProviderCredential(
+    'tenant-1',
+    'credential-1',
+    { isActive: false },
+  );
+  await adminApiClient.deleteTenantProviderCredential(
+    'tenant-1',
+    'credential-1',
+  );
+
+  const base =
+    'http://localhost:3002/api/v1/admin/tenants/tenant-1/provider-credentials';
+  expect(requestMock).toHaveBeenNthCalledWith(1, base);
+  expect(requestMock).toHaveBeenNthCalledWith(2, base, {
+    method: 'POST',
+    body: JSON.stringify({
+      providerId: 'openai',
+      label: 'Evaluation',
+      apiToken: 'secret',
+      scope: 'tenant',
+    }),
+  });
+  expect(requestMock).toHaveBeenNthCalledWith(3, `${base}/credential-1`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive: false }),
+  });
+  expect(requestMock).toHaveBeenNthCalledWith(4, `${base}/credential-1`, {
+    method: 'DELETE',
+  });
+});
+
 test('adminApiClient login posts credentials then resolves the session through getSession', async () => {
   requestMock.mockResolvedValue({});
   const getSessionSpy = vi

@@ -36,6 +36,8 @@ export type {
   AdminUpdateIntegrationApiKeyInput,
   AdminUpdateIntegrationClientInput,
   AdminUpdateTenantProviderConfigurationInput,
+  AdminStoreTenantProviderCredentialInput,
+  AdminUpdateTenantProviderCredentialInput,
   AdminUserSummary,
   ChatTransferConversation,
   GatewayChatMessage,

@@ -248,6 +248,19 @@ export function TenantsPage() {
     tenantsQuery,
     editProviderAllowPlatformFallback,
     editProviderAllowTenantFallback,
+    tenantCredentialLabel,
+    tenantCredentialApiToken,
+    tenantCredentialBaseUrl,
+    selectedTenantProviderCredential,
+    onTenantCredentialLabelChange,
+    onTenantCredentialApiTokenChange,
+    onTenantCredentialBaseUrlChange,
+    handleSaveTenantProviderCredential,
+    handleDeleteTenantProviderCredential,
+    handleToggleTenantProviderCredential,
+    isSaveTenantProviderCredentialPending,
+    isDeleteTenantProviderCredentialPending,
+    isToggleTenantProviderCredentialPending,
     editProviderConfigurationOpened,
     editProviderCredentialMode,
     editProviderDefaultImageModel,
@@ -2138,6 +2151,110 @@ export function TenantsPage() {
                 </Text>
               </div>
             ) : null}
+            <Card withBorder radius="md" padding="md">
+              <Stack gap="sm">
+                <Group justify="space-between" align="flex-start">
+                  <div>
+                    <Text fw={700}>Tenant provider credential</Text>
+                    <Text size="sm" c="dimmed">
+                      Encrypted credential used by service-only workloads for
+                      this tenant and provider.
+                    </Text>
+                  </div>
+                  <Badge
+                    color={selectedTenantProviderCredential ? 'teal' : 'yellow'}
+                    variant="light"
+                  >
+                    {selectedTenantProviderCredential
+                      ? 'Configured'
+                      : 'Not configured'}
+                  </Badge>
+                </Group>
+                {selectedTenantProviderCredential ? (
+                  <Text size="sm">
+                    Scope: TENANT · Hint:{' '}
+                    {selectedTenantProviderCredential.maskedHint ?? 'hidden'} ·
+                    Status:{' '}
+                    {selectedTenantProviderCredential.isActive
+                      ? 'Active'
+                      : 'Disabled'}
+                  </Text>
+                ) : null}
+                <TextInput
+                  label="Credential label"
+                  value={tenantCredentialLabel}
+                  onChange={(event) =>
+                    onTenantCredentialLabelChange(event.currentTarget.value)
+                  }
+                />
+                <PasswordInput
+                  label={
+                    selectedTenantProviderCredential
+                      ? 'Replacement API token (optional)'
+                      : 'API token'
+                  }
+                  description={
+                    selectedTenantProviderCredential
+                      ? 'Leave empty to keep the existing encrypted token.'
+                      : 'Stored encrypted and never returned to the browser.'
+                  }
+                  value={tenantCredentialApiToken}
+                  onChange={(event) =>
+                    onTenantCredentialApiTokenChange(event.currentTarget.value)
+                  }
+                />
+                <TextInput
+                  label="Provider base URL (optional)"
+                  description="Use for a custom or local provider endpoint. Runtime secrets do not belong in environment variables."
+                  value={tenantCredentialBaseUrl}
+                  onChange={(event) =>
+                    onTenantCredentialBaseUrlChange(event.currentTarget.value)
+                  }
+                />
+                <Group justify="space-between">
+                  {selectedTenantProviderCredential ? (
+                    <Group gap="xs">
+                      <Button
+                        variant="subtle"
+                        type="button"
+                        loading={isToggleTenantProviderCredentialPending}
+                        onClick={handleToggleTenantProviderCredential}
+                      >
+                        {selectedTenantProviderCredential.isActive
+                          ? 'Disable'
+                          : 'Enable'}
+                      </Button>
+                      <Button
+                        color="red"
+                        variant="subtle"
+                        type="button"
+                        loading={isDeleteTenantProviderCredentialPending}
+                        onClick={handleDeleteTenantProviderCredential}
+                      >
+                        Delete credential
+                      </Button>
+                    </Group>
+                  ) : (
+                    <span />
+                  )}
+                  <Button
+                    type="button"
+                    loading={isSaveTenantProviderCredentialPending}
+                    disabled={
+                      !tenantCredentialLabel.trim() ||
+                      (!selectedTenantProviderCredential &&
+                        !tenantCredentialApiToken.trim() &&
+                        !tenantCredentialBaseUrl.trim())
+                    }
+                    onClick={handleSaveTenantProviderCredential}
+                  >
+                    {selectedTenantProviderCredential
+                      ? 'Update credential'
+                      : 'Save credential'}
+                  </Button>
+                </Group>
+              </Stack>
+            </Card>
             <Switch
               checked={editProviderEnabled}
               label={
@@ -2208,7 +2325,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label="Allow platform fallback"
-                  help="Allows fallback to a platform-level credential only when this tenant and provider configuration explicitly permit it."
+                  help="Legacy interactive-request policy. Structured Evaluation service identities ignore this setting and require a tenant credential."
                 />
               }
               disabled={editProviderCredentialMode === 'platform_default'}

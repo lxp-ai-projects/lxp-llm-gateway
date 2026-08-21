@@ -1,9 +1,4 @@
-# PR14 Stabilization — Structured Evaluation / M2M Cleanup
-
-> **Status: non-normative review record.** This file preserves the stabilization
-> findings and acceptance checklist. The implemented runtime contract is defined
-> by `packages/contracts/src/structured-evaluations.ts`,
-> `docs/api/structured-evaluations.md`, and `docs/api/evaluation-lab.md`.
+# PR14 Stabilization — Provider Credential Architecture Cleanup
 
 Repository:
 
@@ -17,806 +12,472 @@ Branch:
 feature/pgs-integration
 ```
 
-This is a **stabilization and cleanup pass**, not a feature expansion.
+This is a **focused cleanup/correction pass**.
 
-Do not modify the Presence Grounding Service repository.
+Do not modify the `presence-grounding-service` repository.
 
 Do not redesign M2M authentication.
 
-Do not add another authentication protocol.
+Do not change the frozen Structured Evaluation wire contract.
 
-The goal is to make the current PR14 implementation reproducible from a clean checkout, remove duplicated/ambiguous authorization logic, freeze the cross-repository evaluation contract, make provider readiness understandable, and leave the Gateway codebase in a genuinely clean state.
+Do not add a new credential system.
 
----
-
-# 0. Freeze the architecture
-
-The following contract is now frozen:
-
-```text
-Caller:
-  SERVICE: pgs
-
-Authentication:
-  tenant-bound Gateway Integration Client API key
-
-Tenant:
-  derived authoritatively from the Integration Client/API key
-  and optionally checked through X-Lxp-Expected-Tenant-Id
-
-Authorization:
-  evaluation:invoke
-
-Endpoint:
-  POST /api/v1/evaluations
-
-Profile:
-  pgs-grounding-v1
-
-Provider/model:
-  resolved exclusively by Gateway server-side profile configuration
-
-Provider credentials:
-  resolved exclusively by the Gateway
-
-Human user:
-  not required
-
-Response:
-  structured evidence only
-
-Policy authority:
-  remains outside the Gateway
-```
-
-Do not change this contract during the stabilization pass unless an actual implementation impossibility is demonstrated.
-
-Explicitly do NOT introduce:
-
-```text
-OAuth client_credentials
-mTLS
-synthetic service users
-Default user requirements for PGS
-forwarded human identity for PGS
-PGS-supplied tenant authority
-PGS-supplied provider/model/prompt
-direct PGS policy decisions in Gateway
-```
+The purpose of this task is to remove an unnecessary provider-secret resolution path introduced during PR14 and restore the Gateway's existing encrypted database-backed provider credential architecture as the canonical source of provider credentials.
 
 ---
 
-# 1. FIRST: prove repository integrity from a clean checkout
+# 1. Problem statement
 
-Before changing behavior, inspect the actual Git state.
+The Gateway already has an established provider credential model backed by persistent encrypted storage.
 
-The reviewed archive contained imports/exports for the following files but did not contain the files themselves:
-
-```text
-packages/contracts/src/structured-evaluations.ts
-
-apps/gateway-api/src/evaluations/evaluation.controller.ts
-apps/gateway-api/src/evaluations/evaluation-profile.registry.ts
-apps/gateway-api/src/evaluations/evaluation.service.ts
-apps/gateway-api/src/integration-client-diagnostics.controller.ts
-
-apps/admin-api/src/evaluation-lab/evaluation-lab.controller.ts
-apps/admin-api/src/evaluation-lab/evaluation-lab.service.ts
-
-apps/admin-web/src/pages/evaluation-lab-page.tsx
-```
-
-The package test scripts also reference missing evaluation tests, and the documentation links to:
+Existing concepts include provider credentials scoped conceptually to:
 
 ```text
-docs/api/structured-evaluations.md
-docs/api/evaluation-lab.md
+USER
+TENANT
 ```
 
-which were absent from the reviewed archive.
+with encrypted persistence and existing credential-resolution services.
 
-Do not assume this means the local workspace is correct.
-
-Run:
+PR14 subsequently introduced optional provider secrets through environment variables such as:
 
 ```text
-git status --short
-git ls-files
-git ls-tree -r --name-only HEAD
+ANTHROPIC_API_KEY
+DEEPSEEK_API_KEY
+GOOGLE_API_KEY
+GROQ_API_KEY
+MISTRAL_API_KEY
+MOONSHOT_API_KEY
+NANOGPT_API_KEY
+OLLAMA_API_KEY
+OPENAI_API_KEY
+OPENROUTER_API_KEY
+XAI_API_KEY
+ZAI_API_KEY
 ```
 
-and explicitly verify every PR14 production source, test and documentation file.
+and a provider credential resolution path conceptually equivalent to:
 
-Then create a **clean worktree or fresh clone from the current branch HEAD**.
+```text
+USER credential from database
+        ↓
+TENANT credential from database
+        ↓
+PLATFORM credential from environment
+```
 
-The clean checkout, not the current development workspace, becomes authoritative.
+This duplicates provider-secret storage and mixes two different concepts:
 
-If the files are already tracked in HEAD and the archive was stale/incomplete, report that fact.
+```text
+credential ownership/scope
+```
 
-If they are not tracked, restore/add the actual implementation before doing any other cleanup.
+and:
 
-PR14 cannot be considered valid until a clean checkout contains everything required to build and test the feature.
+```text
+secret storage backend
+```
+
+That is not the desired PR14 architecture.
 
 ---
 
-# 2. Preserve the existing service-principal model
+# 2. Architectural decision
 
-The current direction is correct:
+For PR14, provider credentials have **one canonical persistent source of truth**:
 
-```text
-GatewayServiceAuthContext
+> the Gateway's existing encrypted provider credential repository.
 
-userId = null
-userUuid = null
-emailHash = null
-
-identitySource = integration-client-service
-
-tenant = authoritative
-integrationClientId = pgs
-integrationClientKeyId = ...
-integrationClientScopes = ...
-```
-
-Keep it.
-
-Do not recreate a human user.
-
-Do not automatically substitute:
+The desired conceptual model is:
 
 ```text
-client creator
-tenant admin
-tenant owner
-browser operator
-Default user
+Provider Credential Repository
+        │
+        ├── USER scoped
+        │
+        └── TENANT scoped
 ```
 
-for a service-only request.
+For the PGS service caller:
 
-Routes that genuinely require a user may continue to fail closed for `SERVICE_ONLY`.
+```text
+SERVICE: pgs
+tenant: lxp-internal
+scope: evaluation:invoke
+        ↓
+pgs-grounding-v1
+        ↓
+Gateway resolves configured provider/model
+        ↓
+Gateway resolves TENANT provider credential
+        ↓
+provider execution
+```
 
-Structured Evaluation must support `SERVICE_ONLY`.
+A service-only PGS request must never automatically use a user's personal BYOK credential.
 
 ---
 
-# 3. Fix Integration Client / API key scope semantics
+# 3. Frozen PGS / Gateway responsibilities
 
-This is a security boundary.
-
-The current effective-scope implementation unions:
+Do not change these boundaries:
 
 ```text
-integrationClient.scopes
-+
-apiKey.scopes
+PGS
+→ chooses evaluator profile only
+→ pgs-grounding-v1
 ```
 
-This makes API-key scopes unable to reliably reduce the parent client's authority and can allow a key scope outside the parent client's configured scope ceiling.
-
-Replace this with explicit least-privilege semantics.
-
-Required model:
+PGS does NOT choose:
 
 ```text
-Integration Client scopes
-= maximum capability ceiling
-
-API Key scopes
-= delegated subset
-
-Effective scopes
-= intersection(Integration Client scopes, API Key scopes)
+provider
+model
+provider credential
+system prompt
+provider URL
+inference parameters
 ```
 
-Requirements:
-
-1. A key may never receive a scope that its parent Integration Client does not have.
-2. Create/update API-key validation must reject:
-
-   ```text
-   key.scope ∉ client.scopes
-   ```
-3. Reducing client scopes must immediately cap existing keys through intersection semantics.
-4. Expanding client scopes must NOT silently grant the new scope to existing explicitly scoped keys.
-5. Creating a key without specifying scopes may copy the current Integration Client scopes as an ergonomic default.
-6. Do not use an undocumented magic meaning for `[]`.
-
-Audit existing data before changing behavior.
-
-If historical keys with empty scope arrays previously inherited client scopes, preserve compatibility with an explicit migration/reconciliation that copies the appropriate existing client scopes into those keys.
-
-Do not keep union semantics merely for backwards compatibility.
-
-Add regression tests proving:
+The Gateway owns:
 
 ```text
-client [evaluation:invoke]
-key    [evaluation:invoke]
-→ evaluation:invoke
-
-client [evaluation:invoke, chat:completion]
-key    [evaluation:invoke]
-→ evaluation:invoke only
-
-client [chat:completion]
-key requests [evaluation:invoke]
-→ rejected
-
-client scope removed after key creation
-→ removed from effective key authority
+profile resolution
+provider routing
+model routing
+tenant/provider policy
+provider credential resolution
+provider execution
+structured output validation
+provider observability
+provider error normalization
 ```
+
+The Gateway remains multi-provider.
+
+Do not hardcode NanoGPT anywhere in the PGS integration path.
 
 ---
 
-# 4. Establish one canonical Integration Client scope definition
+# 4. First perform an audit
 
-There are currently multiple `IntegrationClientScopeService` / scope-union definitions.
-
-The reviewed tree contained both:
+Before changing code, identify all usages of provider-secret environment variables and classify each as:
 
 ```text
-apps/gateway-api/src/auth/integration-client-scope.service.ts
-apps/gateway-api/src/gateway/integration-client-scope.service.ts
+A. provider credential secret
+B. provider runtime configuration
+C. test-only fixture/config
+D. unrelated legacy behavior
 ```
 
-with different supported scope sets.
-
-Remove the dead/duplicate implementation.
-
-Create one canonical scope vocabulary in an appropriate shared package, preferably `@lxp/domain` or `@lxp/contracts`, if that matches existing dependency direction.
-
-Conceptually:
-
-```ts
-export const INTEGRATION_CLIENT_SCOPES = [
-  'chat:completion',
-  'image:generate',
-  'image:edit',
-  'video:generate',
-  'evaluation:invoke',
-  'models:list',
-  'usage:read',
-] as const;
-
-export type IntegrationClientScope =
-  (typeof INTEGRATION_CLIENT_SCOPES)[number];
-```
-
-Use the same source in:
+Examples of **provider secrets**:
 
 ```text
-Gateway API
-Admin API DTO validation
-Admin Web types/options
-tests
+NANOGPT_API_KEY
+OPENAI_API_KEY
+ANTHROPIC_API_KEY
 ```
 
-Do not repeat the literal union in four DTOs, frontend hooks, API client types and service code.
+Examples of potentially valid **runtime configuration**:
+
+```text
+NANOGPT_BASE_URL
+provider request timeout
+provider endpoint configuration
+feature flags
+```
+
+Do not blindly delete provider-specific environment configuration.
+
+The target of this cleanup is specifically the duplicated **provider secret/API-key fallback**.
+
+Report the audit before broad architectural changes.
 
 ---
 
-# 5. Keep service-only credential resolution fail-closed
+# 5. Remove environment-backed provider credential fallback from PR14
 
-The current credential direction is correct.
+Remove the PR14 credential path that obtains provider API keys directly from environment variables.
+
+Audit and remove/refactor code such as:
+
+```text
+getPlatformProviderAccess(...)
+```
+
+or its current equivalent if that method exists specifically to resolve provider secrets from environment variables.
+
+After this cleanup, Structured Evaluation must not succeed merely because:
+
+```text
+NANOGPT_API_KEY
+OPENAI_API_KEY
+...
+```
+
+exists in the process environment.
+
+---
+
+# 6. Keep runtime provider configuration
+
+Do NOT remove legitimate runtime settings such as:
+
+```text
+BASE_URL
+TIMEOUT
+provider feature flags
+transport settings
+```
+
+where they remain part of the provider adapter's established configuration model.
+
+The rule is:
+
+```text
+provider behavior/configuration
+→ environment/config is acceptable
+
+provider secret credential
+→ canonical credential repository
+```
+
+Do not conflate the two.
+
+---
+
+# 7. PGS SERVICE_ONLY credential behavior
 
 For:
 
 ```text
-SERVICE: pgs
+principalKind = SERVICE
+integrationClient = pgs
+tenant = lxp-internal
 ```
 
-do not use a personal/user BYOK credential.
-
-Valid provider credential sources are:
+provider credential resolution must be:
 
 ```text
-TENANT credential
-or
-explicitly permitted PLATFORM credential
+resolve configured evaluation profile
+        ↓
+resolve provider/model
+        ↓
+look for active TENANT credential
+for that tenant/provider
+        ↓
+credential found
+    → execute
+
+credential missing
+    → fail closed / NOT READY
 ```
 
-according to existing tenant provider configuration.
+Do not query USER credentials for a service-only caller.
 
-Do not change this to make the current test pass.
+Do not inject a default user.
 
-Do NOT:
+Do not use the Integration Client creator's credential.
 
-```text
-reuse Patrick's credential
-promote/copy a user credential automatically
-enable platform fallback automatically
-hardcode NanoGPT
-create a synthetic provider credential
-```
-
-The selected provider remains whatever `pgs-grounding-v1` resolves server-side.
+Do not copy or promote a USER credential automatically.
 
 ---
 
-# 6. Decouple provider credential domain failure from HTTP semantics
+# 8. User requests must keep existing behavior
 
-The current:
+Do not break regular Gateway use.
 
-```ts
-ProviderCredentialUnavailableException extends ForbiddenException
-```
+Audit the existing user-facing provider credential semantics and preserve them.
 
-is misleading because lack of an eligible provider credential is not the same thing as caller authorization failure.
-
-Introduce a small typed domain/infrastructure error for provider credential unavailability.
-
-Conceptually:
-
-```ts
-ProviderCredentialUnavailableError
-```
-
-It should communicate:
+If established behavior is conceptually:
 
 ```text
-provider credential path could not be resolved
+USER request
+    ↓
+USER credential when allowed
+    ↓
+TENANT credential according to configured policy
+    ↓
+fail
 ```
 
-without choosing a global HTTP status.
+preserve that behavior.
 
-Do NOT globally rewrite the Gateway error architecture.
+Do not rewrite the complete credential precedence system merely to fix Structured Evaluation.
 
-At the Structured Evaluation boundary, map the condition to:
+This cleanup is principally about:
 
 ```text
-HTTP 503
-code = evaluation_provider_credential_unavailable
+SERVICE_ONLY evaluation workloads
 ```
 
-because the evaluation workload is currently not ready to execute.
-
-Preserve distinct semantics for:
-
-```text
-401
-  caller/service authentication failed
-
-403
-  evaluation:invoke missing
-  model/provider denied by tenant authorization policy
-
-429
-  provider/evaluation rate limited
-
-502
-  upstream provider credential rejected
-  invalid structured provider output
-
-503
-  configured provider credential path unavailable
-  evaluator/provider unavailable
-  profile runtime not ready
-
-504
-  evaluation timeout
-```
-
-Ensure normalized errors never contain provider response bodies or secrets.
+and eliminating the duplicated provider-secret environment store.
 
 ---
 
-# 7. Make evaluation readiness explicit
+# 9. Do not implement PLATFORM credentials in PR14
 
-The current Evaluation Lab jumps too quickly from:
+Do not replace environment variables with another hastily-created PLATFORM secret model.
 
-```text
-Integration Client identity works
-```
-
-to:
+For PR14:
 
 ```text
-Run provider inference
-```
-
-Introduce a sanitized **profile readiness/preflight** concept.
-
-Reuse existing tenant provider configuration/model-access/credential services rather than duplicating their logic.
-
-For the active tenant and profile, expose safe operator metadata equivalent to:
-
-```text
-profileId
-profileVersion
-schemaVersion
-
-configured: true|false
-
-resolvedProviderId
-resolvedModel
-
-tenantProviderEnabled
-modelAllowed
-
-credentialPath:
-  tenant
-  platform
-  none
-
-ready: true|false
-
-reasonCode:
-  READY
-  PROFILE_NOT_CONFIGURED
-  PROVIDER_DISABLED
-  MODEL_FORBIDDEN
-  PROVIDER_CREDENTIAL_UNAVAILABLE
-```
-
-Never return:
-
-```text
-API key
-provider secret
-service key
-raw credential record
-system prompt
-```
-
-The operator may SEE which provider/model the server profile resolves to.
-
-The operator may NOT choose/override them from the Evaluation Lab.
-
-Update the Evaluation Lab to display readiness before execution.
-
-For example:
-
-```text
-PGS grounding v1
-Provider: NanoGPT
-Model: ...
-Credential source: None
-Status: Not ready
-
-No tenant credential or permitted platform fallback
-is configured for this profile's provider.
-```
-
-This must make it obvious that:
-
-```text
-PGS is provider-neutral
-```
-
-even when the current server profile happens to resolve to NanoGPT.
-
----
-
-# 8. Keep M2M identity diagnostics separate from provider readiness
-
-Preserve:
-
-```text
-POST /api/v1/integration-clients/self-test
-```
-
-as an identity-only diagnostic.
-
-It should verify:
-
-```text
-API key valid
-SERVICE principal resolved
-tenant binding
-client ID
-effective scopes
-```
-
-It must not invoke a model/provider.
-
-Then profile readiness checks:
-
-```text
-provider/model/credential/policy readiness
-```
-
-Then actual evaluation performs inference.
-
-This gives three deterministic gates:
-
-```text
-Gate 1
-M2M identity
-
-Gate 2
-Evaluation profile readiness
-
-Gate 3
-Actual provider execution
-```
-
-Do not conflate them.
-
----
-
-# 9. Clean up Evaluation Lab service credentials
-
-`LXP_ADMIN_EVALUATION_API_KEYS_JSON` currently stores raw tenant→service-key mappings in one environment value.
-
-Do not redesign M2M authentication now.
-
-Instead introduce a narrow server-side abstraction such as:
-
-```ts
-EvaluationServiceCredentialResolver
-```
-
-with semantics equivalent to:
-
-```ts
-resolveForTenant(tenantId): Promise<string | null>
-```
-
-The Evaluation Lab service depends on the resolver rather than parsing/owning the whole key map.
-
-Keep an environment-backed resolver as the development/reference implementation.
-
-Document it as such.
-
-This creates a clean seam for future:
-
-```text
-Vault
-AWS Secrets Manager
-Azure Key Vault
-Kubernetes Secret
-managed Cyrantis credential storage
-```
-
-without changing the Evaluation Lab feature.
-
-The key must never reach React.
-
----
-
-# 10. Freeze the Structured Evaluation v1 wire contract
-
-The Gateway and PGS must implement exactly the same v1 contract.
-
-Audit runtime schemas, OpenAPI and PGS contract.
-
-At minimum reconcile these currently visible differences:
-
-```text
-SignalDefinition.dimensions
-  PGS has an explicit maximum matching the dimension vocabulary.
-
-ambiguity.reasons
-  PGS max = 3.
-
-evaluationId
-  PGS max length = 128 and uses a restricted character pattern.
-
-allowedSignals
-  PGS requires unique signal IDs.
-```
-
-Do not make one side permissive and rely on the other side to reject it.
-
-Create **golden v1 contract fixtures** checked into the Gateway repository:
-
-```text
-valid-request.json
-valid-response.json
-invalid-authoritative-field.json
-invalid-schema-version.json
-invalid-signal.json
-```
-
-They should correspond exactly to the fixtures used in PGS.
-
-Do not create a new cross-repository npm package in this cleanup unless one already exists and is clearly the established solution.
-
-For now:
-
-```text
-canonical documented protocol
-+ strict local schemas
-+ identical golden fixtures
-+ conformance tests
+SERVICE evaluation
+→ TENANT provider credential
+→ otherwise fail closed
 ```
 
 is sufficient.
 
----
-
-# 11. Freeze the error-code vocabulary
-
-Define/document the supported Structured Evaluation error codes.
-
-PGS must never need to parse human-readable `message`.
-
-At minimum cover the actual implemented categories:
+A future Cyrantis-managed service may legitimately require:
 
 ```text
-evaluation_service_forbidden
-evaluation_model_forbidden
-evaluation_provider_credential_unavailable
-evaluation_provider_authentication_failed
-evaluation_provider_unavailable
-evaluation_timeout
-evaluation_invalid_output
-unsupported_evaluation_schema
-unknown_evaluation_profile
+PLATFORM provider credentials
 ```
 
-Use actual existing code names where they already differ; do not arbitrarily rename stable codes without updating both repos.
+but that must be designed separately as a first-class credential ownership model using the same credential-storage abstraction.
 
-Document HTTP status + code + semantic meaning.
-
-Add contract tests for each externally relevant error.
-
----
-
-# 12. Documentation cleanup
-
-There are currently multiple partial sources of truth.
-
-Create/restore the canonical documents already linked by the Gateway documentation:
+Future conceptual design may be:
 
 ```text
-docs/api/structured-evaluations.md
-docs/api/evaluation-lab.md
+Credential owner type
+├── USER
+├── TENANT
+└── PLATFORM
 ```
 
-They must describe implemented behavior, not future prompts.
-
-Update:
+backed by:
 
 ```text
-docs/api/openapi.yaml
-docs/api/gateway-contract.md
-docs/architecture/overview.md
-docs/architecture/provider-credential-model.md
-docs/security/key-management.md
+encrypted DB / secret-store abstraction
 ```
 
-The provider credential document is currently still heavily user-centric.
-
-Update it to distinguish:
+rather than:
 
 ```text
-technical service caller
-optional delegated/default user
-USER provider credential
-TENANT provider credential
-PLATFORM provider credential
+PLATFORM == environment variable
 ```
 
-and document SERVICE_ONLY credential resolution.
+Do NOT implement that future model in this task.
 
-`docs/pgs.md` currently contains an implementation prompt.
-
-Move it under an explicitly historical/non-normative location or add a prominent:
-
-```text
-Status: Non-normative historical implementation brief
-```
-
-The canonical docs above must take precedence.
-
-Do not leave broken links.
+Document it as deferred.
 
 ---
 
-# 13. Audit migration claims
+# 10. Simplify tenant provider policy accordingly
 
-The previous implementation report mentioned a service-only migration.
-
-Audit exactly which migration files were:
+Audit settings such as:
 
 ```text
-created
-modified
-or merely executed
+credentialMode
+allowPlatformFallback
+allowTenantFallback
+preferUserCredentials
 ```
 
-`default_user_id` appears to have already been nullable in the existing integration-client migration.
+Do not retain meaningless configuration.
 
-Do not claim a migration was added if the implementation only reused an existing nullable schema.
+For PR14 Structured Evaluation:
 
-Document the actual database delta truthfully.
+```text
+SERVICE_ONLY
+→ tenant provider credential required
+```
+
+If `allowPlatformFallback` exists solely to activate environment-backed provider secrets for this new PR14 path, remove/deprecate it from the PR14 evaluation behavior.
+
+If it has established non-PR14 uses, preserve it only for those uses and document clearly that Structured Evaluation does not depend on an env-backed platform credential.
+
+Do not silently change unrelated customer behavior.
 
 ---
 
-# 14. Keep the Evaluation Lab bounded
+# 11. Make tenant credential management usable from the Control Plane
 
-Preserve the good restrictions:
+The backend already supports tenant-scoped provider credentials.
+
+The Admin Web must expose that functionality cleanly.
+
+Audit the current:
 
 ```text
-no provider selector
-no model selector
-no system prompt editor
-no API key editor
-no arbitrary base URL
-no temperature/top_p
-no PGS ALLOW/DENY
-no capability decision
+Provider Tokens
+Tenant → Provider Configurations
 ```
 
-The Lab tests the Gateway's **server-controlled evaluator profile**.
+surfaces.
 
-PGS remains downstream policy authority.
+Add or complete a tenant-scoped provider credential workflow.
+
+The operator should be able to:
+
+```text
+select tenant
+select provider
+create tenant credential
+replace/rotate tenant credential
+disable/delete tenant credential
+see safe credential metadata
+```
+
+without editing `.env`.
 
 ---
 
-# 15. Avoid unrelated refactors
+# 12. Tenant credential UI
 
-Do not turn this cleanup into:
+In the appropriate tenant/provider management surface, support something conceptually equivalent to:
 
 ```text
-Admin Web architecture rewrite
-tenant subsystem rewrite
-provider registry rewrite
-new provider support
-new authentication protocol
-billing implementation
-PGS policy work
+Provider: NanoGPT
+
+Credential source
+TENANT
+
+Credential
+••••••••••••••
+
+[ Save credential ]
 ```
 
-The Admin Web bundle >500 KiB warning is not a PR14 blocker.
+After saving, display only sanitized information such as:
 
-If PR14 additions made an already-large page materially worse, extract only the new focused identity/evaluation components.
+```text
+Scope: TENANT
+Provider: NanoGPT
+Status: Active
+Hint: ***8031
+Created: ...
+Updated: ...
+```
 
-Do not perform a broad UI decomposition here.
+Never return the decrypted secret to React after creation.
+
+Follow the existing create/replace credential security pattern.
 
 ---
 
-# 16. Required clean-checkout validation
+# 13. Preserve USER credential management
 
-All final validation must be run from a **clean worktree/clone** corresponding to the exact branch HEAD.
+Do not remove the existing personal `Provider Tokens` capability.
 
-Run:
+The distinction should be explicit:
 
 ```text
-pnpm install --frozen-lockfile
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
+Provider Tokens / personal credentials
+→ USER scoped
 
-Quickstart Compose validation
-VPS Compose validation
-git diff --check
+Tenant provider credentials
+→ TENANT scoped
 ```
 
-Also run a source-integrity check proving no relative import or explicit test-script target is missing.
-
-Do not report the current dirty workspace as proof.
+The UI must not imply that a user's personal provider token automatically becomes available to service workloads.
 
 ---
 
-# 17. Mandatory staged manual validation
+# 14. Improve Evaluation Lab preflight
 
-Use a configured local tenant and service identity.
-
-## Gate 1 — M2M
-
-Using the exact PGS technical key:
-
-```text
-POST /api/v1/integration-clients/self-test
-```
-
-Expected:
-
-```text
-principalKind = SERVICE
-clientId = pgs
-tenant = expected tenant
-effectiveScopes contains exactly the expected delegated scopes,
-including evaluation:invoke
-```
-
-No user required.
-
-## Gate 2 — profile readiness
+The current readiness surface is useful and should remain.
 
 For:
 
@@ -824,127 +485,730 @@ For:
 pgs-grounding-v1
 ```
 
-confirm:
+show sanitized information such as:
 
 ```text
-resolved provider/model
-tenant provider enabled
-model allowed
-credential path = tenant or explicitly permitted platform
-ready = true
+Provider
+NanoGPT
+
+Model
+mistralai/...
+
+Credential
+Tenant credential available
 ```
 
-If not ready, report the exact reason.
+or:
 
-Do not modify policy automatically to make readiness green.
+```text
+Credential
+Unavailable
 
-## Gate 3 — direct data-plane evaluation
+Reason
+No tenant-scoped credential is configured for NanoGPT.
+```
 
-Call:
+Do NOT instruct the operator to configure:
+
+```text
+NANOGPT_API_KEY
+OPENAI_API_KEY
+...
+```
+
+as a normal resolution path.
+
+Instead provide a UI/action hint directing the operator to the existing tenant credential management surface.
+
+Example:
+
+> No tenant-scoped NanoGPT credential is configured for this tenant. Add one under Tenant → Provider Credentials.
+
+---
+
+# 15. Remove misleading Evaluation Lab instructions
+
+Remove messages equivalent to:
+
+```text
+configure NANOGPT_API_KEY
+or enable platform fallback
+```
+
+from the normal Structured Evaluation readiness UX.
+
+The normal operator workflow should be:
+
+```text
+Profile not ready
+        ↓
+Add tenant provider credential
+        ↓
+Profile ready
+```
+
+No environment editing required.
+
+---
+
+# 16. Keep multi-provider profile resolution explicit
+
+The Evaluation Lab must continue to display the **resolved** provider and model because that is useful operational metadata.
+
+For example:
+
+```text
+Profile: pgs-grounding-v1
+Provider: nanogpt
+Model: mistralai/mistral-large...
+```
+
+But these values remain server-controlled.
+
+The operator must not be given freeform provider/model overrides in the Lab.
+
+If the profile configuration changes to:
+
+```text
+Provider: mistral
+```
+
+the readiness logic must automatically look for the tenant's Mistral credential.
+
+No PGS code change is allowed or required.
+
+---
+
+# 17. Credential resolver must remain provider-agnostic
+
+Avoid logic such as:
+
+```ts
+if (providerId === 'nanogpt') {
+...
+}
+```
+
+The resolver should conceptually do:
+
+```ts
+resolveTenantCredential({
+  tenantId,
+  providerId,
+});
+```
+
+using the same repository/storage path for every supported provider.
+
+Adding a provider later should not require adding another PR14 credential environment variable.
+
+---
+
+# 18. Clean ProviderCredentialService
+
+After removing environment credential fallback, simplify `ProviderCredentialService`.
+
+It should express domain intent clearly.
+
+Conceptually:
+
+```text
+resolveForUser(...)
+resolveForTenant(...)
+resolveForRequest(...)
+```
+
+or existing equivalent methods.
+
+Do not maintain dead branches for the removed env-backed platform fallback.
+
+Do not create another PR14-specific credential resolver alongside the existing repository.
+
+Reuse the current credential persistence infrastructure.
+
+---
+
+# 19. Preserve encryption and secret handling
+
+Provider secrets must continue to use the existing encrypted persistence mechanism.
+
+Verify:
+
+```text
+secret encrypted at rest
+secret decrypted only server-side when required
+secret never returned in normal read responses
+secret never logged
+secret never appears in audit metadata
+secret never appears in Evaluation Lab
+```
+
+Do not weaken encryption merely to simplify tenant credentials.
+
+---
+
+# 20. Error semantics
+
+If `pgs-grounding-v1` resolves successfully to a provider/model but no eligible tenant provider credential exists, return the existing normalized Structured Evaluation failure:
+
+```text
+evaluation_provider_credential_unavailable
+```
+
+with the agreed unavailable/readiness status.
+
+Do not return:
+
+```text
+401
+```
+
+because the PGS Integration Client authenticated successfully.
+
+Do not return:
+
+```text
+403 evaluation_service_forbidden
+```
+
+unless `evaluation:invoke` or another actual authorization policy fails.
+
+Do not confuse:
+
+```text
+M2M authentication
+```
+
+with:
+
+```text
+provider credential readiness
+```
+
+---
+
+# 21. Readiness must use the same production resolver
+
+Do not implement one credential check for:
+
+```text
+Evaluation Lab preflight
+```
+
+and another for:
 
 ```text
 POST /api/v1/evaluations
 ```
 
-directly with the same PGS key and a known-good contract fixture.
+Both must depend on the same canonical credential resolution service.
+
+Otherwise the Lab may report:
+
+```text
+READY
+```
+
+while real evaluation fails.
+
+Add a regression test proving readiness and execution use the same eligibility rules.
+
+---
+
+# 22. Direct Gateway evaluation remains independent from Admin UI
+
+After this cleanup, the following must work with the PGS technical key:
+
+```text
+POST /api/v1/evaluations
+```
+
+without:
+
+```text
+Admin Web
+Admin API
+human browser session
+default user
+```
+
+assuming:
+
+```text
+M2M identity is valid
+evaluation:invoke exists
+tenant provider credential exists
+profile/provider/model are allowed
+```
+
+The Evaluation Lab remains a diagnostic convenience only.
+
+---
+
+# 23. Remove provider-secret variables from deployment examples
+
+Audit:
+
+```text
+.env.example
+Quickstart
+VPS environment examples
+Compose templates
+deployment docs
+structured-evaluations docs
+Evaluation Lab docs
+provider credential docs
+```
+
+Remove PR14 guidance requiring provider API secrets such as:
+
+```text
+OPENAI_API_KEY
+NANOGPT_API_KEY
+...
+```
+
+where those were added as database-bypassing provider credential fallbacks.
+
+Do not remove legitimate endpoint/timeout variables.
+
+Do not remove test fixture variables if a self-contained test explicitly requires them; instead clearly mark them test-only and ensure production runtime does not depend on them.
+
+---
+
+# 24. Documentation — canonical provider credential model
+
+Update the canonical architecture documentation to state:
+
+```text
+Provider credentials are managed through the Gateway credential repository.
+
+Credential ownership:
+- USER
+- TENANT
+
+Provider secrets are encrypted at rest.
+
+SERVICE_ONLY workloads do not use USER credentials.
+
+Structured Evaluation requires an eligible TENANT credential for
+the provider resolved by its server-controlled evaluation profile.
+
+Platform credentials are deferred and are not represented by
+provider API-key environment variables in PR14.
+```
+
+---
+
+# 25. Documentation — distinguish the two credentials
+
+Make this explicit:
+
+```text
+Credential A
+PGS → Gateway
+
+Gateway Integration Client technical API key
+scope: evaluation:invoke
+tenant bound
+```
+
+versus:
+
+```text
+Credential B
+Gateway → model provider
+
+Provider credential
+scope/owner: TENANT for PR14 service workload
+stored through the encrypted credential repository
+```
+
+These credentials have completely different purposes.
+
+Do not use the term `API key` without context when documentation could confuse the two.
+
+---
+
+# 26. Documentation — multi-provider behavior
+
+Document:
+
+```text
+pgs-grounding-v1
+        ↓
+Gateway profile configuration
+        ↓
+provider + model
+        ↓
+provider credential lookup
+for the active tenant
+```
+
+Example:
+
+```text
+profile provider = NanoGPT
+→ look for tenant NanoGPT credential
+
+profile provider = Mistral
+→ look for tenant Mistral credential
+
+profile provider = OpenAI
+→ look for tenant OpenAI credential
+```
+
+PGS does not change.
+
+---
+
+# 27. Remove/deprecate misleading platform credential wording
+
+Audit documentation and UI for phrases such as:
+
+```text
+optional platform credentials
+platform API key
+enable platform fallback
+```
+
+If these refer specifically to the environment-secret implementation introduced by PR14, remove them.
+
+If the product already had a legitimate separate concept called platform credentials, document that clearly and ensure PR14 does not depend on environment-backed secrets.
+
+Do not preserve ambiguous terminology.
+
+---
+
+# 28. Migration
+
+Prefer **no database migration** if the existing credential model already supports tenant-scoped credentials.
+
+Do not add a new provider credential table merely for this cleanup.
+
+If a migration genuinely becomes necessary, explain exactly what capability is missing from the current model before implementing it.
+
+Do not add PLATFORM ownership/schema in this task.
+
+---
+
+# 29. Tests — credential resolution
+
+Add/update tests proving:
+
+```text
+SERVICE + tenant credential exists
+→ uses tenant credential
+
+SERVICE + only USER credential exists
+→ does NOT use user credential
+
+SERVICE + no tenant credential
+→ provider credential unavailable
+
+SERVICE + env provider API key exists
+→ env key is NOT used as provider credential
+
+USER request + user credential
+→ existing user behavior preserved
+
+profile changed from provider A to provider B
+→ resolver looks for provider B credential
+```
+
+---
+
+# 30. Tests — readiness
+
+Cover:
+
+```text
+profile resolves provider/model
+tenant credential exists
+→ READY
+
+profile resolves provider/model
+only personal credential exists
+→ NOT READY
+
+tenant credential missing
+→ PROVIDER_CREDENTIAL_UNAVAILABLE
+
+profile switched provider
+→ readiness follows new provider
+
+readiness and actual evaluation
+→ use the same credential resolver
+```
+
+---
+
+# 31. Tests — Admin API / Web
+
+Cover:
+
+```text
+create tenant provider credential
+replace tenant provider credential
+disable/delete tenant provider credential
+secret never returned
+secret hint displayed safely
+
+personal credential remains personal
+
+Evaluation Lab NOT READY
+→ links/directs to tenant credential management
+
+Evaluation Lab READY
+→ after tenant credential is configured
+```
+
+---
+
+# 32. Tests — no environment secret fallback
+
+Add an explicit regression test.
+
+Configure:
+
+```text
+NANOGPT_API_KEY = some-test-secret
+```
+
+with:
+
+```text
+no tenant NanoGPT credential in DB
+```
+
+Then run service-only evaluation readiness/execution.
+
+Expected:
+
+```text
+credential unavailable
+```
+
+The environment provider secret must not make the request ready.
+
+This test prevents the duplicate credential path from silently returning later.
+
+---
+
+# 33. Preserve security boundaries
+
+Do not regress:
+
+```text
+SERVICE_ONLY principal
+tenant binding
+evaluation:invoke
+Integration Client key scoping
+personal BYOK isolation
+provider/model allowlisting
+strict structured evaluation
+evidence-only contract
+PGS policy authority
+```
+
+---
+
+# 34. Do not touch PGS
+
+No changes in:
+
+```text
+presence-grounding-service
+```
+
+are required for this cleanup.
+
+PGS should continue sending:
+
+```text
+profileId = pgs-grounding-v1
+```
+
+and must remain unaware of:
+
+```text
+NanoGPT
+OpenAI
+Mistral
+provider credentials
+tenant provider credential storage
+```
+
+---
+
+# 35. Do not broaden scope
+
+Do NOT:
+
+```text
+add OAuth client_credentials
+add mTLS
+restore Default user
+create synthetic users
+redesign Integration Clients
+change scope semantics unless required by the separate scope stabilization task
+implement PLATFORM credential ownership
+add a new secrets manager
+change PGS
+redesign provider adapters
+add provider selection to Evaluation Lab
+start PR15
+```
+
+---
+
+# 36. Required manual validation
+
+After implementation, use one real tenant.
+
+## Step 1 — M2M identity
+
+Confirm:
+
+```text
+SERVICE: pgs
+tenant: lxp-internal
+evaluation:invoke
+```
+
+passes its direct self-test.
+
+## Step 2 — no tenant credential
+
+Remove/disable the appropriate tenant credential.
+
+Expected:
+
+```text
+pgs-grounding-v1
+→ resolved provider/model
+→ NOT READY
+→ PROVIDER_CREDENTIAL_UNAVAILABLE
+```
+
+Even if the equivalent provider environment API-key variable is present.
+
+## Step 3 — create tenant provider credential using Control Plane
+
+Example:
+
+```text
+Tenant: lxp-internal
+Provider: current pgs-grounding-v1 provider
+Scope: TENANT
+Credential: configured through Admin UI/API
+```
+
+Expected:
+
+```text
+profile readiness = READY
+credential source = TENANT
+```
+
+## Step 4 — direct data-plane test
+
+Using the PGS Integration Client key:
+
+```text
+POST /api/v1/evaluations
+```
 
 Expected:
 
 ```text
 200
-strict structured evidence
+structured evidence
 ```
 
-This test must not involve Admin Web or Admin API.
+## Step 5 — Evaluation Lab
 
-## Gate 4 — Evaluation Lab
+Run the same profile through the Lab.
 
-Only after the direct data-plane call succeeds:
+Expected:
 
 ```text
-Admin Web
-→ Admin API
-→ Gateway
-→ same evaluator profile
+SUCCEEDED
+structured evidence
 ```
 
-must also succeed.
+## Step 6 — multi-provider proof
+
+Change the server-controlled test/evaluator profile to another already-supported provider if credentials/configuration are available.
+
+Create/configure the corresponding TENANT credential.
+
+Verify:
+
+```text
+no PGS code change
+no Evaluation Lab request-shape change
+no credential env variable required
+```
+
+and evaluation succeeds through the other provider.
+
+This proves that Structured Evaluation remains genuinely multi-provider.
 
 ---
 
-# 18. Cross-repository gate
+# Quality gates
 
-Do not change PGS during this task.
-
-Once Gateway Gates 1–4 are stable, provide the exact frozen:
+Run from a clean checkout:
 
 ```text
-wire contract
-error-code table
-M2M header contract
-golden fixtures
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+git diff --check
 ```
 
-to the PGS PR14 branch.
-
-Then perform the final:
+Also run:
 
 ```text
-PGS
-→ Gateway
-→ evaluator provider
-→ structured evidence
-→ PGS validation
-→ PGS policy
+Quickstart Compose validation
+VPS Compose validation
 ```
 
-test.
+where part of the existing PR14 validation workflow.
 
----
-
-# Non-goals
-
-Do NOT:
-
-* restore a required Default user;
-* use a personal BYOK credential for SERVICE:pgs;
-* enable platform fallback automatically;
-* hardcode NanoGPT;
-* add OAuth client_credentials;
-* add mTLS;
-* add provider credentials to PGS;
-* let PGS select provider/model/prompt;
-* move PGS policy into Gateway;
-* invent another evaluation endpoint;
-* expand PR14 into unrelated Gateway refactoring.
+Do not suppress failures.
 
 ---
 
 # Acceptance criteria
 
-PR14 Gateway stabilization is complete only when:
+This cleanup is complete only when:
 
-* clean checkout contains every PR14 source/test/doc file;
-* no broken relative imports exist;
-* all explicit test targets exist;
-* one canonical scope vocabulary exists;
-* API-key scopes cannot exceed Integration Client scopes;
-* effective scopes use least-privilege semantics rather than union;
-* SERVICE_ONLY remains first-class;
-* personal BYOK is never used for service-only PGS;
-* provider credential unavailability has a typed semantic boundary;
-* Structured Evaluation maps credential unavailability consistently;
-* M2M identity and provider readiness are independently diagnosable;
-* Evaluation Lab shows sanitized profile readiness;
-* Gateway remains multi-provider;
-* exact v1 request/response contract matches PGS;
-* exact error contract is documented;
-* canonical API docs exist and contain no broken links;
-* historical prompts are marked non-normative;
-* clean-checkout lint/typecheck/test/build are green;
-* direct PGS-key evaluation succeeds when provider readiness is configured;
-* Evaluation Lab succeeds against the same data-plane capability;
-* no PGS policy authority exists in Gateway.
+* provider secrets are no longer resolved from provider API-key environment variables for PR14 Structured Evaluation;
+* the existing encrypted credential repository is the canonical provider-secret source;
+* USER provider credentials remain supported;
+* TENANT provider credentials remain supported;
+* PGS SERVICE_ONLY never consumes USER BYOK;
+* PGS SERVICE_ONLY uses an eligible TENANT provider credential;
+* no Default user is required;
+* no platform credential fallback is required for PR14;
+* no provider is hardcoded;
+* `pgs-grounding-v1` remains server-controlled and multi-provider;
+* tenant credential management is usable from Admin Web/API;
+* Evaluation Lab readiness points to tenant credential configuration rather than `.env`;
+* readiness and execution use the same resolver;
+* `.env.example` and deployment docs no longer advertise duplicate provider-secret storage;
+* provider runtime settings such as base URLs/timeouts remain where legitimate;
+* documentation distinguishes M2M credential from provider credential;
+* no database migration was introduced unless objectively necessary;
+* no PGS changes were required;
+* automated tests are green;
+* clean-checkout build is green;
+* direct M2M evaluation succeeds using a DB-backed TENANT provider credential;
+* Evaluation Lab succeeds through the same path;
+* a second provider can be used without changing PGS code.
 
 ---
 
@@ -952,29 +1216,56 @@ PR14 Gateway stabilization is complete only when:
 
 Report:
 
-1. clean-checkout/HEAD integrity result;
-2. why the reviewed archive had missing PR14 files;
-3. exact files restored/tracked if applicable;
-4. canonical Integration Client scope definition;
-5. old vs new effective-scope semantics;
-6. migration/backward-compatibility handling for key scopes;
-7. SERVICE_ONLY behavior;
-8. provider credential resolution behavior for service principals;
-9. typed provider credential failure behavior;
-10. exact Structured Evaluation error table;
-11. readiness endpoint/service and UI behavior;
-12. exact `pgs-grounding-v1` resolved provider/model during validation;
-13. credential source used during validation;
-14. contract parity/golden fixture result;
-15. documentation changes;
-16. lint result;
-17. typecheck result;
-18. tests result;
-19. build result;
-20. Compose results;
-21. direct M2M self-test result;
-22. direct `/api/v1/evaluations` result;
-23. Evaluation Lab result;
-24. remaining PR14 debt, if any.
+1. all provider-secret environment variables discovered;
+2. which were introduced/used as credential fallback;
+3. which legitimate runtime provider configuration variables were preserved;
+4. files changed;
+5. removed credential fallback code;
+6. final ProviderCredentialService resolution flow;
+7. USER credential behavior;
+8. TENANT credential behavior;
+9. SERVICE_ONLY credential behavior;
+10. platform credential behavior/deferred status;
+11. Admin API tenant credential changes;
+12. Admin Web tenant credential changes;
+13. Evaluation Lab readiness changes;
+14. `.env.example` changes;
+15. Quickstart/VPS changes;
+16. canonical documentation changes;
+17. tests proving environment provider keys are no longer used;
+18. tests proving USER credentials are excluded for SERVICE_ONLY;
+19. tests proving TENANT credentials work;
+20. multi-provider regression result;
+21. lint result;
+22. typecheck result;
+23. test result;
+24. build result;
+25. Compose validation results;
+26. direct `/api/v1/evaluations` result;
+27. Evaluation Lab result;
+28. remaining PR14 credential debt, if any.
 
-Do not start another feature until this stabilization pass is reviewed.
+Do not begin any unrelated feature after completing this cleanup.
+
+The desired final architecture is intentionally boring:
+
+```text
+PGS SERVICE
+    │
+    │ Integration Client credential
+    ▼
+Gateway
+    │
+    │ resolves server-controlled provider/model
+    ▼
+Encrypted TENANT provider credential repository
+    │
+    ▼
+Provider
+```
+
+No duplicated provider-secret environment store.
+No synthetic user.
+No personal credential borrowing.
+No provider-specific logic in PGS.
+No wheel reinvention.

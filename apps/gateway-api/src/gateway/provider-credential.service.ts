@@ -161,6 +161,22 @@ export class ProviderCredentialService {
     const tenantCredentialAccess = tenantCredential
       ? this.decryptProviderAccess(providerId, tenantCredential)
       : null;
+
+    // Service identities have no user credential policy. They must use the
+    // encrypted tenant credential selected by tenant and provider, or fail.
+    if (authContext.userId === null) {
+      if (!tenantCredentialAccess) {
+        throw new ProviderCredentialUnavailableException(
+          `No active tenant credential is configured for provider ${providerId} in tenant ${authContext.activeTenantId}.`,
+        );
+      }
+
+      return {
+        providerAccess: tenantCredentialAccess,
+        credentialScopeUsed: 'tenant',
+      };
+    }
+
     const resolvedProviderAccess = this.resolveProviderAccessForConfiguration(
       configuration,
       {

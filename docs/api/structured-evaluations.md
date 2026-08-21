@@ -87,8 +87,9 @@ shown below. PGS cannot compensate for a missing Gateway provider/model profile.
   tenant model-access policy.
 - `503` before a Gateway evaluation audit event: the calling bridge or PGS
   client is not configured to send its service identity.
-- `503` with `evaluation_provider_credential_unavailable`: no tenant credential
-  or explicitly permitted platform fallback exists for the selected provider.
+- `503` with `evaluation_provider_credential_unavailable`: no active
+  tenant-scoped credential exists for the selected provider. Configure it under
+  `Tenants > Provider Configurations > <provider> > Tenant provider credential`.
 - Other `503` responses after Gateway authentication mean that the evaluator
   profile/provider is not configured or the provider is unavailable. Inspect
   the normalized error code and Gateway evaluation audit event rather than
@@ -170,8 +171,9 @@ period, underscore, colon, at-sign, or hyphen.
 `POST /api/v1/evaluations/readiness` uses the same tenant-bound service identity
 and requires `evaluation:invoke`, but does not invoke a model. It returns only
 safe metadata: whether the profile is configured, provider and model, tenant
-provider status, model policy status, credential path (`tenant`, `platform`, or
-`null`), aggregate readiness, and a bounded reason. It never returns a secret.
+provider status, model policy status, credential path, aggregate readiness, and
+a bounded reason. Service-only evaluation currently reports `tenant` or `null`;
+the broader enum remains wire-compatible. It never returns a secret.
 The integration-client self-test remains identity-only and is not proof that an
 evaluation profile is ready.
 
@@ -201,14 +203,22 @@ understood by the selected provider adapter.
 The selected provider must already be enabled for the authenticated tenant and
 the selected model must pass the existing tenant model-access and quota rules.
 Service-only evaluations never participate in user credential overrides.
-Tenant credentials and explicitly permitted platform fallback remain available;
-if neither is configured, credential resolution fails closed.
+They require an active tenant-scoped credential from the encrypted Gateway
+credential repository for the provider resolved by the profile. User BYOK and
+environment-backed platform fallbacks are ignored, and absence fails closed.
 
 Use `Test client` in the tenant's Integration Clients tab to validate the PGS
 technical identity and `evaluation:invoke` scope independently. A successful
 self-test proves the Gateway authentication path only. Evaluation remains
 unavailable until the selected profile provider has an allowed model and a
-tenant credential or explicitly permitted platform fallback.
+tenant credential.
+
+Two unrelated credentials are involved. The PGS integration-client key
+authenticates PGS to the Gateway and carries `evaluation:invoke`. The tenant
+provider credential authenticates the Gateway to the resolved model provider.
+Neither credential substitutes for the other. First-class platform credential
+ownership is deferred and is not represented by provider API-key environment
+variables for PR-14.
 
 The profile owns its system instructions and requests JSON-only evidence. The
 Gateway also supplies a server-controlled canonical JSON output constraint to

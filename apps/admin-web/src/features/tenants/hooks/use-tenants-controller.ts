@@ -12,6 +12,7 @@ import {
   type AdminTenantPolicySummary,
   type AdminTenantProviderConfigurationSummary,
   type AdminTenantSummary,
+  type ProviderCredentialSummary,
 } from '../../../lib/api-client';
 import { getActiveTenantLabel } from '../../../lib/tenant-context';
 import { useSession } from '../../../lib/use-session';
@@ -75,6 +76,9 @@ export function useTenantsController() {
   ] = useState(false);
   const [editProviderAllowTenantFallback, setEditProviderAllowTenantFallback] =
     useState(true);
+  const [tenantCredentialLabel, setTenantCredentialLabel] = useState('');
+  const [tenantCredentialApiToken, setTenantCredentialApiToken] = useState('');
+  const [tenantCredentialBaseUrl, setTenantCredentialBaseUrl] = useState('');
   const [editPolicyMonthlyBudgetUsd, setEditPolicyMonthlyBudgetUsd] =
     useState('');
   const [editPolicyDailyRequestLimit, setEditPolicyDailyRequestLimit] =
@@ -191,6 +195,17 @@ export function useTenantsController() {
       adminApiClient.getTenantProviderConfigurations(selectedTenantId!),
     enabled: Boolean(selectedTenantId),
   });
+  const tenantProviderCredentialsQuery = useQuery({
+    queryKey: ['admin-tenant-provider-credentials', selectedTenantId],
+    queryFn: () =>
+      adminApiClient.getTenantProviderCredentials(selectedTenantId!),
+    enabled: Boolean(selectedTenantId),
+  });
+  const selectedTenantProviderCredential: ProviderCredentialSummary | null =
+    tenantProviderCredentialsQuery.data?.find(
+      (credential) =>
+        credential.providerId === selectedProviderConfiguration?.providerId,
+    ) ?? null;
   const modelAccessRulesQuery = useQuery({
     queryKey: ['admin-tenant-model-access-rules', selectedTenantId],
     queryFn: () => adminApiClient.getTenantModelAccessRules(selectedTenantId!),
@@ -228,6 +243,17 @@ export function useTenantsController() {
 
     hydrateTenantPolicyForm(tenantPolicyQuery.data);
   }, [tenantPolicyQuery.data]);
+
+  useEffect(() => {
+    setTenantCredentialLabel(
+      selectedTenantProviderCredential?.label ??
+        (selectedProviderConfiguration
+          ? `${selectedProviderConfiguration.providerDisplayName} tenant`
+          : ''),
+    );
+    setTenantCredentialApiToken('');
+    setTenantCredentialBaseUrl('');
+  }, [selectedProviderConfiguration, selectedTenantProviderCredential]);
 
   useEffect(() => {
     if (!integrationClientsQuery.data?.length) {
@@ -354,6 +380,60 @@ export function useTenantsController() {
         selectedTenantId!,
         selectedProviderConfiguration!.providerId,
       ),
+  });
+  const saveTenantProviderCredentialMutation = useMutation({
+    mutationFn: () => {
+      const payload = {
+        label: tenantCredentialLabel.trim(),
+        apiToken: tenantCredentialApiToken.trim() || undefined,
+        baseUrl: tenantCredentialBaseUrl.trim() || undefined,
+      };
+      return selectedTenantProviderCredential
+        ? adminApiClient.updateTenantProviderCredential(
+            selectedTenantId!,
+            selectedTenantProviderCredential.id,
+            payload,
+          )
+        : adminApiClient.createTenantProviderCredential(selectedTenantId!, {
+            ...payload,
+            providerId: selectedProviderConfiguration!.providerId,
+          });
+    },
+    onSuccess: async () => {
+      setTenantCredentialApiToken('');
+      setTenantCredentialBaseUrl('');
+      await queryClient.invalidateQueries({
+        queryKey: ['admin-tenant-provider-credentials', selectedTenantId],
+      });
+      testTenantProviderConfigurationMutation.reset();
+    },
+  });
+  const deleteTenantProviderCredentialMutation = useMutation({
+    mutationFn: () =>
+      adminApiClient.deleteTenantProviderCredential(
+        selectedTenantId!,
+        selectedTenantProviderCredential!.id,
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['admin-tenant-provider-credentials', selectedTenantId],
+      });
+      testTenantProviderConfigurationMutation.reset();
+    },
+  });
+  const toggleTenantProviderCredentialMutation = useMutation({
+    mutationFn: () =>
+      adminApiClient.updateTenantProviderCredential(
+        selectedTenantId!,
+        selectedTenantProviderCredential!.id,
+        { isActive: !selectedTenantProviderCredential!.isActive },
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['admin-tenant-provider-credentials', selectedTenantId],
+      });
+      testTenantProviderConfigurationMutation.reset();
+    },
   });
   const updateTenantPolicyMutation = useMutation({
     mutationFn: () =>
@@ -1013,6 +1093,47 @@ export function useTenantsController() {
     onEditProviderAllowPlatformFallbackChange:
       setEditProviderAllowPlatformFallback,
     onEditProviderAllowTenantFallbackChange: setEditProviderAllowTenantFallback,
+    tenantCredentialLabel,
+    tenantCredentialApiToken,
+    tenantCredentialBaseUrl,
+    selectedTenantProviderCredential,
+    onTenantCredentialLabelChange: setTenantCredentialLabel,
+    onTenantCredentialApiTokenChange: setTenantCredentialApiToken,
+    onTenantCredentialBaseUrlChange: setTenantCredentialBaseUrl,
+    isSaveTenantProviderCredentialPending:
+      saveTenantProviderCredentialMutation.isPending,
+    isDeleteTenantProviderCredentialPending:
+      deleteTenantProviderCredentialMutation.isPending,
+    isToggleTenantProviderCredentialPending:
+      toggleTenantProviderCredentialMutation.isPending,
+    handleSaveTenantProviderCredential: () => {
+      if (
+        !selectedTenantId ||
+        !selectedProviderConfiguration ||
+        !tenantCredentialLabel.trim() ||
+        (!selectedTenantProviderCredential &&
+          !tenantCredentialApiToken.trim() &&
+          !tenantCredentialBaseUrl.trim())
+      ) {
+        return;
+      }
+      saveTenantProviderCredentialMutation.mutate();
+    },
+    handleDeleteTenantProviderCredential: () => {
+      if (
+        selectedTenantProviderCredential &&
+        window.confirm(
+          `Delete the tenant credential for ${selectedTenantProviderCredential.providerDisplayName}?`,
+        )
+      ) {
+        deleteTenantProviderCredentialMutation.mutate();
+      }
+    },
+    handleToggleTenantProviderCredential: () => {
+      if (selectedTenantProviderCredential) {
+        toggleTenantProviderCredentialMutation.mutate();
+      }
+    },
     handleUpdateTenantPolicySubmit,
     editPolicyMonthlyBudgetUsd,
     editPolicyDailyRequestLimit,
@@ -1224,9 +1345,7 @@ export function useTenantsController() {
     onEditIntegrationClientDefaultUserUuidChange:
       setEditIntegrationClientDefaultUserUuid,
     onEditIntegrationClientScopesChange: (value: string[]) =>
-      setEditIntegrationClientScopes(
-        value as IntegrationClientScope[],
-      ),
+      setEditIntegrationClientScopes(value as IntegrationClientScope[]),
     onEditIntegrationClientTrustedForwardedIdentityEnabledChange:
       setEditIntegrationClientTrustedForwardedIdentityEnabled,
     onEditIntegrationClientStatusChange: (value: string | null) => {
@@ -1278,9 +1397,7 @@ export function useTenantsController() {
     },
     onEditIntegrationApiKeyLabelChange: setEditIntegrationApiKeyLabel,
     onEditIntegrationApiKeyScopesChange: (value: string[]) =>
-      setEditIntegrationApiKeyScopes(
-        value as IntegrationClientScope[],
-      ),
+      setEditIntegrationApiKeyScopes(value as IntegrationClientScope[]),
     onEditIntegrationApiKeyExpiresAtChange: setEditIntegrationApiKeyExpiresAt,
     onEditIntegrationApiKeyStatusChange: (value: string | null) => {
       if (value === 'active' || value === 'disabled') {

@@ -140,6 +140,24 @@ class FakeProviderCredentialService {
   }
 }
 
+class TrackingTenantCredentialService {
+  readonly providerIds: string[] = [];
+
+  async resolveProviderAccessWithSource(
+    _authContext?: unknown,
+    providerId?: string,
+  ): Promise<{
+    providerAccess: { apiKey: string };
+    credentialScopeUsed: 'tenant';
+  }> {
+    this.providerIds.push(providerId ?? 'unknown');
+    return {
+      providerAccess: { apiKey: 'tenant-secret' },
+      credentialScopeUsed: 'tenant',
+    };
+  }
+}
+
 class FakeTenantProviderConfigurationService {
   async assertProviderEnabled(
     tenantId: string,
@@ -469,6 +487,55 @@ test('GatewayService routes controlled evaluation chat without requiring chat sc
   assert.equal(auditService.startedEvents[0]?.integrationClientId, 'pgs');
   assert.equal(auditService.startedEvents[0]?.apiKeyId, 'key-pgs');
   assert.equal(auditService.startedEvents[0]?.resolvedUserUuid, null);
+});
+
+test('GatewayService readiness and evaluation execution share the credential resolver', async () => {
+  const credentialService = new TrackingTenantCredentialService();
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    credentialService as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+  const authContext = {
+    userId: null,
+    userUuid: null,
+    emailHash: null,
+    activeTenantId: 'tenant-1',
+    activeTenantSlug: 'lxp-internal',
+    identitySource: 'integration-client-service',
+    roles: [],
+    globalRoles: [],
+    integrationClientId: 'pgs',
+    integrationClientKeyId: 'key-pgs',
+    integrationClientScopes: ['evaluation:invoke'],
+    defaultProviderId: null,
+    defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  } satisfies GatewayServiceAuthContext;
+
+  const readiness = await service.getEvaluationReadiness(
+    'nanogpt',
+    'controlled-evaluator',
+    authContext,
+  );
+  await service.evaluateProfileChat(
+    {
+      providerId: 'nanogpt',
+      model: 'controlled-evaluator',
+      messages: [{ role: 'user', content: '{}' }],
+    },
+    authContext,
+  );
+
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.credentialPath, 'tenant');
+  assert.deepEqual(credentialService.providerIds, ['nanogpt', 'nanogpt']);
 });
 
 test('GatewayService audit includes compatibility identity attribution', async () => {

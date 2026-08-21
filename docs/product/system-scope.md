@@ -171,7 +171,15 @@ Current Open WebUI posture is:
 ## Registration Email Verification
 
 The public registration foundation can establish email possession for a resolved tenant when tenant registration is enabled and the selected SMTP or MailerSend provider is ready. It does not create a user, membership, role, password, or session.
+
 ## Structured Evaluation
+
+Structured Evaluation service identities require an encrypted tenant-owned
+provider credential matching the provider selected by the server profile.
+Personal provider tokens remain personal, provider secrets are not selected
+from environment variables for this workload, and PGS remains unaware of the
+provider, model, and credential. The PGS-to-Gateway integration key and the
+Gateway-to-provider tenant credential are separate security boundaries.
 
 The Gateway may produce validated structured evidence through allowlisted,
 server-controlled profiles. Downstream systems such as PGS remain responsible

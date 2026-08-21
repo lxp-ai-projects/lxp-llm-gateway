@@ -1757,6 +1757,58 @@ export class AdminService {
     );
   }
 
+  async listTenantProviderCredentials(
+    actorLike: TenantActorLike,
+    tenantId: string,
+  ) {
+    const actor = await this.resolveActor(actorLike);
+    return this.adminProviderCredentialService.listTenantProviderCredentials(
+      actor,
+      tenantId,
+    );
+  }
+
+  async storeTenantProviderCredential(
+    actorLike: TenantActorLike,
+    tenantId: string,
+    dto: StoreProviderCredentialDto,
+  ) {
+    const actor = await this.resolveActor(actorLike);
+    return this.adminProviderCredentialService.storeTenantProviderCredential(
+      actor,
+      tenantId,
+      dto,
+    );
+  }
+
+  async updateTenantProviderCredential(
+    actorLike: TenantActorLike,
+    tenantId: string,
+    credentialId: string,
+    dto: UpdateProviderCredentialDto,
+  ) {
+    const actor = await this.resolveActor(actorLike);
+    return this.adminProviderCredentialService.updateTenantProviderCredential(
+      actor,
+      tenantId,
+      credentialId,
+      dto,
+    );
+  }
+
+  async deleteTenantProviderCredential(
+    actorLike: TenantActorLike,
+    tenantId: string,
+    credentialId: string,
+  ) {
+    const actor = await this.resolveActor(actorLike);
+    return this.adminProviderCredentialService.deleteTenantProviderCredential(
+      actor,
+      tenantId,
+      credentialId,
+    );
+  }
+
   async listOwnModels(actorLike: TenantActorLike, providerId?: string) {
     return this.adminCatalogService.listOwnModels(actorLike, providerId);
   }

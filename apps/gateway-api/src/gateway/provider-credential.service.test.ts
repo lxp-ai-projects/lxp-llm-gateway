@@ -327,10 +327,120 @@ test('ProviderCredentialService fails closed when a service principal only has a
       ),
     (error: unknown) => {
       assert.ok(error instanceof ProviderCredentialUnavailableException);
-      assert.match(String(error), /No active credential path is configured/);
+      assert.match(String(error), /No active tenant credential/);
       return true;
     },
   );
+});
+
+test('ProviderCredentialService ignores environment provider secrets for a service principal', async () => {
+  const previousNanoApiKey = process.env.NANOGPT_API_KEY;
+  process.env.NANOGPT_API_KEY = 'must-not-be-used';
+
+  try {
+    const service = createService({
+      tenants: [{ id: 'tenant-1', status: 'active' }],
+      providers: [
+        { id: 'provider-1', providerId: 'nanogpt', status: 'active' },
+      ],
+      resolvedConfiguration: {
+        credentialMode: 'platform_default',
+        allowPlatformFallback: true,
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        service.resolveProviderAccessWithSource(
+          {
+            activeTenantId: 'tenant-1',
+            userId: null,
+            emailHash: null,
+          },
+          'nanogpt',
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof ProviderCredentialUnavailableException);
+        assert.match(String(error), /No active tenant credential/);
+        return true;
+      },
+    );
+  } finally {
+    if (previousNanoApiKey === undefined) {
+      delete process.env.NANOGPT_API_KEY;
+    } else {
+      process.env.NANOGPT_API_KEY = previousNanoApiKey;
+    }
+  }
+});
+
+test('ProviderCredentialService resolves the profile provider tenant credential for service principals', async () => {
+  const service = createService({
+    tenants: [{ id: 'tenant-1', status: 'active' }],
+    providers: [{ id: 'provider-1', providerId: 'nanogpt', status: 'active' }],
+    credentials: [
+      {
+        id: 'cred-tenant',
+        tenantId: 'tenant-1',
+        userId: null,
+        providerId: 'provider-1',
+        scope: 'tenant',
+        isActive: true,
+        encryptedSecret: 'cipher-tenant',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+    ],
+    decryptResult: JSON.stringify({ apiKey: 'tenant-provider-secret' }),
+    resolvedConfiguration: {
+      credentialMode: 'platform_default',
+      allowTenantFallback: false,
+      allowPlatformFallback: true,
+    },
+  });
+
+  const resolved = await service.resolveProviderAccessWithSource(
+    {
+      activeTenantId: 'tenant-1',
+      userId: null,
+      emailHash: null,
+    },
+    'nanogpt',
+  );
+
+  assert.equal(resolved.credentialScopeUsed, 'tenant');
+  assert.equal(resolved.providerAccess.apiKey, 'tenant-provider-secret');
+});
+
+test('ProviderCredentialService follows a changed profile provider without provider-specific service logic', async () => {
+  const service = createService({
+    tenants: [{ id: 'tenant-1', status: 'active' }],
+    providers: [{ id: 'provider-openai', providerId: 'openai', status: 'active' }],
+    credentials: [
+      {
+        id: 'cred-openai-tenant',
+        tenantId: 'tenant-1',
+        userId: null,
+        providerId: 'provider-openai',
+        scope: 'tenant',
+        isActive: true,
+        encryptedSecret: 'cipher-openai',
+        iv: 'iv',
+        authTag: 'tag',
+        keyVersion: 1,
+      },
+    ],
+    decryptResult: JSON.stringify({ apiKey: 'openai-tenant-secret' }),
+  });
+
+  const resolved = await service.resolveProviderAccessWithSource(
+    { activeTenantId: 'tenant-1', userId: null, emailHash: null },
+    'openai',
+  );
+
+  assert.equal(resolved.credentialScopeUsed, 'tenant');
+  assert.equal(resolved.providerAccess.apiKey, 'openai-tenant-secret');
 });
 
 test('ProviderCredentialService falls back to the tenant credential when user override is disabled', async () => {

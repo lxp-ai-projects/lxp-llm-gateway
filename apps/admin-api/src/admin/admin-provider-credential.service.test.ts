@@ -12,7 +12,9 @@ import { TenantRlsService } from '../persistence/tenant-rls.service';
 import { EncryptionService } from '../security/encryption.service';
 import { AdminProviderCredentialService } from './admin-provider-credential.service';
 
-function createRepositoryMock<T extends { id?: string }>(initialData: T[] = []) {
+function createRepositoryMock<T extends { id?: string }>(
+  initialData: T[] = [],
+) {
   const store = [...initialData];
 
   function matchesValue(itemValue: unknown, expectedValue: unknown): boolean {
@@ -65,7 +67,8 @@ function createRepositoryMock<T extends { id?: string }>(initialData: T[] = []) 
             conditions.some((condition) => matchesWhere(item, condition)),
           );
 
-      const [orderKey, direction] = Object.entries(options?.order ?? {})[0] ?? [];
+      const [orderKey, direction] =
+        Object.entries(options?.order ?? {})[0] ?? [];
       if (orderKey) {
         results = [...results].sort((left, right) => {
           const leftValue = left[orderKey as keyof T];
@@ -197,7 +200,9 @@ function createAdminProviderCredentialService(options?: {
       },
     ],
   );
-  const credentialRepository = createRepositoryMock(options?.credentialData ?? []);
+  const credentialRepository = createRepositoryMock(
+    options?.credentialData ?? [],
+  );
   const tenantRlsService = {
     async withTenantContext(
       _tenantId: string,
@@ -472,7 +477,10 @@ test('AdminProviderCredentialService rejects tenant credential updates for non-p
   });
 
   await assert.rejects(
-    () => service.updateOwnProviderCredential(actor, 'credential-1', { label: 'New' }),
+    () =>
+      service.updateOwnProviderCredential(actor, 'credential-1', {
+        label: 'New',
+      }),
     (error: unknown) => {
       assert.ok(error instanceof ForbiddenException);
       assert.match(
@@ -637,11 +645,61 @@ test('AdminProviderCredentialService rejects updating a credential when the prov
   });
 
   await assert.rejects(
-    () => service.updateOwnProviderCredential(actor, 'credential-1', { label: 'New' }),
+    () =>
+      service.updateOwnProviderCredential(actor, 'credential-1', {
+        label: 'New',
+      }),
     (error: unknown) => {
       assert.ok(error instanceof NotFoundException);
       assert.match(error.message, /Unable to update the provider credential/);
       return true;
     },
   );
+});
+
+test('AdminProviderCredentialService manages tenant credentials without returning secrets', async () => {
+  const { actor, credentialRepository, service } =
+    createAdminProviderCredentialService();
+
+  const created = await service.storeTenantProviderCredential(
+    actor,
+    'tenant-1',
+    {
+      providerId: 'openai',
+      label: 'Evaluation tenant credential',
+      apiToken: 'sk-tenant-secret-9876',
+    },
+  );
+
+  assert.equal(created.scope, 'tenant');
+  assert.equal(created.userUuid, null);
+  assert.equal(created.maskedHint, '***9876');
+  assert.doesNotMatch(JSON.stringify(created), /sk-tenant-secret/);
+  assert.notEqual(
+    credentialRepository.data[0]?.encryptedSecret,
+    'sk-tenant-secret-9876',
+  );
+
+  const [listed] = await service.listTenantProviderCredentials(
+    actor,
+    'tenant-1',
+  );
+  assert.equal(listed?.providerId, 'openai');
+  assert.doesNotMatch(JSON.stringify(listed), /sk-tenant-secret/);
+
+  const disabled = await service.updateTenantProviderCredential(
+    actor,
+    'tenant-1',
+    created.id,
+    { isActive: false },
+  );
+  assert.equal(disabled.isActive, false);
+
+  const deleted = await service.deleteTenantProviderCredential(
+    actor,
+    'tenant-1',
+    created.id,
+  );
+  assert.deepEqual(deleted, { deleted: true });
+  assert.equal(credentialRepository.data.length, 0);
 });

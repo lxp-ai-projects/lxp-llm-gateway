@@ -445,6 +445,66 @@ export class AdminController {
     );
   }
 
+  @Get('admin/tenants/:tenantId/provider-credentials')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  listTenantProviderCredentials(
+    @Req() request: RequestWithAuthUser,
+    @Param('tenantId') tenantId: string,
+  ) {
+    return this.adminService.listTenantProviderCredentials(
+      request.authUser!,
+      tenantId,
+    );
+  }
+
+  @Post('admin/tenants/:tenantId/provider-credentials')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  storeTenantProviderCredential(
+    @Req() request: RequestWithAuthUser,
+    @Param('tenantId') tenantId: string,
+    @Body() dto: StoreProviderCredentialDto,
+  ) {
+    return this.adminService.storeTenantProviderCredential(
+      request.authUser!,
+      tenantId,
+      dto,
+    );
+  }
+
+  @Patch('admin/tenants/:tenantId/provider-credentials/:credentialId')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  updateTenantProviderCredential(
+    @Req() request: RequestWithAuthUser,
+    @Param('tenantId') tenantId: string,
+    @Param('credentialId') credentialId: string,
+    @Body() dto: UpdateProviderCredentialDto,
+  ) {
+    return this.adminService.updateTenantProviderCredential(
+      request.authUser!,
+      tenantId,
+      credentialId,
+      dto,
+    );
+  }
+
+  @Delete('admin/tenants/:tenantId/provider-credentials/:credentialId')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('super_admin')
+  deleteTenantProviderCredential(
+    @Req() request: RequestWithAuthUser,
+    @Param('tenantId') tenantId: string,
+    @Param('credentialId') credentialId: string,
+  ) {
+    return this.adminService.deleteTenantProviderCredential(
+      request.authUser!,
+      tenantId,
+      credentialId,
+    );
+  }
+
   @Get('admin/users/:userUuid/provider-credentials')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('tenant_admin')

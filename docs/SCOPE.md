@@ -543,7 +543,16 @@ The current implementation now also includes:
 That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.
 
 Public registration also includes tenant-aware email verification through the selected SMTP or MailerSend provider with short-lived, digest-only challenges. This is deliberately separate from account creation.
+
 ## Structured Evaluation Stabilization
+
+Provider credentials have one canonical persistent source for PR-14 service
+evaluation: the Gateway encrypted credential repository. The server-controlled
+profile resolves provider and model, then a service-only caller resolves the
+matching active `TENANT` credential. It never uses personal `USER` BYOK or a
+provider API-key environment fallback. Platform credential ownership is
+deferred; endpoint and timeout environment settings remain runtime
+configuration rather than credential storage.
 
 The bounded Evaluation Lab and the PGS service integration exercise one frozen
 v1 evidence contract. They do not add policy decisions, capability mutation,

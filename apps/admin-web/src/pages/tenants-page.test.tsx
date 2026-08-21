@@ -104,12 +104,19 @@ function createController(overrides: Record<string, unknown> = {}) {
     editProviderDefaultTextModel: '',
     editProviderEnabled: true,
     editProviderPreferUserCredentials: true,
+    tenantCredentialLabel: '',
+    tenantCredentialApiToken: '',
+    tenantCredentialBaseUrl: '',
+    selectedTenantProviderCredential: null,
     editStatus: 'active',
     handleCreateTenantSubmit: vi.fn(),
     handleCreateTenantUserSubmit: vi.fn(),
     handleDeleteTenantIntegrationApiKey: vi.fn(),
     handleDeleteTenantIntegrationClient: vi.fn(),
     handleDeleteTenantModelAccessRule: vi.fn(),
+    handleDeleteTenantProviderCredential: vi.fn(),
+    handleSaveTenantProviderCredential: vi.fn(),
+    handleToggleTenantProviderCredential: vi.fn(),
     handleRotateTenantIntegrationApiKey: vi.fn(),
     handleTestTenantProviderConfiguration: vi.fn(),
     onTestIntegrationClient: vi.fn(),
@@ -136,7 +143,10 @@ function createController(overrides: Record<string, unknown> = {}) {
     isDeleteTenantIntegrationApiKeyPending: false,
     isDeleteTenantIntegrationClientPending: false,
     isDeleteTenantModelAccessRulePending: false,
+    isDeleteTenantProviderCredentialPending: false,
     isRotateTenantIntegrationApiKeyPending: false,
+    isSaveTenantProviderCredentialPending: false,
+    isToggleTenantProviderCredentialPending: false,
     isTestTenantProviderConfigurationPending: false,
     isTestTenantIntegrationClientPending: false,
     isUpdateGlobalRolesPending: false,
@@ -211,6 +221,9 @@ function createController(overrides: Record<string, unknown> = {}) {
     onEditProviderDefaultTextModelChange: vi.fn(),
     onEditProviderEnabledChange: vi.fn(),
     onEditProviderPreferUserCredentialsChange: vi.fn(),
+    onTenantCredentialLabelChange: vi.fn(),
+    onTenantCredentialApiTokenChange: vi.fn(),
+    onTenantCredentialBaseUrlChange: vi.fn(),
     onEditStatusChange: vi.fn(),
     onOpenCreate: vi.fn(),
     onOpenCreateIntegrationApiKey: vi.fn(),
@@ -384,6 +397,61 @@ test('TenantsPage shows the api key modal and rotates the selected key', () => {
 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Rotate key' }));
   expect(controller.handleRotateTenantIntegrationApiKey).toHaveBeenCalledTimes(
+    1,
+  );
+});
+
+test('TenantsPage exposes tenant provider credential lifecycle actions', () => {
+  const providerConfiguration = {
+    id: 'configuration-1',
+    tenantId: 'tenant-1',
+    providerId: 'openai',
+    providerDisplayName: 'OpenAI',
+    providerStatus: 'active' as const,
+    enabled: true,
+    defaultTextModel: 'gpt-4.1',
+    defaultImageModel: null,
+    credentialMode: 'tenant_byok' as const,
+    preferUserCredentials: false,
+    allowPlatformFallback: false,
+    allowTenantFallback: true,
+    createdAt: '2026-05-02T00:00:00.000Z',
+    updatedAt: '2026-05-02T00:00:00.000Z',
+  };
+  const credential = {
+    id: 'credential-1',
+    userUuid: null,
+    providerId: 'openai',
+    providerDisplayName: 'OpenAI',
+    label: 'Evaluation',
+    scope: 'tenant' as const,
+    maskedHint: '***9876',
+    isActive: true,
+    createdAt: '2026-05-02T00:00:00.000Z',
+    updatedAt: '2026-05-02T00:00:00.000Z',
+    lastUsedAt: null,
+  };
+  const controller = createController({
+    editProviderConfigurationOpened: true,
+    selectedProviderConfiguration: providerConfiguration,
+    selectedTenantProviderCredential: credential,
+    tenantCredentialLabel: credential.label,
+  });
+  useTenantsControllerMock.mockReturnValue(controller);
+
+  renderWithProviders(<TenantsPage />);
+
+  expect(screen.getByText(/Hint:.*\*\*\*9876/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Update credential' }));
+  expect(controller.handleSaveTenantProviderCredential).toHaveBeenCalledTimes(
+    1,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Disable' }));
+  expect(controller.handleToggleTenantProviderCredential).toHaveBeenCalledTimes(
+    1,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Delete credential' }));
+  expect(controller.handleDeleteTenantProviderCredential).toHaveBeenCalledTimes(
     1,
   );
 });

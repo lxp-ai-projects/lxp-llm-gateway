@@ -78,25 +78,20 @@ required for this service-only evaluation route.
 `evaluation_service_forbidden` means the identity authenticated but the client
 or key does not grant `evaluation:invoke`.
 `evaluation_provider_credential_unavailable` means authentication and scope
-checks passed, but the active tenant has no tenant credential or explicitly
-permitted platform credential for the provider selected by the profile.
+checks passed, but the active tenant has no active tenant credential for the
+provider selected by the profile.
 The `Provider Tokens` page manages user-scoped credentials and does not satisfy
-a service-only evaluation. Configure a tenant-scoped credential through
-`POST /api/v1/admin/provider-credentials` with `scope: tenant`, or configure the
-provider platform key in `gateway-api` and enable `Allow platform fallback`
-under `Tenants > Provider Configurations` for that provider.
+a service-only evaluation. Configure the matching tenant-scoped credential
+under `Tenants > Provider Configurations > <provider> > Tenant provider
+credential`. The secret is stored in the encrypted Gateway credential
+repository and is never returned by read APIs.
 `evaluation_model_forbidden` means authentication and credentials passed, but
 the selected model is denied by the tenant model-access policy.
 
-Platform credentials follow the selected provider, not PGS. Configure the
-matching variable in `apps/gateway-api/.env`: `OPENAI_API_KEY`,
-`ANTHROPIC_API_KEY`, `XAI_API_KEY`, `MISTRAL_API_KEY`, `GOOGLE_API_KEY`,
-`GROQ_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `ZAI_API_KEY`,
-`NANOGPT_API_KEY`, `OLLAMA_API_KEY`, or `OPENROUTER_API_KEY`. A corresponding
-`<PROVIDER>_BASE_URL` can configure a custom or local platform endpoint. The
-preflight reports the effective `providerId` and derives both matching variable
-names. No individual provider is intrinsically required by the evaluation
-contract.
+Structured Evaluation does not resolve provider secrets from environment
+variables or from a user's personal BYOK credential. `allowPlatformFallback`
+is an established interactive-request policy and is ignored for service-only
+evaluation. First-class platform credential ownership is deferred.
 
 Provider selection happens in `gateway-api`, through
 `LXP_EVALUATION_PGS_GROUNDING_PROVIDER` and

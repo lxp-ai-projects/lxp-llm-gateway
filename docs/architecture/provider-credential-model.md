@@ -4,7 +4,8 @@
 
 The gateway must be easy to operate while remaining strict about privacy and secret handling.
 
-Provider credentials are resolved dynamically based on the authenticated user context and the requested provider.
+Provider credentials are resolved dynamically from the encrypted Gateway
+credential repository based on tenant, caller kind, and requested provider.
 
 The stored secret material may represent a bearer token, an endpoint, or a small provider access configuration object depending on the provider.
 
@@ -70,15 +71,19 @@ Suggested initial `providerId` values:
 - `openai`
 - `anthropic`
 
-### UserProviderCredential
+### Provider Credential
 
-Represents a provider secret owned by a user for a specific provider.
+The existing `UserProviderCredential` persistence entity stores provider access
+owned either by a user or by a tenant. Its historical name does not change the
+ownership semantics.
 
 Suggested minimum fields:
 
 - `id`
-- `userId`
+- `tenantId`
+- `userId` (null for tenant ownership)
 - `providerId`
+- `scope` (`user` or `tenant`)
 - `label`
 - `encryptedSecret`
 - `iv`
@@ -132,8 +137,9 @@ The current runtime supports both Ollama access modes:
 ### Gateway Data Plane
 
 1. A caller sends a gateway request.
-2. `gateway-api` resolves the effective user context.
-3. `gateway-api` resolves the provider credential for that user and provider.
+2. `gateway-api` resolves the tenant and caller kind.
+3. User requests follow the established user/tenant policy. Service-only
+   requests resolve only the active tenant credential for that provider.
 4. `gateway-api` decrypts the secret in memory.
 5. `gateway-api` invokes the provider adapter with the decrypted provider access configuration.
 6. The secret is discarded after request execution.
@@ -142,14 +148,19 @@ The current runtime supports both Ollama access modes:
 
 The first implementation should keep resolution explicit.
 
-Recommended rule order:
+Current rule order:
 
 1. request specifies `providerId`
-2. gateway resolves the authenticated user
-3. gateway loads the active credential for that user and provider
-4. if no credential exists, fail with a clear server-side error
+2. gateway resolves the authenticated tenant and caller kind
+3. service-only caller loads `scope=tenant`, `userId=null`, and the matching
+   provider; it never borrows a user's credential
+4. user caller follows the tenant provider credential policy
+5. if no eligible credential exists, fail closed
 
-Do not introduce implicit secret fallback chains in Phase 1.
+Provider API-key environment variables are not the credential source for
+service-only Structured Evaluation. Legitimate endpoint, timeout, and transport
+configuration remains runtime configuration. First-class platform ownership is
+deferred and must use the credential-storage abstraction when designed.
 
 ## Security Rules
 
@@ -164,6 +175,7 @@ Do not introduce implicit secret fallback chains in Phase 1.
 The storage backend may begin in a simple persistence layer, but the model should already support:
 
 - one user having multiple provider credentials
+- one tenant having provider credentials for service workloads
 - one provider existing across many users
 - key rotation through `keyVersion`
 - revocation and replacement

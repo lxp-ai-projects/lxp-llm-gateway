@@ -319,18 +319,12 @@ function getReadinessFailureMessage(
   language?: string,
 ): string {
   const provider = readiness.providerId ?? 'configured provider';
-  const platformApiKeyVariable = readiness.providerId
-    ? `${readiness.providerId.toUpperCase().replaceAll('-', '_')}_API_KEY`
-    : 'the provider-specific API key variable';
-  const platformBaseUrlVariable = readiness.providerId
-    ? `${readiness.providerId.toUpperCase().replaceAll('-', '_')}_BASE_URL`
-    : 'the provider-specific base URL variable';
   const isFrench = language?.toLowerCase().startsWith('fr');
 
   if (readiness.reason === 'provider_credential_unavailable') {
     return isFrench
-      ? `Aucun credential ${provider} utilisable pour ce tenant. Configurez un credential de portee tenant avec POST /api/v1/admin/provider-credentials (providerId: ${provider}, scope: tenant), ou configurez ${platformApiKeyVariable} ou ${platformBaseUrlVariable} dans apps/gateway-api/.env puis activez "Allow platform fallback" sous Tenants > Provider Configurations > ${provider}. Le fournisseur est celui du profil d'evaluation. "Provider Tokens" cree un credential utilisateur et ne s'applique pas a cette identite de service.`
-      : `No usable ${provider} credential exists for this tenant. Configure a tenant-scoped credential with POST /api/v1/admin/provider-credentials (providerId: ${provider}, scope: tenant), or configure ${platformApiKeyVariable} or ${platformBaseUrlVariable} in apps/gateway-api/.env and enable "Allow platform fallback" under Tenants > Provider Configurations > ${provider}. The provider is selected by the evaluation profile. "Provider Tokens" creates a user credential and does not apply to this service identity.`;
+      ? `Aucun credential de portee tenant n'est configure pour ${provider}. Ajoutez-le sous Tenants > Provider Configurations > ${provider} > Tenant provider credential. Le fournisseur est celui du profil d'evaluation. "Provider Tokens" gere seulement les credentials personnels et ne s'applique pas a cette identite de service.`
+      : `No tenant-scoped ${provider} credential is configured. Add one under Tenants > Provider Configurations > ${provider} > Tenant provider credential. The provider is selected by the evaluation profile. "Provider Tokens" manages personal credentials only and does not apply to this service identity.`;
   }
   if (readiness.reason === 'tenant_provider_disabled') {
     return isFrench
@@ -505,7 +499,7 @@ function ProbeError({
     evaluation_service_forbidden:
       'The evaluation service identity lacks evaluation:invoke.',
     evaluation_provider_credential_unavailable:
-      'No tenant or permitted platform credential is configured for the selected evaluator provider.',
+      'No active tenant credential is configured for the selected evaluator provider. Add one under Tenants > Provider Configurations.',
     evaluation_model_forbidden:
       'The selected evaluator model is denied by the tenant model-access policy.',
   };

@@ -134,15 +134,14 @@ test('disables evaluation when profile preflight is not ready', async () => {
 
   expect(await screen.findByText('Not ready')).toBeInTheDocument();
   expect(
-    screen.getByText(/No usable openai credential exists for this tenant/),
+    screen.getByText(/No tenant-scoped openai credential is configured/),
   ).toBeInTheDocument();
-  expect(screen.getByText(/OPENAI_API_KEY/)).toBeInTheDocument();
-  expect(screen.getByText(/OPENAI_BASE_URL/)).toBeInTheDocument();
+  expect(screen.getByText(/Tenant provider credential/)).toBeInTheDocument();
   expect(
     screen.getByText(/selected by the evaluation profile/),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(/Provider Tokens.*user credential/),
+    screen.getByText(/Provider Tokens.*personal credentials/),
   ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Run evaluation' })).toBeDisabled();
 });
@@ -269,7 +268,7 @@ test('renders normalized authorization and provider errors without raw details',
   fireEvent.click(screen.getByRole('button', { name: 'Run evaluation' }));
   expect(
     await screen.findByText(
-      'No tenant or permitted platform credential is configured for the selected evaluator provider.',
+      'No active tenant credential is configured for the selected evaluator provider. Add one under Tenants > Provider Configurations.',
     ),
   ).toBeInTheDocument();
   expect(

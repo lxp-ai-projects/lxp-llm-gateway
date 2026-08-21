@@ -304,12 +304,12 @@ kind, and effective scopes. It returns no secret and invokes no provider. Admin
 Web uses an automatically deleted temporary key when `Test client` is selected,
 so provider readiness must still be tested independently.
 
-Instead it:
-
-1. validates the access token
-2. reads `emailHash` from the token
-3. resolves the internal user record by `users.email_hash`
-4. loads the active provider credential for that internal user
+For a user request, the Gateway validates the access token, resolves the
+internal user by `emailHash`, and applies the tenant's established user/tenant
+credential policy. For a service-only Structured Evaluation request, it does
+not resolve a user: it loads only the active encrypted tenant credential
+matching the provider selected by the server-controlled profile. Missing
+credentials are provider-readiness failures, not M2M authentication failures.
 
 Public-facing admin workflows use `userUuid`, not the internal database row id.
 

@@ -35,6 +35,7 @@ import type {
   AdminTenantUsageByProviderSummary,
   AdminTenantUsageEventSummary,
   AdminTenantUsageSummary,
+  AdminStoreTenantProviderCredentialInput,
   AdminTestTenantProviderConfigurationInput,
   AdminUpdateGlobalRolesInput,
   AdminUpdateTenantInput,
@@ -43,6 +44,7 @@ import type {
   AdminUpdateTenantModelAccessRuleInput,
   AdminUpdateTenantPolicyInput,
   AdminUpdateTenantProviderConfigurationInput,
+  AdminUpdateTenantProviderCredentialInput,
   AdminUserSummary,
   AdminUpdateUserInput,
   ChangeOwnPasswordInput,
@@ -316,6 +318,48 @@ export const adminApiClient = {
   ): Promise<AdminTenantProviderConfigurationSummary[]> {
     return request<AdminTenantProviderConfigurationSummary[]>(
       `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-configurations`,
+    );
+  },
+
+  async getTenantProviderCredentials(
+    tenantId: string,
+  ): Promise<ProviderCredentialSummary[]> {
+    return request<ProviderCredentialSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-credentials`,
+    );
+  },
+
+  async createTenantProviderCredential(
+    tenantId: string,
+    payload: AdminStoreTenantProviderCredentialInput,
+  ): Promise<ProviderCredentialSummary> {
+    return request<ProviderCredentialSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-credentials`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, scope: 'tenant' }),
+      },
+    );
+  },
+
+  async updateTenantProviderCredential(
+    tenantId: string,
+    credentialId: string,
+    payload: AdminUpdateTenantProviderCredentialInput,
+  ): Promise<ProviderCredentialSummary> {
+    return request<ProviderCredentialSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-credentials/${credentialId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    );
+  },
+
+  async deleteTenantProviderCredential(
+    tenantId: string,
+    credentialId: string,
+  ): Promise<{ deleted: true }> {
+    return request<{ deleted: true }>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-credentials/${credentialId}`,
+      { method: 'DELETE' },
     );
   },
 
