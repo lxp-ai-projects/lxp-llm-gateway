@@ -543,3 +543,9 @@ The current implementation now also includes:
 That provider-internal image pattern is now the expected reference for any new image-capable provider added behind `packages/provider-sdk`.
 
 Public registration also includes tenant-aware email verification through the selected SMTP or MailerSend provider with short-lived, digest-only challenges. This is deliberately separate from account creation.
+## Structured Evaluation Stabilization
+
+The bounded Evaluation Lab and the PGS service integration exercise one frozen
+v1 evidence contract. They do not add policy decisions, capability mutation,
+provider selection by callers, retries, or an additional authentication
+protocol. Profile readiness is diagnostic metadata and does not invoke a model.

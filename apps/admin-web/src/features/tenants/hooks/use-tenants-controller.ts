@@ -1,6 +1,7 @@
 import { useDisclosure } from '@mantine/hooks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import type { IntegrationClientScope } from '@lxp/domain';
 
 import {
   adminApiClient,
@@ -130,16 +131,7 @@ export function useTenantsController() {
     setEditIntegrationClientDefaultUserUuid,
   ] = useState('');
   const [editIntegrationClientScopes, setEditIntegrationClientScopes] =
-    useState<
-      Array<
-        | 'chat:completion'
-        | 'image:generate'
-        | 'image:edit'
-        | 'video:generate'
-        | 'evaluation:invoke'
-        | 'models:list'
-      >
-    >(['chat:completion']);
+    useState<IntegrationClientScope[]>(['chat:completion']);
   const [
     editIntegrationClientTrustedForwardedIdentityEnabled,
     setEditIntegrationClientTrustedForwardedIdentityEnabled,
@@ -149,16 +141,7 @@ export function useTenantsController() {
   const [editIntegrationApiKeyLabel, setEditIntegrationApiKeyLabel] =
     useState('');
   const [editIntegrationApiKeyScopes, setEditIntegrationApiKeyScopes] =
-    useState<
-      Array<
-        | 'chat:completion'
-        | 'image:generate'
-        | 'image:edit'
-        | 'video:generate'
-        | 'evaluation:invoke'
-        | 'models:list'
-      >
-    >([]);
+    useState<IntegrationClientScope[]>([]);
   const [editIntegrationApiKeyExpiresAt, setEditIntegrationApiKeyExpiresAt] =
     useState('');
   const [editIntegrationApiKeyStatus, setEditIntegrationApiKeyStatus] =
@@ -1220,16 +1203,7 @@ export function useTenantsController() {
       setEditIntegrationClientDefaultUserUuid(
         integrationClient.defaultUserUuid ?? '',
       );
-      setEditIntegrationClientScopes(
-        integrationClient.scopes as Array<
-          | 'chat:completion'
-          | 'image:generate'
-          | 'image:edit'
-          | 'video:generate'
-          | 'evaluation:invoke'
-          | 'models:list'
-        >,
-      );
+      setEditIntegrationClientScopes(integrationClient.scopes);
       setEditIntegrationClientTrustedForwardedIdentityEnabled(
         integrationClient.trustedForwardedIdentityEnabled,
       );
@@ -1251,14 +1225,7 @@ export function useTenantsController() {
       setEditIntegrationClientDefaultUserUuid,
     onEditIntegrationClientScopesChange: (value: string[]) =>
       setEditIntegrationClientScopes(
-        value as Array<
-          | 'chat:completion'
-          | 'image:generate'
-          | 'image:edit'
-          | 'video:generate'
-          | 'evaluation:invoke'
-          | 'models:list'
-        >,
+        value as IntegrationClientScope[],
       ),
     onEditIntegrationClientTrustedForwardedIdentityEnabledChange:
       setEditIntegrationClientTrustedForwardedIdentityEnabled,
@@ -1297,16 +1264,7 @@ export function useTenantsController() {
       setSelectedIntegrationClient(integrationClient);
       setSelectedIntegrationApiKey(apiKey);
       setEditIntegrationApiKeyLabel(apiKey.label);
-      setEditIntegrationApiKeyScopes(
-        apiKey.scopes as Array<
-          | 'chat:completion'
-          | 'image:generate'
-          | 'image:edit'
-          | 'video:generate'
-          | 'evaluation:invoke'
-          | 'models:list'
-        >,
-      );
+      setEditIntegrationApiKeyScopes(apiKey.scopes);
       setEditIntegrationApiKeyExpiresAt(
         apiKey.expiresAt ? apiKey.expiresAt.slice(0, 16) : '',
       );
@@ -1321,14 +1279,7 @@ export function useTenantsController() {
     onEditIntegrationApiKeyLabelChange: setEditIntegrationApiKeyLabel,
     onEditIntegrationApiKeyScopesChange: (value: string[]) =>
       setEditIntegrationApiKeyScopes(
-        value as Array<
-          | 'chat:completion'
-          | 'image:generate'
-          | 'image:edit'
-          | 'video:generate'
-          | 'evaluation:invoke'
-          | 'models:list'
-        >,
+        value as IntegrationClientScope[],
       ),
     onEditIntegrationApiKeyExpiresAtChange: setEditIntegrationApiKeyExpiresAt,
     onEditIntegrationApiKeyStatusChange: (value: string | null) => {

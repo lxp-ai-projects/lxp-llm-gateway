@@ -1,15 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import type { IntegrationClientScope } from '@lxp/domain';
 
 import type { GatewayIntegrationClientAuthContext } from '../auth/auth.types';
-
-export type IntegrationClientScope =
-  | 'chat:completion'
-  | 'image:generate'
-  | 'image:edit'
-  | 'video:generate'
-  | 'evaluation:invoke'
-  | 'models:list'
-  | 'usage:read';
 
 @Injectable()
 export class IntegrationClientScopeService {

@@ -174,7 +174,7 @@ test('GatewayAuthService resolves a tenant-scoped integration client default use
     applicationId: 'open-webui',
     defaultUserId: user.id,
     defaultUser: user,
-    scopes: ['chat:complete'],
+    scopes: ['chat:complete', 'models:list'],
     trustedForwardedIdentityEnabled: false,
     status: 'active',
   };
@@ -222,10 +222,7 @@ test('GatewayAuthService resolves a tenant-scoped integration client default use
       );
       assert.equal(authContext.activeTenantId, tenant.id);
       assert.equal(authContext.integrationClientId, 'open-webui-demo');
-      assert.deepEqual(authContext.integrationClientScopes, [
-        'chat:completion',
-        'models:list',
-      ]);
+      assert.deepEqual(authContext.integrationClientScopes, ['models:list']);
       assert.equal(authContext.userUuid, 'uuid-1');
 
       const evaluationContext =
@@ -273,7 +270,7 @@ test('GatewayAuthService authenticates a service-only integration client without
         tenantId: tenant.id,
         integrationClientId: integrationClient.id,
         keyHash: computeApiKeyHash(apiKey),
-        scopes: [],
+        scopes: ['evaluation:invoke'],
         status: 'active',
         expiresAt: null,
       },

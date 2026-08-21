@@ -1,4 +1,8 @@
-import type { ModelFamilyProfile, UnsupportedFeatureReason } from '@lxp/domain';
+import type {
+  IntegrationClientScope,
+  ModelFamilyProfile,
+  UnsupportedFeatureReason,
+} from '@lxp/domain';
 export type { GatewayVideoRetryRequest } from '@lxp/contracts';
 import type { GatewayVideoRetryRequest } from '@lxp/contracts';
 
@@ -610,7 +614,7 @@ export type AdminTenantIntegrationClientSummary = {
     | 'DEFAULT_USER'
     | 'FORWARDED_USER'
     | 'FORWARDED_USER_WITH_DEFAULT';
-  scopes: string[];
+  scopes: IntegrationClientScope[];
   trustedForwardedIdentityEnabled: boolean;
   status: 'active' | 'disabled';
   apiKeyCount: number;
@@ -625,7 +629,7 @@ export type AdminTenantIntegrationApiKeySummary = {
   integrationClientClientId: string;
   label: string;
   keyHint: string | null;
-  scopes: string[];
+  scopes: IntegrationClientScope[];
   status: 'active' | 'disabled';
   expiresAt: string | null;
   lastUsedAt: string | null;
@@ -796,14 +800,7 @@ export type AdminCreateIntegrationClientInput = {
   displayName: string;
   applicationId: string;
   defaultUserUuid?: string | null;
-  scopes: Array<
-    | 'chat:completion'
-    | 'image:generate'
-    | 'image:edit'
-    | 'video:generate'
-    | 'evaluation:invoke'
-    | 'models:list'
-  >;
+  scopes: IntegrationClientScope[];
   trustedForwardedIdentityEnabled: boolean;
 };
 
@@ -811,41 +808,20 @@ export type AdminUpdateIntegrationClientInput = {
   displayName?: string;
   applicationId?: string;
   defaultUserUuid?: string | null;
-  scopes?: Array<
-    | 'chat:completion'
-    | 'image:generate'
-    | 'image:edit'
-    | 'video:generate'
-    | 'evaluation:invoke'
-    | 'models:list'
-  >;
+  scopes?: IntegrationClientScope[];
   trustedForwardedIdentityEnabled?: boolean;
   status?: 'active' | 'disabled';
 };
 
 export type AdminCreateIntegrationApiKeyInput = {
   label: string;
-  scopes?: Array<
-    | 'chat:completion'
-    | 'image:generate'
-    | 'image:edit'
-    | 'video:generate'
-    | 'evaluation:invoke'
-    | 'models:list'
-  >;
+  scopes?: IntegrationClientScope[];
   expiresAt?: string;
 };
 
 export type AdminUpdateIntegrationApiKeyInput = {
   label?: string;
-  scopes?: Array<
-    | 'chat:completion'
-    | 'image:generate'
-    | 'image:edit'
-    | 'video:generate'
-    | 'evaluation:invoke'
-    | 'models:list'
-  >;
+  scopes?: IntegrationClientScope[];
   status?: 'active' | 'disabled';
   expiresAt?: string;
 };

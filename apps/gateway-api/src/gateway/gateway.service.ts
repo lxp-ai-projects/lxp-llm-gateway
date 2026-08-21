@@ -17,7 +17,10 @@ import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayTelemetryService } from './gateway-telemetry.service';
 import type { ListModelsQueryDto } from './dto/list-models-query.dto';
-import { ProviderCredentialService } from './provider-credential.service';
+import {
+  ProviderCredentialService,
+  ProviderCredentialUnavailableException,
+} from './provider-credential.service';
 import { IntegrationClientScopeService } from './integration-client-scope.service';
 import {
   ModelAccessLimitException,
@@ -761,6 +764,60 @@ export class GatewayService {
       await work();
     } catch (error) {
       console.warn('Gateway telemetry write failed.', error);
+    }
+  }
+
+  async getEvaluationReadiness(
+    providerId: ProviderId,
+    model: string,
+    authContext: GatewayIntegrationClientAuthContext,
+  ) {
+    const readiness = {
+      profileConfigured: true,
+      providerId,
+      model,
+      tenantProviderEnabled: false,
+      modelAllowed: false,
+      credentialPath: null as 'tenant' | 'platform' | null,
+      ready: false,
+      reason: null as string | null,
+    };
+    try {
+      await this.tenantProviderConfigurationService.assertProviderEnabled(
+        authContext.activeTenantId,
+        providerId,
+      );
+      readiness.tenantProviderEnabled = true;
+    } catch {
+      return { ...readiness, reason: 'tenant_provider_disabled' };
+    }
+    try {
+      await this.tenantModelAccessRuleService.assertTextModelAllowed(
+        authContext.activeTenantId,
+        providerId,
+        model,
+      );
+      readiness.modelAllowed = true;
+    } catch (error) {
+      if (error instanceof ModelAccessPolicyException) {
+        return { ...readiness, reason: 'model_not_allowed' };
+      }
+      throw error;
+    }
+    try {
+      const credential =
+        await this.providerCredentialService.resolveProviderAccessWithSource(
+          authContext,
+          providerId,
+        );
+      readiness.credentialPath =
+        credential.credentialScopeUsed === 'platform' ? 'platform' : 'tenant';
+      return { ...readiness, ready: true };
+    } catch (error) {
+      if (error instanceof ProviderCredentialUnavailableException) {
+        return { ...readiness, reason: 'provider_credential_unavailable' };
+      }
+      throw error;
     }
   }
 }

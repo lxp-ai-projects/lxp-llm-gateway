@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -34,7 +33,12 @@ type ProviderCredentialAuthContext =
   | Pick<GatewayAuthContext, 'activeTenantId' | 'emailHash' | 'userId'>
   | Pick<GatewayServiceAuthContext, 'activeTenantId' | 'emailHash' | 'userId'>;
 
-export class ProviderCredentialUnavailableException extends ForbiddenException {}
+export class ProviderCredentialUnavailableException extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = ProviderCredentialUnavailableException.name;
+  }
+}
 
 @Injectable()
 export class ProviderCredentialService {

@@ -9,7 +9,7 @@ import { SUPPORTED_PROVIDERS } from '@lxp/domain';
 import type {
   EvaluationProbeRequest,
   EvaluationProbeResult,
-  EvaluationProfileMetadata,
+  EvaluationProfileSummary,
 } from '@lxp/contracts';
 import type {
   AdminCreateTenantInput,
@@ -58,8 +58,8 @@ import type {
 } from './api-client.types';
 
 export const adminApiClient = {
-  async getEvaluationProfiles(): Promise<EvaluationProfileMetadata[]> {
-    return request<EvaluationProfileMetadata[]>(
+  async getEvaluationProfiles(): Promise<EvaluationProfileSummary[]> {
+    return request<EvaluationProfileSummary[]>(
       `${adminApiUrl}/api/v1/admin/evaluation-profiles`,
     );
   },

@@ -2,7 +2,11 @@ import { createHash, createHmac } from 'node:crypto';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { GlobalRole, TenantRole } from '@lxp/domain';
+import {
+  resolveEffectiveIntegrationClientScopes,
+  type GlobalRole,
+  type TenantRole,
+} from '@lxp/domain';
 import { IsNull, MoreThan, Repository } from 'typeorm';
 
 import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
@@ -697,17 +701,10 @@ export class GatewayAuthService {
     integrationClientScopes: string[] | null | undefined,
     apiKeyScopes: string[] | null | undefined,
   ): string[] {
-    const scopeAliases: Record<string, string> = {
-      'chat:complete': 'chat:completion',
-    };
-
-    return [
-      ...new Set(
-        [...(integrationClientScopes ?? []), ...(apiKeyScopes ?? [])].map(
-          (scope) => scopeAliases[scope] ?? scope,
-        ),
-      ),
-    ];
+    return resolveEffectiveIntegrationClientScopes(
+      integrationClientScopes,
+      apiKeyScopes,
+    );
   }
 
   private logCompatibilityRequestAccepted(

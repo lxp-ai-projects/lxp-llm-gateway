@@ -23,6 +23,7 @@ import {
 } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { useState } from 'react';
+import { INTEGRATION_CLIENT_SCOPES } from '@lxp/domain';
 
 import { PageHeader } from '../components/page-header';
 import { useTenantsController } from '../features/tenants/hooks/use-tenants-controller';
@@ -1770,13 +1771,10 @@ export function TenantsPage() {
               searchable={false}
               value={editIntegrationClientScopes}
               onChange={onEditIntegrationClientScopesChange}
-              data={[
-                { value: 'chat:completion', label: 'chat:completion' },
-                { value: 'models:list', label: 'models:list' },
-                { value: 'image:generate', label: 'image:generate' },
-                { value: 'evaluation:invoke', label: 'evaluation:invoke' },
-                { value: 'image:edit', label: 'image:edit' },
-              ]}
+              data={INTEGRATION_CLIENT_SCOPES.map((scope) => ({
+                value: scope,
+                label: scope,
+              }))}
             />
             <Switch
               checked={editIntegrationClientTrustedForwardedIdentityEnabled}
@@ -1873,20 +1871,17 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label="Scopes"
-                  help="Optional narrower capability set for this specific key. Leave empty to inherit the integration client's scopes."
+                  help="Delegated subset for this key. The API copies the client ceiling only when scopes are omitted; an explicit empty selection grants no capability."
                 />
               }
-              description="Leave empty to inherit the integration client's scopes."
+              description="Select the delegated subset. New keys default to the client ceiling when scopes are omitted by the API."
               searchable={false}
               value={editIntegrationApiKeyScopes}
               onChange={onEditIntegrationApiKeyScopesChange}
-              data={[
-                { value: 'chat:completion', label: 'chat:completion' },
-                { value: 'models:list', label: 'models:list' },
-                { value: 'image:generate', label: 'image:generate' },
-                { value: 'evaluation:invoke', label: 'evaluation:invoke' },
-                { value: 'image:edit', label: 'image:edit' },
-              ]}
+              data={(selectedIntegrationClient?.scopes ?? []).map((scope) => ({
+                value: scope,
+                label: scope,
+              }))}
             />
             <TextInput
               label={

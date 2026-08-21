@@ -433,3 +433,12 @@ That UI should remain behind the same backend boundaries already used for chat:
 ## Registration Email Verification
 
 `admin-api` owns tenant-aware registration email verification. It uses a selected global SMTP or MailerSend provider, digest-only challenge persistence and Redis abuse limits. It establishes only proof of email possession; account creation remains a separate flow.
+## Structured Evaluation Boundary
+
+PGS and the Evaluation Lab are tenant-bound service callers of the Gateway's
+server-controlled structured evaluation profile. Provider/model selection and
+provider credentials remain inside the Gateway and behind `provider-sdk`; PGS
+never becomes a provider implementation. Integration-client scopes form a
+ceiling and API-key scopes form a delegated subset, with their intersection used
+at authentication time. Service-only evaluation resolves only tenant or
+explicitly permitted platform credentials and never fabricates a user.

@@ -171,3 +171,9 @@ Current Open WebUI posture is:
 ## Registration Email Verification
 
 The public registration foundation can establish email possession for a resolved tenant when tenant registration is enabled and the selected SMTP or MailerSend provider is ready. It does not create a user, membership, role, password, or session.
+## Structured Evaluation
+
+The Gateway may produce validated structured evidence through allowlisted,
+server-controlled profiles. Downstream systems such as PGS remain responsible
+for interpreting that evidence and making policy or capability decisions. The
+operator Evaluation Lab is a bounded diagnostic surface, not a policy workbench.

@@ -6,14 +6,10 @@ import {
   IsString,
   Length,
 } from 'class-validator';
-
-const SUPPORTED_INTEGRATION_CLIENT_SCOPES = [
-  'chat:completion',
-  'image:generate',
-  'image:edit',
-  'evaluation:invoke',
-  'models:list',
-] as const;
+import {
+  INTEGRATION_CLIENT_SCOPES,
+  type IntegrationClientScope,
+} from '@lxp/domain';
 
 export class UpdateIntegrationClientDto {
   @IsOptional()
@@ -32,8 +28,8 @@ export class UpdateIntegrationClientDto {
 
   @IsOptional()
   @IsArray()
-  @IsIn(SUPPORTED_INTEGRATION_CLIENT_SCOPES, { each: true })
-  scopes?: Array<(typeof SUPPORTED_INTEGRATION_CLIENT_SCOPES)[number]>;
+  @IsIn(INTEGRATION_CLIENT_SCOPES, { each: true })
+  scopes?: IntegrationClientScope[];
 
   @IsOptional()
   @IsBoolean()

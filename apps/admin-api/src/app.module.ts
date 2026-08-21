@@ -42,6 +42,10 @@ import { TenantPublicHostResolverService } from './registration/tenant-public-ho
 import { TenantRegistrationService } from './registration/tenant-registration.service';
 import { EvaluationLabController } from './evaluation-lab/evaluation-lab.controller';
 import { EvaluationLabService } from './evaluation-lab/evaluation-lab.service';
+import {
+  EnvironmentEvaluationServiceCredentialResolver,
+  EvaluationServiceCredentialResolver,
+} from './evaluation-lab/evaluation-service-credential.resolver';
 
 @Module({
   imports: [
@@ -94,6 +98,10 @@ import { EvaluationLabService } from './evaluation-lab/evaluation-lab.service';
     TenantPublicHostResolverService,
     TenantRegistrationService,
     EvaluationLabService,
+    {
+      provide: EvaluationServiceCredentialResolver,
+      useClass: EnvironmentEvaluationServiceCredentialResolver,
+    },
   ],
 })
 export class AppModule {}

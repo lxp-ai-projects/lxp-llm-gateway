@@ -18,7 +18,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --ext .ts",
     "pretypecheck": "pnpm --filter @lxp/domain build",
-    "test": "node --test",
+    "test": "pnpm build && node --test dist/structured-evaluations.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

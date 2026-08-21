@@ -7,7 +7,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { GlobalRole, ProviderId, TenantRole } from '@lxp/domain';
+import {
+  findScopesOutsideIntegrationClientCeiling,
+  type GlobalRole,
+  type ProviderId,
+  type TenantRole,
+} from '@lxp/domain';
 import { IsNull, Repository } from 'typeorm';
 
 import { ProviderEntity } from '../persistence/entities/provider.entity';
@@ -976,6 +981,10 @@ export class AdminService {
       integrationClientId,
     );
     const normalized = this.normalizeIntegrationApiKeyInput(dto);
+    this.assertApiKeyScopesWithinClientCeiling(
+      integrationClient.scopes,
+      normalized.scopes,
+    );
     const rawApiKey = this.generateIntegrationApiKey();
     const apiKey = this.apiKeyRepository.create({
       tenantId,
@@ -1149,6 +1158,10 @@ export class AdminService {
           ? dto.expiresAt
           : apiKey.expiresAt?.toISOString(),
     });
+    this.assertApiKeyScopesWithinClientCeiling(
+      integrationClient.scopes,
+      normalized.scopes,
+    );
 
     apiKey.label = normalized.label;
     apiKey.scopes = normalized.scopes ?? integrationClient.scopes;
@@ -2519,6 +2532,27 @@ export class AdminService {
       expiresAt:
         dto.expiresAt && dto.expiresAt.trim() ? new Date(dto.expiresAt) : null,
     };
+  }
+
+  private assertApiKeyScopesWithinClientCeiling(
+    clientScopes: string[],
+    apiKeyScopes: string[] | undefined,
+  ): void {
+    if (apiKeyScopes === undefined) {
+      return;
+    }
+
+    const outsideClient = findScopesOutsideIntegrationClientCeiling(
+      clientScopes,
+      apiKeyScopes,
+    );
+    if (outsideClient.length > 0) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'integration_api_key_scope_exceeds_client',
+        message: `API key scopes must be a subset of the integration client scopes. Outside ceiling: ${outsideClient.join(', ')}.`,
+      });
+    }
   }
 
   private async tryResolveTenantScopedUser(tenantId: string, userUuid: string) {

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ForbiddenException } from '@nestjs/common';
-
 import { UserProviderCredentialEntity } from '../persistence/entities/user-provider-credential.entity';
-import { ProviderCredentialService } from './provider-credential.service';
+import {
+  ProviderCredentialService,
+  ProviderCredentialUnavailableException,
+} from './provider-credential.service';
 
 function createRepositoryMock<T>(data: T[]) {
   return {
@@ -325,7 +326,7 @@ test('ProviderCredentialService fails closed when a service principal only has a
         'nanogpt',
       ),
     (error: unknown) => {
-      assert.ok(error instanceof ForbiddenException);
+      assert.ok(error instanceof ProviderCredentialUnavailableException);
       assert.match(String(error), /No active credential path is configured/);
       return true;
     },
@@ -619,7 +620,7 @@ test('ProviderCredentialService rejects when no active credential exists', async
         'nanogpt',
       ),
     (error: unknown) => {
-      assert.ok(error instanceof ForbiddenException);
+      assert.ok(error instanceof ProviderCredentialUnavailableException);
       assert.match(String(error), /No active credential path is configured/);
       return true;
     },
