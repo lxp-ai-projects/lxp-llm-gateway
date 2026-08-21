@@ -124,13 +124,19 @@ export function EvaluationLabPage() {
                     <Badge variant="light">
                       Profile v{selectedProfile.profileVersion}
                     </Badge>
-                    <Badge color={selectedProfile.readiness.ready ? 'green' : 'orange'}>
+                    <Badge
+                      color={
+                        selectedProfile.readiness.ready ? 'green' : 'orange'
+                      }
+                    >
                       {selectedProfile.readiness.ready ? 'Ready' : 'Not ready'}
                     </Badge>
                   </Group>
                   <Text size="sm" c="dimmed">
-                    Provider: {selectedProfile.readiness.providerId ?? 'not configured'} · Model:{' '}
-                    {selectedProfile.readiness.model ?? 'not configured'} · Credential:{' '}
+                    Provider:{' '}
+                    {selectedProfile.readiness.providerId ?? 'not configured'} ·
+                    Model: {selectedProfile.readiness.model ?? 'not configured'}{' '}
+                    · Credential:{' '}
                     {selectedProfile.readiness.credentialPath ?? 'unavailable'}
                   </Text>
                   {!selectedProfile.readiness.ready ? (
@@ -313,12 +319,18 @@ function getReadinessFailureMessage(
   language?: string,
 ): string {
   const provider = readiness.providerId ?? 'configured provider';
+  const platformApiKeyVariable = readiness.providerId
+    ? `${readiness.providerId.toUpperCase().replaceAll('-', '_')}_API_KEY`
+    : 'the provider-specific API key variable';
+  const platformBaseUrlVariable = readiness.providerId
+    ? `${readiness.providerId.toUpperCase().replaceAll('-', '_')}_BASE_URL`
+    : 'the provider-specific base URL variable';
   const isFrench = language?.toLowerCase().startsWith('fr');
 
   if (readiness.reason === 'provider_credential_unavailable') {
     return isFrench
-      ? `Aucun credential ${provider} utilisable pour ce tenant. Configurez un credential de portee tenant avec POST /api/v1/admin/provider-credentials (providerId: ${provider}, scope: tenant), ou configurez la cle plateforme du fournisseur dans apps/gateway-api/.env puis activez "Allow platform fallback" sous Tenants > Provider Configurations > ${provider}. "Provider Tokens" cree un credential utilisateur et ne s'applique pas a cette identite de service.`
-      : `No usable ${provider} credential exists for this tenant. Configure a tenant-scoped credential with POST /api/v1/admin/provider-credentials (providerId: ${provider}, scope: tenant), or configure the provider platform key in apps/gateway-api/.env and enable "Allow platform fallback" under Tenants > Provider Configurations > ${provider}. "Provider Tokens" creates a user credential and does not apply to this service identity.`;
+      ? `Aucun credential ${provider} utilisable pour ce tenant. Configurez un credential de portee tenant avec POST /api/v1/admin/provider-credentials (providerId: ${provider}, scope: tenant), ou configurez ${platformApiKeyVariable} ou ${platformBaseUrlVariable} dans apps/gateway-api/.env puis activez "Allow platform fallback" sous Tenants > Provider Configurations > ${provider}. Le fournisseur est celui du profil d'evaluation. "Provider Tokens" cree un credential utilisateur et ne s'applique pas a cette identite de service.`
+      : `No usable ${provider} credential exists for this tenant. Configure a tenant-scoped credential with POST /api/v1/admin/provider-credentials (providerId: ${provider}, scope: tenant), or configure ${platformApiKeyVariable} or ${platformBaseUrlVariable} in apps/gateway-api/.env and enable "Allow platform fallback" under Tenants > Provider Configurations > ${provider}. The provider is selected by the evaluation profile. "Provider Tokens" creates a user credential and does not apply to this service identity.`;
   }
   if (readiness.reason === 'tenant_provider_disabled') {
     return isFrench

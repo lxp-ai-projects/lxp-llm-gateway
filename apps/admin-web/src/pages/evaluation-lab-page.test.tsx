@@ -136,7 +136,14 @@ test('disables evaluation when profile preflight is not ready', async () => {
   expect(
     screen.getByText(/No usable openai credential exists for this tenant/),
   ).toBeInTheDocument();
-  expect(screen.getByText(/Provider Tokens.*user credential/)).toBeInTheDocument();
+  expect(screen.getByText(/OPENAI_API_KEY/)).toBeInTheDocument();
+  expect(screen.getByText(/OPENAI_BASE_URL/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/selected by the evaluation profile/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Provider Tokens.*user credential/),
+  ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Run evaluation' })).toBeDisabled();
 });
 

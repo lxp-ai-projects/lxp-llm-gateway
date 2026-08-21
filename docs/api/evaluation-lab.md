@@ -88,6 +88,16 @@ under `Tenants > Provider Configurations` for that provider.
 `evaluation_model_forbidden` means authentication and credentials passed, but
 the selected model is denied by the tenant model-access policy.
 
+Platform credentials follow the selected provider, not PGS. Configure the
+matching variable in `apps/gateway-api/.env`: `OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`, `XAI_API_KEY`, `MISTRAL_API_KEY`, `GOOGLE_API_KEY`,
+`GROQ_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `ZAI_API_KEY`,
+`NANOGPT_API_KEY`, `OLLAMA_API_KEY`, or `OPENROUTER_API_KEY`. A corresponding
+`<PROVIDER>_BASE_URL` can configure a custom or local platform endpoint. The
+preflight reports the effective `providerId` and derives both matching variable
+names. No individual provider is intrinsically required by the evaluation
+contract.
+
 Provider selection happens in `gateway-api`, through
 `LXP_EVALUATION_PGS_GROUNDING_PROVIDER` and
 `LXP_EVALUATION_PGS_GROUNDING_MODEL`. The profile can use any configured
