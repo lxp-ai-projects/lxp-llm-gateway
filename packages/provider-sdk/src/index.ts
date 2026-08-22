@@ -134,12 +134,14 @@ export type {
   VideoModelLifecycleStatus,
 } from './video-contracts.js';
 export {
+  buildProviderChatHttpError,
   buildProviderHttpError,
   buildProviderImageHttpError,
   formatGoogleGeminiRateLimitError,
   formatGoogleGeminiTemporaryUnavailableError,
   formatOpenAiRateLimitError,
   formatXAiImageClientError,
+  ProviderHttpError,
 } from './provider-error-utils.js';
 export { OpenAiCompatibleTextProviderAdapter } from './openai-compatible-text-provider.js';
 export type {
