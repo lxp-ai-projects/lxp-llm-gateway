@@ -22,6 +22,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { formatDateTime } from '../../../i18n/format';
 import {
   IconCheck,
   IconChecks,
@@ -248,7 +249,7 @@ export function ImageRequestForm({
                         {asset.label ?? 'Gateway image asset'}
                       </Text>
                       <Text c="dimmed" size="xs">
-                        {new Date(asset.createdAt).toLocaleString()}
+                        {formatDateTime(asset.createdAt)}
                       </Text>
                       <Group gap="xs">
                         <Badge color="gray" size="sm" variant="light">

@@ -18,19 +18,20 @@ import { StatusTile } from '../components/status-tile';
 import { adminApiClient } from '../lib/admin-api-client';
 import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
+import { formatNumber } from '../i18n/format';
 
 function formatWholeNumber(value: number | null | undefined) {
-  return new Intl.NumberFormat('en-US').format(value ?? 0);
+  return formatNumber(value ?? 0);
 }
 
 function formatUsd(value: string | null | undefined) {
   const amount = Number(value ?? '0');
-  return new Intl.NumberFormat('en-US', {
+  return formatNumber(amount, {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
-  }).format(amount);
+  });
 }
 
 function HelpTooltip({

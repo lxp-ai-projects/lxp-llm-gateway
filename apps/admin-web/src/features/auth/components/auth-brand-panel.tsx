@@ -1,6 +1,8 @@
 import { Badge, Stack, Text, Title } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 
 export function AuthBrandPanel() {
+  const { t } = useTranslation('auth');
   return (
     <section className="auth-brand-panel" aria-labelledby="auth-brand-title">
       <Stack gap="xl">
@@ -9,19 +11,18 @@ export function AuthBrandPanel() {
         </div>
         <div>
           <Badge className="auth-brand-badge" variant="light">
-            LXP gateway
+            {t('brand.badge')}
           </Badge>
           <Title id="auth-brand-title" order={1}>
-            A clearer path from intent to intelligence.
+            {t('brand.title')}
           </Title>
           <Text className="auth-brand-copy" mt="md" size="lg">
-            A focused workspace for managing model access, credentials, and the
-            systems your team relies on.
+            {t('brand.description')}
           </Text>
         </div>
         <div className="auth-brand-note">
           <span className="auth-brand-note-dot" />
-          <Text size="sm">Secure workspace access</Text>
+          <Text size="sm">{t('brand.secureAccess')}</Text>
         </div>
       </Stack>
     </section>

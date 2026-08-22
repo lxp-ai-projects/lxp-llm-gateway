@@ -16,6 +16,7 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import { useState } from 'react';
 
+import { formatDateTime } from '../../../i18n/format';
 import { copyText } from '../../../lib/copy-text';
 import type { ReturnTypeUseImageLab } from '../use-image-lab.types';
 
@@ -131,7 +132,7 @@ export function ImageHistoryPanel({
                                   {item.providerId} / {item.model}
                                 </Text>
                                 <Text c="dimmed" size="sm">
-                                  {new Date(item.createdAt).toLocaleString()}
+                                  {formatDateTime(item.createdAt)}
                                 </Text>
                                 <Text c="dimmed" lineClamp={2} size="sm">
                                   {item.prompt}

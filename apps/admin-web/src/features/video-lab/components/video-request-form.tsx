@@ -16,6 +16,7 @@ import {
   Title,
   Checkbox,
 } from '@mantine/core';
+import { formatDateTime } from '../../../i18n/format';
 import { useMediaQuery } from '@mantine/hooks';
 import {
   IconLibraryPhoto,
@@ -561,7 +562,7 @@ function ReferenceCatalogAssetCard({
           {asset.label ?? 'Gateway image asset'}
         </Text>
         <Text c="dimmed" size="xs">
-          {new Date(asset.createdAt).toLocaleString()}
+          {formatDateTime(asset.createdAt)}
         </Text>
         <Group justify="space-between" wrap="wrap">
           <Badge color="gray" size="sm" variant="light">

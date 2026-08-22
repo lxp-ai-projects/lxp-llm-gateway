@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getLocalizedErrorMessage } from '../i18n/errors';
 
 import { AuthBrandPanel } from '../features/auth/components/auth-brand-panel';
 import { AuthShell } from '../features/auth/components/auth-shell';
@@ -76,9 +77,7 @@ export function LoginPage() {
           isPending={loginMutation.isPending}
           loginErrorMessage={
             loginMutation.isError
-              ? loginMutation.error instanceof Error
-                ? loginMutation.error.message
-                : 'Unable to authenticate with the current credentials.'
+              ? getLocalizedErrorMessage(loginMutation.error)
               : null
           }
           onAcceptedPoliciesChange={handleAcceptedPoliciesChange}

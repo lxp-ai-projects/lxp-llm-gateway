@@ -1,5 +1,6 @@
 import { Grid } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
@@ -8,6 +9,7 @@ import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 
 export function HealthPage() {
+  const { t } = useTranslation('pages');
   const sessionQuery = useSession();
   const adminHealthQuery = useQuery({
     queryKey: ['admin-api-health'],
@@ -21,8 +23,8 @@ export function HealthPage() {
   return (
     <>
       <PageHeader
-        title="Health"
-        description="Operational status view for the two initial planes exposed by the platform."
+        title={t('health.title')}
+        description={t('health.description')}
         context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
@@ -32,10 +34,10 @@ export function HealthPage() {
             tone={adminHealthQuery.data?.status === 'ok' ? 'good' : 'warning'}
             value={
               adminHealthQuery.isPending
-                ? 'Checking...'
+                ? t('health.checking')
                 : adminHealthQuery.isError
-                  ? 'Unavailable'
-                  : (adminHealthQuery.data?.status ?? 'Unknown')
+                  ? t('health.unavailable')
+                  : (adminHealthQuery.data?.status ?? t('health.unknown'))
             }
           />
         </Grid.Col>
@@ -45,10 +47,10 @@ export function HealthPage() {
             tone={gatewayHealthQuery.data?.status === 'ok' ? 'good' : 'warning'}
             value={
               gatewayHealthQuery.isPending
-                ? 'Checking...'
+                ? t('health.checking')
                 : gatewayHealthQuery.isError
-                  ? 'Unavailable'
-                  : (gatewayHealthQuery.data?.status ?? 'Unknown')
+                  ? t('health.unavailable')
+                  : (gatewayHealthQuery.data?.status ?? t('health.unknown'))
             }
           />
         </Grid.Col>

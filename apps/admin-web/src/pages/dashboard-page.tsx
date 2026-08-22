@@ -8,11 +8,13 @@ import {
 
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
+import { useTranslation } from 'react-i18next';
 import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 import { useSession } from '../lib/use-session';
 
 export function DashboardPage() {
+  const { t } = useTranslation('pages');
   const sessionQuery = useSession();
   const runtimeConfigQuery = useRuntimeConfig();
   const isTenantAdmin =
@@ -23,8 +25,8 @@ export function DashboardPage() {
   return (
     <>
       <PageHeader
-        title="Overview"
-        description="One SPA, role-aware navigation, and a deliberate split between user self-service and administrator controls."
+        title={t('dashboard.title')}
+        description={t('dashboard.description')}
         context={getActiveTenantLabel(sessionQuery.data)}
       />
 
@@ -32,48 +34,48 @@ export function DashboardPage() {
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
             icon={<IconUserCircle size={14} />}
-            label="Session"
+            label={t('dashboard.session')}
             tone="good"
-            value={sessionQuery.data ? 'Authenticated' : 'Unavailable'}
+            value={sessionQuery.data ? t('dashboard.authenticated') : t('dashboard.unavailable')}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
             icon={<IconLockCheck size={14} />}
-            label="Auth posture"
-            value="Cookie-only"
+            label={t('dashboard.authPosture')}
+            value={t('dashboard.cookieOnly')}
             tone="good"
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
             icon={<IconPlugConnected size={14} />}
-            label="Gateway"
+            label={t('dashboard.gateway')}
             value={
-              runtimeConfigQuery.data?.gatewayOnline ? 'Online' : 'Offline'
+              runtimeConfigQuery.data?.gatewayOnline ? t('dashboard.online') : t('dashboard.offline')
             }
             tone={runtimeConfigQuery.data?.gatewayOnline ? 'good' : 'warning'}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
-            label="Role surface"
+            label={t('dashboard.roleSurface')}
             value={
               isSuperAdmin
-                ? 'Super admin + tenant + user'
+                ? t('dashboard.superAdminSurface')
                 : isTenantAdmin
-                  ? 'Tenant admin + user'
-                  : 'User only'
+                  ? t('dashboard.tenantAdminSurface')
+                  : t('dashboard.userSurface')
             }
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
-            label="Registration"
+            label={t('dashboard.registration')}
             value={
               runtimeConfigQuery.data?.registrationEnabled
-                ? 'Enabled'
-                : 'Disabled'
+                ? t('dashboard.enabled')
+                : t('dashboard.disabled')
             }
           />
         </Grid.Col>
@@ -84,10 +86,9 @@ export function DashboardPage() {
           color="yellow"
           icon={<IconAlertTriangle size={18} />}
           mt="lg"
-          title="Gateway circuit breaker is active"
+          title={t('dashboard.breakerTitle')}
         >
-          User chat traffic should expect a service offline response until an
-          administrator re-enables the gateway.
+          {t('dashboard.breakerDescription')}
         </Alert>
       ) : null}
     </>

@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 
 import type { GatewayVideoGenerationJob } from '../../../lib/api-client.types';
+import { formatDateTime } from '../../../i18n/format';
 import type { ReturnTypeUseVideoLab } from '../use-video-lab.types';
 
 export function VideoResultsPanel({
@@ -87,14 +88,14 @@ export function VideoResultsPanel({
 
             <Group gap="md" wrap="wrap">
               <Metric label="State" value={formatJobStatus(job.status)} />
-              <Metric label="Created" value={new Date(job.createdAt).toLocaleString()} />
+              <Metric label="Created" value={formatDateTime(job.createdAt)} />
               <Metric
                 label="Started"
-                value={job.startedAt ? new Date(job.startedAt).toLocaleString() : 'Not started yet'}
+                value={job.startedAt ? formatDateTime(job.startedAt) : 'Not started yet'}
               />
               <Metric
                 label="Completed"
-                value={job.completedAt ? new Date(job.completedAt).toLocaleString() : 'Pending'}
+                value={job.completedAt ? formatDateTime(job.completedAt) : 'Pending'}
               />
               <Metric
                 label="Duration"

@@ -1,6 +1,7 @@
 import { Alert, Anchor, Loader, Stack, Text, Title } from '@mantine/core';
 import { Suspense, lazy } from 'react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   createBrowserRouter,
   isRouteErrorResponse,
@@ -96,29 +97,28 @@ function withSuspense(node: ReactNode) {
 }
 
 function RouteErrorPage() {
+  const { t } = useTranslation('errors');
   const error = useRouteError();
   const message = isRouteErrorResponse(error)
     ? `${error.status} ${error.statusText}`
     : error instanceof Error
       ? error.message
-      : 'An unexpected application error occurred.';
+      : t('route.unexpected');
 
   return (
     <Stack gap="md" maw={640} mx="auto" mt="xl" p="lg">
-      <Title order={2}>Application Error</Title>
+      <Title order={2}>{t('route.title')}</Title>
       <Text c="dimmed">
-        The page could not finish loading. This often happens when the local dev
-        servers are down or running on unexpected ports.
+        {t('route.description')}
       </Text>
-      <Alert color="red" title="Details">
+      <Alert color="red" title={t('route.details')}>
         {message}
       </Alert>
       <Text size="sm">
-        Check that `gateway-api` is on `3001`, `admin-api` is on `3002`, and
-        `admin-web` is on `3003`, then reload the page.
+        {t('route.ports')}
       </Text>
       <Anchor href="/" underline="hover">
-        Return to the app entrypoint
+        {t('route.return')}
       </Anchor>
     </Stack>
   );

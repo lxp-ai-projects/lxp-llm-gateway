@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   IconActivityHeartbeat,
   IconBolt,
@@ -44,9 +45,10 @@ import {
 } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 import { InstallAppButton } from './install-app-button';
+import { LanguageSelector } from './language-selector';
 
 type NavigationItem = {
-  label: string;
+  labelKey: string;
   to: string;
   icon: typeof IconBolt;
   requiresTenantAdmin?: boolean;
@@ -57,71 +59,71 @@ type NavigationItem = {
 
 const navigationItems: NavigationItem[] = [
   {
-    label: 'Overview',
+    labelKey: 'overview',
     to: '/app',
     icon: IconBolt,
     group: 'workspace',
   },
   {
-    label: 'Provider Tokens',
+    labelKey: 'providerTokens',
     to: '/app/providers',
     icon: IconKey,
     group: 'workspace',
   },
   {
-    label: 'Profile',
+    labelKey: 'profile',
     to: '/app/profile',
     icon: IconUserCircle,
     group: 'workspace',
   },
   {
-    label: 'Chat Lab',
+    labelKey: 'chatLab',
     to: '/app/chat',
     icon: IconMessageCircleCog,
     group: 'workspace',
   },
   {
-    label: 'Image Lab',
+    labelKey: 'imageLab',
     to: '/app/images',
     icon: IconPhoto,
     group: 'workspace',
   },
   {
-    label: 'Video Lab',
+    labelKey: 'videoLab',
     to: '/app/videos',
     icon: IconVideo,
     group: 'workspace',
   },
   {
-    label: 'Evaluation Lab',
+    labelKey: 'evaluationLab',
     to: '/app/developer/evaluations',
     icon: IconFlask,
     requiresOperator: true,
     group: 'workspace',
   },
   {
-    label: 'Users',
+    labelKey: 'users',
     to: '/app/admin/users',
     icon: IconUsers,
     requiresTenantAdmin: true,
     group: 'tenant-admin',
   },
   {
-    label: 'Tenants',
+    labelKey: 'tenants',
     to: '/app/admin/tenants',
     icon: IconBuildingEstate,
     requiresSuperAdmin: true,
     group: 'global-control-plane',
   },
   {
-    label: 'Analytics',
+    labelKey: 'analytics',
     to: '/app/admin/analytics',
     icon: IconChartBar,
     requiresTenantAdmin: true,
     group: 'tenant-admin',
   },
   {
-    label: 'Health',
+    labelKey: 'health',
     to: '/app/admin/health',
     icon: IconActivityHeartbeat,
     requiresTenantAdmin: true,
@@ -130,6 +132,7 @@ const navigationItems: NavigationItem[] = [
 ];
 
 export function AppShellLayout() {
+  const { t } = useTranslation(['navigation', 'common', 'auth']);
   const [opened, { toggle, close }] = useDisclosure();
   const location = useLocation();
   const navigate = useNavigate();
@@ -173,10 +176,10 @@ export function AppShellLayout() {
       ? 'ink'
       : 'teal';
   const roleBadgeLabel = isSuperAdmin
-    ? 'Super admin'
+    ? t('auth:roles.superAdmin')
     : isTenantAdmin
-      ? 'Tenant admin'
-      : 'User';
+      ? t('auth:roles.tenantAdmin')
+      : t('auth:roles.user');
   const tenantOptions = availableTenants.map((tenant) => ({
     value: tenant.id,
     label: getTenantOptionLabel(tenant.displayName, tenant.slug),
@@ -252,7 +255,7 @@ export function AppShellLayout() {
                 lxp-llm-gateway
               </Text>
               <Text className="shell-subtitle" size="sm" c="dimmed">
-                Enterprise control plane
+                {t('navigation:enterpriseControlPlane')}
               </Text>
             </Box>
           </Group>
@@ -264,7 +267,7 @@ export function AppShellLayout() {
                 color={gatewayOnline ? 'moss' : 'red'}
                 variant="light"
               >
-                {gatewayOnline ? 'Gateway online' : 'Gateway offline'}
+                {gatewayOnline ? t('navigation:gatewayOnline') : t('navigation:gatewayOffline')}
               </Badge>
               <Group className="shell-status-meta" gap={6} wrap="nowrap">
                 <Badge
@@ -272,7 +275,7 @@ export function AppShellLayout() {
                   variant="outline"
                   color="ink"
                 >
-                  Active tenant: {activeTenantLabel}
+                  {t('common:activeTenant', { tenant: activeTenantLabel })}
                 </Badge>
                 <Badge
                   className="shell-role-badge"
@@ -290,7 +293,7 @@ export function AppShellLayout() {
               loading={logoutMutation.isPending}
               variant="subtle"
             >
-              Logout
+              {t('common:actions.logout')}
             </Button>
           </Group>
         </Group>
@@ -299,16 +302,16 @@ export function AppShellLayout() {
       <AppShell.Navbar className="glass-panel shell-navbar" p="md">
         <AppShell.Section>
           <Stack gap="xs">
-            <Text fw={700}>{currentUser?.displayName ?? 'Workspace'}</Text>
+            <Text fw={700}>{currentUser?.displayName ?? t('navigation:workspaceFallback')}</Text>
             <Text size="sm" c="dimmed">
-              {currentUser?.email ?? 'Session profile unavailable'}
+              {currentUser?.email ?? t('auth:session.unavailable')}
             </Text>
             <Text size="sm" c="dimmed">
-              Active tenant: {activeTenantLabel}
+              {t('common:activeTenant', { tenant: activeTenantLabel })}
             </Text>
             {tenantOptions.length > 1 ? (
               <Select
-                aria-label="Active tenant"
+                aria-label={t('common:activeTenant', { tenant: activeTenantLabel })}
                 data={tenantOptions}
                 disabled={switchTenantMutation.isPending}
                 onChange={(tenantId) => {
@@ -331,15 +334,15 @@ export function AppShellLayout() {
           <Stack gap="md">
             <Stack gap="xs">
               <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                Workspace surface
+                {t('navigation:groups.workspace')}
               </Text>
               {workspaceItems.map((item) => (
                 <NavLink
                   active={isNavigationItemActive(item.to)}
                   key={item.to}
                   component={RouterNavLink}
-                  description="Workspace surface"
-                  label={item.label}
+                  description={t('navigation:groups.workspace')}
+                  label={t(`navigation:${item.labelKey}`)}
                   leftSection={<item.icon size={18} stroke={1.8} />}
                   end={item.to === '/app'}
                   onClick={close}
@@ -351,15 +354,15 @@ export function AppShellLayout() {
             {tenantAdminItems.length ? (
               <Stack gap="xs">
                 <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                  Tenant administration surface
+                  {t('navigation:groups.tenantAdmin')}
                 </Text>
                 {tenantAdminItems.map((item) => (
                   <NavLink
                     active={isNavigationItemActive(item.to)}
                     key={item.to}
                     component={RouterNavLink}
-                    description="Tenant administration surface"
-                    label={item.label}
+                    description={t('navigation:groups.tenantAdmin')}
+                    label={t(`navigation:${item.labelKey}`)}
                     leftSection={<item.icon size={18} stroke={1.8} />}
                     onClick={close}
                     to={item.to}
@@ -371,15 +374,15 @@ export function AppShellLayout() {
             {globalControlPlaneItems.length ? (
               <Stack gap="xs">
                 <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                  Global control-plane surface
+                  {t('navigation:groups.global')}
                 </Text>
                 {globalControlPlaneItems.map((item) => (
                   <NavLink
                     active={isNavigationItemActive(item.to)}
                     key={item.to}
                     component={RouterNavLink}
-                    description="Global control-plane surface"
-                    label={item.label}
+                    description={t('navigation:groups.global')}
+                    label={t(`navigation:${item.labelKey}`)}
                     leftSection={<item.icon size={18} stroke={1.8} />}
                     onClick={close}
                     to={item.to}
@@ -394,15 +397,15 @@ export function AppShellLayout() {
 
         <AppShell.Section>
           <Stack gap="xs">
+            <LanguageSelector />
             <Group gap="xs">
               <IconShield size={16} />
               <Text size="sm" fw={600}>
-                Security posture
+                {t('navigation:securityTitle')}
               </Text>
             </Group>
             <Text size="sm" c="dimmed">
-              Cookie-only browser auth, encrypted provider secrets, and
-              role-aware navigation.
+              {t('navigation:securityDescription')}
             </Text>
           </Stack>
         </AppShell.Section>

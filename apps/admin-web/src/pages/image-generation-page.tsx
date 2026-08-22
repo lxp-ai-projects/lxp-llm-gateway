@@ -1,4 +1,5 @@
 import { Grid } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../components/page-header';
 import { ImageHistoryPanel } from '../features/image-lab/components/image-history-panel';
@@ -7,6 +8,7 @@ import { ImageResultsPanel } from '../features/image-lab/components/image-result
 import { useImageLab } from '../features/image-lab/use-image-lab';
 
 export function ImageGenerationPage() {
+  const { t } = useTranslation('pages');
   const imageLab = useImageLab();
 
   return (
@@ -25,8 +27,8 @@ export function ImageGenerationPage() {
         type="file"
       />
       <PageHeader
-        title="Image Generation Lab"
-        description="Generate, edit, save, and reuse images through the gateway-managed image workflow."
+        title={t('image.title')}
+        description={t('image.description')}
       />
 
       <Grid>

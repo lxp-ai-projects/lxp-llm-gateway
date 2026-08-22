@@ -1,4 +1,5 @@
 import { Alert, Grid, Stack } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 
 import { ProviderCredentialForm } from '../features/providers/components/provider-credential-form';
 import { ProviderCredentialsPanel } from '../features/providers/components/provider-credentials-panel';
@@ -9,6 +10,7 @@ import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 
 export function ProvidersPage() {
+  const { t } = useTranslation('pages');
   const sessionQuery = useSession();
   const {
     apiToken,
@@ -69,8 +71,8 @@ export function ProvidersPage() {
   return (
     <>
       <PageHeader
-        title="Provider Credentials"
-        description="Manage your write-only provider credentials and choose separate default provider/model pairs for gateway chat and gateway image generation/editing."
+        title={t('providers.title')}
+        description={t('providers.description')}
         context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
@@ -146,10 +148,8 @@ export function ProvidersPage() {
           />
         </Grid.Col>
       </Grid>
-      <Alert color="blue" mt="lg" title="Boundary reminder">
-        Administrators may create or reset another user provider credential, but
-        they should only ever see the masked version of another user secret,
-        never the raw token.
+      <Alert color="blue" mt="lg" title={t('providers.boundaryTitle')}>
+        {t('providers.boundaryDescription')}
       </Alert>
     </>
   );

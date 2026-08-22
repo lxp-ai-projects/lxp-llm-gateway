@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 
 import type { GatewayVideoGenerationJob } from '../../../lib/api-client.types';
+import { formatDateTime } from '../../../i18n/format';
 import type { ReturnTypeUseVideoLab } from '../use-video-lab.types';
 
 export function VideoHistoryPanel({
@@ -48,7 +49,7 @@ export function VideoHistoryPanel({
                         {job.providerId} / {job.model}
                       </Text>
                       <Text c="dimmed" size="sm">
-                        {new Date(job.createdAt).toLocaleString()}
+                        {formatDateTime(job.createdAt)}
                       </Text>
                     </Stack>
                     <Group gap="xs">
