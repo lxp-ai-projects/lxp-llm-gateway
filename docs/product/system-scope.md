@@ -191,3 +191,11 @@ identity. The expected-tenant header is mandatory and must match the tenant
 resolved from the key. Evaluation Lab and PGS are provisioned as distinct
 clients with distinct keys, and the Gateway deadline actively cancels provider
 transport rather than only abandoning the local wait.
+
+## Model-family reasoning
+
+Claude, OpenAI reasoning, xAI Grok, and GLM controls are modeled as properties of
+the underlying model family. Verified NanoGPT and OpenRouter mappings translate
+those controls inside their adapters; unsupported or lossy combinations are
+rejected instead of silently ignored. Aggregator token-count fidelity and safe
+structured provider error metadata are explicit in normalized responses.

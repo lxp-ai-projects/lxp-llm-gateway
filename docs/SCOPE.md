@@ -565,3 +565,11 @@ compares that value with the tenant authenticated from the key and fails closed
 when it is absent or different. Evaluation Lab and PGS use separate clients and
 keys. The profile deadline propagates through `provider-sdk` to the provider
 transport, and an aborted request cannot emit success audit or usage telemetry.
+
+## Model-family reasoning routing
+
+The shared seam now detects Claude, OpenAI reasoning, xAI Grok, and GLM model
+families independently of transport. NanoGPT and OpenRouter consume an explicit,
+fail-closed compatibility matrix without leaking request formats into
+`gateway-api`. Aggregator responses identify preflight token counting as
+unavailable, and safe structured upstream error fields cross the provider seam.
