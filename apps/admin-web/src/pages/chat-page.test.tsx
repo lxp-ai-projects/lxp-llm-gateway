@@ -1158,3 +1158,15 @@ test('ChatPage shows a truncation warning when the model stops at the output lim
     ),
   ).not.toBeInTheDocument();
 });
+
+test('ChatPage model selector supports catalog search', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ChatPage />);
+
+  const modelSelect = await screen.findByTestId('chat-model-select');
+  await user.click(modelSelect);
+  await user.clear(modelSelect);
+  await user.type(modelSelect, 'model-that-does-not-exist');
+
+  expect(await screen.findByText('No models found')).toBeInTheDocument();
+});

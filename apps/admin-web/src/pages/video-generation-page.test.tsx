@@ -710,6 +710,14 @@ test('VideoGenerationPage deletes a terminal job from the results panel', async 
 
 
 
+test('VideoGenerationPage model selector supports catalog search', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<VideoGenerationPage />);
 
+  const modelSelect = await screen.findByTestId('video-model-select');
+  await user.click(modelSelect);
+  await user.clear(modelSelect);
+  await user.type(modelSelect, 'model-that-does-not-exist');
 
-
+  expect(await screen.findByText('No models found')).toBeInTheDocument();
+});

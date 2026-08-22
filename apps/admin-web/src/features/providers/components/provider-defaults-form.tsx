@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Group,
+  Select,
   Stack,
   Text,
   Title,
@@ -142,37 +143,32 @@ export function ProviderDefaultsForm({
                       ))}
                     </select>
                   </label>
-                  <label className="form-native-field">
-                    <HelpLabel
-                      label="Default model"
-                      help="Model used for chat requests when the caller omits an explicit model."
-                    />
-                    <select
-                      aria-label="Default model"
-                      className="form-native-select"
-                      data-testid="providers-default-model"
-                      disabled={
-                        !defaultProviderId || isModelLoading || Boolean(modelErrorMessage)
-                      }
-                      onChange={(event) =>
-                        onDefaultModelChange(event.currentTarget.value || null)
-                      }
-                      value={defaultModel ?? ''}
-                    >
-                      <option value="">
-                        {defaultProviderId
-                          ? isModelLoading
-                            ? 'Loading provider models...'
-                            : 'Choose a default model'
-                          : 'Choose a default provider first'}
-                      </option>
-                      {defaultModelOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <Select
+                    data={defaultModelOptions}
+                    data-testid="providers-default-model"
+                    disabled={
+                      !defaultProviderId || isModelLoading || Boolean(modelErrorMessage)
+                    }
+                    label={
+                      <HelpLabel
+                        label="Default model"
+                        help="Model used for chat requests when the caller omits an explicit model."
+                      />
+                    }
+                    limit={100}
+                    nothingFoundMessage="No models found"
+                    onChange={onDefaultModelChange}
+                    placeholder={
+                      defaultProviderId
+                        ? isModelLoading
+                          ? 'Loading provider models...'
+                          : 'Choose a default model'
+                        : 'Choose a default provider first'
+                    }
+                    searchable
+                    selectFirstOptionOnChange
+                    value={defaultModel}
+                  />
                   {modelErrorMessage ? (
                     <Alert
                       color="red"
@@ -232,39 +228,34 @@ export function ProviderDefaultsForm({
                       ))}
                     </select>
                   </label>
-                  <label className="form-native-field">
-                    <HelpLabel
-                      label="Default image model"
-                      help="Model used for image generation or editing when the caller omits an explicit model."
-                    />
-                    <select
-                      aria-label="Default image model"
-                      className="form-native-select"
-                      data-testid="providers-default-image-model"
-                      disabled={
-                        !defaultImageProviderId ||
-                        isImageModelLoading ||
-                        Boolean(imageModelErrorMessage)
-                      }
-                      onChange={(event) =>
-                        onDefaultImageModelChange(event.currentTarget.value || null)
-                      }
-                      value={defaultImageModel ?? ''}
-                    >
-                      <option value="">
-                        {defaultImageProviderId
-                          ? isImageModelLoading
-                            ? 'Loading provider models...'
-                            : 'Choose a default model'
-                          : 'Choose a default provider first'}
-                      </option>
-                      {defaultImageModelOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <Select
+                    data={defaultImageModelOptions}
+                    data-testid="providers-default-image-model"
+                    disabled={
+                      !defaultImageProviderId ||
+                      isImageModelLoading ||
+                      Boolean(imageModelErrorMessage)
+                    }
+                    label={
+                      <HelpLabel
+                        label="Default image model"
+                        help="Model used for image generation or editing when the caller omits an explicit model."
+                      />
+                    }
+                    limit={100}
+                    nothingFoundMessage="No models found"
+                    onChange={onDefaultImageModelChange}
+                    placeholder={
+                      defaultImageProviderId
+                        ? isImageModelLoading
+                          ? 'Loading provider models...'
+                          : 'Choose a default model'
+                        : 'Choose a default provider first'
+                    }
+                    searchable
+                    selectFirstOptionOnChange
+                    value={defaultImageModel}
+                  />
                   {imageModelErrorMessage ? (
                     <Alert
                       color="red"

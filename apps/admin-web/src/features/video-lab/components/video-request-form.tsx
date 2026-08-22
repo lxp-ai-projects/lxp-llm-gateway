@@ -243,7 +243,11 @@ export function VideoRequestForm({
             }))}
             data-testid="video-model-select"
             label="Model"
+            limit={100}
+            nothingFoundMessage="No models found"
             onChange={(value) => videoLab.setModelId(value ?? '')}
+            searchable
+            selectFirstOptionOnChange
             value={videoLab.modelId}
           />
 
