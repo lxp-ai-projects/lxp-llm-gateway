@@ -129,11 +129,13 @@ export class GatewayService {
   async evaluateProfileChat(
     request: GatewayChatRequest,
     authContext: GatewayIntegrationClientAuthContext,
+    signal?: AbortSignal,
   ): Promise<GatewayChatResponse> {
     return this.executeControlledChat(
       request,
       authContext,
       '/api/v1/evaluations',
+      signal,
     );
   }
 
@@ -141,6 +143,7 @@ export class GatewayService {
     request: GatewayChatRequest,
     authContext: GatewayIntegrationClientAuthContext,
     route: string,
+    signal?: AbortSignal,
   ): Promise<GatewayChatResponse> {
     const providerId = this.resolveProviderId(request.providerId, authContext);
     const configuration =
@@ -229,6 +232,7 @@ export class GatewayService {
         model,
         tenantPolicyMaxInputTokens: tenantPolicy?.maxInputTokens ?? null,
         ruleMaxInputTokens: modelAccessRule?.maxInputTokens ?? null,
+        signal,
       });
       await this.tenantRlsService.withTenantLockContext(
         authContext.activeTenantId,
@@ -258,8 +262,10 @@ export class GatewayService {
           requestId,
           userId: this.providerPrincipalId(authContext),
           providerAccess,
+          signal,
         },
       );
+      signal?.throwIfAborted();
 
       this.gatewayAuditService.logSucceeded({
         ...auditBase,
@@ -690,6 +696,7 @@ export class GatewayService {
     model: string;
     tenantPolicyMaxInputTokens: number | null;
     ruleMaxInputTokens: number | null;
+    signal?: AbortSignal;
   }): Promise<void> {
     const maxInputTokens = this.resolveEffectiveMaxInputTokens([
       params.tenantPolicyMaxInputTokens,
@@ -714,6 +721,7 @@ export class GatewayService {
         requestId: crypto.randomUUID(),
         userId: this.providerPrincipalId(params.authContext),
         providerAccess: params.providerAccess,
+        signal: params.signal,
       },
     );
 

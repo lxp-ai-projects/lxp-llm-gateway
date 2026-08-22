@@ -86,6 +86,31 @@ class FakeProviderRegistryService {
   }
 }
 
+class LateSuccessProvider extends FakeProvider {
+  signal: AbortSignal | undefined;
+  resolveChat: ((response: GatewayChatResponse) => void) | undefined;
+  readonly started: Promise<void>;
+  private resolveStarted!: () => void;
+
+  constructor() {
+    super();
+    this.started = new Promise<void>((resolve) => {
+      this.resolveStarted = resolve;
+    });
+  }
+
+  override chat(
+    request: GatewayChatRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayChatResponse> {
+    this.signal = context.signal;
+    this.resolveStarted();
+    return new Promise((resolve) => {
+      this.resolveChat = resolve;
+    });
+  }
+}
+
 class FailingListModelsProvider extends FakeProvider {
   async listModels(): Promise<never> {
     throw new Error(
@@ -211,11 +236,18 @@ class FakeTenantProviderConfigurationService {
 }
 
 class FakeGatewayTelemetryService {
+  successCount = 0;
+  failureCount = 0;
+
   async reserveChatUsageEvent(): Promise<void> {}
 
-  async recordChatSuccess(): Promise<void> {}
+  async recordChatSuccess(): Promise<void> {
+    this.successCount += 1;
+  }
 
-  async recordChatFailure(): Promise<void> {}
+  async recordChatFailure(): Promise<void> {
+    this.failureCount += 1;
+  }
 
   async recordBlockedByQuota(): Promise<void> {}
 
@@ -325,14 +357,20 @@ class FakeTenantPolicyService {
 
 class FakeGatewayAuditService {
   public startedEvents: Array<Record<string, unknown>> = [];
+  public succeededCount = 0;
+  public failedCount = 0;
 
   logStarted(event: Record<string, unknown>): void {
     this.startedEvents.push(event);
   }
 
-  logSucceeded(): void {}
+  logSucceeded(): void {
+    this.succeededCount += 1;
+  }
 
-  logFailed(): void {}
+  logFailed(): void {
+    this.failedCount += 1;
+  }
 
   fingerprint(emailHash: string): string {
     return emailHash;
@@ -487,6 +525,64 @@ test('GatewayService routes controlled evaluation chat without requiring chat sc
   assert.equal(auditService.startedEvents[0]?.integrationClientId, 'pgs');
   assert.equal(auditService.startedEvents[0]?.apiKeyId, 'key-pgs');
   assert.equal(auditService.startedEvents[0]?.resolvedUserUuid, null);
+});
+
+test('GatewayService rejects a late provider success after evaluation cancellation', async () => {
+  const provider = new LateSuccessProvider();
+  const telemetry = new FakeGatewayTelemetryService();
+  const audit = new FakeGatewayAuditService();
+  const service = new GatewayService(
+    audit as unknown as GatewayAuditService,
+    telemetry as never,
+    { getProvider: () => provider } as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+  const controller = new AbortController();
+  const operation = service.evaluateProfileChat(
+    {
+      providerId: 'nanogpt',
+      model: 'controlled-evaluator',
+      messages: [{ role: 'user', content: '{}' }],
+    },
+    {
+      userId: null,
+      userUuid: null,
+      emailHash: null,
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'lxp-internal',
+      identitySource: 'integration-client-service',
+      roles: [],
+      globalRoles: [],
+      integrationClientId: 'pgs',
+      integrationClientKeyId: 'key-pgs',
+      integrationClientScopes: ['evaluation:invoke'],
+      defaultProviderId: null,
+      defaultModel: null,
+      defaultImageProviderId: null,
+      defaultImageModel: null,
+    },
+    controller.signal,
+  );
+
+  await provider.started;
+  controller.abort();
+  assert.equal(provider.signal?.aborted, true);
+  provider.resolveChat?.({
+    requestId: 'evaluation-late-success',
+    providerId: 'nanogpt',
+    model: 'controlled-evaluator',
+    message: { role: 'assistant', content: '{}' },
+  });
+
+  await assert.rejects(operation);
+  assert.equal(audit.succeededCount, 0);
+  assert.equal(audit.failedCount, 1);
+  assert.equal(telemetry.successCount, 0);
+  assert.equal(telemetry.failureCount, 1);
 });
 
 test('GatewayService readiness and evaluation execution share the credential resolver', async () => {

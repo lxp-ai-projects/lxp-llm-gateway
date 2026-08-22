@@ -385,6 +385,48 @@ test('NanoGptProviderAdapter fails with an explicit timeout error when the provi
   }
 });
 
+test('NanoGptProviderAdapter forwards an external cancellation signal to provider fetch', async () => {
+  const originalFetch = globalThis.fetch;
+  let observedSignal: AbortSignal | undefined;
+
+  globalThis.fetch = (async (_url, init) =>
+    new Promise<Response>((_resolve, reject) => {
+      observedSignal = init?.signal as AbortSignal | undefined;
+      observedSignal?.addEventListener(
+        'abort',
+        () => reject(new DOMException('The operation was aborted.', 'AbortError')),
+        { once: true },
+      );
+    })) as typeof fetch;
+
+  try {
+    const controller = new AbortController();
+    const adapter = new NanoGptProviderAdapter(
+      'https://nano-gpt.com/api/v1',
+      90000,
+    );
+    const operation = adapter.chat(
+      {
+        model: 'z-ai/glm-4.6:thinking',
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-cancelled',
+        userId: 'service:pgs',
+        providerAccess: { apiKey: 'nano-secret-token' },
+        signal: controller.signal,
+      },
+    );
+
+    controller.abort();
+
+    await assert.rejects(operation, /timed out|aborted/i);
+    assert.equal(observedSignal?.aborted, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtime', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];

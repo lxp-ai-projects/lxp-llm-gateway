@@ -220,12 +220,30 @@ test('enforces the evaluator profile timeout', async () => {
     '1',
     'pgs-grounding-v1',
   );
+  let providerSignal: AbortSignal | undefined;
+  let providerCompleted = false;
   const service = new EvaluationService(
     {
       resolve: () => ({ ...baseProfile, timeoutMs: 5 }),
     } as never,
     {
-      evaluateProfileChat: () => new Promise(() => undefined),
+      evaluateProfileChat: (
+        _request: unknown,
+        _authContext: unknown,
+        signal: AbortSignal,
+      ) =>
+        new Promise((_resolve, reject) => {
+          providerSignal = signal;
+          signal.addEventListener(
+            'abort',
+            () => {
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+        }).finally(() => {
+          providerCompleted = true;
+        }),
     } as never,
     {
       assertScope: () => undefined,
@@ -248,6 +266,47 @@ test('enforces the evaluator profile timeout', async () => {
       return true;
     },
   );
+  assert.equal(providerSignal?.aborted, true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(providerCompleted, true);
+});
+
+test('clears the evaluator timeout after a successful response', async () => {
+  const baseProfile = new EvaluationProfileRegistry().resolve(
+    '1',
+    'pgs-grounding-v1',
+  );
+  let providerSignal: AbortSignal | undefined;
+  const service = new EvaluationService(
+    {
+      resolve: () => ({ ...baseProfile, timeoutMs: 10 }),
+    } as never,
+    {
+      evaluateProfileChat: async (
+        _request: unknown,
+        _authContext: unknown,
+        signal: AbortSignal,
+      ) => {
+        providerSignal = signal;
+        return {
+          requestId: 'evaluation-success',
+          providerId: 'openai',
+          model: 'gpt-evaluator',
+          message: { role: 'assistant', content: JSON.stringify(evidence) },
+        };
+      },
+    } as never,
+    {
+      assertScope: () => undefined,
+    } as never,
+  );
+
+  await service.evaluate(
+    { schemaVersion: '1', profileId: 'pgs-grounding-v1', input },
+    authContext,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(providerSignal?.aborted, false);
 });
 
 test('fails closed when provider output is malformed or authoritative', async () => {

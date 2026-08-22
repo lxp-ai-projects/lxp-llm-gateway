@@ -7,6 +7,7 @@ import {
   Code,
   Grid,
   Group,
+  Menu,
   Modal,
   MultiSelect,
   Select,
@@ -21,7 +22,7 @@ import {
   Tooltip,
   PasswordInput,
 } from '@mantine/core';
-import { IconHelpCircle } from '@tabler/icons-react';
+import { IconChevronDown, IconHelpCircle } from '@tabler/icons-react';
 import { useState } from 'react';
 import { INTEGRATION_CLIENT_SCOPES } from '@lxp/domain';
 
@@ -1091,62 +1092,69 @@ export function TenantsPage() {
                                 </Group>
                               </Table.Td>
                               <Table.Td>
-                                <Group gap="xs">
-                                  <Button
-                                    size="xs"
-                                    variant="subtle"
-                                    onClick={() =>
-                                      onSelectIntegrationClient(client)
-                                    }
-                                  >
-                                    View keys
-                                  </Button>
-                                  <Button
-                                    size="xs"
-                                    variant="light"
-                                    loading={
-                                      isTestTenantIntegrationClientPending &&
-                                      testingIntegrationClientId === client.id
-                                    }
-                                    onClick={() =>
-                                      onTestIntegrationClient(client)
-                                    }
-                                  >
-                                    Test client
-                                  </Button>
-                                  <Button
-                                    size="xs"
-                                    variant="light"
-                                    onClick={() =>
-                                      onOpenEditIntegrationClient(client)
-                                    }
-                                  >
-                                    Edit client
-                                  </Button>
-                                  <Button
-                                    size="xs"
-                                    onClick={() =>
-                                      onOpenCreateIntegrationApiKey(client)
-                                    }
-                                  >
-                                    Create key
-                                  </Button>
-                                  <Button
-                                    color="red"
-                                    loading={
-                                      isDeleteTenantIntegrationClientPending
-                                    }
-                                    size="xs"
-                                    variant="subtle"
-                                    onClick={() =>
-                                      handleDeleteTenantIntegrationClient(
-                                        client,
-                                      )
-                                    }
-                                  >
-                                    Delete client
-                                  </Button>
-                                </Group>
+                                <Menu
+                                  position="bottom-end"
+                                  withinPortal
+                                >
+                                  <Menu.Target>
+                                    <Button
+                                      aria-label={`Actions for ${client.displayName}`}
+                                      disabled={
+                                        isDeleteTenantIntegrationClientPending
+                                      }
+                                      loading={
+                                        isTestTenantIntegrationClientPending &&
+                                        testingIntegrationClientId === client.id
+                                      }
+                                      rightSection={<IconChevronDown size={14} />}
+                                      size="xs"
+                                      variant="light"
+                                    >
+                                      Actions
+                                    </Button>
+                                  </Menu.Target>
+                                  <Menu.Dropdown>
+                                    <Menu.Item
+                                      onClick={() =>
+                                        onSelectIntegrationClient(client)
+                                      }
+                                    >
+                                      View keys
+                                    </Menu.Item>
+                                    <Menu.Item
+                                      onClick={() =>
+                                        onTestIntegrationClient(client)
+                                      }
+                                    >
+                                      Test client
+                                    </Menu.Item>
+                                    <Menu.Item
+                                      onClick={() =>
+                                        onOpenEditIntegrationClient(client)
+                                      }
+                                    >
+                                      Edit client
+                                    </Menu.Item>
+                                    <Menu.Item
+                                      onClick={() =>
+                                        onOpenCreateIntegrationApiKey(client)
+                                      }
+                                    >
+                                      Create key
+                                    </Menu.Item>
+                                    <Menu.Divider />
+                                    <Menu.Item
+                                      color="red"
+                                      onClick={() =>
+                                        handleDeleteTenantIntegrationClient(
+                                          client,
+                                        )
+                                      }
+                                    >
+                                      Delete client
+                                    </Menu.Item>
+                                  </Menu.Dropdown>
+                                </Menu>
                               </Table.Td>
                             </Table.Tr>
                           ))}
@@ -1233,48 +1241,50 @@ export function TenantsPage() {
                                     </Text>
                                   </Table.Td>
                                   <Table.Td>
-                                    <Group gap="xs">
-                                      <Button
-                                        size="xs"
-                                        variant="light"
-                                        onClick={() =>
-                                          onOpenEditIntegrationApiKey(
-                                            selectedIntegrationClient,
-                                            apiKey,
-                                          )
-                                        }
-                                      >
-                                        Edit key
-                                      </Button>
-                                      <Button
-                                        size="xs"
-                                        variant="subtle"
-                                        onClick={() =>
-                                          onOpenEditIntegrationApiKey(
-                                            selectedIntegrationClient,
-                                            apiKey,
-                                          )
-                                        }
-                                      >
-                                        Select
-                                      </Button>
-                                      <Button
-                                        color="red"
-                                        loading={
-                                          isDeleteTenantIntegrationApiKeyPending
-                                        }
-                                        size="xs"
-                                        variant="subtle"
-                                        onClick={() =>
-                                          handleDeleteTenantIntegrationApiKey(
-                                            selectedIntegrationClient,
-                                            apiKey,
-                                          )
-                                        }
-                                      >
-                                        Delete key
-                                      </Button>
-                                    </Group>
+                                    <Menu
+                                      position="bottom-end"
+                                      withinPortal
+                                    >
+                                      <Menu.Target>
+                                        <Button
+                                          aria-label={`Actions for ${apiKey.label}`}
+                                          disabled={
+                                            isDeleteTenantIntegrationApiKeyPending
+                                          }
+                                          rightSection={
+                                            <IconChevronDown size={14} />
+                                          }
+                                          size="xs"
+                                          variant="light"
+                                        >
+                                          Actions
+                                        </Button>
+                                      </Menu.Target>
+                                      <Menu.Dropdown>
+                                        <Menu.Item
+                                          onClick={() =>
+                                            onOpenEditIntegrationApiKey(
+                                              selectedIntegrationClient,
+                                              apiKey,
+                                            )
+                                          }
+                                        >
+                                          Edit key
+                                        </Menu.Item>
+                                        <Menu.Divider />
+                                        <Menu.Item
+                                          color="red"
+                                          onClick={() =>
+                                            handleDeleteTenantIntegrationApiKey(
+                                              selectedIntegrationClient,
+                                              apiKey,
+                                            )
+                                          }
+                                        >
+                                          Delete key
+                                        </Menu.Item>
+                                      </Menu.Dropdown>
+                                    </Menu>
                                   </Table.Td>
                                 </Table.Tr>
                               ))}

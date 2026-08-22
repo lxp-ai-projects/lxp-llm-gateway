@@ -12,6 +12,7 @@ import {
 
 test('authenticates only a service identity before delegating evaluation', async () => {
   const calls: unknown[] = [];
+  const authCalls: unknown[] = [];
   const evaluations = {
     evaluate: async (...args: unknown[]) => {
       calls.push(args);
@@ -19,7 +20,10 @@ test('authenticates only a service identity before delegating evaluation', async
     },
   };
   const auth = {
-    authenticateIntegrationClientRequest: async () => authContext,
+    authenticateIntegrationClientRequest: async (...args: unknown[]) => {
+      authCalls.push(args);
+      return authContext;
+    },
   };
   const controller = new EvaluationController(
     evaluations as never,
@@ -31,11 +35,17 @@ test('authenticates only a service identity before delegating evaluation', async
     input,
   };
 
+  const headers = { 'x-lxp-expected-tenant-id': 'tenant-1' };
   const result = await controller.evaluate(request, 'Bearer integration-key', {
-    headers: {},
+    headers,
   } as never);
   assert.deepEqual(result, { evaluationId: 'evaluation-1' });
   assert.deepEqual(calls[0], [request, authContext]);
+  assert.deepEqual(authCalls[0], [
+    'Bearer integration-key',
+    headers,
+    { requireExpectedTenant: true, requireServiceOnly: true },
+  ]);
 });
 
 test('returns 401 for a missing or invalid service identity', async () => {

@@ -191,6 +191,7 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       `${this.resolveBaseUrl(context)}/v1/messages/count_tokens`,
       {
         method: 'POST',
+        signal: context.signal,
         headers: {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),
@@ -236,6 +237,7 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       `${this.resolveBaseUrl(context)}/v1/messages`,
       {
         method: 'POST',
+        signal: context.signal,
         headers: {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),
@@ -547,7 +549,9 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     try {
       return await fetch(url, {
         ...init,
-        signal: controller.signal,
+        signal: init.signal
+          ? AbortSignal.any([init.signal, controller.signal])
+          : controller.signal,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {

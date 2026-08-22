@@ -185,3 +185,9 @@ The Gateway may produce validated structured evidence through allowlisted,
 server-controlled profiles. Downstream systems such as PGS remain responsible
 for interpreting that evidence and making policy or capability decisions. The
 operator Evaluation Lab is a bounded diagnostic surface, not a policy workbench.
+
+Evaluation execution accepts only a tenant-bound service-only integration
+identity. The expected-tenant header is mandatory and must match the tenant
+resolved from the key. Evaluation Lab and PGS are provisioned as distinct
+clients with distinct keys, and the Gateway deadline actively cancels provider
+transport rather than only abandoning the local wait.

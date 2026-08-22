@@ -22,6 +22,10 @@ export class EvaluationController {
     const authContext = await this.auth.authenticateIntegrationClientRequest(
       authorizationHeader,
       httpRequest.headers,
+      {
+        requireExpectedTenant: true,
+        requireServiceOnly: true,
+      },
     );
     return this.evaluations.evaluate(request, authContext);
   }

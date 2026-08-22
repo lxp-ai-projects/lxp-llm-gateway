@@ -150,6 +150,7 @@ export class GroqProviderAdapter implements LlmProviderAdapter {
       `${this.resolveBaseUrl(context)}/chat/completions`,
       {
         method: 'POST',
+        signal: context.signal,
         headers: {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),
@@ -200,7 +201,9 @@ export class GroqProviderAdapter implements LlmProviderAdapter {
     try {
       return await fetch(url, {
         ...init,
-        signal: controller.signal,
+        signal: init.signal
+          ? AbortSignal.any([init.signal, controller.signal])
+          : controller.signal,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {

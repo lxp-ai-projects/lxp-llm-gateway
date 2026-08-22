@@ -231,6 +231,16 @@ test('GatewayAuthService resolves a tenant-scoped integration client default use
         });
       assert.equal(evaluationContext.activeTenantId, tenant.id);
       await assert.rejects(
+        () =>
+          service.authenticateIntegrationClientRequest(
+            `Bearer ${apiKey}`,
+            { 'x-lxp-expected-tenant-id': tenant.id },
+            { requireExpectedTenant: true, requireServiceOnly: true },
+          ),
+        (error: unknown) =>
+          (error as { getStatus(): number }).getStatus() === 403,
+      );
+      await assert.rejects(
         service.authenticateIntegrationClientRequest(`Bearer ${apiKey}`, {
           'x-lxp-expected-tenant-id': 'tenant-spoof',
         }),
@@ -289,6 +299,22 @@ test('GatewayAuthService authenticates a service-only integration client without
   assert.equal(authContext.userId, null);
   assert.equal(authContext.userUuid, null);
   assert.deepEqual(authContext.integrationClientScopes, ['evaluation:invoke']);
+
+  await assert.rejects(
+    () =>
+      service.authenticateIntegrationClientRequest(
+        `Bearer ${apiKey}`,
+        {},
+        { requireExpectedTenant: true, requireServiceOnly: true },
+      ),
+    (error: unknown) => (error as { getStatus(): number }).getStatus() === 401,
+  );
+  const boundedContext = await service.authenticateIntegrationClientRequest(
+    `Bearer ${apiKey}`,
+    { 'x-lxp-expected-tenant-id': tenant.id },
+    { requireExpectedTenant: true, requireServiceOnly: true },
+  );
+  assert.equal(boundedContext.identitySource, 'integration-client-service');
 
   await assert.rejects(
     () => service.authenticateGatewayRequest(`Bearer ${apiKey}`),

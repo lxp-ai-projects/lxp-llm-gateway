@@ -444,7 +444,14 @@ ceiling and API-key scopes form a delegated subset, with their intersection used
 at authentication time. Service-only evaluation resolves only the active
 encrypted tenant credential matching the profile provider. It ignores user BYOK
 and environment-backed platform fallback and never fabricates a user. This
-boundary is formalized by
-`docs/architecture/decisions/ADR-012-service-evaluation-provider-credentials.md`;
+execution route also requires an expected-tenant header matching the
+authenticated client, rejects user-bound integration identities, and propagates
+its deadline as an abort signal through `provider-sdk` to provider transport.
+Evaluation Lab and PGS use distinct integration clients and API keys so their
+rotation, revocation, and audit attribution remain independent. These
+boundaries are formalized by
+`docs/architecture/decisions/ADR-012-service-evaluation-provider-credentials.md`
+and
+`docs/architecture/decisions/ADR-013-structured-evaluation-execution-hardening.md`;
 the PR14 audit and validation record is in
 `docs/delivery/pr14-provider-credential-stabilization.md`.

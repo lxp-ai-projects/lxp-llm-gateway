@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import { renderWithProviders } from '../test/test-utils';
@@ -311,7 +311,7 @@ test('TenantsPage renders the integration client surface and revealed api key', 
   expect(screen.getAllByText('Primary key').length).toBeGreaterThan(0);
 });
 
-test('TenantsPage forwards integration client and api key actions', () => {
+test('TenantsPage forwards integration client and api key actions', async () => {
   const controller = createController();
   useTenantsControllerMock.mockReturnValue(controller);
 
@@ -321,7 +321,27 @@ test('TenantsPage forwards integration client and api key actions', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
   expect(controller.onOpenCreateIntegrationClient).toHaveBeenCalledTimes(1);
 
-  fireEvent.click(screen.getAllByRole('button', { name: 'Create key' })[0]!);
+  const clientActions = screen.getByRole('button', {
+    name: 'Actions for Open WebUI Demo',
+  });
+  const clickClientAction = async (name: string) => {
+    fireEvent.click(clientActions);
+    const clientMenuId = clientActions.getAttribute('aria-controls');
+    expect(clientMenuId).not.toBeNull();
+    const clientMenu = await waitFor(() => {
+      const menu = document.getElementById(clientMenuId!);
+      expect(menu).not.toBeNull();
+      return menu!;
+    });
+    fireEvent.click(
+      within(clientMenu).getByRole('menuitem', { name, hidden: true }),
+    );
+    await waitFor(() =>
+      expect(clientActions).toHaveAttribute('aria-expanded', 'false'),
+    );
+  };
+
+  await clickClientAction('Create key');
   expect(controller.onOpenCreateIntegrationApiKey).toHaveBeenCalledWith(
     controller.selectedIntegrationClient,
   );
@@ -331,23 +351,39 @@ test('TenantsPage forwards integration client and api key actions', () => {
     .closest('div');
   expect(keySection).not.toBeNull();
 
-  fireEvent.click(screen.getByRole('button', { name: 'Edit client' }));
+  await clickClientAction('Edit client');
   expect(controller.onOpenEditIntegrationClient).toHaveBeenCalledWith(
     controller.selectedIntegrationClient,
   );
 
-  fireEvent.click(screen.getByRole('button', { name: 'Test client' }));
+  await clickClientAction('Test client');
   expect(controller.onTestIntegrationClient).toHaveBeenCalledWith(
     controller.selectedIntegrationClient,
   );
 
-  fireEvent.click(screen.getByRole('button', { name: 'Delete key' }));
+  const keyActions = screen.getByRole('button', {
+    name: 'Actions for Primary key',
+  });
+  fireEvent.click(keyActions);
+  const keyMenuId = keyActions.getAttribute('aria-controls');
+  expect(keyMenuId).not.toBeNull();
+  const keyMenu = await waitFor(() => {
+    const menu = document.getElementById(keyMenuId!);
+    expect(menu).not.toBeNull();
+    return menu!;
+  });
+  fireEvent.click(
+    within(keyMenu).getByRole('menuitem', {
+      name: 'Delete key',
+      hidden: true,
+    }),
+  );
   expect(controller.handleDeleteTenantIntegrationApiKey).toHaveBeenCalledWith(
     controller.selectedIntegrationClient,
     controller.selectedIntegrationApiKey,
   );
 
-  fireEvent.click(screen.getByRole('button', { name: 'Delete client' }));
+  await clickClientAction('Delete client');
   expect(controller.handleDeleteTenantIntegrationClient).toHaveBeenCalledWith(
     controller.selectedIntegrationClient,
   );

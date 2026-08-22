@@ -35,7 +35,8 @@ replaced by a secret manager without changing probe or readiness behavior.
 
 Provision a dedicated identity for each tenant whose operators may run probes:
 
-1. In Admin Web, open the intended tenant and create an integration client.
+1. In Admin Web, open the intended tenant and create an integration client
+   named `admin-evaluation-lab`.
 2. Select service-only identity and leave the optional default user empty.
 3. Grant the client only `evaluation:invoke` and leave trusted forwarded
    identity disabled.
@@ -50,13 +51,13 @@ Provision a dedicated identity for each tenant whose operators may run probes:
 6. Restart Admin API after changing its environment.
 
 Separately, enable the profile's selected provider for the tenant and configure
-a tenant-scoped credential, or explicitly permit the corresponding platform
-credential fallback. Service-only calls never consume a user's personal BYOK
-credential.
+a tenant-scoped credential. Platform fallback and personal BYOK are never
+eligible for service-only evaluation.
 
 Do not map a tenant UUID to a key created under another tenant. Do not reuse the
-PGS runtime identity for the Evaluation Lab; separate identities make rotation,
-revocation, and audit attribution independent.
+PGS `presence-grounding-service` client or key for the Evaluation Lab; the two
+distinct identities make rotation, revocation, and audit attribution
+independent.
 
 To deprovision an identity, first remove its tenant entry from
 `LXP_ADMIN_EVALUATION_API_KEYS_JSON` and restart Admin API. Then delete the API

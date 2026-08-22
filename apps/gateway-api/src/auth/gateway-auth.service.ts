@@ -1,5 +1,10 @@
 import { createHash, createHmac } from 'node:crypto';
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -149,6 +154,10 @@ export class GatewayAuthService {
   async authenticateIntegrationClientRequest(
     authorizationHeader?: string,
     requestHeaders?: Record<string, string | string[] | undefined>,
+    options: {
+      requireExpectedTenant?: boolean;
+      requireServiceOnly?: boolean;
+    } = {},
   ): Promise<GatewayIntegrationClientAuthContext> {
     const bearerToken = this.tryExtractBearerToken(authorizationHeader);
     if (!bearerToken) {
@@ -169,10 +178,25 @@ export class GatewayAuthService {
     const expectedTenantId = readSingleHeader(
       requestHeaders?.['x-lxp-expected-tenant-id'],
     );
+    if (options.requireExpectedTenant && !expectedTenantId) {
+      throw new UnauthorizedException(
+        'Expected tenant binding is required for this integration request.',
+      );
+    }
     if (expectedTenantId && expectedTenantId !== authContext.activeTenantId) {
       throw new UnauthorizedException(
         'Integration client API key is not bound to the expected tenant.',
       );
+    }
+    if (
+      options.requireServiceOnly &&
+      authContext.identitySource !== 'integration-client-service'
+    ) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'evaluation_service_forbidden',
+        message: 'Structured evaluation requires a service-only identity.',
+      });
     }
 
     return authContext;

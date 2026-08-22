@@ -21,8 +21,10 @@ Super-admins can inspect non-secret transport readiness through `GET /api/v1/adm
 
 `POST /api/v1/evaluations` is a service-to-service structured evidence route.
 It accepts only allowlisted evaluator profiles, requires a tenant-scoped
-integration client with `evaluation:invoke`, and never accepts arbitrary
-provider/model/prompt controls. See [Structured Evaluation API](structured-evaluations.md).
+service-only integration client with `evaluation:invoke`, and requires
+`X-Lxp-Expected-Tenant-Id` to match the tenant authenticated from its key. It
+never accepts arbitrary provider/model/prompt controls. See
+[Structured Evaluation API](structured-evaluations.md).
 
 Authenticated operators can exercise the same data-plane capability through
 the Admin API Evaluation Lab bridge. The browser retains only its normal admin
@@ -294,9 +296,9 @@ authenticated as `SERVICE:<clientId>` with no human user. Trusted forwarded
 identity supplements that service caller; a configured default user is only a
 fallback and never replaces service attribution.
 
-The structured evaluation route supports service-only clients directly. Other
-routes that still require user-owned resources fail closed when no delegated or
-default user exists.
+The structured evaluation route accepts service-only clients exclusively and
+requires explicit expected-tenant binding. Other routes that still require
+user-owned resources fail closed when no delegated or default user exists.
 
 `POST /api/v1/integration-clients/self-test` is a diagnostic route for an
 integration client to validate its own authentication, tenant binding, identity

@@ -10,6 +10,8 @@ fallbacks are excluded from this path.
 
 The implemented decision is recorded in
 `docs/architecture/decisions/ADR-012-service-evaluation-provider-credentials.md`.
+Execution hardening is recorded separately in
+`docs/architecture/decisions/ADR-013-structured-evaluation-execution-hardening.md`.
 
 ## Environment Audit
 
@@ -75,6 +77,28 @@ does not maintain a second eligibility implementation. A missing tenant
 credential is normalized to `evaluation_provider_credential_unavailable` for
 execution and `provider_credential_unavailable` for readiness.
 
+## Execution Hardening
+
+`POST /api/v1/evaluations` now requires all three authorization invariants:
+
+- an authenticated integration-client API key;
+- a canonical service-only identity with effective `evaluation:invoke` scope;
+- `X-Lxp-Expected-Tenant-Id` matching the tenant resolved from the key.
+
+A user-bound integration client is rejected even when it carries the evaluation
+scope. A missing or mismatched tenant binding fails authentication. Evaluation
+Lab and PGS must be provisioned manually as separate `admin-evaluation-lab` and
+`presence-grounding-service` clients with separate keys; no production records
+are silently rewritten.
+
+The profile deadline creates an abort signal that crosses `GatewayService` and
+the provider-neutral execution context. Text adapters combine it with their
+existing transport timeout and pass the result to `fetch`; OpenAI-compatible
+providers inherit the same behavior from the shared adapter. The Gateway checks
+for cancellation again after provider completion and before success audit or
+usage telemetry, so a provider that ignores cancellation cannot create a late
+success. Evaluation does not retry, and its timer is cleared on every outcome.
+
 ## Control Plane and UX
 
 The Admin API exposes tenant credential list, create, update/rotate,
@@ -88,27 +112,38 @@ Evaluation Lab continues to show the resolved provider and model, but missing
 credential guidance now points to tenant provider credentials instead of an
 environment variable or platform fallback.
 
+The tenant Integration Clients and API Keys tables now group row operations
+under an accessible `Actions` menu. Existing handlers, confirmations, pending
+states, and destructive styling are preserved. The redundant API-key `Select`
+action, which invoked the same edit handler as `Edit key`, was removed.
+
 ## Validation Record
 
 Automated validation completed on 2026-08-21:
 
-- Gateway API tests: 95 passed.
-- Admin API tests: 156 passed.
-- Admin Web PR14 surfaces: tenant page, Evaluation Lab, and Admin API client
-  tests passed as part of the suite.
-- Admin Web full-suite contention produced three unrelated 5-second timeouts in
-  Login and Chat tests; all 29 affected tests passed when rerun together in
-  isolation.
-- The repository-wide test gate later reached 245/246 Admin Web tests before an
-  unrelated Video Lab rendering assertion failed under parallel load; all 10
-  tests in that file passed on the immediate isolated rerun. The global command
-  is therefore not recorded as green even though every observed failure passed
-  in isolation.
-- Gateway API, Admin API, and Admin Web typechecks passed.
-- Repository-wide lint passed (10 tasks).
-- Repository-wide build passed (19 tasks).
-- Quickstart and VPS Compose configuration rendering passed with their example
-  environment files.
+- `pnpm.cmd --filter @lxp/gateway-api exec tsx --test
+  src/evaluations/evaluation.controller.test.ts
+  src/evaluations/evaluation.service.test.ts
+  src/auth/gateway-auth.service.test.ts src/gateway/gateway.service.test.ts`:
+  36 passed.
+- `pnpm.cmd --filter @lxp/admin-web exec vitest run
+  src/pages/tenants-page.test.tsx`: 5 passed.
+- `pnpm.cmd --filter @lxp/provider-nanogpt exec tsx --test
+  src/index.test.ts`: 35 passed, including external cancellation forwarding.
+- `pnpm.cmd --filter @lxp/gateway-api test`: 97 passed.
+- `pnpm.cmd --filter @lxp/admin-api test`: 156 passed.
+- `pnpm.cmd --filter @lxp/admin-web test -- --run`: 250 passed across
+  46 files.
+- `pnpm.cmd --filter @lxp/provider-sdk build` followed by
+  `pnpm.cmd typecheck`: passed (10 tasks). The initial cold typecheck exposed
+  stale generated SDK declarations, which is recorded under Remaining Debt.
+- `pnpm.cmd lint`: passed (10 tasks).
+- `pnpm.cmd build`: passed (19 tasks).
+- `pnpm.cmd format`: failed because the repository contains 448 existing
+  nonconforming files. No bulk formatting was applied, to avoid mixing
+  unrelated churn into PR14.
+- The Admin Web suite emits pre-existing React `act(...)` warnings from the
+  video polling test, but the suite completes with no failures.
 - `git diff --check` passed.
 
 The regression coverage verifies tenant credentials for service principals,
@@ -117,12 +152,17 @@ provider-agnostic lookup after a profile provider change, shared readiness and
 execution resolution, sanitized Admin responses, tenant credential lifecycle,
 and Evaluation Lab operator guidance.
 
+The execution-hardening regressions additionally prove service-only identity,
+mandatory and matching tenant binding, downstream abort propagation, provider
+transport cancellation, timer cleanup, and suppression of late success audit
+and telemetry.
+
 The following environment-dependent acceptance checks were not claimed as
 automated results: a live PGS integration-client self-test, real provider
 execution through `/api/v1/evaluations`, Evaluation Lab execution against that
 provider, a live second-provider proof, and Quickstart/VPS Compose startup.
-They require deployable credentials and services; static Compose rendering is
-covered above.
+They require deployable credentials and services. Static Compose rendering was
+not rerun as part of this hardening pass.
 
 ## Remaining Debt
 
@@ -134,3 +174,7 @@ covered above.
   ownership.
 - First-class `PLATFORM` ownership requires a separate design and is not part of
   PR14.
+- A cold root `typecheck` does not currently build dependency declarations;
+  `provider-sdk` must be built first when its public types change.
+- Repository-wide formatting and the Video Lab test warnings remain baseline
+  maintenance debt outside PR14.

@@ -180,6 +180,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
       `${this.resolveOpenAiBaseUrl(context)}/chat/completions`,
       {
         method: 'POST',
+        signal: context.signal,
         headers: {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),
@@ -297,6 +298,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
       `${this.resolveNativeBaseUrl(context)}/api/chat`,
       {
         method: 'POST',
+        signal: context.signal,
         headers: {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),
@@ -374,6 +376,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
       `${this.resolveNativeBaseUrl(context)}/api/chat`,
       {
         method: 'POST',
+        signal: context.signal,
         headers: {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),
@@ -521,7 +524,9 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     try {
       return await fetch(url, {
         ...init,
-        signal: controller.signal,
+        signal: init.signal
+          ? AbortSignal.any([init.signal, controller.signal])
+          : controller.signal,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {

@@ -100,7 +100,12 @@ export class EvaluationService {
         ],
       };
       response = await withTimeout(
-        this.gatewayService.evaluateProfileChat(providerRequest, authContext),
+        (signal) =>
+          this.gatewayService.evaluateProfileChat(
+            providerRequest,
+            authContext,
+            signal,
+          ),
         profile.timeoutMs,
       );
     } catch (error) {
@@ -178,20 +183,27 @@ export class EvaluationService {
 }
 
 async function withTimeout<T>(
-  operation: Promise<T>,
+  operation: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number,
 ): Promise<T> {
+  const controller = new AbortController();
   let timeout: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([
-      operation,
+      operation(controller.signal),
       new Promise<never>((_resolve, reject) => {
-        timeout = setTimeout(
-          () => reject(new EvaluationTimeoutError()),
-          timeoutMs,
-        );
+        timeout = setTimeout(() => {
+          const timeoutError = new EvaluationTimeoutError();
+          controller.abort(timeoutError);
+          reject(timeoutError);
+        }, timeoutMs);
       }),
     ]);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new EvaluationTimeoutError();
+    }
+    throw error;
   } finally {
     if (timeout) clearTimeout(timeout);
   }

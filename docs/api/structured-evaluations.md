@@ -10,12 +10,16 @@ The route accepts only a tenant-scoped integration-client API key:
 
 ```http
 Authorization: Bearer <integration-client-api-key>
+X-Lxp-Expected-Tenant-Id: <tenant-uuid>
 ```
 
-The effective integration client or key must include `evaluation:invoke`.
-Missing or invalid service credentials return `401`; a valid identity without
-the scope returns `403`. Tenant context comes from that authenticated client and
-cannot be supplied or overridden in the request body.
+The authenticated integration client must use service-only identity, and its
+effective client/key scope must include `evaluation:invoke`. The expected-tenant
+header is mandatory and must equal the tenant resolved from the API key.
+Missing or invalid credentials, a missing header, or a tenant mismatch returns
+`401`; a user-bound integration identity or valid service identity without the
+scope returns `403`. Tenant authority comes only from the authenticated client;
+the header is a confused-deputy guard and cannot select or override a tenant.
 
 Client scopes are a capability ceiling. API-key scopes are an explicit delegated
 subset, and the effective scopes are their intersection. Omitting scopes while
@@ -70,8 +74,9 @@ provider names, model names, prompts, or inference parameters in PGS.
 
 `LXP_ADMIN_EVALUATION_API_KEYS_JSON` is exclusively the Admin API bridge used by
 the Evaluation Lab. `EVALUATION_GATEWAY_API_KEYS_JSON` is exclusively PGS
-runtime configuration. Use distinct keys, preferably distinct integration
-clients, so rotation, revocation, and audit attribution remain independent.
+runtime configuration. Use distinct keys and distinct integration clients,
+named `admin-evaluation-lab` and `presence-grounding-service`, so rotation,
+revocation, and audit attribution remain independent.
 Neither secret is ever shared with browser code.
 
 The Gateway deployment separately owns the evaluator profile configuration
@@ -227,8 +232,11 @@ provider transport without exposing provider-specific `response_format`
 details to callers. The Gateway then parses and validates the complete response
 against the profile schema; it never accepts partial evidence. Existing provider
 adapters own their transport timeout. The evaluation layer adds a bounded
-response timeout and does not add retries, preventing retry multiplication with
-PGS or provider SDKs.
+deadline and does not add retries, preventing retry multiplication with PGS or
+provider SDKs. On expiry, its abort signal crosses the provider seam and cancels
+the underlying fetch where supported. The Gateway checks the signal again after
+provider completion, so a transport that ignores cancellation cannot record or
+return a late success. Timers are cleared after either success or failure.
 
 ## Privacy And Failure
 

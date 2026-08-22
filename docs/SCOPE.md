@@ -558,3 +558,10 @@ The bounded Evaluation Lab and the PGS service integration exercise one frozen
 v1 evidence contract. They do not add policy decisions, capability mutation,
 provider selection by callers, retries, or an additional authentication
 protocol. Profile readiness is diagnostic metadata and does not invoke a model.
+
+Execution is restricted to service-only integration clients and requires the
+caller to repeat its expected tenant in `X-Lxp-Expected-Tenant-Id`; the Gateway
+compares that value with the tenant authenticated from the key and fails closed
+when it is absent or different. Evaluation Lab and PGS use separate clients and
+keys. The profile deadline propagates through `provider-sdk` to the provider
+transport, and an aborted request cannot emit success audit or usage telemetry.
