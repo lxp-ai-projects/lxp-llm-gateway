@@ -1,605 +1,657 @@
-# Laurie Codex Task — `lxp-llm-gateway` easy setup alpha hardening
+# PR21 FINALIZATION — Registration Email Verification
 
-## Context
+Repository:
+lxp-ai-projects/lxp-llm-gateway
 
-Repository: `lxp-ai-projects/lxp-llm-gateway`
-Branch: `feature/easy-setup`
+Current branch:
+feature/registration-email-verification
 
-The branch is close to a useful alpha path, but the current setup story is inconsistent. The product goal is not to add new features. The goal is to make the branch coherent enough to validate a real VPS deployment and connect Open WebUI as the first external client.
+Target:
+main
 
-Use this document as the working brief.
+Current PR:
+#21 — Feature/registration email verification
 
----
+IMPORTANT:
+This branch has been inactive for some time and its implementation is currently
+incomplete/inconsistent. Do not assume previous WIP commits are correct.
 
-## Main objective
+The goal is to FINALIZE PR21 ONLY.
 
-Make `feature/easy-setup` internally consistent and alpha-testable.
+Do not start the next registration PR.
+Do not implement PGS integration.
+Do not implement structured evaluations.
+Do not perform opportunistic refactors.
+Do not fix unrelated bugs discovered during the audit.
 
-The alpha success path is:
+Any unrelated bug must instead be documented for a separate PR.
 
-```text
-fresh clone
-env generation
-docker compose up
-migrations run
-admin-api health OK
-gateway-api health OK
-admin-web reachable
-first admin bootstrap works
-provider credential can be added
-OpenAI-compatible endpoint lists models
-Open WebUI sends a message through lxp-llm-gateway
-gateway returns a response
-```
+──────────────────────────────────────────────────────────────────────
+1. SOURCE OF TRUTH
+   ──────────────────────────────────────────────────────────────────────
 
-The release gate is not “the containers start.”
+Before changing code, read:
 
-The release gate is:
+- AGENTS.md
+- README.md
+- to-do.md
+- docs/SCOPE.md
+- docs/product/system-scope.md
+- docs/architecture/overview.md
+- docs/architecture/auth-flow.md
+- docs/architecture/ui-architecture.md
+- relevant ADRs
+- relevant setup/VPS/security docs
+- root and affected package.json files
+- current TypeORM migrations
+- current tests and test runners
 
-```text
-Open WebUI -> lxp-llm-gateway -> provider -> assistant response received
-```
+Treat the CURRENT REPOSITORY as the ultimate source of truth.
 
-No samba before the first `200 OK`.
+`to-do.md` contains the intended PR21 contract and acceptance criteria.
+Compare it against the actual branch implementation.
 
----
+Do not blindly implement text from to-do.md if the current architecture has
+evolved. Reuse current conventions and abstractions wherever possible.
 
-## Non-goals
+──────────────────────────────────────────────────────────────────────
+2. FIRST STEP: AUDIT BEFORE EDITING
+   ──────────────────────────────────────────────────────────────────────
 
-Do not turn this into a product expansion.
+Before modifying any file, produce a concise audit with four categories:
 
-Avoid:
+A. Implemented and correct
+B. Partially implemented
+C. Missing / merge-blocking
+D. Out-of-scope bugs or unrelated failures
 
-- adding new providers
-- redesigning the admin UI
-- adding companion/persona features
-- building a new Open WebUI replacement
-- changing the product positioning
-- large refactors unrelated to setup/deployment
-- speculative production hardening beyond the current VPS alpha path
+For every finding, distinguish:
 
-This task is about setup coherence, deployment validation, and documentation truth.
+- observed fact
+- hypothesis
+- proposed action
 
----
+Explicitly audit the diff:
 
-## Current observed issues to verify first
+    git diff main...feature/registration-email-verification
 
-Before editing, inspect the repository directly and confirm the current state.
+Also inspect the six commits currently belonging to PR21 and determine whether
+any change is unrelated to registration email verification.
 
-### 1. Quickstart script mismatch
+Do not begin implementation until this audit is complete.
 
-The root `package.json` contains scripts like:
+──────────────────────────────────────────────────────────────────────
+3. KNOWN ITEMS THAT MUST BE VERIFIED
+   ──────────────────────────────────────────────────────────────────────
 
-```json
-"setup:quickstart": "node ./scripts/setup-quickstart.mjs up",
-"setup:quickstart:down": "node ./scripts/setup-quickstart.mjs down",
-"setup:quickstart:logs": "node ./scripts/setup-quickstart.mjs logs"
-```
+These are observations from the current remote branch. Verify them locally
+before acting.
 
-But the observed `scripts/` directory does not contain `setup-quickstart.mjs`.
+The branch currently references:
 
-Expected action:
+    RegistrationVerificationModule
+    RegistrationVerificationService
+    RegistrationVerificationChallengeEntity
 
-Either implement `scripts/setup-quickstart.mjs`, or remove/replace the advertised quickstart scripts and README references.
+from:
 
-Preferred action for this alpha:
+    apps/admin-api/src/app.module.ts
+    apps/admin-api/src/admin.controller.ts
+    apps/admin-api/src/public-config.controller.ts
+    apps/admin-api/src/config/runtime.config.ts
 
-Implement a minimal `scripts/setup-quickstart.mjs` that works.
+but the expected registration-verification implementation appears to be absent.
 
-It should support:
+Verify whether these sources are genuinely missing.
 
-```bash
-pnpm setup:quickstart
-pnpm setup:quickstart -- --open-webui
-pnpm setup:quickstart:logs
-pnpm setup:quickstart:down
-```
+Expected feature boundary from the PR specification:
 
-The script should be boring and reliable.
+    apps/admin-api/src/registration-verification/
+      registration-verification.module.ts
+      registration-verification.controller.ts
+      registration-verification.service.ts
+      delivery/
+      dto/
 
-It may wrap Docker Compose commands rather than becoming a complex wizard.
+Also verify whether this entity exists:
 
----
+    apps/admin-api/src/persistence/entities/
+      registration-verification-challenge.entity.ts
 
-### 2. Missing `docs/setup/quickstart.md`
+and whether a corresponding TypeORM migration exists.
+
+Do NOT simply remove the imports to make the build green unless the PR scope is
+being intentionally reduced and the public contracts/docs are changed
+accordingly.
+
+The intended PR21 Definition of Done is a FUNCTIONAL email verification proof
+flow, not readiness UI alone.
 
-The README references:
+──────────────────────────────────────────────────────────────────────
+4. REQUIRED FUNCTIONAL SCOPE
+   ──────────────────────────────────────────────────────────────────────
 
-```text
-docs/setup/quickstart.md
-```
+PR21 must implement a secure tenant-aware proof of email possession:
+
+1. Client requests an email verification challenge.
+2. Email is normalized consistently with existing identity handling.
+3. Tenant is resolved through the existing public-host mechanism.
+4. Global and tenant registration state are respected.
+5. Selected email provider must be ready.
+6. Verification code is generated securely.
+7. Code is delivered through the selected provider.
+8. Client verifies the code.
+9. Successful verification returns a short-lived opaque completion token.
+10. Completion token can later be consumed by the next registration PR.
+
+PR21 MUST NOT create:
 
-But the observed `docs/setup/` folder only contains `vps.md`.
+- User
+- TenantMembership
+- role assignment
+- authenticated session
+- final account
+- SMS verification
+
+Those belong to later PRs.
+
+──────────────────────────────────────────────────────────────────────
+5. EMAIL DELIVERY ABSTRACTION
+   ──────────────────────────────────────────────────────────────────────
+
+Maintain one provider-neutral delivery seam.
+
+SMTP and MailerSend must both implement the same conceptual contract.
 
-Expected action:
+No MailerSend-specific types should leak into the verification domain.
+
+Reuse the existing configuration that is already present where valid:
 
-Create `docs/setup/quickstart.md`.
+    LXP_EMAIL_DELIVERY_PROVIDER
+    LXP_SMTP_ENABLED
+    LXP_SMTP_HOST
+    LXP_SMTP_PORT
+    LXP_SMTP_SECURE
+    LXP_SMTP_USER
+    LXP_SMTP_PASSWORD
+    LXP_SMTP_FROM_EMAIL
+    LXP_SMTP_FROM_NAME
+    LXP_SMTP_REQUIRE_TLS
 
-It should document the local alpha path only:
+    LXP_MAILERSEND_API_KEY
+    LXP_MAILERSEND_FROM_EMAIL
+    LXP_MAILERSEND_FROM_NAME
 
-```bash
-pnpm install
-pnpm setup:quickstart
-pnpm setup:quickstart -- --open-webui
-```
+    LXP_REGISTRATION_EMAIL_TEST_RECIPIENT
 
-It must include validation commands for:
+Confirm current runtime validation semantics rather than replacing them.
 
-```bash
-curl http://localhost:3002/api/v1/health
-curl http://localhost:3001/api/v1/health
-curl http://localhost:3003
-```
+Requirements:
 
-If Open WebUI is enabled:
+- no credential logging
+- bounded timeout
+- no infinite retry
+- no real email delivery in unit tests
+- provider readiness is explicit
+- public runtime config advertises `email` only when the selected provider is
+  actually usable
 
-```text
-http://localhost:3004
-```
+──────────────────────────────────────────────────────────────────────
+6. VERIFICATION CHALLENGE PERSISTENCE
+   ──────────────────────────────────────────────────────────────────────
 
-Also include a short troubleshooting section for:
+Implement or restore the verification challenge entity and migration.
 
-- missing Docker
-- occupied ports
-- stale Open WebUI volume
-- migrations failing
-- empty model list
-- provider credential missing
-- gateway cannot reach provider
+Expected semantics include:
 
----
+    id
+    tenant_id
+    channel
+    destination_hash
+    code_digest
+    purpose
+    expires_at
+    verified_at
+    consumed_at
+    invalidated_at
+    attempt_count
+    resend_count
+    resend_available_at
+    completion_token_digest
+    completion_token_expires_at
+    created_at
+    updated_at
 
-### 3. VPS compose mismatch
+Adapt exact columns/types/naming to repository conventions.
 
-The README and `docs/setup/vps.md` reference:
+Security requirements:
 
-```text
-infra/compose/docker-compose.vps.yml
-infra/compose/lxp-gateway.vps.env.example
-```
+- never persist raw verification code
+- never persist raw completion token
+- avoid durable plaintext email where unnecessary
+- normalized destination
+- destination hashing through an existing compatible protection mechanism
+- suitable protection for short numeric codes
+- cryptographically secure code generation
+- cryptographically secure opaque completion token
 
-But the observed `infra/compose/` directory contains the dev compose and Open WebUI VPS compose files, not the core gateway VPS compose file or core VPS env template.
+Migration MUST include a correct down() rollback.
 
-Expected action:
+Remember:
+TypeORM synchronize is disabled; migrations are mandatory.
 
-Create:
+──────────────────────────────────────────────────────────────────────
+7. SECURITY BEHAVIOR
+   ──────────────────────────────────────────────────────────────────────
 
-```text
-infra/compose/docker-compose.vps.yml
-infra/compose/lxp-gateway.vps.env.example
-```
+Verify and implement the PR21 defaults unless the current architecture has a
+documented reason to differ:
 
-The core VPS compose should start:
+- 6-digit CSPRNG verification code
+- challenge expiry around 10 minutes
+- maximum verification attempts
+- resend cooldown around 60 seconds
+- bounded resend count
+- completion token expiry around 15 minutes
+- resend invalidates previous code
+- verified code cannot be reused
+- consumed completion proof cannot be reused
 
-```text
-postgres
-redis
-admin-api-migrate
-gateway-api-migrate
-admin-api
-gateway-api
-admin-web
-```
+Implement anti-enumeration:
 
-Use loopback-only published ports:
+Before proof of possession, public responses must not reveal whether:
 
-```text
-127.0.0.1:3001 -> gateway-api
-127.0.0.1:3002 -> admin-api
-127.0.0.1:3003 -> admin-web
-```
+- a User already exists
+- a TenantMembership already exists
+- the email belongs to an existing account
 
-Do not publicly expose Postgres or Redis.
+Avoid materially different public behavior/timing where practical.
 
-The compose file should be compatible with:
+──────────────────────────────────────────────────────────────────────
+8. PUBLIC API CONTRACT
+   ──────────────────────────────────────────────────────────────────────
 
-```bash
-docker compose --env-file .env.lxp-gateway.vps -f infra/compose/docker-compose.vps.yml up -d --build
-```
+Verify and implement the currently documented public flow:
 
----
+    POST /api/v1/public/registration/email/challenges
 
-### 4. VPS env generator must align with the template
+    POST /api/v1/public/registration/email/challenges/:challengeId/verify
 
-The helper scripts exist:
+    POST /api/v1/public/registration/email/challenges/:challengeId/resend
 
-```text
-scripts/generate-vps-env.sh
-scripts/Generate-VpsEnv.ps1
-```
+The repository documentation currently describes these routes as exposed.
 
-Expected action:
+Do not leave documentation claiming an endpoint exists when no handler exists.
 
-Validate that both scripts generate a `.env.lxp-gateway.vps` compatible with `infra/compose/docker-compose.vps.yml`.
+Conversely, do not remove the documented contract simply to avoid completing
+the feature if PR21 still intends to deliver email verification.
 
-The generated file must include all variables required by:
+Use DTO validation consistent with existing NestJS conventions.
 
-- Postgres
-- Redis if needed
-- admin-api
-- gateway-api
-- admin-web
-- migration jobs
-- OpenAI-compatible gateway mode
+──────────────────────────────────────────────────────────────────────
+9. RATE LIMITING / ABUSE PROTECTION
+   ──────────────────────────────────────────────────────────────────────
 
-Important invariants:
+Audit existing Redis/rate-limit infrastructure before introducing anything new.
 
-```text
-LXP_VPS_EMAIL_LOOKUP_KEY must match between admin-api and gateway-api
-LXP_VPS_ENCRYPTION_MASTER_KEY must stay stable once provider credentials are stored
-LXP_VPS_COOKIE_SECRET must be strong
-LXP_VPS_JWT_PRIVATE_KEY must be valid for the current auth implementation
-LXP_VPS_OPENAI_COMPAT_API_KEY must match the key used by Open WebUI
-LXP_VPS_OPENAI_COMPAT_DEFAULT_USER_EMAIL must correspond to a real gateway user
-```
+The verification flow must be bounded across appropriate dimensions such as:
 
-If the runtime uses different env variable names inside the apps, map the `LXP_VPS_*` variables correctly in Compose.
+- IP
+- tenant
+- destination hash
+- challenge
+- resend
+- verify attempts
 
----
+Reuse existing infrastructure where possible.
 
-### 5. Fix broken or local-only markdown links
+Do not introduce a large generic notification/rate-limit framework merely for
+this PR.
 
-`docs/setup/vps.md` contains links that appear to point to a local Windows path such as:
+Do not log:
 
-```text
-/C:/Data/Workspace/TypeScript/lxp-llm-gateway/...
-```
+- raw email
+- raw code
+- raw completion token
+- SMTP password
+- MailerSend API key
 
-Expected action:
+──────────────────────────────────────────────────────────────────────
+10. ADMIN READINESS / TEST EMAIL
+    ──────────────────────────────────────────────────────────────────────
 
-Replace those with relative repository links.
+Preserve the existing super-admin registration email readiness functionality.
 
-Example:
+Verify:
 
-```md
-[infra/compose/docker-compose.vps.yml](../../infra/compose/docker-compose.vps.yml)
-```
+    GET /api/v1/admin/tenants/:tenantId/registration/email/readiness
 
-Also check README links and Open WebUI docs for broken links.
+and:
 
----
+    POST /api/v1/admin/tenants/:tenantId/registration/email/test
 
-### 6. Reformat docs if needed
+Requirements:
 
-Some raw markdown files appear compressed into very long lines.
+- super-admin protected
+- selected provider displayed
+- ready/not_ready/disabled state is accurate
+- sender address may be displayed if non-secret
+- test recipient is controlled by configuration
+- endpoint must not become an arbitrary mail relay
+- test sending must be bounded
 
-Expected action:
+The existing tenant panel should continue to show useful readiness warnings.
 
-Ensure the markdown files are human-editable and readable in GitHub.
+Do not redesign unrelated admin UI.
 
-Affected candidates:
+──────────────────────────────────────────────────────────────────────
+11. CURRENT CI FAILURE
+    ──────────────────────────────────────────────────────────────────────
 
-```text
-docs/setup/vps.md
-docs/delivery/open-webui-setup.md
-scripts/generate-vps-env.sh
-infra/proxy/caddy/lxp-gateway.Caddyfile.example
-```
+The current remote PR has:
 
-Do not change meaning unless required.
+    Frontend Build: PASS
+    Backend Build: FAIL
 
----
+The backend workflow currently reports failure from:
 
-## Preferred implementation plan
+    @lxp/provider-xai#test
 
-### Step 1 — Inspect
+Reproduce this failure locally.
 
-Run:
+Classify it before changing anything:
 
-```bash
-git status
-find scripts -maxdepth 1 -type f | sort
-find infra/compose -maxdepth 1 -type f | sort
-find docs/setup -maxdepth 1 -type f | sort
-cat package.json
-```
+CASE A — caused by PR21:
+Fix the minimal regression required for PR21.
 
-Confirm what exists before changing anything.
+CASE B — pre-existing, flaky, environmental, or unrelated to PR21:
+DO NOT fix it in this branch.
+Document:
+- failing command/test
+- reproduction result
+- why it is unrelated
+- suggested separate bug-fix branch/PR
 
----
+Do not use an unrelated CI failure as permission to expand PR21.
 
-### Step 2 — Make README truthful
+──────────────────────────────────────────────────────────────────────
+12. BUGS DISCOVERED DURING AUDIT
+    ──────────────────────────────────────────────────────────────────────
 
-The README should advertise only paths that actually work.
+Patrick has already noticed additional bugs that will be handled separately.
 
-At minimum, after this task, these commands must not point to missing files:
+Therefore:
 
-```bash
-pnpm setup:quickstart
-pnpm setup:quickstart -- --open-webui
-docker compose --env-file .env.lxp-gateway.vps -f infra/compose/docker-compose.vps.yml up -d --build
-```
+If you discover a bug outside PR21's registration-email-verification scope:
 
----
+DO NOT FIX IT.
 
-### Step 3 — Implement the missing local quickstart path
+Instead create a final section:
 
-Create `scripts/setup-quickstart.mjs`.
+    Deferred bugs / separate PR candidates
 
-Keep it simple.
+For each bug provide:
 
-Suggested behavior:
+- short title
+- observed behavior
+- reproduction steps if known
+- affected files/components
+- severity
+- whether it blocks PR21
+- suggested branch name
+- suggested acceptance criteria
 
-```text
-up:
-  - optionally generate local env files if missing
-  - start postgres and redis
-  - run admin and gateway migrations
-  - start admin-api, gateway-api, admin-web
-  - optionally start open-webui when --open-webui is present
+Only fix an out-of-scope bug if it is objectively impossible to complete or
+validate PR21 without doing so. In that case, stop and explain the dependency
+before modifying it.
 
-logs:
-  - tail relevant compose logs
+──────────────────────────────────────────────────────────────────────
+13. TESTS REQUIRED
+    ──────────────────────────────────────────────────────────────────────
 
-down:
-  - stop quickstart services
-```
+At minimum, cover the cases defined in to-do.md.
 
-Use existing compose files where possible.
+Challenge lifecycle:
 
-Do not invent a second full orchestration system.
+- valid/normalized email
+- unresolved tenant
+- global registration disabled
+- tenant registration disabled
+- selected provider not ready
+- correct code
+- incorrect code
+- expired code
+- already verified
+- code invalidated by resend
+- maximum attempts
+- resend before cooldown
+- resend after cooldown
+- maximum resends
+- completion token returned once
+- only digests persisted
+- completion proof consumed once
+- concurrent verification behavior
 
-If the current dev compose does not support everything required, minimally adjust it.
+Delivery providers:
 
----
+- SMTP disabled
+- SMTP incomplete configuration
+- SMTP TLS/secure behavior
+- MailerSend complete configuration
+- MailerSend incomplete configuration
+- selected-provider readiness
+- timeout
+- success
+- delivery failure
+- no password/API-key leakage
+- text and HTML templates
+- no real delivery in unit tests
 
-### Step 4 — Add core VPS compose and env template
+Privacy / abuse:
 
-Create:
+- IP/destination/tenant/challenge limits
+- Redis TTL where applicable
+- no code/token/email leakage in logs
+- public runtime config contains no secret
+- no account enumeration
 
-```text
-infra/compose/docker-compose.vps.yml
-infra/compose/lxp-gateway.vps.env.example
-```
+Admin web:
 
-The VPS compose should:
+- ready state
+- provider not ready state
+- global/tenant registration state where relevant
+- existing tenant registration functionality remains intact
 
-- bind app ports to loopback only
-- keep databases internal or loopback-only
-- run migrations before runtime services
-- use restart policies for runtime services
-- avoid committing secrets
-- avoid dev-only defaults
-- be readable and boring
+──────────────────────────────────────────────────────────────────────
+14. VALIDATION
+    ──────────────────────────────────────────────────────────────────────
 
-The env template should be complete enough that the generator can produce a valid file from it or mirror it.
+Use the repository's actual scripts after confirming them.
 
----
+Run the narrowest useful tests during implementation, then the complete
+required validation before declaring PR21 finished.
 
-### Step 5 — Align VPS docs
+At minimum confirm the equivalent of:
 
-Update `docs/setup/vps.md`.
+    pnpm lint
+    pnpm test
+    pnpm build
 
-It should include:
+plus any package-specific commands required by the repository.
 
-1. prerequisites
-2. clone branch
-3. generate `.env.lxp-gateway.vps`
-4. start core compose
-5. verify loopback health
-6. add Caddy reverse proxy
-7. bootstrap first admin
-8. add provider credential
-9. test OpenAI-compatible model listing
-10. optionally connect Open WebUI
-11. troubleshooting
+Run/admin migration validation against the existing migration mechanism.
 
-Keep Open WebUI optional but make it the alpha validation target.
+If full validation cannot pass because of an unrelated pre-existing failure,
+report it explicitly and provide evidence. Do not claim the PR is green.
 
----
+──────────────────────────────────────────────────────────────────────
+15. DOCUMENTATION
+    ──────────────────────────────────────────────────────────────────────
 
-### Step 6 — Open WebUI alpha validation
+After implementation, reconcile documentation against actual behavior.
 
-The Open WebUI target should validate:
+Especially audit:
 
-```text
-Open WebUI -> gateway-api OpenAI-compatible endpoint -> provider -> response
-```
+- to-do.md
+- docs/api/gateway-contract.md
+- docs/SCOPE.md
+- docs/architecture/auth-flow.md
+- docs/architecture/overview.md
+- docs/product/system-scope.md
+- docs/setup/quickstart.md
+- docs/setup/vps.md
+- env examples
+- VPS compose wiring
+- Linux VPS env generator
+- PowerShell VPS env generator
 
-Document the minimal Open WebUI settings:
+Documentation must not describe planned behavior as implemented unless it
+actually exists.
 
-```text
-Base URL: https://<gateway-domain>/api/v1/openai
-API Key: <LXP_VPS_OPENAI_COMPAT_API_KEY>
-```
+Do not rewrite unrelated docs.
 
-For local dev, document:
+──────────────────────────────────────────────────────────────────────
+16. OUT OF SCOPE — STRICT
+    ──────────────────────────────────────────────────────────────────────
 
-```text
-Base URL: http://host.docker.internal:3001/api/v1/openai
-```
+Do NOT implement in this PR:
+
+- final account creation
+- user self-registration completion
+- SMS provider
+- password reset
+- invitations
+- PGS
+- /evaluations endpoint
+- evaluation:invoke scope
+- general inference refactor
+- provider architecture redesign
+- unrelated xAI bug fixes
+- unrelated UI bugs
+- dependency upgrades not required by PR21
+- broad code cleanup
 
-or the actual working value from the compose topology.
+Those belong in separate PRs.
 
-The exact URL path must match the current gateway implementation.
+──────────────────────────────────────────────────────────────────────
+17. DEFINITION OF DONE
+    ──────────────────────────────────────────────────────────────────────
 
-Confirm whether the implementation uses:
+PR21 is complete when:
 
-```text
-/api/v1/openai
-```
+- a public client can request an email verification challenge
+- the code is delivered through SMTP or MailerSend
+- the code can be securely verified
+- resend/expiry/attempt protections work
+- a short-lived one-time completion token is returned
+- no account/user/membership is created
+- raw codes/tokens are not persisted or logged
+- anti-enumeration behavior is preserved
+- abuse controls are present
+- provider readiness is exposed correctly
+- admin readiness/test-email works
+- required TypeORM migration exists and works
+- env/VPS/scripts are coherent
+- docs match reality
+- relevant tests pass
+- unrelated bugs remain outside this PR
 
-or:
+──────────────────────────────────────────────────────────────────────
+18. FINAL REPORT
+    ──────────────────────────────────────────────────────────────────────
 
-```text
-/v1
-```
+When done, STOP and report:
 
-Do not document both as equivalent unless both actually work.
+1. Initial audit findings.
+2. What was already correct.
+3. What was missing.
+4. Functional changes made.
+5. Security decisions.
+6. Files created/modified/deleted.
+7. Migration details and rollback behavior.
+8. API contracts implemented.
+9. Exact test/build/lint commands executed and results.
+10. Manual validation performed.
+11. Remaining risks.
+12. Deferred bugs / separate PR candidates.
+13. Suggested branches for those bugs.
+14. Proposed PR title.
+15. Complete updated PR description.
+16. Review checklist.
+17. Explicit statement:
 
----
+    "I did not start the next PR."
 
-## Acceptance criteria
+Do not create another branch and do not begin another feature without Patrick's
+explicit instruction.
 
-The task is complete only when the following pass on a clean checkout.
+== IMPORTANT ==
 
-### Repository consistency
+Oui — **tu as raison**. 😅 Là, Codex est en train d’interpréter le delta Git comme *« ceci ne semble pas appartenir à PR21, donc retirons-le »*, alors que **Ollama Cloud Catalog est déjà une feature intentionnelle et implémentée**. Il ne faut absolument pas la rollbacker juste pour rendre le diff de PR21 plus « pur ».
 
-- `pnpm setup:quickstart` does not fail due to a missing script.
-- `docs/setup/quickstart.md` exists.
-- `infra/compose/docker-compose.vps.yml` exists.
-- `infra/compose/lxp-gateway.vps.env.example` exists.
-- README links point to existing files.
-- VPS docs do not contain local Windows path links.
-- Docs are readable in GitHub.
+Je lui répondrais immédiatement ceci :
 
-### Local quickstart
+> **Correction concernant le delta Ollama**
+>
+> Do **not** remove or revert the existing Ollama Cloud Catalog implementation.
+>
+> `fix/ollama-cloud-catalog-access` is **not required**. This functionality is already intentionally implemented in the repository and must remain intact.
+>
+> The presence of Ollama-related changes in the current branch does not mean they should be removed merely because they are outside the conceptual scope of PR21. This branch contains valid existing work that must be preserved.
+>
+> Treat the current repository state as intentional unless there is concrete evidence of a regression.
+>
+> Specifically:
+>
+> * preserve the Ollama Cloud Catalog implementation;
+> * preserve its existing tests;
+> * do not move it to another branch;
+> * do not revert it to make the PR diff smaller;
+> * do not classify already-implemented intentional functionality as a deferred bug;
+> * only touch Ollama code if PR21 directly breaks it or an existing test exposes a real regression.
+>
+> Also leave these untouched:
+>
+> * `.pnpm-store/`
+> * `docker-compose.setup-watch.yml`
+> * the existing user modification to `docs/refactor-doc.md`
+>
+> These are **not cleanup targets for PR21**.
+>
+> Continue the PR21 audit and focus only on determining what remains necessary to complete **registration email verification**.
 
-From a clean local environment:
+Et je corrigerais aussi une règle de mon gros prompt précédent, parce qu’on vient de découvrir une subtilité importante :
 
-```bash
-pnpm install
-pnpm setup:quickstart
-```
+### ❌ Ancienne règle trop agressive
 
-Then:
+> inspect the diff and determine whether any change is unrelated to registration email verification
 
-```bash
-curl http://localhost:3002/api/v1/health
-curl http://localhost:3001/api/v1/health
-curl http://localhost:3003
-```
+Ça peut inciter Codex à faire exactement ce qu’il vient de proposer : **nettoyer des travaux valides simplement parce qu’ils ne correspondent pas au nom de la branche.**
 
-All expected services respond.
+Je la remplacerais par :
 
-If using Open WebUI:
+> Inspect the branch history and diff to understand context, **not to purge unrelated pre-existing work**.
+>
+> Some functionality visible in the branch may be intentional work completed before or alongside PR21.
+>
+> Do not revert, relocate, or remove existing functionality solely because it is unrelated to email verification.
+>
+> Only modify existing unrelated functionality when:
+>
+> 1. PR21 introduced a regression in it, or
+> 2. it objectively prevents PR21 from building or operating correctly.
+>
+> Otherwise, preserve it exactly as-is.
 
-```bash
-pnpm setup:quickstart -- --open-webui
-```
+Ça, c’est beaucoup plus sûr.
 
-Then:
+Et j’ajouterais carrément une règle générale en haut :
 
-```text
-Open WebUI loads at http://localhost:3004
-```
+> **IMPORTANT — This is a completion audit, not a branch cleanup exercise.**
+>
+> Preserve intentional existing functionality. The goal is to identify and complete the missing PR21 behavior, not to reconstruct an artificially minimal branch.
 
-### VPS alpha path
+Parce que oui : **on veut retrouver le fil de PR21, pas passer le dimanche à faire de l’archéologie Git et à désimplémenter ce que nous avions déjà terminé.** 😭😂
 
-On a VPS:
+Donc : **Ollama reste. On poursuit l’audit.** 🫡💻❤️
 
-```bash
-LXP_VPS_ADMIN_DOMAIN=admin.example.com \
-LXP_VPS_GATEWAY_DOMAIN=gateway.example.com \
-LXP_VPS_DEFAULT_USER_EMAIL=ops@example.com \
-bash ./scripts/generate-vps-env.sh
-
-docker compose --env-file .env.lxp-gateway.vps -f infra/compose/docker-compose.vps.yml up -d --build
-```
-
-Then:
-
-```bash
-curl http://127.0.0.1:3002/api/v1/health
-curl http://127.0.0.1:3001/api/v1/health
-curl http://127.0.0.1:3003
-```
-
-All expected services respond.
-
-### First admin and provider
-
-After reverse proxy is configured:
-
-```bash
-curl -X POST https://admin.example.com/api/v1/bootstrap/admin \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@example.com",
-    "password": "ChangeMe123!",
-    "displayName": "First Admin"
-  }'
-```
-
-Then:
-
-- admin login works through HTTPS
-- a BYOK provider credential can be stored
-- model discovery works for that provider
-- non-streaming chat works
-- streaming chat works if already supported
-
-### Open WebUI integration
-
-Open WebUI can connect to the gateway using the OpenAI-compatible endpoint.
-
-Required proof:
-
-- model list appears or a documented manual model ID works
-- a chat message sent from Open WebUI reaches `gateway-api`
-- `gateway-api` resolves the compatibility key
-- `gateway-api` resolves the target user
-- provider is called
-- assistant response is returned to Open WebUI
-- gateway logs clearly show request, provider, model, status, and failure reason if applicable
-
----
-
-## Quality bar
-
-This is not about beauty. This is about reliability.
-
-A good result is:
-
-```text
-boring
-documented
-repeatable
-minimal
-easy to validate
-hard to misunderstand
-```
-
-Do not hide failures behind cute output.
-
-If something fails, make the message actionable.
-
-Bad:
-
-```text
-Stream interrupted.
-```
-
-Good:
-
-```text
-Provider credential exists, but selected model did not respond.
-Check provider key, selected model ID, and outbound network access from the VPS.
-```
-
----
-
-## Output expected from Codex
-
-When done, provide:
-
-1. files changed
-2. commands run
-3. validation results
-4. remaining known gaps
-5. exact next command Patrick should run on the VPS
-
-Example final section:
-
-````md
-## Next VPS command
-
-```bash
-git pull
-LXP_VPS_ADMIN_DOMAIN=...
-LXP_VPS_GATEWAY_DOMAIN=...
-LXP_VPS_DEFAULT_USER_EMAIL=...
-bash ./scripts/generate-vps-env.sh
-docker compose --env-file .env.lxp-gateway.vps -f infra/compose/docker-compose.vps.yml up -d --build
-```
-````
-
----
-
-## Guiding principle
-
-Do not build a cathedral.
-
-Make the first deployment path work.
-
-First `200 OK`, then elegance.

@@ -52,6 +52,85 @@ export class AdminProviderCredentialService {
     private readonly tenantRlsService: TenantRlsService,
   ) {}
 
+  async listTenantProviderCredentials(actor: TenantActor, tenantId: string) {
+    this.assertCanManageTenantCredentials(actor, tenantId);
+    const credentials = await this.withCredentialRepository(
+      tenantId,
+      (credentialRepository) =>
+        credentialRepository.find({
+          where: {
+            tenantId,
+            userId: IsNull(),
+            scope: 'tenant',
+          },
+          relations: { provider: true },
+          order: { createdAt: 'DESC' },
+        }),
+    );
+
+    return Promise.all(
+      credentials.map(async (credential) => {
+        const provider =
+          credential.provider ??
+          (await this.providerRepository.findOne({
+            where: { id: credential.providerId },
+          }));
+        return this.mapCredentialSummary(credential, provider, null);
+      }),
+    );
+  }
+
+  async storeTenantProviderCredential(
+    actor: TenantActor,
+    tenantId: string,
+    dto: StoreProviderCredentialDto,
+  ) {
+    this.assertCanManageTenantCredentials(actor, tenantId);
+    return this.storeProviderCredentialInternal(tenantId, {
+      ...dto,
+      userUuid: undefined,
+      scope: 'tenant',
+    });
+  }
+
+  async updateTenantProviderCredential(
+    actor: TenantActor,
+    tenantId: string,
+    credentialId: string,
+    dto: UpdateProviderCredentialDto,
+  ) {
+    this.assertCanManageTenantCredentials(actor, tenantId);
+    return this.updateTenantCredential(tenantId, credentialId, dto);
+  }
+
+  async deleteTenantProviderCredential(
+    actor: TenantActor,
+    tenantId: string,
+    credentialId: string,
+  ) {
+    this.assertCanManageTenantCredentials(actor, tenantId);
+    const credential = await this.withCredentialRepository(
+      tenantId,
+      (credentialRepository) =>
+        credentialRepository.findOne({
+          where: {
+            id: credentialId,
+            tenantId,
+            userId: IsNull(),
+            scope: 'tenant',
+          },
+        }),
+    );
+    if (!credential) {
+      throw new NotFoundException('Unable to delete the provider credential.');
+    }
+
+    await this.withCredentialRepository(tenantId, (credentialRepository) =>
+      credentialRepository.delete({ id: credential.id, tenantId }),
+    );
+    return { deleted: true as const };
+  }
+
   async listProviderCredentialsForUser(actor: TenantActor, userUuid: string) {
     const isOwnCredentialList = actor.userUuid === userUuid;
     const isPrivileged =
@@ -62,7 +141,10 @@ export class AdminProviderCredentialService {
       );
     }
 
-    const user = await this.assertTenantScopedUser(actor.activeTenantId, userUuid);
+    const user = await this.assertTenantScopedUser(
+      actor.activeTenantId,
+      userUuid,
+    );
     const credentials = await this.withCredentialRepository(
       actor.activeTenantId,
       (credentialRepository) =>
@@ -139,7 +221,8 @@ export class AdminProviderCredentialService {
       const targetUserUuid = dto.userUuid ?? actor.userUuid;
       const isOwnCredential = targetUserUuid === actor.userUuid;
       const isPrivileged =
-        actor.roles.includes('tenant_admin') || actor.roles.includes('operator');
+        actor.roles.includes('tenant_admin') ||
+        actor.roles.includes('operator');
 
       if (!isOwnCredential && !isPrivileged) {
         throw new ForbiddenException(
@@ -199,7 +282,9 @@ export class AdminProviderCredentialService {
 
     if (
       credential.scope === 'tenant' &&
-      !actor.roles.some((role) => role === 'tenant_admin' || role === 'operator')
+      !actor.roles.some(
+        (role) => role === 'tenant_admin' || role === 'operator',
+      )
     ) {
       throw new ForbiddenException(
         'Only tenant administrators or operators can manage tenant credentials.',
@@ -217,7 +302,8 @@ export class AdminProviderCredentialService {
 
     const nextLabel = dto.label?.trim() ?? credential.label;
     if (nextLabel !== credential.label) {
-      const credentialUserId = credential.scope === 'tenant' ? IsNull() : user.id;
+      const credentialUserId =
+        credential.scope === 'tenant' ? IsNull() : user.id;
       const duplicateCredential = await this.withCredentialRepository(
         actor.activeTenantId,
         (credentialRepository) =>
@@ -253,9 +339,13 @@ export class AdminProviderCredentialService {
       credential.keyVersion = encrypted.keyVersion;
       credential.maskedHint = this.maskProviderAccess(providerAccess);
     }
+    if (dto.isActive !== undefined) {
+      credential.isActive = dto.isActive;
+    }
 
-    await this.withCredentialRepository(actor.activeTenantId, (credentialRepository) =>
-      credentialRepository.save(credential),
+    await this.withCredentialRepository(
+      actor.activeTenantId,
+      (credentialRepository) => credentialRepository.save(credential),
     );
 
     return {
@@ -304,21 +394,121 @@ export class AdminProviderCredentialService {
 
     if (
       credential.scope === 'tenant' &&
-      !actor.roles.some((role) => role === 'tenant_admin' || role === 'operator')
+      !actor.roles.some(
+        (role) => role === 'tenant_admin' || role === 'operator',
+      )
     ) {
       throw new ForbiddenException(
         'Only tenant administrators or operators can manage tenant credentials.',
       );
     }
 
-    await this.withCredentialRepository(actor.activeTenantId, (credentialRepository) =>
-      credentialRepository.delete({
-        id: credential.id,
-        tenantId: actor.activeTenantId,
-      }),
+    await this.withCredentialRepository(
+      actor.activeTenantId,
+      (credentialRepository) =>
+        credentialRepository.delete({
+          id: credential.id,
+          tenantId: actor.activeTenantId,
+        }),
     );
 
     return { deleted: true as const };
+  }
+
+  private async updateTenantCredential(
+    tenantId: string,
+    credentialId: string,
+    dto: UpdateProviderCredentialDto,
+  ) {
+    const credential = await this.withCredentialRepository(
+      tenantId,
+      (credentialRepository) =>
+        credentialRepository.findOne({
+          where: {
+            id: credentialId,
+            tenantId,
+            userId: IsNull(),
+            scope: 'tenant',
+          },
+          relations: { provider: true },
+        }),
+    );
+    if (!credential) {
+      throw new NotFoundException('Unable to update the provider credential.');
+    }
+
+    const provider =
+      credential.provider ??
+      (await this.providerRepository.findOne({
+        where: { id: credential.providerId },
+      }));
+    if (!provider) {
+      throw new NotFoundException('Unable to update the provider credential.');
+    }
+
+    credential.label = dto.label?.trim() ?? credential.label;
+    if (dto.apiToken?.trim() || dto.baseUrl?.trim()) {
+      const providerAccess = this.createProviderAccess(
+        dto,
+        provider.providerId,
+        credential,
+      );
+      const encrypted = this.encryptionService.encrypt(
+        JSON.stringify(providerAccess),
+      );
+      credential.encryptedSecret = encrypted.ciphertext;
+      credential.iv = encrypted.iv;
+      credential.authTag = encrypted.authTag;
+      credential.keyVersion = encrypted.keyVersion;
+      credential.maskedHint = this.maskProviderAccess(providerAccess);
+    }
+    if (dto.isActive !== undefined) {
+      credential.isActive = dto.isActive;
+    }
+
+    const saved = await this.withCredentialRepository(
+      tenantId,
+      (credentialRepository) => credentialRepository.save(credential),
+    );
+    return this.mapCredentialSummary(saved, provider, null);
+  }
+
+  private assertCanManageTenantCredentials(
+    actor: TenantActor,
+    tenantId: string,
+  ): void {
+    if (actor.globalRoles?.includes('super_admin')) {
+      return;
+    }
+    if (
+      actor.activeTenantId !== tenantId ||
+      (!actor.roles.includes('tenant_admin') &&
+        !actor.roles.includes('operator'))
+    ) {
+      throw new ForbiddenException(
+        'Only tenant administrators or operators can manage tenant credentials.',
+      );
+    }
+  }
+
+  private mapCredentialSummary(
+    credential: UserProviderCredentialEntity,
+    provider: ProviderEntity | null,
+    userUuid: string | null,
+  ) {
+    return {
+      id: credential.id,
+      userUuid,
+      providerId: provider?.providerId ?? credential.providerId,
+      providerDisplayName: provider?.displayName ?? 'Unknown provider',
+      label: credential.label,
+      scope: credential.scope,
+      maskedHint: credential.maskedHint,
+      isActive: credential.isActive,
+      createdAt: credential.createdAt,
+      updatedAt: credential.updatedAt,
+      lastUsedAt: credential.lastUsedAt,
+    };
   }
 
   private async storeProviderCredentialInternal(
@@ -377,7 +567,9 @@ export class AdminProviderCredentialService {
       tenantId,
       (credentialRepository) =>
         credentialRepository.save(
-          credentialRepository.create(credential) as UserProviderCredentialEntity,
+          credentialRepository.create(
+            credential,
+          ) as UserProviderCredentialEntity,
         ),
     );
 
@@ -419,7 +611,8 @@ export class AdminProviderCredentialService {
     dto:
       | StoreProviderCredentialDto
       | UpdateProviderCredentialDto
-      | (Partial<StoreProviderCredentialDto> & Partial<UpdateProviderCredentialDto>),
+      | (Partial<StoreProviderCredentialDto> &
+          Partial<UpdateProviderCredentialDto>),
     providerIdOrCredential: string | UserProviderCredentialEntity,
     existingCredential?: UserProviderCredentialEntity,
   ): ProviderAccessConfig {
@@ -478,7 +671,9 @@ export class AdminProviderCredentialService {
     }
   }
 
-  private maskProviderAccess(providerAccess: ProviderAccessConfig): string | null {
+  private maskProviderAccess(
+    providerAccess: ProviderAccessConfig,
+  ): string | null {
     if (providerAccess.apiKey) {
       return providerAccess.apiKey.length <= 4
         ? '***'

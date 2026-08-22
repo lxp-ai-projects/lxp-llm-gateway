@@ -118,7 +118,9 @@ function createService(fixtures?: {
         return createManagerRepositoryMock(fixtures?.integrationClients ?? []);
       }
 
-      throw new Error(`Unexpected repository request in test: ${String(entity)}`);
+      throw new Error(
+        `Unexpected repository request in test: ${String(entity)}`,
+      );
     },
   };
   const tenantRlsService = {
@@ -172,7 +174,7 @@ test('GatewayAuthService resolves a tenant-scoped integration client default use
     applicationId: 'open-webui',
     defaultUserId: user.id,
     defaultUser: user,
-    scopes: ['chat:complete'],
+    scopes: ['chat:complete', 'models:list'],
     trustedForwardedIdentityEnabled: false,
     status: 'active',
   };
@@ -214,15 +216,116 @@ test('GatewayAuthService resolves a tenant-scoped integration client default use
         `Bearer ${apiKey}`,
       );
 
-      assert.equal(authContext.identitySource, 'integration-client-default-user');
+      assert.equal(
+        authContext.identitySource,
+        'integration-client-default-user',
+      );
       assert.equal(authContext.activeTenantId, tenant.id);
       assert.equal(authContext.integrationClientId, 'open-webui-demo');
-      assert.deepEqual(
-        authContext.integrationClientScopes,
-        ['chat:completion', 'models:list'],
-      );
+      assert.deepEqual(authContext.integrationClientScopes, ['models:list']);
       assert.equal(authContext.userUuid, 'uuid-1');
+
+      const evaluationContext =
+        await service.authenticateIntegrationClientRequest(`Bearer ${apiKey}`, {
+          'x-lxp-expected-tenant-id': tenant.id,
+        });
+      assert.equal(evaluationContext.activeTenantId, tenant.id);
+      await assert.rejects(
+        () =>
+          service.authenticateIntegrationClientRequest(
+            `Bearer ${apiKey}`,
+            { 'x-lxp-expected-tenant-id': tenant.id },
+            { requireExpectedTenant: true, requireServiceOnly: true },
+          ),
+        (error: unknown) =>
+          (error as { getStatus(): number }).getStatus() === 403,
+      );
+      await assert.rejects(
+        service.authenticateIntegrationClientRequest(`Bearer ${apiKey}`, {
+          'x-lxp-expected-tenant-id': 'tenant-spoof',
+        }),
+        (error: unknown) =>
+          (error as { getStatus(): number }).getStatus() === 401,
+      );
     },
+  );
+});
+
+test('GatewayAuthService authenticates a service-only integration client without fabricating a user', async () => {
+  const apiKey = 'lxp_service_only_key';
+  const tenant = {
+    id: 'tenant-1',
+    slug: 'lxp-internal',
+    status: 'active',
+  };
+  const integrationClient = {
+    id: 'integration-pgs',
+    tenantId: tenant.id,
+    tenant,
+    clientId: 'pgs',
+    displayName: 'Presence Grounding Service',
+    applicationId: 'pgs',
+    defaultUserId: null,
+    defaultUser: null,
+    scopes: ['evaluation:invoke'],
+    trustedForwardedIdentityEnabled: false,
+    status: 'active',
+  };
+  const service = createService({
+    tenants: [tenant],
+    integrationClients: [integrationClient],
+    apiKeys: [
+      {
+        id: 'key-pgs',
+        tenantId: tenant.id,
+        integrationClientId: integrationClient.id,
+        keyHash: computeApiKeyHash(apiKey),
+        scopes: ['evaluation:invoke'],
+        status: 'active',
+        expiresAt: null,
+      },
+    ],
+  });
+
+  const authContext = await service.authenticateIntegrationClientRequest(
+    `Bearer ${apiKey}`,
+    { 'x-lxp-expected-tenant-id': tenant.id },
+  );
+
+  assert.equal(authContext.identitySource, 'integration-client-service');
+  assert.equal(authContext.integrationClientId, 'pgs');
+  assert.equal(authContext.integrationClientKeyId, 'key-pgs');
+  assert.equal(authContext.activeTenantId, tenant.id);
+  assert.equal(authContext.userId, null);
+  assert.equal(authContext.userUuid, null);
+  assert.deepEqual(authContext.integrationClientScopes, ['evaluation:invoke']);
+
+  await assert.rejects(
+    () =>
+      service.authenticateIntegrationClientRequest(
+        `Bearer ${apiKey}`,
+        {},
+        { requireExpectedTenant: true, requireServiceOnly: true },
+      ),
+    (error: unknown) => (error as { getStatus(): number }).getStatus() === 401,
+  );
+  const boundedContext = await service.authenticateIntegrationClientRequest(
+    `Bearer ${apiKey}`,
+    { 'x-lxp-expected-tenant-id': tenant.id },
+    { requireExpectedTenant: true, requireServiceOnly: true },
+  );
+  assert.equal(boundedContext.identitySource, 'integration-client-service');
+
+  await assert.rejects(
+    () => service.authenticateGatewayRequest(`Bearer ${apiKey}`),
+    /requires a default user or a trusted forwarded identity/i,
+  );
+  await assert.rejects(
+    () =>
+      service.authenticateIntegrationClientRequest(`Bearer ${apiKey}`, {
+        'x-lxp-expected-tenant-id': 'tenant-spoof',
+      }),
+    (error: unknown) => (error as { getStatus(): number }).getStatus() === 401,
   );
 });
 
@@ -420,9 +523,13 @@ test('GatewayAuthService rejects a trusted forwarded user from a different tenan
     async () => {
       await assert.rejects(
         () =>
-          service.authenticateOpenAiCompatibleRequest(`Bearer ${apiKey}`, undefined, {
-            'x-openwebui-user-email': 'bob@example.com',
-          }),
+          service.authenticateOpenAiCompatibleRequest(
+            `Bearer ${apiKey}`,
+            undefined,
+            {
+              'x-openwebui-user-email': 'bob@example.com',
+            },
+          ),
         /not a member of the integration tenant/i,
       );
     },

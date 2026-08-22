@@ -1,12 +1,17 @@
 import { createHash, createHmac } from 'node:crypto';
 import {
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { GlobalRole, TenantRole } from '@lxp/domain';
+import {
+  resolveEffectiveIntegrationClientScopes,
+  type GlobalRole,
+  type TenantRole,
+} from '@lxp/domain';
 import { IsNull, MoreThan, Repository } from 'typeorm';
 
 import { ApiKeyEntity } from '../persistence/entities/api-key.entity';
@@ -18,6 +23,8 @@ import { UserEntity } from '../persistence/entities/user.entity';
 import type {
   GatewayAuthContext,
   GatewayAuthIdentitySource,
+  GatewayIntegrationClientAuthContext,
+  GatewayServiceAuthContext,
   GatewayAuthTokenPayload,
 } from './auth.types';
 
@@ -101,9 +108,8 @@ export class GatewayAuthService {
 
     const configuredApiKey = process.env.LXP_OPENAI_COMPAT_API_KEY?.trim();
     if (configuredApiKey && bearerToken === configuredApiKey) {
-      const authContext = await this.authenticateTrustedOpenAiCompatibleUser(
-        requestHeaders,
-      );
+      const authContext =
+        await this.authenticateTrustedOpenAiCompatibleUser(requestHeaders);
       this.logCompatibilityRequestAccepted(authContext);
       if (debugEnabled) {
         this.logger.debug(
@@ -145,17 +151,80 @@ export class GatewayAuthService {
     return this.authenticateAccessToken(authorizationHeader, accessTokenCookie);
   }
 
+  async authenticateIntegrationClientRequest(
+    authorizationHeader?: string,
+    requestHeaders?: Record<string, string | string[] | undefined>,
+    options: {
+      requireExpectedTenant?: boolean;
+      requireServiceOnly?: boolean;
+    } = {},
+  ): Promise<GatewayIntegrationClientAuthContext> {
+    const bearerToken = this.tryExtractBearerToken(authorizationHeader);
+    if (!bearerToken) {
+      throw new UnauthorizedException(
+        'Integration client API key is required.',
+      );
+    }
+
+    const authContext = await this.tryAuthenticateIntegrationClient(
+      bearerToken,
+      requestHeaders,
+      { allowServiceOnly: true },
+    );
+    if (!authContext) {
+      throw new UnauthorizedException('Integration client API key is invalid.');
+    }
+
+    const expectedTenantId = readSingleHeader(
+      requestHeaders?.['x-lxp-expected-tenant-id'],
+    );
+    if (options.requireExpectedTenant && !expectedTenantId) {
+      throw new UnauthorizedException(
+        'Expected tenant binding is required for this integration request.',
+      );
+    }
+    if (expectedTenantId && expectedTenantId !== authContext.activeTenantId) {
+      throw new UnauthorizedException(
+        'Integration client API key is not bound to the expected tenant.',
+      );
+    }
+    if (
+      options.requireServiceOnly &&
+      authContext.identitySource !== 'integration-client-service'
+    ) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'evaluation_service_forbidden',
+        message: 'Structured evaluation requires a service-only identity.',
+      });
+    }
+
+    return authContext;
+  }
+
+  private async tryAuthenticateIntegrationClient(
+    bearerToken: string,
+    requestHeaders: Record<string, string | string[] | undefined> | undefined,
+    options: { allowServiceOnly: true },
+  ): Promise<GatewayIntegrationClientAuthContext | null>;
   private async tryAuthenticateIntegrationClient(
     bearerToken: string,
     requestHeaders?: Record<string, string | string[] | undefined>,
-  ): Promise<GatewayAuthContext | null> {
+    options?: { allowServiceOnly?: false },
+  ): Promise<GatewayAuthContext | null>;
+  private async tryAuthenticateIntegrationClient(
+    bearerToken: string,
+    requestHeaders?: Record<string, string | string[] | undefined>,
+    options: { allowServiceOnly?: boolean } = {},
+  ): Promise<GatewayIntegrationClientAuthContext | null> {
     const keyHash = this.computeApiKeyHash(bearerToken);
     return this.tenantRlsService.withApiKeyHashContext(
       keyHash,
       async (manager) => {
         const apiKeyRepository = manager.getRepository(ApiKeyEntity);
-        const integrationClientRepository =
-          manager.getRepository(IntegrationClientEntity);
+        const integrationClientRepository = manager.getRepository(
+          IntegrationClientEntity,
+        );
         const apiKey =
           (await apiKeyRepository.findOne({
             where: {
@@ -188,7 +257,10 @@ export class GatewayAuthService {
             defaultUser: true,
           },
         });
-        if (!integrationClient || integrationClient.tenant?.status !== 'active') {
+        if (
+          !integrationClient ||
+          integrationClient.tenant?.status !== 'active'
+        ) {
           throw new UnauthorizedException(
             'Integration client is not active for the supplied API key.',
           );
@@ -202,6 +274,39 @@ export class GatewayAuthService {
           throw new UnauthorizedException(
             'Trusted forwarded identity is not enabled for the supplied integration client.',
           );
+        }
+
+        if (
+          !trustedIdentity &&
+          !integrationClient.defaultUserId &&
+          options.allowServiceOnly
+        ) {
+          await apiKeyRepository.update(
+            { id: apiKey.id },
+            { lastUsedAt: new Date() },
+          );
+          const authContext: GatewayServiceAuthContext = {
+            userId: null,
+            userUuid: null,
+            emailHash: null,
+            activeTenantId: integrationClient.tenantId,
+            activeTenantSlug: integrationClient.tenant.slug,
+            identitySource: 'integration-client-service',
+            roles: [],
+            globalRoles: [],
+            integrationClientId: integrationClient.clientId,
+            integrationClientKeyId: apiKey.id,
+            integrationClientScopes: this.mergeScopes(
+              integrationClient.scopes,
+              apiKey.scopes,
+            ),
+            defaultProviderId: null,
+            defaultModel: null,
+            defaultImageProviderId: null,
+            defaultImageModel: null,
+          };
+          this.logServiceIdentityResolved(authContext);
+          return authContext;
         }
 
         const user = trustedIdentity
@@ -421,8 +526,10 @@ export class GatewayAuthService {
 
   private isTrustedIdentityCorrelationEnabled(): boolean {
     return (
-      process.env.LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED ?? ''
-    ).toLowerCase() === 'true';
+      (
+        process.env.LXP_OPENAI_COMPAT_TRUSTED_IDENTITY_ENABLED ?? ''
+      ).toLowerCase() === 'true'
+    );
   }
 
   private computeEmailHash(email: string): string {
@@ -606,7 +713,9 @@ export class GatewayAuthService {
       activeTenantId: activeMembership.tenantId,
       activeTenantSlug: activeMembership.tenant.slug,
       roles: memberships
-        .filter((membership) => membership.tenantId === activeMembership.tenantId)
+        .filter(
+          (membership) => membership.tenantId === activeMembership.tenantId,
+        )
         .map((membership) => membership.role),
       globalRoles: [],
     };
@@ -616,20 +725,15 @@ export class GatewayAuthService {
     integrationClientScopes: string[] | null | undefined,
     apiKeyScopes: string[] | null | undefined,
   ): string[] {
-    const scopeAliases: Record<string, string> = {
-      'chat:complete': 'chat:completion',
-    };
-
-    return [
-      ...new Set(
-        [...(integrationClientScopes ?? []), ...(apiKeyScopes ?? [])].map(
-          (scope) => scopeAliases[scope] ?? scope,
-        ),
-      ),
-    ];
+    return resolveEffectiveIntegrationClientScopes(
+      integrationClientScopes,
+      apiKeyScopes,
+    );
   }
 
-  private logCompatibilityRequestAccepted(authContext: GatewayAuthContext): void {
+  private logCompatibilityRequestAccepted(
+    authContext: GatewayAuthContext,
+  ): void {
     this.logger.log(
       JSON.stringify({
         event: 'gateway.compatibility.request.accepted',
@@ -670,6 +774,22 @@ export class GatewayAuthService {
     );
   }
 
+  private logServiceIdentityResolved(
+    authContext: GatewayServiceAuthContext,
+  ): void {
+    this.logger.log(
+      JSON.stringify({
+        event: 'gateway.integration_client.identity.resolved',
+        principalKind: 'SERVICE',
+        integrationClientId: authContext.integrationClientId,
+        apiKeyId: authContext.integrationClientKeyId,
+        tenantId: authContext.activeTenantId,
+        delegatedUserUuid: null,
+        identitySource: authContext.identitySource,
+      }),
+    );
+  }
+
   private fingerprintEmailHash(emailHash: string): string {
     return emailHash.slice(0, 16);
   }
@@ -677,4 +797,11 @@ export class GatewayAuthService {
   private isOpenAiCompatDebugEnabled(): boolean {
     return (process.env.LXP_OPENAI_COMPAT_DEBUG ?? '').toLowerCase() === 'true';
   }
+}
+
+function readSingleHeader(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(value)) return value.length === 1 ? value[0] : undefined;
+  return value?.trim() || undefined;
 }

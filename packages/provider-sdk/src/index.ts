@@ -25,6 +25,7 @@ export interface ProviderExecutionContext {
   requestId: string;
   userId: string;
   providerAccess: ProviderAccessConfig;
+  signal?: AbortSignal;
   metadata?: Record<string, unknown>;
 }
 

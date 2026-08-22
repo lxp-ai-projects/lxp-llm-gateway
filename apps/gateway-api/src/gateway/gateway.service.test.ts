@@ -11,6 +11,7 @@ import type {
   ProviderExecutionContext,
 } from '@lxp/provider-sdk';
 
+import type { GatewayServiceAuthContext } from '../auth/auth.types';
 import type { GatewayChatRequestDto } from './dto/gateway-chat-request.dto';
 import { GatewayAuditService } from './gateway-audit.service';
 import { GatewayService } from './gateway.service';
@@ -40,7 +41,9 @@ class FakeProvider implements LlmProviderAdapter {
         ? lastContent
         : (lastContent ?? [])
             .map((part) =>
-              part.type === 'text' ? part.text : `[image:${part.image_url.url}]`,
+              part.type === 'text'
+                ? part.text
+                : `[image:${part.image_url.url}]`,
             )
             .join('\n');
 
@@ -75,7 +78,6 @@ class FakeProvider implements LlmProviderAdapter {
       inputTokens: 12,
     };
   }
-
 }
 
 class FakeProviderRegistryService {
@@ -84,9 +86,36 @@ class FakeProviderRegistryService {
   }
 }
 
+class LateSuccessProvider extends FakeProvider {
+  signal: AbortSignal | undefined;
+  resolveChat: ((response: GatewayChatResponse) => void) | undefined;
+  readonly started: Promise<void>;
+  private resolveStarted!: () => void;
+
+  constructor() {
+    super();
+    this.started = new Promise<void>((resolve) => {
+      this.resolveStarted = resolve;
+    });
+  }
+
+  override chat(
+    request: GatewayChatRequest,
+    context: ProviderExecutionContext,
+  ): Promise<GatewayChatResponse> {
+    this.signal = context.signal;
+    this.resolveStarted();
+    return new Promise((resolve) => {
+      this.resolveChat = resolve;
+    });
+  }
+}
+
 class FailingListModelsProvider extends FakeProvider {
   async listModels(): Promise<never> {
-    throw new Error('xAI model listing failed with status 500: Internal server error');
+    throw new Error(
+      'xAI model listing failed with status 500: Internal server error',
+    );
   }
 }
 
@@ -136,13 +165,33 @@ class FakeProviderCredentialService {
   }
 }
 
+class TrackingTenantCredentialService {
+  readonly providerIds: string[] = [];
+
+  async resolveProviderAccessWithSource(
+    _authContext?: unknown,
+    providerId?: string,
+  ): Promise<{
+    providerAccess: { apiKey: string };
+    credentialScopeUsed: 'tenant';
+  }> {
+    this.providerIds.push(providerId ?? 'unknown');
+    return {
+      providerAccess: { apiKey: 'tenant-secret' },
+      credentialScopeUsed: 'tenant',
+    };
+  }
+}
+
 class FakeTenantProviderConfigurationService {
   async assertProviderEnabled(
     tenantId: string,
     providerId: 'nanogpt' | 'xai' | 'anthropic',
   ) {
     if (tenantId === 'tenant-disabled') {
-      throw new Error(`Provider ${providerId} is disabled for tenant ${tenantId}.`);
+      throw new Error(
+        `Provider ${providerId} is disabled for tenant ${tenantId}.`,
+      );
     }
 
     return {
@@ -187,11 +236,18 @@ class FakeTenantProviderConfigurationService {
 }
 
 class FakeGatewayTelemetryService {
+  successCount = 0;
+  failureCount = 0;
+
   async reserveChatUsageEvent(): Promise<void> {}
 
-  async recordChatSuccess(): Promise<void> {}
+  async recordChatSuccess(): Promise<void> {
+    this.successCount += 1;
+  }
 
-  async recordChatFailure(): Promise<void> {}
+  async recordChatFailure(): Promise<void> {
+    this.failureCount += 1;
+  }
 
   async recordBlockedByQuota(): Promise<void> {}
 
@@ -251,7 +307,11 @@ class FakeTenantModelAccessRuleService {
   }
 
   async filterTextModels<
-    T extends Array<{ id: string; displayName: string; capabilities?: unknown }>,
+    T extends Array<{
+      id: string;
+      displayName: string;
+      capabilities?: unknown;
+    }>,
   >(_tenantId: string, _providerId: string, models: T): Promise<T> {
     return models;
   }
@@ -297,20 +357,28 @@ class FakeTenantPolicyService {
 
 class FakeGatewayAuditService {
   public startedEvents: Array<Record<string, unknown>> = [];
+  public succeededCount = 0;
+  public failedCount = 0;
 
   logStarted(event: Record<string, unknown>): void {
     this.startedEvents.push(event);
   }
 
-  logSucceeded(): void {}
+  logSucceeded(): void {
+    this.succeededCount += 1;
+  }
 
-  logFailed(): void {}
+  logFailed(): void {
+    this.failedCount += 1;
+  }
 
   fingerprint(emailHash: string): string {
     return emailHash;
   }
 
-  summarizeMessages(messages: Array<{ content: string | GatewayChatContentPart[] }>) {
+  summarizeMessages(
+    messages: Array<{ content: string | GatewayChatContentPart[] }>,
+  ) {
     return {
       messageCount: messages.length,
       messageCharacters: messages.reduce(
@@ -409,6 +477,161 @@ test('GatewayService routes chat requests through the provider registry', async 
   assert.equal(auditService.startedEvents[0]?.userFingerprint, 'hash-1');
   assert.equal(auditService.startedEvents[0]?.identitySource, 'access-token');
   assert.equal(auditService.startedEvents[0]?.stream, false);
+});
+
+test('GatewayService routes controlled evaluation chat without requiring chat scope', async () => {
+  const auditService = new FakeGatewayAuditService();
+  const service = new GatewayService(
+    auditService as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+
+  const response = await service.evaluateProfileChat(
+    {
+      providerId: 'nanogpt',
+      model: 'controlled-evaluator',
+      maxOutputTokens: 512,
+      messages: [{ role: 'user', content: '{"bounded":true}' }],
+    } as GatewayChatRequestDto,
+    {
+      userId: null,
+      userUuid: null,
+      emailHash: null,
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'lxp-internal',
+      identitySource: 'integration-client-service',
+      roles: [],
+      globalRoles: [],
+      integrationClientId: 'pgs',
+      integrationClientKeyId: 'key-pgs',
+      integrationClientScopes: ['evaluation:invoke'],
+      defaultProviderId: null,
+      defaultModel: null,
+      defaultImageProviderId: null,
+      defaultImageModel: null,
+    } satisfies GatewayServiceAuthContext,
+  );
+
+  assert.equal(response.providerId, 'nanogpt');
+  assert.equal(response.model, 'controlled-evaluator');
+  assert.equal(response.message.content, '{"bounded":true}');
+  assert.equal(auditService.startedEvents[0]?.principalKind, 'SERVICE');
+  assert.equal(auditService.startedEvents[0]?.integrationClientId, 'pgs');
+  assert.equal(auditService.startedEvents[0]?.apiKeyId, 'key-pgs');
+  assert.equal(auditService.startedEvents[0]?.resolvedUserUuid, null);
+});
+
+test('GatewayService rejects a late provider success after evaluation cancellation', async () => {
+  const provider = new LateSuccessProvider();
+  const telemetry = new FakeGatewayTelemetryService();
+  const audit = new FakeGatewayAuditService();
+  const service = new GatewayService(
+    audit as unknown as GatewayAuditService,
+    telemetry as never,
+    { getProvider: () => provider } as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+  const controller = new AbortController();
+  const operation = service.evaluateProfileChat(
+    {
+      providerId: 'nanogpt',
+      model: 'controlled-evaluator',
+      messages: [{ role: 'user', content: '{}' }],
+    },
+    {
+      userId: null,
+      userUuid: null,
+      emailHash: null,
+      activeTenantId: 'tenant-1',
+      activeTenantSlug: 'lxp-internal',
+      identitySource: 'integration-client-service',
+      roles: [],
+      globalRoles: [],
+      integrationClientId: 'pgs',
+      integrationClientKeyId: 'key-pgs',
+      integrationClientScopes: ['evaluation:invoke'],
+      defaultProviderId: null,
+      defaultModel: null,
+      defaultImageProviderId: null,
+      defaultImageModel: null,
+    },
+    controller.signal,
+  );
+
+  await provider.started;
+  controller.abort();
+  assert.equal(provider.signal?.aborted, true);
+  provider.resolveChat?.({
+    requestId: 'evaluation-late-success',
+    providerId: 'nanogpt',
+    model: 'controlled-evaluator',
+    message: { role: 'assistant', content: '{}' },
+  });
+
+  await assert.rejects(operation);
+  assert.equal(audit.succeededCount, 0);
+  assert.equal(audit.failedCount, 1);
+  assert.equal(telemetry.successCount, 0);
+  assert.equal(telemetry.failureCount, 1);
+});
+
+test('GatewayService readiness and evaluation execution share the credential resolver', async () => {
+  const credentialService = new TrackingTenantCredentialService();
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new FakeProviderRegistryService() as never,
+    credentialService as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+  const authContext = {
+    userId: null,
+    userUuid: null,
+    emailHash: null,
+    activeTenantId: 'tenant-1',
+    activeTenantSlug: 'lxp-internal',
+    identitySource: 'integration-client-service',
+    roles: [],
+    globalRoles: [],
+    integrationClientId: 'pgs',
+    integrationClientKeyId: 'key-pgs',
+    integrationClientScopes: ['evaluation:invoke'],
+    defaultProviderId: null,
+    defaultModel: null,
+    defaultImageProviderId: null,
+    defaultImageModel: null,
+  } satisfies GatewayServiceAuthContext;
+
+  const readiness = await service.getEvaluationReadiness(
+    'nanogpt',
+    'controlled-evaluator',
+    authContext,
+  );
+  await service.evaluateProfileChat(
+    {
+      providerId: 'nanogpt',
+      model: 'controlled-evaluator',
+      messages: [{ role: 'user', content: '{}' }],
+    },
+    authContext,
+  );
+
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.credentialPath, 'tenant');
+  assert.deepEqual(credentialService.providerIds, ['nanogpt', 'nanogpt']);
 });
 
 test('GatewayService audit includes compatibility identity attribution', async () => {

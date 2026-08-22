@@ -98,7 +98,9 @@ The repository now treats multi-tenancy as a first-class architectural concern:
 - tenant-aware BYOK provider credentials now have a PostgreSQL RLS slice protecting `user_provider_credentials`
 - `admin-api` and `admin-web` now expose an initial `super_admin` tenant-control surface for tenant listing, tenant settings, and membership visibility
 - the `super_admin` tenant-control surface now also manages provider configurations per tenant, including provider enablement, tenant defaults, and credential-mode fallback policy
-- tenant-aware technical clients can now call direct gateway chat, model-listing, and image-generation/edit endpoints through tenant-scoped API keys, with minimal scope enforcement on `chat:completion`, `models:list`, `image:generate`, and `image:edit`
+- tenant-aware technical clients can now call direct gateway chat, model-listing, image-generation/edit, and structured-evaluation endpoints through tenant-scoped API keys, with operation scopes including `evaluation:invoke`
+- structured evaluation is a reusable terminal inference capability: server-controlled profiles return validated evidence while downstream services such as PGS retain all policy and capability authority
+- the authenticated Evaluation Lab lets `operator` and `tenant_admin` users probe those profiles through a tenant-bound Admin API service identity without exposing M2M or provider credentials to the browser
 - tenant-aware usage telemetry now attributes technical traffic down to both `integrationClientId` and `apiKeyId`
 - `admin-api` and `admin-web` now expose a super-admin tenant-control surface for tenant-scoped `integration_clients` and `api_keys`, including create, disable, and rotate workflows
 - tenant-owned model access is now explicitly modeled through `tenant_model_access_rules`, with an initial super-admin UI for allow/deny rules, provider/model-pattern scoping, and image-oriented request limits
@@ -466,6 +468,9 @@ These rules apply from the scaffold stage:
 - do not rely long-term on weak gateway authentication conventions
 - encrypt provider credentials at rest
 - keep caller identity, user identity, and provider credentials clearly separated
+- allow tenant-bound machine clients to authenticate as service principals
+  without fabricating a human user; delegated/default users remain optional and
+  separately attributable
 
 The implementation may begin simply, but the boundaries must be sound from the beginning.
 
@@ -539,4 +544,24 @@ That provider-internal image pattern is now the expected reference for any new i
 
 Public registration also includes tenant-aware email verification through the selected SMTP or MailerSend provider with short-lived, digest-only challenges. This is deliberately separate from account creation.
 
+## Structured Evaluation Stabilization
 
+Provider credentials have one canonical persistent source for PR-14 service
+evaluation: the Gateway encrypted credential repository. The server-controlled
+profile resolves provider and model, then a service-only caller resolves the
+matching active `TENANT` credential. It never uses personal `USER` BYOK or a
+provider API-key environment fallback. Platform credential ownership is
+deferred; endpoint and timeout environment settings remain runtime
+configuration rather than credential storage.
+
+The bounded Evaluation Lab and the PGS service integration exercise one frozen
+v1 evidence contract. They do not add policy decisions, capability mutation,
+provider selection by callers, retries, or an additional authentication
+protocol. Profile readiness is diagnostic metadata and does not invoke a model.
+
+Execution is restricted to service-only integration clients and requires the
+caller to repeat its expected tenant in `X-Lxp-Expected-Tenant-Id`; the Gateway
+compares that value with the tenant authenticated from the key and fails closed
+when it is absent or different. Evaluation Lab and PGS use separate clients and
+keys. The profile deadline propagates through `provider-sdk` to the provider
+transport, and an aborted request cannot emit success audit or usage telemetry.

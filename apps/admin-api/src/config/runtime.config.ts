@@ -109,6 +109,30 @@ export function validateRuntimeConfig(
     }
   }
 
+  const evaluationKeys = env.LXP_ADMIN_EVALUATION_API_KEYS_JSON?.trim();
+  if (evaluationKeys) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(evaluationKeys) as unknown;
+    } catch {
+      throw new Error(
+        'Environment variable LXP_ADMIN_EVALUATION_API_KEYS_JSON must be valid JSON.',
+      );
+    }
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      Array.isArray(parsed) ||
+      Object.values(parsed).some(
+        (value) => typeof value !== 'string' || !value.trim(),
+      )
+    ) {
+      throw new Error(
+        'Environment variable LXP_ADMIN_EVALUATION_API_KEYS_JSON must map tenant IDs to non-empty API keys.',
+      );
+    }
+  }
+
   return env;
 }
 

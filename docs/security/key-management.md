@@ -138,3 +138,32 @@ The same masking rule applies to tenant-scoped integration API keys:
 - store only a one-way hash plus a short masked hint for lookup and operator support
 - never persist the raw key after issuance
 - never rely on forwarded identity headers as the root trust primitive without an authenticated technical client
+- treat the integration client as the authoritative service principal; a human
+  user is optional and must never be synthesized or inherited from the creator
+- retain tenant, integration-client, and API-key attribution even when no
+  delegated/default user exists
+
+### Optional default user
+
+`Default user` is optional and its usefulness depends on the client:
+
+- `SERVICE_ONLY`: no default user and no forwarded identity. Use this for PGS
+  and other machine-to-machine workloads that must use tenant or explicitly
+  permitted platform provider credentials.
+- `DEFAULT_USER`: use only for a compatibility client whose requests genuinely
+  need one stable user's resources or BYOK credential.
+- `FORWARDED_USER`: use when an authenticated trusted proxy supplies the user
+  identity on every request; no fallback user is configured.
+- `FORWARDED_USER_WITH_DEFAULT`: use only when the trusted forwarded identity
+  is preferred but a deliberate fallback user is required.
+
+Creating or administering a client never makes the operator its default user.
+Removing a default user changes identity resolution; it does not delete the
+client or its keys.
+
+The Admin Web `Test client` action creates a short-lived diagnostic key, calls
+the Gateway integration-client self-test, and deletes the key in a guaranteed
+cleanup step. It validates Gateway reachability, key authentication, tenant
+binding, identity mode, and resolved scopes. It does not invoke a provider and
+therefore does not validate provider credentials, model-access rules, quotas,
+or inference output.

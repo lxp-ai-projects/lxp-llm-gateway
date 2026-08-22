@@ -227,7 +227,9 @@ export class OpenAiCompatibleTextProviderAdapter
     try {
       return await fetch(url, {
         ...init,
-        signal: controller.signal,
+        signal: init.signal
+          ? AbortSignal.any([init.signal, controller.signal])
+          : controller.signal,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
@@ -261,6 +263,7 @@ export class OpenAiCompatibleTextProviderAdapter
       `${this.resolveBaseUrl(context)}${this.chatCompletionsPath}`,
       {
         method: 'POST',
+        signal: context.signal,
         headers: {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),

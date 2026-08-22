@@ -784,6 +784,8 @@ export function ChatPage() {
                   data={sortedModelOptions}
                   data-testid="chat-model-select"
                   label="Model"
+                  limit={100}
+                  nothingFoundMessage="No models found"
                   onChange={(value) => {
                     const nextModel = value ?? '';
                     pendingConversationProviderSyncRef.current = false;
@@ -802,6 +804,8 @@ export function ChatPage() {
                       );
                     }
                   }}
+                  searchable
+                  selectFirstOptionOnChange
                   value={model}
                   className="chat-model-select"
                   disabled={!providerId || modelsQuery.isPending || modelsQuery.isError}

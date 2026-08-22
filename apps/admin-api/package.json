@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "dependencies": {
+    "@lxp/contracts": "workspace:*",
     "@lxp/domain": "workspace:*",
     "@lxp/provider-anthropic": "workspace:*",
     "@lxp/provider-deepseek": "workspace:*",

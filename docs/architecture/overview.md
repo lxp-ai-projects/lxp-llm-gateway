@@ -148,11 +148,13 @@ The tenant boundary is now modeled explicitly:
 - tenant-owned tables must carry `tenant_id`
 - `tenant_provider_configurations` now define per-tenant provider enablement, default text/image models, and credential-routing policy
 - `tenant_model_access_rules` now define per-tenant provider/model-pattern allow-deny behavior and a first slice of capability-specific limits for image requests
-- `usage_events` now acts as the durable tenant usage ledger, carrying capability, credential-scope attribution, and blocked request statuses for later quota and billing work
+- `usage_events` now acts as the durable tenant usage ledger, carrying capability, credential-scope attribution, technical caller/key attribution, optional user attribution, and blocked request statuses for later quota and billing work
 - `tenant_policies` now define per-tenant operational guardrails such as request windows, monthly budget, monthly token totals, image request volume, logging posture, and retention defaults
 - tenant-aware credential resolution prefers user-scoped credentials only when the tenant allows override, then falls back to tenant defaults
-- technical clients such as `Open WebUI` should authenticate through tenant-scoped `integration_clients` and `api_keys`, with forwarded human identity treated only as an optional bounded enhancement
-- tenant-scoped technical clients can now authenticate against the direct gateway chat, model-listing, and image-generation/edit endpoints, with operation scopes enforced before provider dispatch
+- technical clients authenticate as first-class tenant-scoped service principals through `integration_clients` and `api_keys`; forwarded or default human identity is optional, remains distinct from the caller, and is never synthesized
+- tenant-scoped technical clients can now authenticate against direct gateway chat, model-listing, image-generation/edit, and structured-evaluation endpoints, with operation scopes enforced before provider dispatch
+- structured evaluation resolves an allowlisted server profile into the existing tenant policy, model-access, credential, provider, audit, and usage seams; server-controlled output constraints remain canonical at the provider seam and are translated only inside supporting adapters; it is a terminal inference route that returns evidence only, leaving PGS or another caller as the policy decision point
+- the Evaluation Lab is a control-plane bridge: the Admin API derives the active tenant from an authenticated `operator` or `tenant_admin`, selects a tenant-bound `evaluation:invoke` key server-side, and rejects any mismatch between the expected tenant and the tenant resolved by the Gateway; React never receives the key or arbitrary execution controls
 - control-plane operators can now manage those tenant-scoped technical clients through the `super_admin` tenant-control surface, including API key creation, rotation, and disablement
 - `audit_logs` and `usage_events` now also use PostgreSQL row-level security as a second line of defense, with the gateway setting `app.tenant_id` transactionally before telemetry writes
 - `integration_clients` and `api_keys` now also use PostgreSQL row-level security, with technical-client key lookup bootstrapped through a transaction-scoped `app.api_key_hash` before the gateway narrows the session to `app.tenant_id`
@@ -432,4 +434,24 @@ That UI should remain behind the same backend boundaries already used for chat:
 
 `admin-api` owns tenant-aware registration email verification. It uses a selected global SMTP or MailerSend provider, digest-only challenge persistence and Redis abuse limits. It establishes only proof of email possession; account creation remains a separate flow.
 
+## Structured Evaluation Boundary
 
+PGS and the Evaluation Lab are tenant-bound service callers of the Gateway's
+server-controlled structured evaluation profile. Provider/model selection and
+provider credentials remain inside the Gateway and behind `provider-sdk`; PGS
+never becomes a provider implementation. Integration-client scopes form a
+ceiling and API-key scopes form a delegated subset, with their intersection used
+at authentication time. Service-only evaluation resolves only the active
+encrypted tenant credential matching the profile provider. It ignores user BYOK
+and environment-backed platform fallback and never fabricates a user. This
+execution route also requires an expected-tenant header matching the
+authenticated client, rejects user-bound integration identities, and propagates
+its deadline as an abort signal through `provider-sdk` to provider transport.
+Evaluation Lab and PGS use distinct integration clients and API keys so their
+rotation, revocation, and audit attribution remain independent. These
+boundaries are formalized by
+`docs/architecture/decisions/ADR-012-service-evaluation-provider-credentials.md`
+and
+`docs/architecture/decisions/ADR-013-structured-evaluation-execution-hardening.md`;
+the PR14 audit and validation record is in
+`docs/delivery/pr14-provider-credential-stabilization.md`.

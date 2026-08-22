@@ -1,4 +1,8 @@
-import type { ModelFamilyProfile, UnsupportedFeatureReason } from '@lxp/domain';
+import type {
+  IntegrationClientScope,
+  ModelFamilyProfile,
+  UnsupportedFeatureReason,
+} from '@lxp/domain';
 export type { GatewayVideoRetryRequest } from '@lxp/contracts';
 import type { GatewayVideoRetryRequest } from '@lxp/contracts';
 
@@ -476,7 +480,7 @@ export type GatewayImageHistoryResponse = {
 
 export type ProviderCredentialSummary = {
   id: string;
-  userUuid: string;
+  userUuid: string | null;
   providerId: string;
   providerDisplayName: string;
   label: string;
@@ -605,7 +609,12 @@ export type AdminTenantIntegrationClientSummary = {
   applicationId: string;
   defaultUserUuid: string | null;
   defaultUserDisplayName: string | null;
-  scopes: string[];
+  identityMode:
+    | 'SERVICE_ONLY'
+    | 'DEFAULT_USER'
+    | 'FORWARDED_USER'
+    | 'FORWARDED_USER_WITH_DEFAULT';
+  scopes: IntegrationClientScope[];
   trustedForwardedIdentityEnabled: boolean;
   status: 'active' | 'disabled';
   apiKeyCount: number;
@@ -620,7 +629,7 @@ export type AdminTenantIntegrationApiKeySummary = {
   integrationClientClientId: string;
   label: string;
   keyHint: string | null;
-  scopes: string[];
+  scopes: IntegrationClientScope[];
   status: 'active' | 'disabled';
   expiresAt: string | null;
   lastUsedAt: string | null;
@@ -633,12 +642,24 @@ export type AdminTenantIntegrationApiKeySecretSummary = {
   summary: AdminTenantIntegrationApiKeySummary;
 };
 
+export type AdminTenantIntegrationClientTestResult = {
+  ready: boolean;
+  checkedAt: string;
+  gatewayReachable: boolean;
+  clientId: string;
+  identityMode: AdminTenantIntegrationClientSummary['identityMode'];
+  principalKind: 'SERVICE' | 'USER' | null;
+  scopes: string[];
+  message: string;
+};
+
 export type AdminTenantUsageEventSummary = {
   id: string;
   requestId: string;
-  userUuid: string;
+  userUuid: string | null;
   operation:
     | 'chat'
+    | 'evaluation'
     | 'image_generation'
     | 'image_edit'
     | 'video_generation_submit'
@@ -737,6 +758,20 @@ export type AdminUpdateTenantProviderConfigurationInput = {
   allowTenantFallback: boolean;
 };
 
+export type AdminStoreTenantProviderCredentialInput = {
+  providerId: string;
+  label: string;
+  apiToken?: string;
+  baseUrl?: string;
+};
+
+export type AdminUpdateTenantProviderCredentialInput = {
+  label?: string;
+  apiToken?: string;
+  baseUrl?: string;
+  isActive?: boolean;
+};
+
 export type AdminUpdateTenantPolicyInput = {
   monthlyBudgetUsd?: string;
   dailyRequestLimit?: number;
@@ -778,53 +813,29 @@ export type AdminCreateIntegrationClientInput = {
   clientId: string;
   displayName: string;
   applicationId: string;
-  defaultUserUuid?: string;
-  scopes: Array<
-    | 'chat:completion'
-    | 'image:generate'
-    | 'image:edit'
-    | 'video:generate'
-    | 'models:list'
-  >;
+  defaultUserUuid?: string | null;
+  scopes: IntegrationClientScope[];
   trustedForwardedIdentityEnabled: boolean;
 };
 
 export type AdminUpdateIntegrationClientInput = {
   displayName?: string;
   applicationId?: string;
-  defaultUserUuid?: string;
-  scopes?: Array<
-    | 'chat:completion'
-    | 'image:generate'
-    | 'image:edit'
-    | 'video:generate'
-    | 'models:list'
-  >;
+  defaultUserUuid?: string | null;
+  scopes?: IntegrationClientScope[];
   trustedForwardedIdentityEnabled?: boolean;
   status?: 'active' | 'disabled';
 };
 
 export type AdminCreateIntegrationApiKeyInput = {
   label: string;
-  scopes?: Array<
-    | 'chat:completion'
-    | 'image:generate'
-    | 'image:edit'
-    | 'video:generate'
-    | 'models:list'
-  >;
+  scopes?: IntegrationClientScope[];
   expiresAt?: string;
 };
 
 export type AdminUpdateIntegrationApiKeyInput = {
   label?: string;
-  scopes?: Array<
-    | 'chat:completion'
-    | 'image:generate'
-    | 'image:edit'
-    | 'video:generate'
-    | 'models:list'
-  >;
+  scopes?: IntegrationClientScope[];
   status?: 'active' | 'disabled';
   expiresAt?: string;
 };

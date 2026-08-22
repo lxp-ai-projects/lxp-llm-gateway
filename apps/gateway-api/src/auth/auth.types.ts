@@ -19,6 +19,7 @@ export type GatewayAuthIdentitySource =
   | 'access-token'
   | 'openai-compatible-default-user'
   | 'openai-compatible-trusted-header'
+  | 'integration-client-service'
   | 'integration-client-default-user'
   | 'integration-client-trusted-header';
 
@@ -39,3 +40,25 @@ export type GatewayAuthContext = {
   defaultImageProviderId: ProviderId | null;
   defaultImageModel: string | null;
 };
+
+export type GatewayServiceAuthContext = {
+  userId: null;
+  userUuid: null;
+  emailHash: null;
+  activeTenantId: string;
+  activeTenantSlug: string;
+  identitySource: 'integration-client-service';
+  roles: [];
+  globalRoles: [];
+  integrationClientId: string;
+  integrationClientKeyId: string;
+  integrationClientScopes: string[];
+  defaultProviderId: null;
+  defaultModel: null;
+  defaultImageProviderId: null;
+  defaultImageModel: null;
+};
+
+export type GatewayIntegrationClientAuthContext =
+  | GatewayAuthContext
+  | GatewayServiceAuthContext;

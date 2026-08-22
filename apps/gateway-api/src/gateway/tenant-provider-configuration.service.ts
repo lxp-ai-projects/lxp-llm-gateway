@@ -8,6 +8,14 @@ import type { ProviderId } from '@lxp/domain';
 import { Repository } from 'typeorm';
 
 import type { GatewayAuthContext } from '../auth/auth.types';
+
+type ProviderDefaultContext = Pick<
+  GatewayAuthContext,
+  | 'defaultProviderId'
+  | 'defaultModel'
+  | 'defaultImageProviderId'
+  | 'defaultImageModel'
+>;
 import { ProviderEntity } from '../persistence/entities/provider.entity';
 import { TenantEntity } from '../persistence/entities/tenant.entity';
 import {
@@ -111,7 +119,7 @@ export class TenantProviderConfigurationService {
   resolveTextModel(
     requestedModel: string | undefined,
     providerId: ProviderId,
-    authContext: GatewayAuthContext,
+    authContext: ProviderDefaultContext,
     configuration: ResolvedTenantProviderConfiguration,
   ): string {
     if (requestedModel) {
@@ -137,7 +145,7 @@ export class TenantProviderConfigurationService {
   resolveImageModel(
     requestedModel: string | undefined,
     providerId: ProviderId,
-    authContext: GatewayAuthContext,
+    authContext: ProviderDefaultContext,
     configuration: ResolvedTenantProviderConfiguration,
   ): string {
     if (requestedModel) {

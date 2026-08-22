@@ -146,6 +146,79 @@ test('adminApiClient delegates CRUD endpoints to request with the expected paylo
   );
 });
 
+test('adminApiClient deletes tenant-bound integration clients and keys', async () => {
+  requestMock.mockResolvedValue(undefined);
+
+  await adminApiClient.deleteTenantIntegrationApiKey(
+    'tenant-1',
+    'client-1',
+    'key-1',
+  );
+  await adminApiClient.deleteTenantIntegrationClient('tenant-1', 'client-1');
+
+  expect(requestMock).toHaveBeenNthCalledWith(
+    1,
+    'http://localhost:3002/api/v1/admin/tenants/tenant-1/integration-clients/client-1/api-keys/key-1',
+    { method: 'DELETE' },
+  );
+  expect(requestMock).toHaveBeenNthCalledWith(
+    2,
+    'http://localhost:3002/api/v1/admin/tenants/tenant-1/integration-clients/client-1',
+    { method: 'DELETE' },
+  );
+});
+
+test('adminApiClient tests a tenant integration client', async () => {
+  requestMock.mockResolvedValue({ ready: true });
+
+  await adminApiClient.testTenantIntegrationClient('tenant-1', 'client-1');
+
+  expect(requestMock).toHaveBeenCalledWith(
+    'http://localhost:3002/api/v1/admin/tenants/tenant-1/integration-clients/client-1/test',
+    { method: 'POST' },
+  );
+});
+
+test('adminApiClient manages tenant provider credentials on tenant routes', async () => {
+  requestMock.mockResolvedValue({});
+
+  await adminApiClient.getTenantProviderCredentials('tenant-1');
+  await adminApiClient.createTenantProviderCredential('tenant-1', {
+    providerId: 'openai',
+    label: 'Evaluation',
+    apiToken: 'secret',
+  });
+  await adminApiClient.updateTenantProviderCredential(
+    'tenant-1',
+    'credential-1',
+    { isActive: false },
+  );
+  await adminApiClient.deleteTenantProviderCredential(
+    'tenant-1',
+    'credential-1',
+  );
+
+  const base =
+    'http://localhost:3002/api/v1/admin/tenants/tenant-1/provider-credentials';
+  expect(requestMock).toHaveBeenNthCalledWith(1, base);
+  expect(requestMock).toHaveBeenNthCalledWith(2, base, {
+    method: 'POST',
+    body: JSON.stringify({
+      providerId: 'openai',
+      label: 'Evaluation',
+      apiToken: 'secret',
+      scope: 'tenant',
+    }),
+  });
+  expect(requestMock).toHaveBeenNthCalledWith(3, `${base}/credential-1`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive: false }),
+  });
+  expect(requestMock).toHaveBeenNthCalledWith(4, `${base}/credential-1`, {
+    method: 'DELETE',
+  });
+});
+
 test('adminApiClient login posts credentials then resolves the session through getSession', async () => {
   requestMock.mockResolvedValue({});
   const getSessionSpy = vi

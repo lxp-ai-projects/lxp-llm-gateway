@@ -7,6 +7,11 @@ import {
 } from './api-base';
 import { SUPPORTED_PROVIDERS } from '@lxp/domain';
 import type {
+  EvaluationProbeRequest,
+  EvaluationProbeResult,
+  EvaluationProfileSummary,
+} from '@lxp/contracts';
+import type {
   AdminCreateTenantInput,
   AdminCreateIntegrationApiKeyInput,
   AdminCreateIntegrationClientInput,
@@ -16,6 +21,7 @@ import type {
   AdminTenantIntegrationApiKeySecretSummary,
   AdminTenantIntegrationApiKeySummary,
   AdminTenantIntegrationClientSummary,
+  AdminTenantIntegrationClientTestResult,
   AdminTenantMembershipSummary,
   AdminTenantModelAccessRuleSummary,
   AdminTenantPolicySummary,
@@ -29,6 +35,7 @@ import type {
   AdminTenantUsageByProviderSummary,
   AdminTenantUsageEventSummary,
   AdminTenantUsageSummary,
+  AdminStoreTenantProviderCredentialInput,
   AdminTestTenantProviderConfigurationInput,
   AdminUpdateGlobalRolesInput,
   AdminUpdateTenantInput,
@@ -37,6 +44,7 @@ import type {
   AdminUpdateTenantModelAccessRuleInput,
   AdminUpdateTenantPolicyInput,
   AdminUpdateTenantProviderConfigurationInput,
+  AdminUpdateTenantProviderCredentialInput,
   AdminUserSummary,
   AdminUpdateUserInput,
   ChangeOwnPasswordInput,
@@ -52,6 +60,25 @@ import type {
 } from './api-client.types';
 
 export const adminApiClient = {
+  async getEvaluationProfiles(): Promise<EvaluationProfileSummary[]> {
+    return request<EvaluationProfileSummary[]>(
+      `${adminApiUrl}/api/v1/admin/evaluation-profiles`,
+    );
+  },
+
+  async executeEvaluationProbe(
+    payload: EvaluationProbeRequest,
+  ): Promise<EvaluationProbeResult> {
+    return request<EvaluationProbeResult>(
+      `${adminApiUrl}/api/v1/admin/evaluation-probes`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 40_000,
+      },
+    );
+  },
+
   async getRuntimeConfig(): Promise<RuntimeConfig> {
     try {
       return await request<RuntimeConfig>(
@@ -294,6 +321,48 @@ export const adminApiClient = {
     );
   },
 
+  async getTenantProviderCredentials(
+    tenantId: string,
+  ): Promise<ProviderCredentialSummary[]> {
+    return request<ProviderCredentialSummary[]>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-credentials`,
+    );
+  },
+
+  async createTenantProviderCredential(
+    tenantId: string,
+    payload: AdminStoreTenantProviderCredentialInput,
+  ): Promise<ProviderCredentialSummary> {
+    return request<ProviderCredentialSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-credentials`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, scope: 'tenant' }),
+      },
+    );
+  },
+
+  async updateTenantProviderCredential(
+    tenantId: string,
+    credentialId: string,
+    payload: AdminUpdateTenantProviderCredentialInput,
+  ): Promise<ProviderCredentialSummary> {
+    return request<ProviderCredentialSummary>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-credentials/${credentialId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    );
+  },
+
+  async deleteTenantProviderCredential(
+    tenantId: string,
+    credentialId: string,
+  ): Promise<{ deleted: true }> {
+    return request<{ deleted: true }>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/provider-credentials/${credentialId}`,
+      { method: 'DELETE' },
+    );
+  },
+
   async getTenantPolicy(tenantId: string): Promise<AdminTenantPolicySummary> {
     return request<AdminTenantPolicySummary>(
       `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/policies`,
@@ -348,6 +417,26 @@ export const adminApiClient = {
     );
   },
 
+  async deleteTenantIntegrationClient(
+    tenantId: string,
+    integrationClientId: string,
+  ): Promise<void> {
+    return request<void>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  async testTenantIntegrationClient(
+    tenantId: string,
+    integrationClientId: string,
+  ): Promise<AdminTenantIntegrationClientTestResult> {
+    return request<AdminTenantIntegrationClientTestResult>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}/test`,
+      { method: 'POST' },
+    );
+  },
+
   async getTenantIntegrationApiKeys(
     tenantId: string,
     integrationClientId: string,
@@ -396,6 +485,17 @@ export const adminApiClient = {
         method: 'PATCH',
         body: JSON.stringify(payload),
       },
+    );
+  },
+
+  async deleteTenantIntegrationApiKey(
+    tenantId: string,
+    integrationClientId: string,
+    apiKeyId: string,
+  ): Promise<void> {
+    return request<void>(
+      `${adminApiUrl}/api/v1/admin/tenants/${tenantId}/integration-clients/${integrationClientId}/api-keys/${apiKeyId}`,
+      { method: 'DELETE' },
     );
   },
 

@@ -40,6 +40,12 @@ import { ConversationTransferController } from './conversation-transfer/conversa
 import { ConversationTransferService } from './conversation-transfer/conversation-transfer.service';
 import { TenantPublicHostResolverService } from './registration/tenant-public-host-resolver.service';
 import { TenantRegistrationService } from './registration/tenant-registration.service';
+import { EvaluationLabController } from './evaluation-lab/evaluation-lab.controller';
+import { EvaluationLabService } from './evaluation-lab/evaluation-lab.service';
+import {
+  EnvironmentEvaluationServiceCredentialResolver,
+  EvaluationServiceCredentialResolver,
+} from './evaluation-lab/evaluation-service-credential.resolver';
 
 @Module({
   imports: [
@@ -77,6 +83,7 @@ import { TenantRegistrationService } from './registration/tenant-registration.se
     HealthController,
     PublicConfigController,
     ConversationTransferController,
+    EvaluationLabController,
   ],
   providers: [
     EncryptionService,
@@ -90,6 +97,11 @@ import { TenantRegistrationService } from './registration/tenant-registration.se
     ConversationTransferService,
     TenantPublicHostResolverService,
     TenantRegistrationService,
+    EvaluationLabService,
+    {
+      provide: EvaluationServiceCredentialResolver,
+      useClass: EnvironmentEvaluationServiceCredentialResolver,
+    },
   ],
 })
 export class AppModule {}

@@ -74,6 +74,7 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
       {
         model: 'z-ai/glm-5',
         maxOutputTokens: 2048,
+        outputFormat: 'json',
         providerOptions: {
           zai: {
             thinking: {
@@ -106,6 +107,7 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
     assert.equal(headers.authorization, 'Bearer nano-secret-token');
     const body = JSON.parse(String(calls[0]?.init?.body ?? '{}')) as {
       max_tokens?: number;
+      response_format?: { type?: string };
       thinking?: { type?: string; clear_thinking?: boolean };
       messages?: Array<{
         role?: string;
@@ -114,6 +116,7 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
       }>;
     };
     assert.equal(body.max_tokens, 2048);
+    assert.deepEqual(body.response_format, { type: 'json_object' });
     assert.deepEqual(body.thinking, {
       type: 'enabled',
       clear_thinking: false,
@@ -382,6 +385,48 @@ test('NanoGptProviderAdapter fails with an explicit timeout error when the provi
   }
 });
 
+test('NanoGptProviderAdapter forwards an external cancellation signal to provider fetch', async () => {
+  const originalFetch = globalThis.fetch;
+  let observedSignal: AbortSignal | undefined;
+
+  globalThis.fetch = (async (_url, init) =>
+    new Promise<Response>((_resolve, reject) => {
+      observedSignal = init?.signal as AbortSignal | undefined;
+      observedSignal?.addEventListener(
+        'abort',
+        () => reject(new DOMException('The operation was aborted.', 'AbortError')),
+        { once: true },
+      );
+    })) as typeof fetch;
+
+  try {
+    const controller = new AbortController();
+    const adapter = new NanoGptProviderAdapter(
+      'https://nano-gpt.com/api/v1',
+      90000,
+    );
+    const operation = adapter.chat(
+      {
+        model: 'z-ai/glm-4.6:thinking',
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-cancelled',
+        userId: 'service:pgs',
+        providerAccess: { apiKey: 'nano-secret-token' },
+        signal: controller.signal,
+      },
+    );
+
+    controller.abort();
+
+    await assert.rejects(operation, /timed out|aborted/i);
+    assert.equal(observedSignal?.aborted, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtime', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -600,7 +645,9 @@ test('NanoGptProviderAdapter falls back to the canonical image catalog when Nano
         },
       ],
     );
-    assert.ok(calls.some((url) => url.includes('/subscription/v1/image-models')));
+    assert.ok(
+      calls.some((url) => url.includes('/subscription/v1/image-models')),
+    );
     assert.ok(calls.some((url) => url.includes('/paid/v1/image-models')));
     assert.ok(calls.some((url) => url.includes('/v1/image-models')));
   } finally {
@@ -718,13 +765,14 @@ test('NanoGptProviderAdapter assigns Google-aligned multi-reference limits to Na
     assert.equal(modelLimits['nano-banana-pro-edit'], 14);
     assert.equal(modelLimits['nano-banana-pro-edit-ultra'], 10);
     assert.deepEqual(
-      catalog?.models.find((model) => model.id === 'nano-banana-2')?.capabilities
-        .supportedImageAspectRatios?.map((entry) => entry.value),
+      catalog?.models
+        .find((model) => model.id === 'nano-banana-2')
+        ?.capabilities.supportedImageAspectRatios?.map((entry) => entry.value),
       ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'],
     );
     assert.deepEqual(
-      catalog?.models.find((model) => model.id === 'nano-banana-2')?.capabilities
-        .supportedImageResolutions,
+      catalog?.models.find((model) => model.id === 'nano-banana-2')
+        ?.capabilities.supportedImageResolutions,
       [
         { value: '512', label: '512' },
         { value: '1K', label: '1K' },
@@ -733,8 +781,8 @@ test('NanoGptProviderAdapter assigns Google-aligned multi-reference limits to Na
       ],
     );
     assert.equal(
-      catalog?.models.find((model) => model.id === 'nano-banana-2')?.capabilities
-        .imageDefaults?.aspectRatio,
+      catalog?.models.find((model) => model.id === 'nano-banana-2')
+        ?.capabilities.imageDefaults?.aspectRatio,
       '1:1',
     );
   } finally {
@@ -794,7 +842,10 @@ test('NanoGptProviderAdapter sends image generation requests to the NanoGPT imag
     );
 
     assert.ok(response);
-    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/images/generations');
+    assert.equal(
+      calls[0]?.url,
+      'https://nano-gpt.com/api/v1/images/generations',
+    );
     assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
       model: 'gpt-image-1.5',
       prompt: 'A sunset over a mountain range',
@@ -875,7 +926,10 @@ test('NanoGptProviderAdapter sends image edit requests with data URL references'
     );
 
     assert.ok(response);
-    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/images/generations');
+    assert.equal(
+      calls[0]?.url,
+      'https://nano-gpt.com/api/v1/images/generations',
+    );
     assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
       model: 'gpt-image-1',
       prompt: 'Combine these images into a creative collage',
@@ -944,7 +998,10 @@ test('NanoGptProviderAdapter sends Nano Banana aspect ratio requests to the Nano
     );
 
     assert.ok(response);
-    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/images/generations');
+    assert.equal(
+      calls[0]?.url,
+      'https://nano-gpt.com/api/v1/images/generations',
+    );
     assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
       model: 'nano-banana',
       prompt: 'A studio portrait',
@@ -990,7 +1047,10 @@ test('NanoGptProviderAdapter exposes NanoGPT video models and attaches Kling fam
                 durations: [5, 10],
                 aspect_ratios: ['16:9'],
                 resolutions: ['720p', '1080p'],
-                allowed_passthrough_parameters: ['negative_prompt', 'cfg_scale'],
+                allowed_passthrough_parameters: [
+                  'negative_prompt',
+                  'cfg_scale',
+                ],
               },
             },
           ],
@@ -1052,15 +1112,18 @@ test('NanoGptProviderAdapter exposes NanoGPT video models and attaches Kling fam
       'https://nano-gpt.com/api/subscription/v1/video-models?detailed=true',
       'https://nano-gpt.com/api/paid/v1/video-models?detailed=true',
     ]);
-    const klingModel = catalog?.models.find((model) => model.id === 'kling-video-o1');
+    const klingModel = catalog?.models.find(
+      (model) => model.id === 'kling-video-o1',
+    );
     const veoModel = catalog?.models.find((model) => model.id === 'veo2-video');
     assert.ok(klingModel);
     assert.ok(veoModel);
     assert.equal(klingModel?.family?.profileId, 'kling-video-family');
-    assert.deepEqual(
-      klingModel?.family?.video?.generationModes,
-      ['text-to-video', 'image-to-video', 'multi-image-to-video'],
-    );
+    assert.deepEqual(klingModel?.family?.video?.generationModes, [
+      'text-to-video',
+      'image-to-video',
+      'multi-image-to-video',
+    ]);
     assert.equal(veoModel?.family, undefined);
   } finally {
     globalThis.fetch = originalFetch;
@@ -1068,9 +1131,12 @@ test('NanoGptProviderAdapter exposes NanoGPT video models and attaches Kling fam
 });
 
 test('buildNanoGptVideoCatalog prioritizes NanoGPT supported_modes for standard Kling fixtures', () => {
-  const klingStandard = loadNanoGptVideoFixture<Parameters<
-    typeof buildNanoGptVideoCatalog
-  >[0]['subscriptionModels'][number]>('kling-v26-std');
+  const klingStandard =
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('kling-v26-std');
   const catalog = buildNanoGptVideoCatalog({
     subscriptionModels: [klingStandard],
     paidModels: [],
@@ -1082,24 +1148,28 @@ test('buildNanoGptVideoCatalog prioritizes NanoGPT supported_modes for standard 
   assert.equal(model.capabilities.supportsVideoReferenceImages, true);
   assert.equal(model.capabilities.maxReferenceImagesPerRequest, 1);
   assert.equal(model.capabilities.supportsVideoAudioGeneration, true);
-  assert.deepEqual(
-    model.family?.video?.generationModes,
-    ['text-to-video', 'image-to-video'],
-  );
-  assert.deepEqual(
-    model.family?.video?.aspectRatioConstraint?.allowedValues,
-    ['16:9', '9:16', '1:1'],
-  );
-  assert.deepEqual(
-    model.family?.video?.resolutionConstraint?.allowedValues,
-    ['720p', '1080p'],
-  );
+  assert.deepEqual(model.family?.video?.generationModes, [
+    'text-to-video',
+    'image-to-video',
+  ]);
+  assert.deepEqual(model.family?.video?.aspectRatioConstraint?.allowedValues, [
+    '16:9',
+    '9:16',
+    '1:1',
+  ]);
+  assert.deepEqual(model.family?.video?.resolutionConstraint?.allowedValues, [
+    '720p',
+    '1080p',
+  ]);
 });
 
 test('buildNanoGptVideoCatalog uses architecture before Kling heuristics when NanoGPT omits supported_modes', () => {
-  const klingStandard = loadNanoGptVideoFixture<Parameters<
-    typeof buildNanoGptVideoCatalog
-  >[0]['subscriptionModels'][number]>('kling-v30-pro');
+  const klingStandard =
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('kling-v30-pro');
   const catalog = buildNanoGptVideoCatalog({
     subscriptionModels: [klingStandard],
     paidModels: [],
@@ -1109,20 +1179,24 @@ test('buildNanoGptVideoCatalog uses architecture before Kling heuristics when Na
   assert.ok(model);
   assert.equal(model.capabilities.supportsVideoReferenceImages, true);
   assert.equal(model.capabilities.maxReferenceImagesPerRequest, 1);
-  assert.deepEqual(
-    model.family?.video?.generationModes,
-    ['text-to-video', 'image-to-video'],
-  );
+  assert.deepEqual(model.family?.video?.generationModes, [
+    'text-to-video',
+    'image-to-video',
+  ]);
 });
 
 test('buildNanoGptVideoCatalog keeps specialized Kling motion-control fixtures visible but non-routable', () => {
   const motionControlFixtures = [
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('kling-v26-std-motion-control'),
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('kling-v30-std-motion-control'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('kling-v26-std-motion-control'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('kling-v30-std-motion-control'),
   ];
   const catalog = buildNanoGptVideoCatalog({
     subscriptionModels: motionControlFixtures,
@@ -1161,18 +1235,26 @@ test('buildNanoGptVideoCatalog keeps specialized Kling motion-control fixtures v
 
 test('buildNanoGptVideoCatalog normalizes explicit NanoGPT fixtures without inventing extra modes', () => {
   const fixtures = [
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('kling-v30-std'),
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('grok-imagine-video'),
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('grok-imagine-video-reference-to-video'),
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('veo3-video'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('kling-v30-std'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('grok-imagine-video'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('grok-imagine-video-reference-to-video'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('veo3-video'),
   ];
   const catalog = buildNanoGptVideoCatalog({
     subscriptionModels: fixtures,
@@ -1180,7 +1262,9 @@ test('buildNanoGptVideoCatalog normalizes explicit NanoGPT fixtures without inve
   });
 
   const kling = catalog.models.find((entry) => entry.id === 'kling-v30-std');
-  const grok = catalog.models.find((entry) => entry.id === 'grok-imagine-video');
+  const grok = catalog.models.find(
+    (entry) => entry.id === 'grok-imagine-video',
+  );
   const grokReference = catalog.models.find(
     (entry) => entry.id === 'grok-imagine-video-reference-to-video',
   );
@@ -1200,24 +1284,36 @@ test('buildNanoGptVideoCatalog normalizes explicit NanoGPT fixtures without inve
 
 test('buildNanoGptVideoCatalog applies conservative Seedance document fallbacks when NanoGPT metadata is incomplete', () => {
   const fixtures = [
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('seedance-1-0-pro-fast'),
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('seedance-1-5-pro'),
-    loadNanoGptVideoFixture<Parameters<
-      typeof buildNanoGptVideoCatalog
-    >[0]['subscriptionModels'][number]>('seedance-2-0-fast'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('seedance-1-0-pro-fast'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('seedance-1-5-pro'),
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('seedance-2-0-fast'),
   ];
   const catalog = buildNanoGptVideoCatalog({
     subscriptionModels: fixtures,
     paidModels: [],
   });
 
-  const seedance10 = catalog.models.find((entry) => entry.id === 'seedance-1-0-pro-fast');
-  const seedance15 = catalog.models.find((entry) => entry.id === 'seedance-1-5-pro');
-  const seedance20 = catalog.models.find((entry) => entry.id === 'seedance-2-0-fast');
+  const seedance10 = catalog.models.find(
+    (entry) => entry.id === 'seedance-1-0-pro-fast',
+  );
+  const seedance15 = catalog.models.find(
+    (entry) => entry.id === 'seedance-1-5-pro',
+  );
+  const seedance20 = catalog.models.find(
+    (entry) => entry.id === 'seedance-2-0-fast',
+  );
 
   assert.ok(seedance10);
   assert.ok(seedance15);
@@ -1227,7 +1323,9 @@ test('buildNanoGptVideoCatalog applies conservative Seedance document fallbacks 
   assert.equal(seedance10.capabilities.supportsVideoReferenceImages, true);
   assert.equal(seedance10.capabilities.supportsVideoAudioGeneration, false);
   assert.deepEqual(
-    seedance10.capabilities.supportedVideoAspectRatios?.map((entry) => entry.value),
+    seedance10.capabilities.supportedVideoAspectRatios?.map(
+      (entry) => entry.value,
+    ),
     ['16:9', '9:16', '1:1'],
   );
   assert.deepEqual(seedance10.capabilities.capabilityDiagnostics, []);
@@ -1236,7 +1334,9 @@ test('buildNanoGptVideoCatalog applies conservative Seedance document fallbacks 
   assert.equal(seedance15.capabilities.supportsVideoReferenceImages, true);
   assert.equal(seedance15.capabilities.supportsVideoAudioGeneration, true);
   assert.deepEqual(
-    seedance15.capabilities.supportedVideoAspectRatios?.map((entry) => entry.value),
+    seedance15.capabilities.supportedVideoAspectRatios?.map(
+      (entry) => entry.value,
+    ),
     ['16:9', '9:16', '4:3', '3:4', '1:1', '21:9'],
   );
   assert.deepEqual(seedance15.capabilities.capabilityDiagnostics, []);
@@ -1245,16 +1345,21 @@ test('buildNanoGptVideoCatalog applies conservative Seedance document fallbacks 
   assert.equal(seedance20.capabilities.supportsVideoReferenceImages, true);
   assert.equal(seedance20.capabilities.supportsVideoAudioGeneration, true);
   assert.deepEqual(
-    seedance20.capabilities.supportedVideoAspectRatios?.map((entry) => entry.value),
+    seedance20.capabilities.supportedVideoAspectRatios?.map(
+      (entry) => entry.value,
+    ),
     ['16:9', '9:16', '1:1'],
   );
   assert.deepEqual(seedance20.capabilities.capabilityDiagnostics, []);
 });
 
 test('buildNanoGptVideoCatalog parses the current NanoGPT seedance-video payload shape', () => {
-  const fixture = loadNanoGptVideoFixture<Parameters<
-    typeof buildNanoGptVideoCatalog
-  >[0]['subscriptionModels'][number]>('seedance-video');
+  const fixture =
+    loadNanoGptVideoFixture<
+      Parameters<
+        typeof buildNanoGptVideoCatalog
+      >[0]['subscriptionModels'][number]
+    >('seedance-video');
   const catalog = buildNanoGptVideoCatalog({
     subscriptionModels: [fixture],
     paidModels: [],
@@ -1266,10 +1371,7 @@ test('buildNanoGptVideoCatalog parses the current NanoGPT seedance-video payload
   assert.equal(model.capabilities.supportsVideoReferenceImages, true);
   assert.equal(model.capabilities.maxReferenceImagesPerRequest, 1);
   assert.equal(model.capabilities.supportsVideoAudioGeneration, false);
-  assert.deepEqual(
-    model.family?.video?.generationModes ?? [],
-    [],
-  );
+  assert.deepEqual(model.family?.video?.generationModes ?? [], []);
   assert.deepEqual(
     model.capabilities.supportedVideoDurations?.map((entry) => entry.value),
     [5, 10],
@@ -1387,23 +1489,23 @@ test('NanoGptProviderAdapter maps the unified top-level NanoGPT video status pay
 
   try {
     const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
-    const job = await adapter.getVideoGenerationJob?.(
-      'vid_456',
-      {
-        requestId: 'req-video-status-top-level',
-        userId: 'user-1',
-        providerAccess: {
-          apiKey: 'nano-secret-token',
-        },
-        metadata: {
-          requestedModel: 'kling-video-o1',
-          prompt: 'Animate the still image',
-        },
+    const job = await adapter.getVideoGenerationJob?.('vid_456', {
+      requestId: 'req-video-status-top-level',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'nano-secret-token',
       },
-    );
+      metadata: {
+        requestedModel: 'kling-video-o1',
+        prompt: 'Animate the still image',
+      },
+    });
 
     assert.equal(job?.status, 'succeeded');
-    assert.equal(job?.outputs[0]?.contentUrl, 'https://cdn.nano-gpt.com/videos/vid_456.mp4');
+    assert.equal(
+      job?.outputs[0]?.contentUrl,
+      'https://cdn.nano-gpt.com/videos/vid_456.mp4',
+    );
     assert.equal(job?.providerMetadata?.upstreamStatus, 'completed');
   } finally {
     globalThis.fetch = originalFetch;
@@ -1450,20 +1552,16 @@ test('NanoGptProviderAdapter keeps downloadVideoOutput bound when the method is 
   try {
     const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
     const detachedDownload = adapter.downloadVideoOutput;
-    const stream = await detachedDownload?.(
-      'vid_bound_1',
-      0,
-      {
-        requestId: 'req-video-download-detached',
-        userId: 'user-1',
-        providerAccess: {
-          apiKey: 'nano-secret-token',
-        },
-        metadata: {
-          requestedModel: 'kling-video-o1',
-        },
+    const stream = await detachedDownload?.('vid_bound_1', 0, {
+      requestId: 'req-video-download-detached',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'nano-secret-token',
       },
-    );
+      metadata: {
+        requestedModel: 'kling-video-o1',
+      },
+    });
     const reader = stream?.getReader();
     const firstChunk = await reader?.read();
 
@@ -1519,45 +1617,49 @@ test('NanoGptProviderAdapter polls completed video jobs and downloads the provid
 
   try {
     const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
-    const job = await adapter.getVideoGenerationJob?.(
-      'vid_123',
-      {
-        requestId: 'req-video-status',
-        userId: 'user-1',
-        providerAccess: {
-          apiKey: 'nano-secret-token',
-        },
-        metadata: {
-          requestedModel: 'kling-video-o1',
-          prompt: 'Animate the still image',
-        },
+    const job = await adapter.getVideoGenerationJob?.('vid_123', {
+      requestId: 'req-video-status',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'nano-secret-token',
       },
-    );
+      metadata: {
+        requestedModel: 'kling-video-o1',
+        prompt: 'Animate the still image',
+      },
+    });
 
     assert.equal(job?.status, 'succeeded');
-    assert.equal(job?.outputs[0]?.contentUrl, 'https://cdn.nano-gpt.com/videos/vid_123.mp4');
+    assert.equal(
+      job?.outputs[0]?.contentUrl,
+      'https://cdn.nano-gpt.com/videos/vid_123.mp4',
+    );
     assert.equal(job?.providerMetadata?.upstreamStatus, 'COMPLETED');
 
-    const stream = await adapter.downloadVideoOutput?.(
-      'vid_123',
-      0,
-      {
-        requestId: 'req-video-download',
-        userId: 'user-1',
-        providerAccess: {
-          apiKey: 'nano-secret-token',
-        },
-        metadata: {
-          requestedModel: 'kling-video-o1',
-        },
+    const stream = await adapter.downloadVideoOutput?.('vid_123', 0, {
+      requestId: 'req-video-download',
+      userId: 'user-1',
+      providerAccess: {
+        apiKey: 'nano-secret-token',
       },
-    );
+      metadata: {
+        requestedModel: 'kling-video-o1',
+      },
+    });
     const reader = stream?.getReader();
     const firstChunk = await reader?.read();
 
     assert.match(new TextDecoder().decode(firstChunk?.value), /video-bytes/);
-    assert.ok(calls.some((call) => call.url.includes('/api/video/status?requestId=vid_123')));
-    assert.ok(calls.some((call) => call.url === 'https://cdn.nano-gpt.com/videos/vid_123.mp4'));
+    assert.ok(
+      calls.some((call) =>
+        call.url.includes('/api/video/status?requestId=vid_123'),
+      ),
+    );
+    assert.ok(
+      calls.some(
+        (call) => call.url === 'https://cdn.nano-gpt.com/videos/vid_123.mp4',
+      ),
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1580,7 +1682,9 @@ test('buildNanoGptImageCatalog aligns Seedream 4.x capabilities with BytePlus im
     paidModels: [],
   });
 
-  const model = catalog.models.find((entry) => entry.id === 'seedream-4-0-250828');
+  const model = catalog.models.find(
+    (entry) => entry.id === 'seedream-4-0-250828',
+  );
   assert.ok(model);
   assert.equal(model.capabilities.supportsImageGeneration, true);
   assert.equal(model.capabilities.supportsImageEditing, true);
@@ -1610,7 +1714,9 @@ test('buildNanoGptImageCatalog classifies SeedEdit 3.0 as edit-only', () => {
     paidModels: [],
   });
 
-  const model = catalog.models.find((entry) => entry.id === 'seededit-3-0-i2i-250628');
+  const model = catalog.models.find(
+    (entry) => entry.id === 'seededit-3-0-i2i-250628',
+  );
   assert.ok(model);
   assert.equal(model.capabilities.supportsImageGeneration, false);
   assert.equal(model.capabilities.supportsImageEditing, true);
@@ -1691,9 +1797,8 @@ test('buildNanoGptImageCatalog aligns NanoGPT OpenAI model aliases with OpenAI e
     generated: 10,
   });
   assert.deepEqual(
-    catalog.models
-      .find((model) => model.id === 'gpt-image-1')
-      ?.capabilities.supportedImageResponseFormats,
+    catalog.models.find((model) => model.id === 'gpt-image-1')?.capabilities
+      .supportedImageResponseFormats,
     ['b64_json'],
   );
   assert.deepEqual(
@@ -1733,7 +1838,9 @@ test('buildNanoGptImageCatalog aligns GPT Image 1.5 alias ids with OpenAI capabi
 
   const model = catalog.models.find((entry) => entry.id === 'gpt-image-1_5');
   assert.ok(model);
-  assert.deepEqual(model.capabilities.supportedImageResponseFormats, ['b64_json']);
+  assert.deepEqual(model.capabilities.supportedImageResponseFormats, [
+    'b64_json',
+  ]);
   assert.deepEqual(
     model.capabilities.supportedImageBackgrounds?.map((entry) => entry.value),
     ['auto', 'opaque', 'transparent'],
@@ -1777,7 +1884,9 @@ test('buildNanoGptImageCatalog aligns GPT Image 2 with OpenAI capabilities', () 
 
   const model = catalog.models.find((entry) => entry.id === 'gpt-image-2');
   assert.ok(model);
-  assert.deepEqual(model.capabilities.supportedImageResponseFormats, ['b64_json']);
+  assert.deepEqual(model.capabilities.supportedImageResponseFormats, [
+    'b64_json',
+  ]);
   assert.deepEqual(
     model.capabilities.supportedImageBackgrounds?.map((entry) => entry.value),
     ['auto', 'opaque', 'transparent'],
@@ -1825,20 +1934,30 @@ test('buildNanoGptImageCatalog aligns GPT Image Mini and ChatGPT image alias ids
     paidModels: [],
   });
 
-  const miniModel = catalog.models.find((entry) => entry.id === 'gpt image 1 mini');
-  const latestModel = catalog.models.find((entry) => entry.id === 'chatgpt image latest');
+  const miniModel = catalog.models.find(
+    (entry) => entry.id === 'gpt image 1 mini',
+  );
+  const latestModel = catalog.models.find(
+    (entry) => entry.id === 'chatgpt image latest',
+  );
   assert.ok(miniModel);
   assert.ok(latestModel);
   assert.deepEqual(
-    miniModel.capabilities.supportedImageModerations?.map((entry) => entry.value),
+    miniModel.capabilities.supportedImageModerations?.map(
+      (entry) => entry.value,
+    ),
     ['auto', 'low'],
   );
   assert.deepEqual(
-    latestModel.capabilities.supportedImageBackgrounds?.map((entry) => entry.value),
+    latestModel.capabilities.supportedImageBackgrounds?.map(
+      (entry) => entry.value,
+    ),
     ['auto', 'opaque', 'transparent'],
   );
   assert.deepEqual(
-    latestModel.capabilities.supportedImageOutputFormats?.map((entry) => entry.value),
+    latestModel.capabilities.supportedImageOutputFormats?.map(
+      (entry) => entry.value,
+    ),
     ['png', 'jpeg', 'webp'],
   );
   assert.equal(latestModel.capabilities.maxReferenceImagesPerRequest, 16);
@@ -1862,7 +1981,9 @@ test('buildNanoGptImageCatalog aligns Wan 2.7 Image Pro with Alibaba Cloud multi
     paidModels: [],
   });
 
-  const model = catalog.models.find((entry) => entry.id === 'wan-2.7-image-pro');
+  const model = catalog.models.find(
+    (entry) => entry.id === 'wan-2.7-image-pro',
+  );
   assert.ok(model);
   assert.equal(model.capabilities.maxReferenceImagesPerRequest, 9);
   assert.deepEqual(model.capabilities.supportedImageResolutions, [
@@ -1950,6 +2071,3 @@ test('buildNanoGptImageCatalog aligns Qwen Image with a 3-reference edit limit',
   assert.ok(model);
   assert.equal(model.capabilities.maxReferenceImagesPerRequest, 3);
 });
-
-
-

@@ -420,7 +420,11 @@ export function ImageRequestForm({
                 }))}
                 data-testid="image-model-select"
                 label="Model"
+                limit={100}
+                nothingFoundMessage="No models found"
                 onChange={(value) => imageLab.setModelId(value ?? '')}
+                searchable
+                selectFirstOptionOnChange
                 value={imageLab.modelId}
               />
             </Stack>

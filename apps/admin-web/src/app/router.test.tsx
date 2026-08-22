@@ -26,6 +26,9 @@ test('router declares the public and protected application routes', () => {
     true,
   );
   expect(
+    appRoute?.children?.some((route) => route.path === 'developer/evaluations'),
+  ).toBe(true);
+  expect(
     appRoute?.children?.some((route) => route.path === 'admin/users'),
   ).toBe(true);
   expect(

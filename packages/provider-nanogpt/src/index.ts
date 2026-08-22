@@ -114,11 +114,15 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
         this.imageApiClient
           .listImageModels(context, '/paid/v1/image-models')
           .catch(() => null),
-        this.imageApiClient.listImageModels(context, '/image-models').catch(() => null),
+        this.imageApiClient
+          .listImageModels(context, '/image-models')
+          .catch(() => null),
       ]);
 
     if (!subscriptionCatalog && !paidCatalog && !canonicalCatalog) {
-      throw new Error('NanoGPT image catalog lookup failed for all known endpoints.');
+      throw new Error(
+        'NanoGPT image catalog lookup failed for all known endpoints.',
+      );
     }
 
     return buildNanoGptImageCatalog({
@@ -131,7 +135,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
   async listVideoCatalog(context: ProviderExecutionContext) {
     const [canonicalCatalog, subscriptionCatalog, paidCatalog] =
       await Promise.all([
-        this.videoApiClient.listVideoModels(context, '/video-models').catch(() => null),
+        this.videoApiClient
+          .listVideoModels(context, '/video-models')
+          .catch(() => null),
         this.videoApiClient
           .listVideoModels(context, '/subscription/v1/video-models')
           .catch(() => null),
@@ -141,7 +147,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       ]);
 
     if (!canonicalCatalog && !subscriptionCatalog && !paidCatalog) {
-      throw new Error('NanoGPT video catalog lookup failed for all known endpoints.');
+      throw new Error(
+        'NanoGPT video catalog lookup failed for all known endpoints.',
+      );
     }
 
     return buildNanoGptVideoCatalog({
@@ -309,7 +317,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
         ? context.metadata.requestedModel
         : 'unknown-model';
     const prompt =
-      typeof context.metadata?.prompt === 'string' ? context.metadata.prompt : '';
+      typeof context.metadata?.prompt === 'string'
+        ? context.metadata.prompt
+        : '';
 
     return this.videoGenerationService.getJob(
       requestedModel,
@@ -348,6 +358,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       `${this.resolveBaseUrl(context)}/chat/completions`,
       {
         method: 'POST',
+        signal: context.signal,
         headers: {
           'content-type': 'application/json',
           ...this.resolveHeaders(context),
@@ -368,6 +379,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
           user: context.userId,
           ...(typeof request.maxOutputTokens === 'number'
             ? { max_tokens: request.maxOutputTokens }
+            : {}),
+          ...(request.outputFormat === 'json'
+            ? { response_format: { type: 'json_object' } }
             : {}),
           ...(isNanoGptZaiThinkingModel(request.model) && zaiThinking
             ? {
@@ -422,7 +436,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     try {
       return await fetch(url, {
         ...init,
-        signal: controller.signal,
+        signal: init.signal
+          ? AbortSignal.any([init.signal, controller.signal])
+          : controller.signal,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
@@ -441,8 +457,5 @@ function isNanoGptZaiThinkingModel(model: string | undefined): boolean {
     return false;
   }
 
-  return /^z-ai\/glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i.test(
-    model,
-  );
+  return /^z-ai\/glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i.test(model);
 }
-

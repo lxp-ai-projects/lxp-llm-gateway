@@ -1,0 +1,165 @@
+name: lxp-llm-gateway-setup-watch
+
+x-workspace-service: &workspace-service
+  image: node:24-bookworm
+  working_dir: /workspace
+  env_file:
+    - ../../.env
+  volumes:
+    - ../..:/workspace
+    - workspace_node_modules:/workspace/node_modules
+    - pnpm_store:/pnpm
+  environment:
+    PNPM_HOME: /pnpm
+    PATH: /pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: lxp_gateway
+      POSTGRES_USER: lxp_gateway
+      POSTGRES_PASSWORD: change-me
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lxp_gateway -d lxp_gateway']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+
+  workspace-bootstrap:
+    <<: *workspace-service
+    restart: 'no'
+    command:
+      [
+        'bash',
+        '-lc',
+        'corepack enable && corepack prepare pnpm@11.0.7 --activate && pnpm install --frozen-lockfile && pnpm run dev:runtime:build',
+      ]
+
+  admin-api-migrate:
+    <<: *workspace-service
+    restart: 'no'
+    depends_on:
+      workspace-bootstrap:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      PNPM_HOME: /pnpm
+      PATH: /pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+    command:
+      ['bash', '-lc', 'corepack enable && corepack prepare pnpm@11.0.7 --activate && pnpm --filter @lxp/admin-api migration:run']
+
+  gateway-api-migrate:
+    <<: *workspace-service
+    restart: 'no'
+    depends_on:
+      workspace-bootstrap:
+        condition: service_completed_successfully
+      admin-api-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      PNPM_HOME: /pnpm
+      PATH: /pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+    command:
+      ['bash', '-lc', 'corepack enable && corepack prepare pnpm@11.0.7 --activate && pnpm --filter @lxp/gateway-api migration:run']
+
+  admin-api:
+    <<: *workspace-service
+    restart: unless-stopped
+    depends_on:
+      admin-api-migrate:
+        condition: service_completed_successfully
+    environment:
+      PNPM_HOME: /pnpm
+      PATH: /pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3002:3002'
+    command:
+      ['bash', '-lc', 'corepack enable && corepack prepare pnpm@11.0.7 --activate && pnpm --filter @lxp/admin-api dev']
+
+  gateway-api:
+    <<: *workspace-service
+    restart: unless-stopped
+    depends_on:
+      gateway-api-migrate:
+        condition: service_completed_successfully
+    environment:
+      PNPM_HOME: /pnpm
+      PATH: /pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_SSL: false
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3001:3001'
+    command:
+      ['bash', '-lc', 'corepack enable && corepack prepare pnpm@11.0.7 --activate && pnpm --filter @lxp/gateway-api dev']
+
+  admin-web:
+    <<: *workspace-service
+    restart: unless-stopped
+    depends_on:
+      workspace-bootstrap:
+        condition: service_completed_successfully
+      admin-api:
+        condition: service_started
+      gateway-api:
+        condition: service_started
+    ports:
+      - '3003:3003'
+    command:
+      ['bash', '-lc', 'corepack enable && corepack prepare pnpm@11.0.7 --activate && pnpm --filter @lxp/admin-web dev']
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    depends_on:
+      gateway-api:
+        condition: service_started
+    ports:
+      - '3004:8080'
+    environment:
+      HOST: 0.0.0.0
+      WEBUI_NAME: LXP Gateway Lab
+      ENABLE_OLLAMA_API: 'false'
+      ENABLE_OPENAI_API: 'true'
+      BYPASS_MODEL_ACCESS_CONTROL: 'true'
+      OPENAI_API_BASE_URL: http://gateway-api:3001/api/v1/openai
+      OPENAI_API_KEY: ${LXP_OPENAI_COMPAT_API_KEY:-change-me}
+      ENABLE_FORWARD_USER_INFO_HEADERS: 'true'
+      AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST: 15
+    volumes:
+      - open_webui_data:/app/backend/data
+
+volumes:
+  postgres_data:
+  open_webui_data:
+  workspace_node_modules:
+  pnpm_store:

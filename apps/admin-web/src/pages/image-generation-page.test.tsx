@@ -1092,3 +1092,15 @@ test('ImageGenerationPage renders immediate base64 results with the returned MIM
   const resultImage = await screen.findByAltText('Generated result 1');
   expect(resultImage).toHaveAttribute('src', 'data:image/webp;base64,webp-image');
 });
+
+test('ImageGenerationPage model selector supports catalog search', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ImageGenerationPage />);
+
+  const modelSelect = await screen.findByTestId('image-model-select');
+  await user.click(modelSelect);
+  await user.clear(modelSelect);
+  await user.type(modelSelect, 'model-that-does-not-exist');
+
+  expect(await screen.findByText('No models found')).toBeInTheDocument();
+});

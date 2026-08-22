@@ -548,10 +548,13 @@ test('ProvidersPage saves separate image gateway defaults', async () => {
   await waitFor(() =>
     expect(screen.getByTestId('providers-default-image-model')).not.toBeDisabled(),
   );
-  await user.selectOptions(
-    screen.getByTestId('providers-default-image-model'),
-    'z-ai/glm-4.6:thinking',
-  );
+  const imageModelSelect = screen.getByTestId('providers-default-image-model');
+    await user.clear(imageModelSelect);
+    await user.type(imageModelSelect, 'GLM 4.6 Thinking');
+    await user.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(imageModelSelect).toHaveValue('GLM 4.6 Thinking'),
+    );
   await user.click(screen.getByRole('button', { name: 'Save defaults' }));
 
   await waitFor(() =>
@@ -915,4 +918,18 @@ test('ProvidersPage blocks DeepSeek credentials without an API token', async () 
     await screen.findByText('DeepSeek credentials require an API token.'),
   ).toBeInTheDocument();
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
+});
+
+test('ProvidersPage filters searchable default-model catalogs', async () => {
+  const user = userEvent.setup();
+  renderWithProviders(<ProvidersPage />);
+
+  const modelSelect = await screen.findByTestId('providers-default-model');
+  await waitFor(() => expect(modelSelect).not.toBeDisabled());
+  await user.clear(modelSelect);
+  await user.type(modelSelect, 'mistral');
+  expect(modelSelect).toHaveValue('mistral');
+  await user.keyboard('{Enter}');
+
+  await waitFor(() => expect(modelSelect).toHaveValue('Mistral Medium'));
 });

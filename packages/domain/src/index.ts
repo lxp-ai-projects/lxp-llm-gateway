@@ -53,6 +53,58 @@ export type TenantRole = 'tenant_admin' | 'operator' | 'user' | 'viewer';
 
 export type GlobalRole = 'super_admin';
 
+export const INTEGRATION_CLIENT_SCOPES = [
+  'chat:completion',
+  'image:generate',
+  'image:edit',
+  'video:generate',
+  'evaluation:invoke',
+  'models:list',
+  'usage:read',
+] as const;
+
+export type IntegrationClientScope =
+  (typeof INTEGRATION_CLIENT_SCOPES)[number];
+
+export function resolveEffectiveIntegrationClientScopes(
+  clientScopes: readonly string[] | null | undefined,
+  apiKeyScopes: readonly string[] | null | undefined,
+): IntegrationClientScope[] {
+  const supportedScopes = new Set<string>(INTEGRATION_CLIENT_SCOPES);
+  const clientScopeSet = new Set(
+    (clientScopes ?? []).map(normalizeIntegrationClientScope),
+  );
+
+  return [
+    ...new Set(
+      (apiKeyScopes ?? [])
+        .map(normalizeIntegrationClientScope)
+        .filter(
+          (scope): scope is IntegrationClientScope =>
+            supportedScopes.has(scope) && clientScopeSet.has(scope),
+        ),
+    ),
+  ];
+}
+
+export function findScopesOutsideIntegrationClientCeiling(
+  clientScopes: readonly string[],
+  delegatedScopes: readonly string[],
+): string[] {
+  const ceiling = new Set(clientScopes.map(normalizeIntegrationClientScope));
+  return [
+    ...new Set(
+      delegatedScopes
+        .map(normalizeIntegrationClientScope)
+        .filter((scope) => !ceiling.has(scope)),
+    ),
+  ];
+}
+
+function normalizeIntegrationClientScope(scope: string): string {
+  return scope === 'chat:complete' ? 'chat:completion' : scope;
+}
+
 export const TENANT_ROLE_VALUES: TenantRole[] = [
   'tenant_admin',
   'operator',

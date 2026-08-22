@@ -68,6 +68,8 @@ export interface GatewayChatRequest {
   providerId?: ProviderId;
   model?: string;
   maxOutputTokens?: number;
+  /** Server-controlled canonical output constraint mapped by provider adapters. */
+  outputFormat?: 'json';
   providerOptions?: GatewayChatProviderOptions;
   messages: Array<{
     role: 'system' | 'user' | 'assistant';
@@ -366,3 +368,4 @@ export interface GatewayErrorResponse {
 }
 
 export * from './video-generation.js';
+export * from './structured-evaluations.js';

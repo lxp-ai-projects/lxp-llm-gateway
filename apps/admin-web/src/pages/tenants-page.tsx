@@ -7,6 +7,7 @@ import {
   Code,
   Grid,
   Group,
+  Menu,
   Modal,
   MultiSelect,
   Select,
@@ -21,8 +22,9 @@ import {
   Tooltip,
   PasswordInput,
 } from '@mantine/core';
-import { IconHelpCircle } from '@tabler/icons-react';
+import { IconChevronDown, IconHelpCircle } from '@tabler/icons-react';
 import { useState } from 'react';
+import { INTEGRATION_CLIENT_SCOPES } from '@lxp/domain';
 
 import { PageHeader } from '../components/page-header';
 import { useTenantsController } from '../features/tenants/hooks/use-tenants-controller';
@@ -119,12 +121,15 @@ export function TenantsPage() {
     editPolicyTokensPerMinute,
     editStatus,
     handleRotateTenantIntegrationApiKey,
+    handleDeleteTenantIntegrationApiKey,
+    handleDeleteTenantIntegrationClient,
     handleCreateTenantSubmit,
     handleUpsertTenantIntegrationApiKeySubmit,
     handleUpsertTenantIntegrationClientSubmit,
     handleCreateTenantUserSubmit,
     handleDeleteTenantModelAccessRule,
     handleTestTenantProviderConfiguration,
+    onTestIntegrationClient,
     handleUpsertTenantModelAccessRuleSubmit,
     handleUpdateGlobalRolesSubmit,
     handleUpdateTenantPolicySubmit,
@@ -137,6 +142,9 @@ export function TenantsPage() {
     isCreateTenantModelAccessRulePending,
     isCreateTenantUserPending,
     isDeleteTenantModelAccessRulePending,
+    isDeleteTenantIntegrationApiKeyPending,
+    isDeleteTenantIntegrationClientPending,
+    isTestTenantIntegrationClientPending,
     isRotateTenantIntegrationApiKeyPending,
     isUpdateGlobalRolesPending,
     isUpdateTenantIntegrationApiKeyPending,
@@ -241,6 +249,19 @@ export function TenantsPage() {
     tenantsQuery,
     editProviderAllowPlatformFallback,
     editProviderAllowTenantFallback,
+    tenantCredentialLabel,
+    tenantCredentialApiToken,
+    tenantCredentialBaseUrl,
+    selectedTenantProviderCredential,
+    onTenantCredentialLabelChange,
+    onTenantCredentialApiTokenChange,
+    onTenantCredentialBaseUrlChange,
+    handleSaveTenantProviderCredential,
+    handleDeleteTenantProviderCredential,
+    handleToggleTenantProviderCredential,
+    isSaveTenantProviderCredentialPending,
+    isDeleteTenantProviderCredentialPending,
+    isToggleTenantProviderCredentialPending,
     editProviderConfigurationOpened,
     editProviderCredentialMode,
     editProviderDefaultImageModel,
@@ -255,6 +276,8 @@ export function TenantsPage() {
     onEditProviderEnabledChange,
     onEditProviderPreferUserCredentialsChange,
     testTenantProviderConfigurationResult,
+    testingIntegrationClientId,
+    testTenantIntegrationClientResult,
     updateGlobalRolesError,
   } = useTenantsController();
   const [activeTab, setActiveTab] = useState<string>('settings');
@@ -950,6 +973,47 @@ export function TenantsPage() {
                         </Stack>
                       </Alert>
                     ) : null}
+                    {testTenantIntegrationClientResult ? (
+                      <Alert
+                        color={
+                          testTenantIntegrationClientResult.ready
+                            ? 'teal'
+                            : 'red'
+                        }
+                        variant="light"
+                        title={
+                          testTenantIntegrationClientResult.ready
+                            ? 'Integration client authentication succeeded'
+                            : 'Integration client authentication failed'
+                        }
+                      >
+                        <Stack gap={4}>
+                          <Text size="sm">
+                            {testTenantIntegrationClientResult.message}
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            Client: {testTenantIntegrationClientResult.clientId}
+                            {' · '}Identity:{' '}
+                            {testTenantIntegrationClientResult.principalKind ??
+                              testTenantIntegrationClientResult.identityMode}
+                            {' · '}Scopes:{' '}
+                            {testTenantIntegrationClientResult.scopes.join(
+                              ', ',
+                            ) || 'none'}
+                          </Text>
+                          {testTenantIntegrationClientResult.scopes.includes(
+                            'evaluation:invoke',
+                          ) ? (
+                            <Text size="sm" c="dimmed">
+                              Evaluation readiness also requires an enabled
+                              profile provider, an allowed model, and a tenant
+                              credential or explicitly permitted platform
+                              fallback.
+                            </Text>
+                          ) : null}
+                        </Stack>
+                      </Alert>
+                    ) : null}
                     <Table.ScrollContainer minWidth={860}>
                       <Table highlightOnHover>
                         <Table.Thead>
@@ -982,10 +1046,17 @@ export function TenantsPage() {
                                 </Text>
                               </Table.Td>
                               <Table.Td>
+                                <Badge variant="light" mb={4}>
+                                  {client.identityMode
+                                    .toLowerCase()
+                                    .replaceAll('_', ' ')}
+                                </Badge>
                                 <Text size="sm">
-                                  Default user:{' '}
-                                  {client.defaultUserDisplayName ??
-                                    'No default user'}
+                                  Service principal: {client.clientId}
+                                </Text>
+                                <Text size="sm">
+                                  Default user fallback:{' '}
+                                  {client.defaultUserDisplayName ?? 'None'}
                                 </Text>
                                 <Text size="sm" c="dimmed">
                                   Forwarded identity:{' '}
@@ -1021,34 +1092,69 @@ export function TenantsPage() {
                                 </Group>
                               </Table.Td>
                               <Table.Td>
-                                <Group gap="xs">
-                                  <Button
-                                    size="xs"
-                                    variant="subtle"
-                                    onClick={() =>
-                                      onSelectIntegrationClient(client)
-                                    }
-                                  >
-                                    View keys
-                                  </Button>
-                                  <Button
-                                    size="xs"
-                                    variant="light"
-                                    onClick={() =>
-                                      onOpenEditIntegrationClient(client)
-                                    }
-                                  >
-                                    Edit client
-                                  </Button>
-                                  <Button
-                                    size="xs"
-                                    onClick={() =>
-                                      onOpenCreateIntegrationApiKey(client)
-                                    }
-                                  >
-                                    Create key
-                                  </Button>
-                                </Group>
+                                <Menu
+                                  position="bottom-end"
+                                  withinPortal
+                                >
+                                  <Menu.Target>
+                                    <Button
+                                      aria-label={`Actions for ${client.displayName}`}
+                                      disabled={
+                                        isDeleteTenantIntegrationClientPending
+                                      }
+                                      loading={
+                                        isTestTenantIntegrationClientPending &&
+                                        testingIntegrationClientId === client.id
+                                      }
+                                      rightSection={<IconChevronDown size={14} />}
+                                      size="xs"
+                                      variant="light"
+                                    >
+                                      Actions
+                                    </Button>
+                                  </Menu.Target>
+                                  <Menu.Dropdown>
+                                    <Menu.Item
+                                      onClick={() =>
+                                        onSelectIntegrationClient(client)
+                                      }
+                                    >
+                                      View keys
+                                    </Menu.Item>
+                                    <Menu.Item
+                                      onClick={() =>
+                                        onTestIntegrationClient(client)
+                                      }
+                                    >
+                                      Test client
+                                    </Menu.Item>
+                                    <Menu.Item
+                                      onClick={() =>
+                                        onOpenEditIntegrationClient(client)
+                                      }
+                                    >
+                                      Edit client
+                                    </Menu.Item>
+                                    <Menu.Item
+                                      onClick={() =>
+                                        onOpenCreateIntegrationApiKey(client)
+                                      }
+                                    >
+                                      Create key
+                                    </Menu.Item>
+                                    <Menu.Divider />
+                                    <Menu.Item
+                                      color="red"
+                                      onClick={() =>
+                                        handleDeleteTenantIntegrationClient(
+                                          client,
+                                        )
+                                      }
+                                    >
+                                      Delete client
+                                    </Menu.Item>
+                                  </Menu.Dropdown>
+                                </Menu>
                               </Table.Td>
                             </Table.Tr>
                           ))}
@@ -1135,32 +1241,50 @@ export function TenantsPage() {
                                     </Text>
                                   </Table.Td>
                                   <Table.Td>
-                                    <Group gap="xs">
-                                      <Button
-                                        size="xs"
-                                        variant="light"
-                                        onClick={() =>
-                                          onOpenEditIntegrationApiKey(
-                                            selectedIntegrationClient,
-                                            apiKey,
-                                          )
-                                        }
-                                      >
-                                        Edit key
-                                      </Button>
-                                      <Button
-                                        size="xs"
-                                        variant="subtle"
-                                        onClick={() =>
-                                          onOpenEditIntegrationApiKey(
-                                            selectedIntegrationClient,
-                                            apiKey,
-                                          )
-                                        }
-                                      >
-                                        Select
-                                      </Button>
-                                    </Group>
+                                    <Menu
+                                      position="bottom-end"
+                                      withinPortal
+                                    >
+                                      <Menu.Target>
+                                        <Button
+                                          aria-label={`Actions for ${apiKey.label}`}
+                                          disabled={
+                                            isDeleteTenantIntegrationApiKeyPending
+                                          }
+                                          rightSection={
+                                            <IconChevronDown size={14} />
+                                          }
+                                          size="xs"
+                                          variant="light"
+                                        >
+                                          Actions
+                                        </Button>
+                                      </Menu.Target>
+                                      <Menu.Dropdown>
+                                        <Menu.Item
+                                          onClick={() =>
+                                            onOpenEditIntegrationApiKey(
+                                              selectedIntegrationClient,
+                                              apiKey,
+                                            )
+                                          }
+                                        >
+                                          Edit key
+                                        </Menu.Item>
+                                        <Menu.Divider />
+                                        <Menu.Item
+                                          color="red"
+                                          onClick={() =>
+                                            handleDeleteTenantIntegrationApiKey(
+                                              selectedIntegrationClient,
+                                              apiKey,
+                                            )
+                                          }
+                                        >
+                                          Delete key
+                                        </Menu.Item>
+                                      </Menu.Dropdown>
+                                    </Menu>
                                   </Table.Td>
                                 </Table.Tr>
                               ))}
@@ -1593,6 +1717,13 @@ export function TenantsPage() {
               Technical clients are tenant-bound roots of trust for Open WebUI
               and similar integrations. Scopes stay narrow by default.
             </Text>
+            {!editIntegrationClientTrustedForwardedIdentityEnabled &&
+            !editIntegrationClientDefaultUserUuid ? (
+              <Alert color="teal" title="Service identity only">
+                The integration client itself is the authenticated service
+                principal. No human user is associated with its requests.
+              </Alert>
+            ) : null}
             <TextInput
               disabled={Boolean(selectedIntegrationClient)}
               label={
@@ -1643,10 +1774,10 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label="Default user"
-                  help="Optional tenant member used when the integration does not forward a trusted human identity."
+                  help="Optional fallback used only when no validated delegated user is supplied. Leave empty for a service-only client."
                 />
               }
-              placeholder="Optional tenant user"
+              placeholder="None - use service identity"
               data={integrationClientMemberOptions}
               value={editIntegrationClientDefaultUserUuid || null}
               onChange={(value) =>
@@ -1663,19 +1794,17 @@ export function TenantsPage() {
               searchable={false}
               value={editIntegrationClientScopes}
               onChange={onEditIntegrationClientScopesChange}
-              data={[
-                { value: 'chat:completion', label: 'chat:completion' },
-                { value: 'models:list', label: 'models:list' },
-                { value: 'image:generate', label: 'image:generate' },
-                { value: 'image:edit', label: 'image:edit' },
-              ]}
+              data={INTEGRATION_CLIENT_SCOPES.map((scope) => ({
+                value: scope,
+                label: scope,
+              }))}
             />
             <Switch
               checked={editIntegrationClientTrustedForwardedIdentityEnabled}
               label={
                 <FieldLabel
                   label="Trust forwarded human identity"
-                  help="Allows a trusted proxy to forward a human identity. Only enable this behind a boundary you fully control."
+                  help="Allows a validated delegated user to supplement the service caller. The integration client remains attributable as the technical caller."
                 />
               }
               description="Only enable this behind a trusted proxy boundary."
@@ -1765,19 +1894,17 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label="Scopes"
-                  help="Optional narrower capability set for this specific key. Leave empty to inherit the integration client's scopes."
+                  help="Delegated subset for this key. The API copies the client ceiling only when scopes are omitted; an explicit empty selection grants no capability."
                 />
               }
-              description="Leave empty to inherit the integration client's scopes."
+              description="Select the delegated subset. New keys default to the client ceiling when scopes are omitted by the API."
               searchable={false}
               value={editIntegrationApiKeyScopes}
               onChange={onEditIntegrationApiKeyScopesChange}
-              data={[
-                { value: 'chat:completion', label: 'chat:completion' },
-                { value: 'models:list', label: 'models:list' },
-                { value: 'image:generate', label: 'image:generate' },
-                { value: 'image:edit', label: 'image:edit' },
-              ]}
+              data={(selectedIntegrationClient?.scopes ?? []).map((scope) => ({
+                value: scope,
+                label: scope,
+              }))}
             />
             <TextInput
               label={
@@ -2034,6 +2161,110 @@ export function TenantsPage() {
                 </Text>
               </div>
             ) : null}
+            <Card withBorder radius="md" padding="md">
+              <Stack gap="sm">
+                <Group justify="space-between" align="flex-start">
+                  <div>
+                    <Text fw={700}>Tenant provider credential</Text>
+                    <Text size="sm" c="dimmed">
+                      Encrypted credential used by service-only workloads for
+                      this tenant and provider.
+                    </Text>
+                  </div>
+                  <Badge
+                    color={selectedTenantProviderCredential ? 'teal' : 'yellow'}
+                    variant="light"
+                  >
+                    {selectedTenantProviderCredential
+                      ? 'Configured'
+                      : 'Not configured'}
+                  </Badge>
+                </Group>
+                {selectedTenantProviderCredential ? (
+                  <Text size="sm">
+                    Scope: TENANT · Hint:{' '}
+                    {selectedTenantProviderCredential.maskedHint ?? 'hidden'} ·
+                    Status:{' '}
+                    {selectedTenantProviderCredential.isActive
+                      ? 'Active'
+                      : 'Disabled'}
+                  </Text>
+                ) : null}
+                <TextInput
+                  label="Credential label"
+                  value={tenantCredentialLabel}
+                  onChange={(event) =>
+                    onTenantCredentialLabelChange(event.currentTarget.value)
+                  }
+                />
+                <PasswordInput
+                  label={
+                    selectedTenantProviderCredential
+                      ? 'Replacement API token (optional)'
+                      : 'API token'
+                  }
+                  description={
+                    selectedTenantProviderCredential
+                      ? 'Leave empty to keep the existing encrypted token.'
+                      : 'Stored encrypted and never returned to the browser.'
+                  }
+                  value={tenantCredentialApiToken}
+                  onChange={(event) =>
+                    onTenantCredentialApiTokenChange(event.currentTarget.value)
+                  }
+                />
+                <TextInput
+                  label="Provider base URL (optional)"
+                  description="Use for a custom or local provider endpoint. Runtime secrets do not belong in environment variables."
+                  value={tenantCredentialBaseUrl}
+                  onChange={(event) =>
+                    onTenantCredentialBaseUrlChange(event.currentTarget.value)
+                  }
+                />
+                <Group justify="space-between">
+                  {selectedTenantProviderCredential ? (
+                    <Group gap="xs">
+                      <Button
+                        variant="subtle"
+                        type="button"
+                        loading={isToggleTenantProviderCredentialPending}
+                        onClick={handleToggleTenantProviderCredential}
+                      >
+                        {selectedTenantProviderCredential.isActive
+                          ? 'Disable'
+                          : 'Enable'}
+                      </Button>
+                      <Button
+                        color="red"
+                        variant="subtle"
+                        type="button"
+                        loading={isDeleteTenantProviderCredentialPending}
+                        onClick={handleDeleteTenantProviderCredential}
+                      >
+                        Delete credential
+                      </Button>
+                    </Group>
+                  ) : (
+                    <span />
+                  )}
+                  <Button
+                    type="button"
+                    loading={isSaveTenantProviderCredentialPending}
+                    disabled={
+                      !tenantCredentialLabel.trim() ||
+                      (!selectedTenantProviderCredential &&
+                        !tenantCredentialApiToken.trim() &&
+                        !tenantCredentialBaseUrl.trim())
+                    }
+                    onClick={handleSaveTenantProviderCredential}
+                  >
+                    {selectedTenantProviderCredential
+                      ? 'Update credential'
+                      : 'Save credential'}
+                  </Button>
+                </Group>
+              </Stack>
+            </Card>
             <Switch
               checked={editProviderEnabled}
               label={
@@ -2104,7 +2335,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label="Allow platform fallback"
-                  help="Allows fallback to a platform-level credential only when this tenant and provider configuration explicitly permit it."
+                  help="Legacy interactive-request policy. Structured Evaluation service identities ignore this setting and require a tenant credential."
                 />
               }
               disabled={editProviderCredentialMode === 'platform_default'}

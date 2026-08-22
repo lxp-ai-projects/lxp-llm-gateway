@@ -65,7 +65,9 @@ The repository now contains:
 - provider model discovery through provider adapters, including capability-specific model metadata
 - tenant-aware control-plane and gateway foundations based on global users, tenant memberships, and an active tenant context
 - tenant-aware technical client foundations based on integration clients and API keys
-- tenant-aware technical client execution on direct gateway chat, model-listing, and image-generation/edit endpoints with minimal scope enforcement
+- tenant-aware technical client execution on direct gateway chat, model-listing, image-generation/edit, and structured-evaluation endpoints with minimal scope enforcement
+- reusable structured evaluator profiles that return validated evidence without granting policy, grounding, authorization, or capability authority to the Gateway
+- a generic Evaluation Lab for authenticated operators, bridged through the Admin API with tenant-bound service authorization and no PGS policy controls
 - tenant-aware technical client administration on the `super_admin` surface, including tenant-bound integration clients, API key creation, key rotation, and key disablement
 - tenant-aware provider configuration foundations based on per-tenant provider enablement, default model selection, and credential-routing policy
 - tenant-aware model access foundations based on per-tenant rules for provider/model-pattern allow-deny control and image-oriented request limits
@@ -73,6 +75,9 @@ The repository now contains:
 - tenant-aware policy and limit foundations based on `tenant_policies`, with an initial gateway enforcement slice for request windows, monthly budget, monthly token totals, and monthly image request counts
 - tenant-aware audit and usage telemetry with an initial PostgreSQL RLS slice on telemetry tables
 - tenant-aware technical client auth with an initial PostgreSQL RLS slice on `integration_clients` and `api_keys`
+- first-class service-only integration-client identity, with tenant authority,
+  scoped permissions, optional delegated/default users, and truthful audit and
+  usage attribution
 - tenant-aware image storage and history with an initial PostgreSQL RLS slice on `image_assets`, `image_jobs`, and `image_job_results`
 - tenant-aware BYOK credential management with a PostgreSQL RLS slice on `user_provider_credentials`
 - an initial `super_admin` tenant administration surface for cross-tenant listing, tenant policy editing, and membership visibility
@@ -167,4 +172,22 @@ Current Open WebUI posture is:
 
 The public registration foundation can establish email possession for a resolved tenant when tenant registration is enabled and the selected SMTP or MailerSend provider is ready. It does not create a user, membership, role, password, or session.
 
+## Structured Evaluation
 
+Structured Evaluation service identities require an encrypted tenant-owned
+provider credential matching the provider selected by the server profile.
+Personal provider tokens remain personal, provider secrets are not selected
+from environment variables for this workload, and PGS remains unaware of the
+provider, model, and credential. The PGS-to-Gateway integration key and the
+Gateway-to-provider tenant credential are separate security boundaries.
+
+The Gateway may produce validated structured evidence through allowlisted,
+server-controlled profiles. Downstream systems such as PGS remain responsible
+for interpreting that evidence and making policy or capability decisions. The
+operator Evaluation Lab is a bounded diagnostic surface, not a policy workbench.
+
+Evaluation execution accepts only a tenant-bound service-only integration
+identity. The expected-tenant header is mandatory and must match the tenant
+resolved from the key. Evaluation Lab and PGS are provisioned as distinct
+clients with distinct keys, and the Gateway deadline actively cancels provider
+transport rather than only abandoning the local wait.

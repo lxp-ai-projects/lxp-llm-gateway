@@ -55,6 +55,10 @@ import { TenantPolicyService } from './tenant-policy.service';
 import { VideosController } from '../videos.controller';
 import { MediaStorageService } from '../videos/media-storage.service';
 import { VideoApplicationService } from '../videos/video-application.service';
+import { EvaluationController } from '../evaluations/evaluation.controller';
+import { EvaluationProfileRegistry } from '../evaluations/evaluation-profile.registry';
+import { EvaluationService } from '../evaluations/evaluation.service';
+import { IntegrationClientDiagnosticsController } from '../integration-client-diagnostics.controller';
 
 @Module({
   imports: [
@@ -90,6 +94,8 @@ import { VideoApplicationService } from '../videos/video-application.service';
     ImagesController,
     VideosController,
     OpenAiCompatibleController,
+    EvaluationController,
+    IntegrationClientDiagnosticsController,
   ],
   providers: [
     GatewayAuthService,
@@ -107,6 +113,8 @@ import { VideoApplicationService } from '../videos/video-application.service';
     ImageApplicationService,
     VideoApplicationService,
     MediaStorageService,
+    EvaluationProfileRegistry,
+    EvaluationService,
     TenantRlsService,
     EncryptionService,
     {

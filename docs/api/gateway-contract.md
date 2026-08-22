@@ -15,8 +15,22 @@ Super-admins can inspect non-secret transport readiness through `GET /api/v1/adm
 ## Endpoint
 
 - `POST /api/v1/chat`
+- `POST /api/v1/evaluations`
 - `GET /api/v1/openai/models`
 - `POST /api/v1/openai/chat/completions`
+
+`POST /api/v1/evaluations` is a service-to-service structured evidence route.
+It accepts only allowlisted evaluator profiles, requires a tenant-scoped
+service-only integration client with `evaluation:invoke`, and requires
+`X-Lxp-Expected-Tenant-Id` to match the tenant authenticated from its key. It
+never accepts arbitrary provider/model/prompt controls. See
+[Structured Evaluation API](structured-evaluations.md).
+
+Authenticated operators can exercise the same data-plane capability through
+the Admin API Evaluation Lab bridge. The browser retains only its normal admin
+session; the Admin API uses a tenant-bound service identity and the Lab neither
+bypasses M2M protection nor executes PGS policy. See
+[Evaluation Lab](evaluation-lab.md).
 
 The gateway supports two response modes:
 
@@ -33,7 +47,8 @@ The gateway validates the access token, resolves the caller through `emailHash`,
 Each successful or failed gateway execution should also produce tenant-aware audit and usage records that capture:
 
 - tenant context
-- effective user
+- technical caller and API-key identifier when present
+- delegated/default user when present
 - provider and model
 - identity source
 - latency and outcome
@@ -275,12 +290,28 @@ For native Ollama `/api/chat` streams, the adapter converts provider-native NDJS
 
 The gateway does not trust a caller-provided `userId`.
 
-Instead it:
+Integration-client authentication separates the tenant, the technical caller,
+and the optional delegated user. A machine-to-machine client may therefore be
+authenticated as `SERVICE:<clientId>` with no human user. Trusted forwarded
+identity supplements that service caller; a configured default user is only a
+fallback and never replaces service attribution.
 
-1. validates the access token
-2. reads `emailHash` from the token
-3. resolves the internal user record by `users.email_hash`
-4. loads the active provider credential for that internal user
+The structured evaluation route accepts service-only clients exclusively and
+requires explicit expected-tenant binding. Other routes that still require
+user-owned resources fail closed when no delegated or default user exists.
+
+`POST /api/v1/integration-clients/self-test` is a diagnostic route for an
+integration client to validate its own authentication, tenant binding, identity
+kind, and effective scopes. It returns no secret and invokes no provider. Admin
+Web uses an automatically deleted temporary key when `Test client` is selected,
+so provider readiness must still be tested independently.
+
+For a user request, the Gateway validates the access token, resolves the
+internal user by `emailHash`, and applies the tenant's established user/tenant
+credential policy. For a service-only Structured Evaluation request, it does
+not resolve a user: it loads only the active encrypted tenant credential
+matching the provider selected by the server-controlled profile. Missing
+credentials are provider-readiness failures, not M2M authentication failures.
 
 Public-facing admin workflows use `userUuid`, not the internal database row id.
 

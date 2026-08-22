@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
   title: lxp-llm-gateway API
-  version: 0.1.0
-  description: Initial placeholder contract for gateway and admin APIs.
+  version: 0.2.0
+  description: Gateway inference and server-controlled structured evaluation APIs.
 paths:
-  /health:
+  /api/v1/health:
     get:
-      summary: Health check placeholder
+      summary: Service health
       operationId: getHealth
       responses:
         '200':
@@ -15,10 +15,382 @@ paths:
             application/json:
               schema:
                 type: object
+                additionalProperties: false
                 properties:
                   status:
                     type: string
                     example: ok
-                required:
-                  - status
-components: {}
+                required: [status]
+  /api/v1/evaluations:
+    post:
+      summary: Execute a server-controlled structured evaluator profile
+      description: >-
+        Returns validated structured evidence. This endpoint does not make
+        downstream policy, grounding, authorization, or capability decisions.
+      operationId: createEvaluation
+      security:
+        - integrationClientBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationRequest'
+      responses:
+        '200':
+          description: Structured evidence validated by the selected profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationResponse'
+        '400':
+          description: Unsupported schema version or invalid profile input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid integration-client API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: >-
+            Missing evaluation:invoke (evaluation_service_forbidden) or model
+            denied by tenant policy (evaluation_model_forbidden)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown evaluator profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Evaluator provider rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider credentials rejected or structured evidence invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: >-
+            Profile not configured, provider credential unavailable
+            (evaluation_provider_credential_unavailable), or evaluator provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Evaluator timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/integration-clients/self-test:
+    post:
+      summary: Validate the calling integration-client identity
+      description: >-
+        Returns the authenticated client, tenant, identity kind, and effective
+        scopes without invoking a provider or validating provider credentials.
+      operationId: testIntegrationClientIdentity
+      security:
+        - integrationClientBearer: []
+      responses:
+        '200':
+          description: Integration-client authentication succeeded
+        '401':
+          description: Missing, invalid, inactive, or expired integration identity
+  /api/v1/admin/evaluation-profiles:
+    get:
+      summary: List safe Evaluation Lab profile metadata
+      operationId: listEvaluationProfiles
+      description: Requires an authenticated operator or tenant administrator session.
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Server-known evaluation profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvaluationProfileMetadata'
+        '401': { description: Missing or expired operator session }
+        '403': { description: Operator role is absent in the active tenant }
+  /api/v1/admin/evaluation-probes:
+    post:
+      summary: Execute an operator structured-evaluation probe
+      operationId: createEvaluationProbe
+      description: >-
+        The Admin API derives the tenant from the authenticated operator and
+        calls the M2M evaluation API with a tenant-bound service identity.
+        Browser payloads cannot select tenant, provider, model, prompt,
+        endpoint, or service credentials.
+      security:
+        - adminSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationProbeRequest'
+      responses:
+        '200':
+          description: Sanitized structured evidence and diagnostic metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationProbeResponse'
+        '400':
+          { description: Invalid profile input or forbidden execution control }
+        '401': { description: Missing or expired operator session }
+        '403': { description: Operator role is absent in the active tenant }
+        '429': { description: Evaluator rate limited }
+        '502':
+          {
+            description: Service identity,
+            provider authentication,
+            or output failure,
+          }
+        '503':
+          {
+            description: Service identity,
+            provider credential,
+            or evaluator unavailable,
+          }
+        '504': { description: Evaluation timed out }
+components:
+  securitySchemes:
+    integrationClientBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: tenant-scoped integration-client API key
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: lxp_access_token
+  schemas:
+    EvaluationRequest:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, profileId, input]
+      properties:
+        schemaVersion:
+          type: string
+          const: '1'
+        profileId:
+          type: string
+          enum: [pgs-grounding-v1]
+        input:
+          $ref: '#/components/schemas/PgsGroundingInput'
+    EvaluationProfileMetadata:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          profileId,
+          profileVersion,
+          schemaVersion,
+          displayName,
+          description,
+          inputKind,
+        ]
+      properties:
+        profileId: { type: string, const: pgs-grounding-v1 }
+        profileVersion: { type: string, const: '1' }
+        schemaVersion: { type: string, const: '1' }
+        displayName: { type: string }
+        description: { type: string }
+        inputKind: { type: string, const: pgs-grounding }
+    EvaluationProbeRequest:
+      type: object
+      additionalProperties: false
+      required: [profileId, input]
+      properties:
+        profileId: { type: string, const: pgs-grounding-v1 }
+        input:
+          $ref: '#/components/schemas/PgsGroundingInput'
+    EvaluationProbeResponse:
+      allOf:
+        - $ref: '#/components/schemas/EvaluationResponse'
+        - type: object
+          required: [latencyMs, timestamp, requestId]
+          properties:
+            latencyMs: { type: integer, minimum: 0 }
+            timestamp: { type: string, format: date-time }
+            requestId: { type: string, format: uuid }
+    PgsGroundingInput:
+      type: object
+      additionalProperties: false
+      required:
+        - questionVersionId
+        - rubric
+        - answerText
+        - evidenceReference
+        - allowedSignals
+      properties:
+        questionVersionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        rubric:
+          type: object
+          additionalProperties: false
+          required: [id, version, guidance]
+          properties:
+            id:
+              type: string
+              minLength: 1
+              maxLength: 128
+            version:
+              type: integer
+              minimum: 1
+            guidance:
+              type: string
+              minLength: 1
+              maxLength: 8000
+        answerText:
+          type: string
+          maxLength: 10000
+        evidenceReference:
+          $ref: '#/components/schemas/EvidenceReference'
+        allowedSignals:
+          type: array
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/SignalDefinition'
+    SignalDefinition:
+      type: object
+      additionalProperties: false
+      required: [id, version, code, direction, severity, dimensions]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        version:
+          type: integer
+          minimum: 1
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{1,79}$'
+        direction:
+          type: string
+          enum: [PROTECTIVE, CONCERN, CRITICAL]
+        severity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        dimensions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - REALITY_FRAMING
+              - AUTONOMY
+              - SOCIAL_BALANCE
+              - EXCLUSIVITY
+              - CONTINUITY_TOLERANCE
+              - METAPHYSICAL_CERTAINTY
+              - FUNCTIONAL_IMPACT
+              - EMOTIONAL_REGULATION
+    EvidenceReference:
+      type: object
+      additionalProperties: false
+      required: [kind, referenceId]
+      properties:
+        kind:
+          type: string
+          const: ASSESSMENT_ANSWER
+        referenceId:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '^[A-Za-z0-9._:@-]+$'
+    EvaluationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [schemaVersion, profileId, profileVersion, evaluationId, evidence]
+      properties:
+        schemaVersion:
+          type: string
+          const: '1'
+        profileId:
+          type: string
+          const: pgs-grounding-v1
+        profileVersion:
+          type: string
+          const: '1'
+        evaluationId:
+          type: string
+        evidence:
+          $ref: '#/components/schemas/PgsGroundingEvidence'
+    PgsGroundingEvidence:
+      type: object
+      additionalProperties: false
+      required: [observations, ambiguity, contradiction, followUpRecommended]
+      properties:
+        observations:
+          type: array
+          maxItems: 64
+          items:
+            type: object
+            additionalProperties: false
+            required: [signal, confidence]
+            properties:
+              signal:
+                $ref: '#/components/schemas/SignalDefinition'
+              confidence:
+                type: number
+                minimum: 0
+                maximum: 1
+        ambiguity:
+          type: object
+          additionalProperties: false
+          required: [score, reasons]
+          properties:
+            score:
+              type: number
+              minimum: 0
+              maximum: 1
+            reasons:
+              type: array
+              uniqueItems: true
+              items:
+                type: string
+                enum: [INSUFFICIENT_CONTEXT, MIXED_FRAMING, LOW_CONFIDENCE]
+        contradiction:
+          type: object
+          additionalProperties: false
+          required: [detected]
+          properties:
+            detected:
+              type: boolean
+        followUpRecommended:
+          type: boolean
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        code:
+          type: string
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+      required: [statusCode, message]
