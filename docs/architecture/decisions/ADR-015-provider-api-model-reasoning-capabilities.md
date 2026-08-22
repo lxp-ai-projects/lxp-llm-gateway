@@ -29,6 +29,11 @@ only basic model identity and ownership information.
 - Let Chat Lab render controls and explanatory text from the selected catalog
   entry. Provider-family detection remains only for request mapping and
   preservation compatibility after the catalog has declared support.
+- When an aggregator declares reasoning mandatory, do not render a toggle or
+  send an enable/disable override; use the provider-declared default.
+- Allow OpenRouter's generic `reasoning` transport for catalog-declared models
+  whose native family is not yet known to LXP. Family-owned options still
+  require a known, compatible family.
 - Keep the NanoGPT GLM-specific payload for GLM routes, while using NanoGPT's
   documented generic `reasoning.effort` control for other reasoning families.
 - Query Ollama `/api/show` per listed model. A detail failure leaves that model
@@ -39,6 +44,8 @@ only basic model identity and ownership information.
 - Claude and OpenAI routes through aggregators no longer receive GLM labels.
 - New or aliased models can become supported through provider metadata without a
   frontend release.
+- Stealth or preview models with mandatory reasoning remain usable without
+  speculative family classification.
 - Native OpenAI models display an unknown capability until OpenAI adds model
   capability metadata or another authoritative API source is integrated.
 - Ollama model discovery performs one additional request per model to obtain

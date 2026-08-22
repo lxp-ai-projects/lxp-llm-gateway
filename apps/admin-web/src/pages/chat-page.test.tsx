@@ -146,6 +146,25 @@ beforeEach(() => {
         models: [
           { id: 'openrouter/auto', displayName: 'OpenRouter Auto' },
           {
+            id: 'stealth/ox-alpha',
+            displayName: 'Ox Alpha',
+            capabilities: {
+              reasoning: {
+                supported: true,
+                controls: ['effort'],
+                supportedEfforts: ['max', 'high', 'low'],
+                defaultEffort: 'max',
+                defaultEnabled: true,
+                mandatory: true,
+                source: {
+                  kind: 'provider-api',
+                  providerId: 'openrouter',
+                  modelId: 'stealth/ox-alpha',
+                },
+              },
+            },
+          },
+          {
             id: 'z-ai/glm-4.5',
             displayName: 'Z.ai GLM 4.5',
             capabilities: {
@@ -605,6 +624,51 @@ test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async (
           },
         },
       },
+    }),
+    expect.any(Object),
+  );
+});
+
+test('ChatPage uses the OpenRouter default for mandatory reasoning on an unknown family', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const openRouterOption = document.querySelector(
+    '[role="option"][value="openrouter"]',
+  ) as HTMLElement | null;
+  expect(openRouterOption).not.toBeNull();
+  await user.click(openRouterOption!);
+
+  await user.click(screen.getByTestId('chat-model-select'));
+  const oxAlphaOption = document.querySelector(
+    '[role="option"][value="stealth/ox-alpha"]',
+  ) as HTMLElement | null;
+  expect(oxAlphaOption).not.toBeNull();
+  await user.click(oxAlphaOption!);
+
+  expect(
+    await screen.findByText(
+      /model API declares reasoning mandatory for Ox Alpha/i,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use Ox Alpha{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'openrouter',
+      model: 'stealth/ox-alpha',
+      providerOptions: undefined,
     }),
     expect.any(Object),
   );

@@ -71,6 +71,19 @@ export function resolveAggregatorReasoningOptions(
     );
   }
 
+  if (legacyOpenRouterReasoning && configuredOptions.length > 0) {
+    throw new Error(
+      'Reasoning options are ambiguous: providerOptions.openrouter.reasoning cannot be combined with family options.',
+    );
+  }
+
+  // OpenRouter's catalog can declare reasoning before LXP knows the model family.
+  if (legacyOpenRouterReasoning) {
+    return {
+      reasoning: mapOpenRouterReasoning(legacyOpenRouterReasoning),
+    };
+  }
+
   const configuredOption = configuredOptions[0];
   if (configuredOption && configuredOption.family !== family) {
     throw new Error(
@@ -91,12 +104,6 @@ export function resolveAggregatorReasoningOptions(
     throw new Error(
       `Reasoning options are not supported for ${providerId}/${modelId ?? '<missing>'}.`,
     );
-  }
-
-  if (legacyOpenRouterReasoning) {
-    return {
-      reasoning: mapOpenRouterReasoning(legacyOpenRouterReasoning),
-    };
   }
 
   if (family === 'anthropic-claude') {

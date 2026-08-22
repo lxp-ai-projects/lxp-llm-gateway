@@ -271,8 +271,9 @@ function buildChatProviderOptions(input: {
   anthropicThinkingBudgetTokens: number | '';
   thinkingMode: ThinkingUiMode;
   reasoningSupported: boolean;
+  reasoningMandatory: boolean;
 }): GatewayChatProviderOptions | undefined {
-  if (!input.reasoningSupported) {
+  if (!input.reasoningSupported || input.reasoningMandatory) {
     return undefined;
   }
 
@@ -495,6 +496,7 @@ export function ChatPage() {
   const thinkingControlVisible =
     providerId !== 'anthropic' &&
     reasoningCapability !== undefined &&
+    reasoningCapability.mandatory !== true &&
     (providerId === 'zai' ||
       providerId === 'nanogpt' ||
       providerId === 'openrouter' ||
@@ -521,6 +523,7 @@ export function ChatPage() {
     anthropicThinkingBudgetTokens,
     thinkingMode: effectiveThinkingMode,
     reasoningSupported: reasoningCapability?.supported === true,
+    reasoningMandatory: reasoningCapability?.mandatory === true,
   });
   const preserveThinkingEnabled = effectiveThinkingMode === 'enabled-preserve';
   const providerCatalogPricingNote = getProviderCatalogPricingNote(providerId);
@@ -550,6 +553,9 @@ export function ChatPage() {
           reasoningSupported:
             getModelReasoningCapability(modelsQuery.data?.models, nextModel)
               ?.supported === true,
+          reasoningMandatory:
+            getModelReasoningCapability(modelsQuery.data?.models, nextModel)
+              ?.mandatory === true,
         }),
       );
     },
@@ -700,6 +706,7 @@ export function ChatPage() {
         anthropicThinkingBudgetTokens,
         thinkingMode: effectiveThinkingMode,
         reasoningSupported: reasoningCapability?.supported === true,
+        reasoningMandatory: reasoningCapability?.mandatory === true,
       }),
       systemPrompt: systemPrompt.trim(),
     };
@@ -874,6 +881,11 @@ export function ChatPage() {
                             modelsQuery.data?.models,
                             nextModel,
                           )?.supported === true,
+                        reasoningMandatory:
+                          getModelReasoningCapability(
+                            modelsQuery.data?.models,
+                            nextModel,
+                          )?.mandatory === true,
                       });
                       void persistConversationModel(
                         nextModel,
@@ -1037,17 +1049,19 @@ export function ChatPage() {
                   ? `The ${selectedProviderDisplayName} model API does not declare reasoning capabilities for ${selectedModelDisplayName}. Chat Lab will not infer them from the model name.`
                   : !reasoningCapability.supported
                     ? `The ${selectedProviderDisplayName} model API declares that ${selectedModelDisplayName} does not support reasoning.`
-                    : providerId === 'anthropic'
-                      ? anthropicThinkingMode === 'auto'
-                        ? 'Auto uses Anthropic adaptive thinking as declared by the model API.'
-                        : anthropicThinkingMode === 'budget'
-                          ? 'Budget mode sends a fixed Anthropic thinking budget. The gateway keeps max output tokens above the requested budget.'
-                          : 'None explicitly disables Anthropic extended thinking for this conversation.'
-                      : preserveThinkingEnabled
-                        ? 'Reasoning is enabled and prior reasoning content is preserved when this provider route supports replay.'
-                        : effectiveThinkingMode === 'disabled'
-                          ? 'Reasoning is disabled for this conversation using the selected provider transport.'
-                          : 'Reasoning is enabled for this conversation using capabilities declared by the provider model API.'}
+                    : reasoningCapability.mandatory
+                      ? `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. Chat Lab sends no reasoning toggle and uses the provider default.`
+                      : providerId === 'anthropic'
+                        ? anthropicThinkingMode === 'auto'
+                          ? 'Auto uses Anthropic adaptive thinking as declared by the model API.'
+                          : anthropicThinkingMode === 'budget'
+                            ? 'Budget mode sends a fixed Anthropic thinking budget. The gateway keeps max output tokens above the requested budget.'
+                            : 'None explicitly disables Anthropic extended thinking for this conversation.'
+                        : preserveThinkingEnabled
+                          ? 'Reasoning is enabled and prior reasoning content is preserved when this provider route supports replay.'
+                          : effectiveThinkingMode === 'disabled'
+                            ? 'Reasoning is disabled for this conversation using the selected provider transport.'
+                            : 'Reasoning is enabled for this conversation using capabilities declared by the provider model API.'}
               </Alert>
             ) : null}
             {providerId === 'anthropic' &&

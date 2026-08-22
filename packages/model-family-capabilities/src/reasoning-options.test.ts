@@ -56,6 +56,25 @@ test('maps NanoGPT catalog-driven reasoning without requiring a known family', (
   );
 });
 
+test('maps OpenRouter catalog-driven reasoning without requiring a known family', () => {
+  // Regression test: OpenRouter can declare a model as reasoning-capable in
+  // its own catalog (supported_parameters / reasoning object) before LXP has
+  // classified that model into a known ReasoningModelFamily (e.g. unlisted
+  // "stealth" previews). The generic providerOptions.openrouter.reasoning
+  // toggle must keep working in that case instead of throwing, otherwise
+  // Chat Lab shows "Thinking: enabled" for a model that then fails on send.
+  assert.deepEqual(
+    resolveAggregatorReasoningOptions(
+      'openrouter',
+      'openrouter/stealth/ox-alpha',
+      {
+        openrouter: { reasoning: { enabled: true } },
+      },
+    ),
+    { reasoning: { enabled: true } },
+  );
+});
+
 test('rejects ambiguous NanoGPT generic and family reasoning options', () => {
   assert.throws(
     () =>

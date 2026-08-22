@@ -11,6 +11,9 @@
   laisse la capacite inconnue sans faire echouer tout le catalogue.
 - Chat Lab ne presente plus Claude ou OpenAI via un agregateur comme un modele
   GLM. Les controles et messages proviennent du modele selectionne.
+- Un modele OpenRouter dont le reasoning est obligatoire n'affiche aucun toggle
+  et utilise le defaut du provider. Le transport `reasoning` generique reste
+  utilisable lorsque le catalogue le declare mais que la famille est inconnue.
 - Le catalogue OpenAI natif ne publie actuellement que les informations de base
   du modele. Chat Lab affiche donc `non declare` au lieu d'inventer le support
   d'un alias ou d'une future version.
