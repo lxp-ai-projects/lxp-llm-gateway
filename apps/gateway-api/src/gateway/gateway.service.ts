@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
 import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
-import type { ProviderExecutionContext } from '@lxp/provider-sdk';
+import {
+  ProviderHttpError,
+  type ProviderExecutionContext,
+} from '@lxp/provider-sdk';
 
 import type {
   GatewayAuthContext,
@@ -109,9 +112,7 @@ export class GatewayService {
         throw error;
       }
 
-      throw new BadGatewayException(
-        error instanceof Error ? error.message : 'Unknown gateway error.',
-      );
+      throw this.toBadGatewayException(error);
     }
   }
 
@@ -356,9 +357,7 @@ export class GatewayService {
         throw error;
       }
 
-      throw new BadGatewayException(
-        error instanceof Error ? error.message : 'Unknown gateway error.',
-      );
+      throw this.toBadGatewayException(error);
     }
   }
 
@@ -569,9 +568,7 @@ export class GatewayService {
         throw error;
       }
 
-      throw new BadGatewayException(
-        error instanceof Error ? error.message : 'Unknown gateway error.',
-      );
+      throw this.toBadGatewayException(error);
     }
   }
 
@@ -773,6 +770,23 @@ export class GatewayService {
     } catch (error) {
       console.warn('Gateway telemetry write failed.', error);
     }
+  }
+
+  private toBadGatewayException(error: unknown): BadGatewayException {
+    if (error instanceof ProviderHttpError) {
+      return new BadGatewayException({
+        statusCode: 502,
+        code: 'provider_request_failed',
+        message: error.message,
+        ...(error.providerMetadata
+          ? { providerMetadata: error.providerMetadata }
+          : {}),
+      });
+    }
+
+    return new BadGatewayException(
+      error instanceof Error ? error.message : 'Unknown gateway error.',
+    );
   }
 
   async getEvaluationReadiness(

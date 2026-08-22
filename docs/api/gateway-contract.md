@@ -378,3 +378,16 @@ For Ollama:
 - Ollama Cloud model listing uses `/api/tags`
 - Ollama Cloud chat uses `/api/chat`
 - Ollama Cloud requires bearer auth
+
+## Aggregator fidelity metadata
+
+NanoGPT and OpenRouter non-stream responses include
+`providerMetadata.tokenCounting.preflight=unavailable`. A
+`responseUsage=provider-reported` value refers only to usage returned after
+execution and is not an exact preflight tokenizer result.
+
+Aggregator failures use the Gateway 502 envelope with
+`code=provider_request_failed`. When relayed fields are available,
+`providerMetadata` may include `requestId`, `upstreamRequestId`, `errorCode`,
+`errorType`, `upstreamProvider`, and `upstreamStatus`. Raw upstream payloads are
+not promoted into normalized metadata.
