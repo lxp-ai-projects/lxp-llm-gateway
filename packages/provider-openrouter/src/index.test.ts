@@ -401,17 +401,34 @@ test('OpenRouterProviderAdapter respects a credential-level baseUrl override', a
       init,
     });
 
-    return new Response(JSON.stringify({ data: [] }), {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'openai/gpt-5.6-luna',
+            name: 'GPT-5.6 Luna',
+            supported_parameters: ['reasoning'],
+            reasoning: {
+              supported_efforts: ['high', 'medium', 'low'],
+              default_effort: 'medium',
+              default_enabled: true,
+              mandatory: false,
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
       },
-    });
+    );
   }) as typeof fetch;
 
   try {
     const adapter = new OpenRouterProviderAdapter();
-    await adapter.listModels?.({
+    const models = await adapter.listModels?.({
       requestId: 'req-2',
       userId: 'user-1',
       providerAccess: {
@@ -421,6 +438,19 @@ test('OpenRouterProviderAdapter respects a credential-level baseUrl override', a
     });
 
     assert.equal(calls[0]?.url, 'https://custom-openrouter.example/v1/models');
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning, {
+      supported: true,
+      controls: ['toggle', 'effort'],
+      supportedEfforts: ['high', 'medium', 'low'],
+      defaultEffort: 'medium',
+      defaultEnabled: true,
+      mandatory: false,
+      source: {
+        kind: 'provider-api',
+        providerId: 'openrouter',
+        modelId: 'openai/gpt-5.6-luna',
+      },
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }

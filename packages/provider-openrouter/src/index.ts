@@ -13,6 +13,7 @@ import type {
 } from '@lxp/provider-sdk';
 import { buildProviderChatHttpError } from '@lxp/provider-sdk';
 import { resolveAggregatorReasoningOptions } from '@lxp/model-family-capabilities';
+import type { ModelReasoningEffort } from '@lxp/domain';
 import {
   buildOpenRouterImageCatalog,
   buildKnownOpenRouterImageCatalog,
@@ -91,6 +92,14 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       data?: Array<{
         id: string;
         name?: string;
+        supported_parameters?: string[];
+        reasoning?: {
+          supported_efforts?: ModelReasoningEffort[] | null;
+          default_effort?: ModelReasoningEffort;
+          default_enabled?: boolean;
+          supports_max_tokens?: boolean;
+          mandatory?: boolean;
+        };
       }>;
     };
 
@@ -98,6 +107,43 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       (payload.data ?? []).map((model) => ({
         id: model.id,
         displayName: model.name ?? model.id,
+        ...(model.reasoning || model.supported_parameters?.includes('reasoning')
+          ? {
+              capabilities: {
+                reasoning: {
+                  supported: true,
+                  controls: [
+                    ...(model.reasoning?.mandatory
+                      ? []
+                      : (['toggle'] as const)),
+                    ...(model.reasoning?.supported_efforts
+                      ? (['effort'] as const)
+                      : []),
+                    ...(model.reasoning?.supports_max_tokens
+                      ? (['budget'] as const)
+                      : []),
+                  ],
+                  ...(model.reasoning?.supported_efforts
+                    ? { supportedEfforts: model.reasoning.supported_efforts }
+                    : {}),
+                  ...(model.reasoning?.default_effort
+                    ? { defaultEffort: model.reasoning.default_effort }
+                    : {}),
+                  ...(typeof model.reasoning?.default_enabled === 'boolean'
+                    ? { defaultEnabled: model.reasoning.default_enabled }
+                    : {}),
+                  ...(typeof model.reasoning?.mandatory === 'boolean'
+                    ? { mandatory: model.reasoning.mandatory }
+                    : {}),
+                  source: {
+                    kind: 'provider-api' as const,
+                    providerId: this.providerId,
+                    modelId: model.id,
+                  },
+                },
+              },
+            }
+          : {}),
       })),
     );
   }

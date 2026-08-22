@@ -196,6 +196,31 @@ export interface ImageModeCapabilityOptions {
   imageDefaults?: ImageModelDefaults;
 }
 
+export type ModelReasoningControl = 'adaptive' | 'budget' | 'effort' | 'toggle';
+
+export type ModelReasoningEffort =
+  | 'none'
+  | 'minimal'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'xhigh'
+  | 'max';
+
+export interface ModelReasoningCapability {
+  supported: boolean;
+  controls: ModelReasoningControl[];
+  supportedEfforts?: ModelReasoningEffort[];
+  defaultEffort?: ModelReasoningEffort;
+  defaultEnabled?: boolean;
+  mandatory?: boolean;
+  source: {
+    kind: 'provider-api';
+    providerId: ProviderId;
+    modelId: string;
+  };
+}
+
 export interface ModelCapability {
   id: string;
   supportsStreaming: boolean;
@@ -217,6 +242,7 @@ export interface ModelCapability {
   imageDefaults?: ImageModelDefaults;
   imageGenerationOptions?: ImageModeCapabilityOptions;
   imageEditOptions?: ImageModeCapabilityOptions;
+  reasoning?: ModelReasoningCapability;
 }
 
 export * from './media-generation.js';

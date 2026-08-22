@@ -573,3 +573,10 @@ families independently of transport. NanoGPT and OpenRouter consume an explicit,
 fail-closed compatibility matrix without leaking request formats into
 `gateway-api`. Aggregator responses identify preflight token counting as
 unavailable, and safe structured upstream error fields cross the provider seam.
+
+Chat model catalogs now carry provider-API-sourced reasoning metadata when the
+upstream catalog publishes it. Anthropic reads `capabilities.thinking`, NanoGPT
+requests detailed model capabilities, OpenRouter reads its per-model `reasoning`
+object, and Ollama supplements `/api/tags` with `/api/show`. Chat Lab uses this
+metadata instead of model-name heuristics. An omitted capability remains
+unknown and does not become either supported or unsupported by inference.

@@ -199,3 +199,9 @@ the underlying model family. Verified NanoGPT and OpenRouter mappings translate
 those controls inside their adapters; unsupported or lossy combinations are
 rejected instead of silently ignored. Aggregator token-count fidelity and safe
 structured provider error metadata are explicit in normalized responses.
+
+Chat Lab reasoning controls are projected from live model catalog metadata.
+Native provider capability fields are authoritative when present; aggregator
+catalog fields describe the effective routed capability. Missing API metadata
+is shown as unknown, so aliases and future model names are never classified by
+UI copy or regular expressions alone.

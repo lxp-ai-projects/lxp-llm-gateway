@@ -82,12 +82,45 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       data?: Array<{
         id: string;
         display_name?: string;
+        capabilities?: {
+          thinking?: {
+            supported?: boolean;
+            types?: {
+              adaptive?: { supported?: boolean };
+              enabled?: { supported?: boolean };
+            };
+          };
+        };
       }>;
     };
 
     return (payload.data ?? []).map((model) => ({
       id: model.id,
       displayName: model.display_name ?? model.id,
+      ...(typeof model.capabilities?.thinking?.supported === 'boolean'
+        ? {
+            capabilities: {
+              reasoning: {
+                supported: model.capabilities.thinking.supported,
+                controls: model.capabilities.thinking.supported
+                  ? [
+                      ...(model.capabilities.thinking.types?.adaptive?.supported
+                        ? (['adaptive'] as const)
+                        : []),
+                      ...(model.capabilities.thinking.types?.enabled?.supported
+                        ? (['budget'] as const)
+                        : []),
+                    ]
+                  : [],
+                source: {
+                  kind: 'provider-api' as const,
+                  providerId: this.providerId,
+                  modelId: model.id,
+                },
+              },
+            },
+          }
+        : {}),
     }));
   }
 
@@ -95,7 +128,11 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     request: GatewayChatRequest,
     context: ProviderExecutionContext,
   ): Promise<GatewayChatResponse> {
-    const response = await this.dispatchMessagesRequest(request, context, false);
+    const response = await this.dispatchMessagesRequest(
+      request,
+      context,
+      false,
+    );
 
     if (!response.ok) {
       throw new Error(
@@ -145,7 +182,8 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
         promptTokens,
         completionTokens,
         totalTokens:
-          typeof promptTokens === 'number' && typeof completionTokens === 'number'
+          typeof promptTokens === 'number' &&
+          typeof completionTokens === 'number'
             ? promptTokens + completionTokens
             : undefined,
       },
@@ -272,8 +310,7 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
   private resolveThinkingConfig(
     providerOptions: GatewayChatProviderOptions | undefined,
   ): AnthropicThinkingConfig | undefined {
-    const extendedThinking =
-      providerOptions?.anthropic?.extendedThinking;
+    const extendedThinking = providerOptions?.anthropic?.extendedThinking;
 
     if (!extendedThinking) {
       return undefined;
@@ -321,7 +358,9 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
 
     const messages = request.messages
       .filter(
-        (message): message is typeof message & {
+        (
+          message,
+        ): message is typeof message & {
           role: 'user' | 'assistant';
         } => message.role !== 'system',
       )
@@ -433,9 +472,9 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
               | undefined;
 
             const reasoningDelta =
-              delta?.type === 'thinking_delta' ? delta.thinking ?? '' : '';
+              delta?.type === 'thinking_delta' ? (delta.thinking ?? '') : '';
             const contentDelta =
-              delta?.type === 'text_delta' ? delta.text ?? '' : '';
+              delta?.type === 'text_delta' ? (delta.text ?? '') : '';
 
             if (reasoningDelta || contentDelta) {
               controller.enqueue(
@@ -617,9 +656,7 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       typeof record.error === 'object' &&
       typeof (record.error as { message?: unknown }).message === 'string'
     ) {
-      return (
-        (record.error as { message?: string }).message?.trim() ?? null
-      );
+      return (record.error as { message?: string }).message?.trim() ?? null;
     }
 
     return null;

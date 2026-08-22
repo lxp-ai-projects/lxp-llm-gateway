@@ -40,6 +40,22 @@ export function resolveAggregatorReasoningOptions(
   const family = detectReasoningModelFamily(modelId);
   const configuredOptions = collectConfiguredFamilyOptions(providerOptions);
   const legacyOpenRouterReasoning = providerOptions?.openrouter?.reasoning;
+  const nanoGptReasoning = providerOptions?.nanogpt?.reasoning;
+
+  if (nanoGptReasoning && providerId !== 'nanogpt') {
+    throw new Error(
+      `providerOptions.nanogpt.reasoning cannot be relayed by ${providerId}.`,
+    );
+  }
+
+  if (
+    nanoGptReasoning &&
+    (configuredOptions.length > 0 || legacyOpenRouterReasoning)
+  ) {
+    throw new Error(
+      'Reasoning options are ambiguous: providerOptions.nanogpt.reasoning cannot be combined with family or OpenRouter options.',
+    );
+  }
 
   if (providerId !== 'openrouter' && legacyOpenRouterReasoning) {
     throw new Error(
@@ -62,8 +78,12 @@ export function resolveAggregatorReasoningOptions(
     );
   }
 
-  if (!configuredOption && !legacyOpenRouterReasoning) {
+  if (!configuredOption && !legacyOpenRouterReasoning && !nanoGptReasoning) {
     return {};
+  }
+
+  if (nanoGptReasoning) {
+    return mapNanoGptReasoning(nanoGptReasoning);
   }
 
   const compatibility = getThinkingTransportCompatibility(providerId, modelId);
@@ -88,6 +108,18 @@ export function resolveAggregatorReasoningOptions(
   }
 
   return mapZaiReasoning(providerId, configuredOption?.value);
+}
+
+function mapNanoGptReasoning(reasoning: {
+  effort: GatewayReasoningEffort;
+}): AggregatorReasoningRequestOptions {
+  if (reasoning.effort === 'max') {
+    throw new Error(
+      'NanoGPT Chat Completions does not document reasoning effort "max"; use "xhigh" or a lower effort.',
+    );
+  }
+
+  return { reasoning: { effort: reasoning.effort } };
 }
 
 function collectConfiguredFamilyOptions(

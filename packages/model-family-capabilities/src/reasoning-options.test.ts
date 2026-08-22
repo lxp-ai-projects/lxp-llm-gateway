@@ -47,6 +47,26 @@ test('preserves the NanoGPT GLM thinking payload', () => {
   );
 });
 
+test('maps NanoGPT catalog-driven reasoning without requiring a known family', () => {
+  assert.deepEqual(
+    resolveAggregatorReasoningOptions('nanogpt', 'moonshotai/kimi-future', {
+      nanogpt: { reasoning: { effort: 'medium' } },
+    }),
+    { reasoning: { effort: 'medium' } },
+  );
+});
+
+test('rejects ambiguous NanoGPT generic and family reasoning options', () => {
+  assert.throws(
+    () =>
+      resolveAggregatorReasoningOptions('nanogpt', 'openai/gpt-5.2', {
+        nanogpt: { reasoning: { effort: 'medium' } },
+        openai: { reasoning: { effort: 'high' } },
+      }),
+    /ambiguous/,
+  );
+});
+
 test('fails loudly when family-owned options do not match the model family', () => {
   assert.throws(
     () =>

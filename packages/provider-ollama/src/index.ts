@@ -8,7 +8,7 @@ import type {
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
-import { isGlmThinkingModel } from '@lxp/domain';
+import { isGlmThinkingModel, type ModelReasoningCapability } from '@lxp/domain';
 
 export class OllamaProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -38,9 +38,12 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.resolveNativeBaseUrl(context)}/api/tags`, {
-      headers: this.resolveHeaders(context),
-    });
+    const response = await fetch(
+      `${this.resolveNativeBaseUrl(context)}/api/tags`,
+      {
+        headers: this.resolveHeaders(context),
+      },
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -56,14 +59,70 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
       }>;
     };
 
-    return (payload.models ?? []).map((model) => {
-      const modelId = model.model ?? model.name ?? 'unknown-model';
+    const models: ProviderModel[] = [];
+    const listedModels = payload.models ?? [];
+    for (let index = 0; index < listedModels.length; index += 8) {
+      const batch = listedModels.slice(index, index + 8);
+      models.push(
+        ...(await Promise.all(
+          batch.map(async (model) => {
+            const modelId = model.model ?? model.name ?? 'unknown-model';
+            const reasoning = await this.loadModelReasoningCapability(
+              modelId,
+              context,
+            );
 
+            return {
+              id: modelId,
+              displayName: model.name ?? modelId,
+              ...(reasoning ? { capabilities: { reasoning } } : {}),
+            };
+          }),
+        )),
+      );
+    }
+
+    return models;
+  }
+
+  private async loadModelReasoningCapability(
+    modelId: string,
+    context: ProviderExecutionContext,
+  ): Promise<ModelReasoningCapability | undefined> {
+    try {
+      const response = await fetch(
+        `${this.resolveNativeBaseUrl(context)}/api/show`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            ...this.resolveHeaders(context),
+          },
+          body: JSON.stringify({ model: modelId, verbose: false }),
+        },
+      );
+      if (!response.ok) {
+        return undefined;
+      }
+
+      const payload = (await response.json()) as { capabilities?: string[] };
+      if (!Array.isArray(payload.capabilities)) {
+        return undefined;
+      }
+
+      const supported = payload.capabilities.includes('thinking');
       return {
-        id: modelId,
-        displayName: model.name ?? modelId,
+        supported,
+        controls: supported ? ['toggle'] : [],
+        source: {
+          kind: 'provider-api' as const,
+          providerId: this.providerId,
+          modelId,
+        },
       };
-    });
+    } catch {
+      return undefined;
+    }
   }
 
   async chat(
@@ -308,7 +367,8 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           messages: normalizedMessages,
           stream: false,
           ...(supportsOllamaGlmThinking(request.model) &&
-          typeof request.providerOptions?.ollama?.thinking?.enabled === 'boolean'
+          typeof request.providerOptions?.ollama?.thinking?.enabled ===
+            'boolean'
             ? {
                 think: request.providerOptions.ollama.thinking.enabled,
               }
@@ -356,7 +416,8 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
         promptTokens,
         completionTokens,
         totalTokens:
-          typeof promptTokens === 'number' && typeof completionTokens === 'number'
+          typeof promptTokens === 'number' &&
+          typeof completionTokens === 'number'
             ? promptTokens + completionTokens
             : undefined,
       },
@@ -386,7 +447,8 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           messages: normalizedMessages,
           stream: true,
           ...(supportsOllamaGlmThinking(request.model) &&
-          typeof request.providerOptions?.ollama?.thinking?.enabled === 'boolean'
+          typeof request.providerOptions?.ollama?.thinking?.enabled ===
+            'boolean'
             ? {
                 think: request.providerOptions.ollama.thinking.enabled,
               }
@@ -429,7 +491,9 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           const reasoning =
             payload.message?.reasoning ?? payload.message?.thinking;
           const content = payload.message?.content;
-          const finishReason = payload.done ? (payload.done_reason ?? 'stop') : undefined;
+          const finishReason = payload.done
+            ? (payload.done_reason ?? 'stop')
+            : undefined;
 
           if (!reasoning && !content && !finishReason) {
             return;

@@ -119,6 +119,11 @@ export type GatewayChatProviderOptions = {
   zai?: {
     thinking?: GatewayZaiThinking;
   };
+  nanogpt?: {
+    reasoning?: {
+      effort: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+    };
+  };
   openrouter?: {
     reasoning?: GatewayOpenRouterReasoning;
   };
@@ -418,6 +423,28 @@ export type ProviderModelSummary = {
     };
     imageGenerationOptions?: ImageModeCapabilityOptions;
     imageEditOptions?: ImageModeCapabilityOptions;
+    reasoning?: {
+      supported: boolean;
+      controls: Array<'adaptive' | 'budget' | 'effort' | 'toggle'>;
+      supportedEfforts?: Array<
+        'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      >;
+      defaultEffort?:
+        | 'none'
+        | 'minimal'
+        | 'low'
+        | 'medium'
+        | 'high'
+        | 'xhigh'
+        | 'max';
+      defaultEnabled?: boolean;
+      mandatory?: boolean;
+      source: {
+        kind: 'provider-api';
+        providerId: string;
+        modelId: string;
+      };
+    };
   };
 };
 

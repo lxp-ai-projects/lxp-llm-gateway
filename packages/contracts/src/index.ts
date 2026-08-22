@@ -64,6 +64,10 @@ export interface GatewayOllamaThinking {
   enabled?: boolean;
 }
 
+export interface GatewayNanoGptReasoning {
+  effort: GatewayReasoningEffort;
+}
+
 export interface GatewayChatProviderOptions {
   anthropic?: {
     extendedThinking?: GatewayAnthropicExtendedThinking;
@@ -76,6 +80,9 @@ export interface GatewayChatProviderOptions {
   };
   zai?: {
     thinking?: GatewayZaiThinking;
+  };
+  nanogpt?: {
+    reasoning?: GatewayNanoGptReasoning;
   };
   openrouter?: {
     reasoning?: GatewayOpenRouterReasoning;

@@ -571,27 +571,46 @@ test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtim
       init,
     });
 
-    return new Response(JSON.stringify({ data: [] }), {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'anthropic/claude-sonnet-5:thinking',
+            name: 'Claude Sonnet 5',
+            capabilities: { reasoning: true },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
       },
-    });
+    );
   }) as typeof fetch;
 
   try {
     const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
-    await adapter.listModels?.({
+    const models = await adapter.listModels?.({
       requestId: 'req-legacy',
       userId: 'user-1',
       providerAccess: undefined as never,
     });
 
-    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/models');
+    assert.equal(
+      calls[0]?.url,
+      'https://nano-gpt.com/api/v1/models?detailed=true',
+    );
     const headers = calls[0]?.init?.headers as
       | Record<string, string>
       | undefined;
     assert.equal(headers?.authorization, undefined);
+    assert.equal(models?.[0]?.capabilities?.reasoning?.supported, true);
+    assert.equal(
+      models?.[0]?.capabilities?.reasoning?.source.providerId,
+      'nanogpt',
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

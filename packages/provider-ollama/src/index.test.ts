@@ -107,6 +107,16 @@ test('OllamaProviderAdapter maps native /api/tags responses into provider models
       init,
     });
 
+    if (String(url).endsWith('/api/show')) {
+      return new Response(
+        JSON.stringify({ capabilities: ['completion', 'thinking'] }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+    }
+
     return new Response(
       JSON.stringify({
         models: [
@@ -140,6 +150,17 @@ test('OllamaProviderAdapter maps native /api/tags responses into provider models
       {
         id: 'qwen3:8b',
         displayName: 'qwen3:8b',
+        capabilities: {
+          reasoning: {
+            supported: true,
+            controls: ['toggle'],
+            source: {
+              kind: 'provider-api',
+              providerId: 'ollama',
+              modelId: 'qwen3:8b',
+            },
+          },
+        },
       },
     ]);
   } finally {

@@ -1,3 +1,23 @@
+## Suivi Chat Lab: capacites declarees par les catalogues
+
+- `ModelCapability.reasoning` distingue une declaration positive, une
+  declaration negative et l'absence de donnee.
+- Anthropic lit `capabilities.thinking` et ses types `adaptive` / `enabled`
+  depuis `GET /v1/models`.
+- NanoGPT utilise `GET /api/v1/models?detailed=true` et
+  `capabilities.reasoning`.
+- OpenRouter conserve `supported_parameters` et l'objet `reasoning` par modele.
+- Ollama complete `GET /api/tags` par `POST /api/show`; un echec de detail
+  laisse la capacite inconnue sans faire echouer tout le catalogue.
+- Chat Lab ne presente plus Claude ou OpenAI via un agregateur comme un modele
+  GLM. Les controles et messages proviennent du modele selectionne.
+- Le catalogue OpenAI natif ne publie actuellement que les informations de base
+  du modele. Chat Lab affiche donc `non declare` au lieu d'inventer le support
+  d'un alias ou d'une future version.
+
+ADR-015 documente les sources officielles et la priorite entre capacite native,
+capacite effective de route agregee et etat inconnu.
+
 Contexte : monorepo "lxp-llm-gateway" (NestJS + adaptateurs provider dans
 packages/provider-\*, contrats partagés dans packages/contracts, logique de
 domaine dans packages/domain).

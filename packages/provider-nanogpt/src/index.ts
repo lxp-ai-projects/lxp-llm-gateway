@@ -83,11 +83,14 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.resolveBaseUrl(context)}/models`, {
-      headers: {
-        ...this.resolveHeaders(context),
+    const response = await fetch(
+      `${this.resolveBaseUrl(context)}/models?detailed=true`,
+      {
+        headers: {
+          ...this.resolveHeaders(context),
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -100,12 +103,32 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       data?: Array<{
         id: string;
         name?: string;
+        capabilities?: {
+          reasoning?: boolean;
+        };
       }>;
     };
 
     return (payload.data ?? []).map((model) => ({
       id: model.id,
       displayName: model.name ?? model.id,
+      ...(typeof model.capabilities?.reasoning === 'boolean'
+        ? {
+            capabilities: {
+              reasoning: {
+                supported: model.capabilities.reasoning,
+                controls: model.capabilities.reasoning
+                  ? ['toggle' as const]
+                  : [],
+                source: {
+                  kind: 'provider-api' as const,
+                  providerId: this.providerId,
+                  modelId: model.id,
+                },
+              },
+            },
+          }
+        : {}),
     }));
   }
 
