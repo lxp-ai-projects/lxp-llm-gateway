@@ -63,8 +63,7 @@ export const INTEGRATION_CLIENT_SCOPES = [
   'usage:read',
 ] as const;
 
-export type IntegrationClientScope =
-  (typeof INTEGRATION_CLIENT_SCOPES)[number];
+export type IntegrationClientScope = (typeof INTEGRATION_CLIENT_SCOPES)[number];
 
 export function resolveEffectiveIntegrationClientScopes(
   clientScopes: readonly string[] | null | undefined,
@@ -250,7 +249,91 @@ export interface GatewayRequestContext {
   callerId: string;
 }
 
-export type ReasoningModelFamily = 'zai-glm';
+export type ReasoningModelFamily =
+  | 'anthropic-claude'
+  | 'openai-reasoning'
+  | 'xai-grok'
+  | 'zai-glm';
+
+export type ThinkingRequestMapping =
+  | 'anthropic-thinking'
+  | 'nanogpt-reasoning'
+  | 'nanogpt-zai-thinking'
+  | 'ollama-thinking'
+  | 'openrouter-reasoning'
+  | 'zai-thinking';
+
+export interface ThinkingTransportCompatibility {
+  requestMapping: ThinkingRequestMapping;
+  preservesReasoning: boolean;
+}
+
+export const THINKING_TRANSPORT_COMPATIBILITY = {
+  'anthropic-claude': {
+    anthropic: {
+      requestMapping: 'anthropic-thinking',
+      preservesReasoning: true,
+    },
+    nanogpt: {
+      requestMapping: 'nanogpt-reasoning',
+      preservesReasoning: true,
+    },
+    openrouter: {
+      requestMapping: 'openrouter-reasoning',
+      preservesReasoning: true,
+    },
+  },
+  'openai-reasoning': {
+    nanogpt: {
+      requestMapping: 'nanogpt-reasoning',
+      preservesReasoning: false,
+    },
+    openrouter: {
+      requestMapping: 'openrouter-reasoning',
+      preservesReasoning: false,
+    },
+  },
+  'xai-grok': {
+    nanogpt: {
+      requestMapping: 'nanogpt-reasoning',
+      preservesReasoning: true,
+    },
+    openrouter: {
+      requestMapping: 'openrouter-reasoning',
+      preservesReasoning: true,
+    },
+  },
+  'zai-glm': {
+    nanogpt: {
+      requestMapping: 'nanogpt-zai-thinking',
+      preservesReasoning: true,
+    },
+    ollama: {
+      requestMapping: 'ollama-thinking',
+      preservesReasoning: false,
+    },
+    openrouter: {
+      requestMapping: 'openrouter-reasoning',
+      preservesReasoning: false,
+    },
+    zai: {
+      requestMapping: 'zai-thinking',
+      preservesReasoning: true,
+    },
+  },
+} as const satisfies Record<
+  ReasoningModelFamily,
+  Partial<Record<ProviderId, ThinkingTransportCompatibility>>
+>;
+
+export const ANTHROPIC_CLAUDE_REASONING_MODEL_PATTERN =
+  /(^|[/:])claude-(?:(?:3[.-]7)|(?:(?:opus|sonnet|haiku)-)?4(?:[.\-/_]\d+)*)(?:[.:\-/_]|$)/i;
+
+export const OPENAI_REASONING_MODEL_PATTERN =
+  /(^|[/:])(?:o[134](?:[.:\-/_]|$)|gpt-5(?:\.\d+)?(?!-image)(?:[.:\-/_]|$))/i;
+
+export const XAI_GROK_REASONING_MODEL_PATTERN =
+  /(^|[/:])grok-(?:3[.\-/_]mini|4(?:\.\d+)?)(?![.:\-/_](?:image|video))(?:[.:\-/_]|$)/i;
 
 export const GLM_THINKING_MODEL_PATTERN =
   /(^|[/:])glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i;
@@ -263,9 +346,38 @@ export function isGlmThinkingModel(modelId: string | undefined): boolean {
   return GLM_THINKING_MODEL_PATTERN.test(modelId);
 }
 
+export function isAnthropicClaudeReasoningModel(
+  modelId: string | undefined,
+): boolean {
+  return Boolean(
+    modelId && ANTHROPIC_CLAUDE_REASONING_MODEL_PATTERN.test(modelId),
+  );
+}
+
+export function isOpenAiReasoningModel(modelId: string | undefined): boolean {
+  return Boolean(modelId && OPENAI_REASONING_MODEL_PATTERN.test(modelId));
+}
+
+export function isXAiGrokReasoningModel(modelId: string | undefined): boolean {
+  return Boolean(modelId && XAI_GROK_REASONING_MODEL_PATTERN.test(modelId));
+}
+
 export function detectReasoningModelFamily(
   modelId: string | undefined,
 ): ReasoningModelFamily | null {
+  // Model ownership is derived from the model id, never from the transport.
+  if (isAnthropicClaudeReasoningModel(modelId)) {
+    return 'anthropic-claude';
+  }
+
+  if (isOpenAiReasoningModel(modelId)) {
+    return 'openai-reasoning';
+  }
+
+  if (isXAiGrokReasoningModel(modelId)) {
+    return 'xai-grok';
+  }
+
   return isGlmThinkingModel(modelId) ? 'zai-glm' : null;
 }
 
@@ -273,20 +385,22 @@ export function supportsThinkingModelFamily(
   providerId: ProviderId | string,
   modelId: string | undefined,
 ): boolean {
-  if (!modelId) {
-    return false;
-  }
+  return getThinkingTransportCompatibility(providerId, modelId) !== null;
+}
 
+export function getThinkingTransportCompatibility(
+  providerId: ProviderId | string,
+  modelId: string | undefined,
+): ThinkingTransportCompatibility | null {
   const family = detectReasoningModelFamily(modelId);
-  if (family !== 'zai-glm') {
-    return false;
+  if (!family || !PROVIDER_IDS.includes(providerId as ProviderId)) {
+    return null;
   }
 
   return (
-    providerId === 'zai' ||
-    providerId === 'openrouter' ||
-    providerId === 'ollama' ||
-    (providerId === 'nanogpt' && /^z-ai\//i.test(modelId))
+    THINKING_TRANSPORT_COMPATIBILITY[family][
+      providerId as keyof (typeof THINKING_TRANSPORT_COMPATIBILITY)[typeof family]
+    ] ?? null
   );
 }
 
@@ -294,11 +408,10 @@ export function supportsPreservedThinking(
   providerId: ProviderId | string,
   modelId: string | undefined,
 ): boolean {
-  if (!supportsThinkingModelFamily(providerId, modelId)) {
-    return false;
-  }
-
-  return providerId === 'zai' || providerId === 'nanogpt';
+  return (
+    getThinkingTransportCompatibility(providerId, modelId)
+      ?.preservesReasoning ?? false
+  );
 }
 
 export function resolveMaxReferenceImages(
@@ -311,7 +424,9 @@ export function resolveMaxReferenceImages(
     model?.capabilities?.maxReferenceImagesPerRequest;
 
   if (providerId !== 'nanogpt' || !model) {
-    return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
+    return typeof catalogValue === 'number' && catalogValue > 0
+      ? catalogValue
+      : 5;
   }
 
   const normalizedModelId = normalizeModelToken(model.id);
@@ -421,7 +536,9 @@ export function resolveMaxReferenceImages(
     return 1;
   }
 
-  return typeof catalogValue === 'number' && catalogValue > 0 ? catalogValue : 5;
+  return typeof catalogValue === 'number' && catalogValue > 0
+    ? catalogValue
+    : 5;
 }
 
 function normalizeModelToken(value: string | undefined): string {
@@ -432,6 +549,10 @@ function normalizeModelToken(value: string | undefined): string {
     .replace(/-+/g, '-');
 }
 
-function isOneOf(valueA: string, valueB: string, ...candidates: string[]): boolean {
+function isOneOf(
+  valueA: string,
+  valueB: string,
+  ...candidates: string[]
+): boolean {
   return candidates.includes(valueA) || candidates.includes(valueB);
 }
