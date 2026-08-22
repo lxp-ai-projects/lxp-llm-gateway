@@ -455,3 +455,17 @@ and
 `docs/architecture/decisions/ADR-013-structured-evaluation-execution-hardening.md`;
 the PR14 audit and validation record is in
 `docs/delivery/pr14-provider-credential-stabilization.md`.
+
+Text reasoning follows the same family capability boundary as video. Domain
+detection and the explicit transport compatibility matrix are independent of
+provider selection, while NanoGPT and OpenRouter retain ownership of request
+serialization. Unsupported, ambiguous, mismatched, or lossy reasoning controls
+fail before dispatch. ADR-014 records the decision and evidence boundary.
+
+Model discovery adds a separate evidence boundary for Chat Lab. A normalized
+`ModelReasoningCapability` records support, available control styles, defaults,
+and the provider API that supplied the claim. Anthropic, NanoGPT, OpenRouter,
+and Ollama populate it from their catalog endpoints. OpenAI-compatible adapters
+preserve an explicit `capabilities.reasoning` field if an upstream implements
+one, but they do not infer support from an ID when the standard `/v1/models`
+object is minimal. ADR-015 records this catalog-source decision.

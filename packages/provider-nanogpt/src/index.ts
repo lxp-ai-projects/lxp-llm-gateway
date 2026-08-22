@@ -13,7 +13,11 @@ import type {
   ProviderModel,
   ProviderExecutionContext,
 } from '@lxp/provider-sdk';
-import { buildProviderImageHttpError as buildImageError } from '@lxp/provider-sdk';
+import {
+  buildProviderChatHttpError,
+  buildProviderImageHttpError as buildImageError,
+} from '@lxp/provider-sdk';
+import { resolveAggregatorReasoningOptions } from '@lxp/model-family-capabilities';
 
 import { NanoGptImageApiClient } from './image/api-client.js';
 import { buildNanoGptImageCatalog } from './image/catalog.js';
@@ -79,11 +83,14 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    const response = await fetch(`${this.resolveBaseUrl(context)}/models`, {
-      headers: {
-        ...this.resolveHeaders(context),
+    const response = await fetch(
+      `${this.resolveBaseUrl(context)}/models?detailed=true`,
+      {
+        headers: {
+          ...this.resolveHeaders(context),
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -96,12 +103,32 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       data?: Array<{
         id: string;
         name?: string;
+        capabilities?: {
+          reasoning?: boolean;
+        };
       }>;
     };
 
     return (payload.data ?? []).map((model) => ({
       id: model.id,
       displayName: model.name ?? model.id,
+      ...(typeof model.capabilities?.reasoning === 'boolean'
+        ? {
+            capabilities: {
+              reasoning: {
+                supported: model.capabilities.reasoning,
+                controls: model.capabilities.reasoning
+                  ? ['toggle' as const]
+                  : [],
+                source: {
+                  kind: 'provider-api' as const,
+                  providerId: this.providerId,
+                  modelId: model.id,
+                },
+              },
+            },
+          }
+        : {}),
     }));
   }
 
@@ -166,10 +193,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     const response = await this.dispatchChatRequest(request, context, false);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `NanoGPT request failed with status ${response.status}: ${errorText}`,
-      );
+      throw await buildProviderChatHttpError('NanoGPT', response);
     }
 
     const payload = (await response.json()) as {
@@ -196,7 +220,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     };
 
     const message = payload.choices?.[0]?.message;
-    const providerMetadata = Object.fromEntries(
+    const providerMetadata: Record<string, unknown> = Object.fromEntries(
       Object.entries(payload).filter(
         ([key]) =>
           key.startsWith('x_') ||
@@ -205,6 +229,13 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
           key === 'created',
       ),
     );
+    providerMetadata.tokenCounting = {
+      preflight: 'unavailable',
+      responseUsage:
+        typeof payload.usage?.prompt_tokens === 'number'
+          ? 'provider-reported'
+          : 'unavailable',
+    };
 
     return {
       requestId: context.requestId,
@@ -238,10 +269,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     const response = await this.dispatchChatRequest(request, context, true);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `NanoGPT streaming request failed with status ${response.status}: ${errorText}`,
-      );
+      throw await buildProviderChatHttpError('NanoGPT streaming', response);
     }
 
     if (!response.body) {
@@ -352,7 +380,11 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
     stream: boolean,
   ): Promise<Response> {
-    const zaiThinking = request.providerOptions?.zai?.thinking;
+    const reasoningOptions = resolveAggregatorReasoningOptions(
+      this.providerId,
+      request.model,
+      request.providerOptions,
+    );
 
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}/chat/completions`,
@@ -383,17 +415,11 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
           ...(request.outputFormat === 'json'
             ? { response_format: { type: 'json_object' } }
             : {}),
-          ...(isNanoGptZaiThinkingModel(request.model) && zaiThinking
-            ? {
-                thinking: {
-                  type: zaiThinking.type,
-                  ...(typeof zaiThinking.clearThinking === 'boolean'
-                    ? {
-                        clear_thinking: zaiThinking.clearThinking,
-                      }
-                    : {}),
-                },
-              }
+          ...(reasoningOptions.reasoning
+            ? { reasoning: reasoningOptions.reasoning }
+            : {}),
+          ...(reasoningOptions.thinking
+            ? { thinking: reasoningOptions.thinking }
             : {}),
         }),
       },
@@ -450,12 +476,4 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       clearTimeout(timeoutId);
     }
   }
-}
-
-function isNanoGptZaiThinkingModel(model: string | undefined): boolean {
-  if (!model) {
-    return false;
-  }
-
-  return /^z-ai\/glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i.test(model);
 }

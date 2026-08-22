@@ -1,29 +1,46 @@
-import {Alert, Button, Card, Grid, Group, Modal, NumberInput, Select, Stack, Tabs, Text, Title,} from '@mantine/core';
-import {useQuery} from '@tanstack/react-query';
-import {useEffect, useEffectEvent, useMemo, useRef, useState} from 'react';
 import {
+  Alert,
+  Button,
+  Card,
+  Grid,
+  Group,
+  Modal,
+  NumberInput,
+  Select,
+  Stack,
+  Tabs,
+  Text,
+  Title,
+} from '@mantine/core';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import {
+  getThinkingTransportCompatibility,
   supportsPreservedThinking,
-  supportsThinkingModelFamily,
 } from '@lxp/domain';
 
-import {ChatComposer} from '../features/chat/components/chat-composer';
-import {ChatMessageList} from '../features/chat/components/chat-message-list';
-import {ChatSidebar} from '../features/chat/components/chat-sidebar';
-import {ChatSystemPromptPanel} from '../features/chat/components/chat-system-prompt-panel';
-import {useChatClipboard} from '../features/chat/hooks/use-chat-clipboard';
-import {useChatConversations} from '../features/chat/hooks/use-chat-conversations';
-import {useChatComposerViewport} from '../features/chat/hooks/use-chat-composer-viewport';
-import {useChatMessageWindow} from '../features/chat/hooks/use-chat-message-window';
-import {useChatStreaming} from '../features/chat/hooks/use-chat-streaming';
-import {useChatTransfer} from '../features/chat/hooks/use-chat-transfer';
-import {createConversation} from '../features/chat/lib/chat-conversation-utils';
-import {PageHeader} from '../components/page-header';
-import {adminApiClient, gatewayApiClient} from '../lib/api-client';
-import {DEFAULT_SYSTEM_PROMPT} from '../lib/chat-thread';
-import {type StoredConversation} from '../lib/chat-store';
-import type { GatewayChatProviderOptions } from '../lib/api-client.types';
-import {useRuntimeConfig} from '../lib/use-runtime-config';
-import {useSession} from '../lib/use-session';
+import { ChatComposer } from '../features/chat/components/chat-composer';
+import { ChatMessageList } from '../features/chat/components/chat-message-list';
+import { ChatSidebar } from '../features/chat/components/chat-sidebar';
+import { ChatSystemPromptPanel } from '../features/chat/components/chat-system-prompt-panel';
+import { useChatClipboard } from '../features/chat/hooks/use-chat-clipboard';
+import { useChatConversations } from '../features/chat/hooks/use-chat-conversations';
+import { useChatComposerViewport } from '../features/chat/hooks/use-chat-composer-viewport';
+import { useChatMessageWindow } from '../features/chat/hooks/use-chat-message-window';
+import { useChatStreaming } from '../features/chat/hooks/use-chat-streaming';
+import { useChatTransfer } from '../features/chat/hooks/use-chat-transfer';
+import { createConversation } from '../features/chat/lib/chat-conversation-utils';
+import { PageHeader } from '../components/page-header';
+import { adminApiClient, gatewayApiClient } from '../lib/api-client';
+import { DEFAULT_SYSTEM_PROMPT } from '../lib/chat-thread';
+import { type StoredConversation } from '../lib/chat-store';
+import type {
+  GatewayChatProviderOptions,
+  GatewayReasoningEffort,
+  ProviderModelSummary,
+} from '../lib/api-client.types';
+import { useRuntimeConfig } from '../lib/use-runtime-config';
+import { useSession } from '../lib/use-session';
 import {
   buildDefaultModelOptions,
   buildProviderOptions,
@@ -32,6 +49,8 @@ import {
 
 type AnthropicExtendedThinkingUiMode = 'none' | 'auto' | 'budget';
 type ThinkingUiMode = 'enabled' | 'enabled-preserve' | 'disabled';
+type ReasoningEffortUiMode = GatewayReasoningEffort | 'provider-default';
+type ReasoningControl = 'adaptive' | 'budget' | 'effort' | 'toggle';
 
 function buildAnthropicProviderOptions(
   providerId: string,
@@ -120,9 +139,34 @@ function readAnthropicThinkingSelection(
 
 function buildThinkingProviderOptions(
   providerId: string,
+  modelId: string,
   mode: ThinkingUiMode,
 ): GatewayChatProviderOptions | undefined {
-  if (providerId === 'zai' || providerId === 'nanogpt') {
+  if (providerId === 'nanogpt') {
+    if (
+      getThinkingTransportCompatibility(providerId, modelId)?.requestMapping ===
+      'nanogpt-zai-thinking'
+    ) {
+      return {
+        zai: {
+          thinking: {
+            type: mode === 'disabled' ? 'disabled' : 'enabled',
+            clearThinking: mode !== 'enabled-preserve',
+          },
+        },
+      };
+    }
+
+    return {
+      nanogpt: {
+        reasoning: {
+          effort: mode === 'disabled' ? 'none' : 'medium',
+        },
+      },
+    };
+  }
+
+  if (providerId === 'zai') {
     if (mode === 'disabled') {
       return {
         zai: {
@@ -177,12 +221,24 @@ function readThinkingSelection(
   providerId: string,
   conversation: StoredConversation | null,
 ): ThinkingUiMode {
-  if (providerId === 'zai' || providerId === 'nanogpt') {
+  if (providerId === 'nanogpt') {
+    const nanoGptReasoning = conversation?.providerOptions?.nanogpt?.reasoning;
+    if (nanoGptReasoning) {
+      return nanoGptReasoning.effort === 'none' ? 'disabled' : 'enabled';
+    }
+
     const thinking = conversation?.providerOptions?.zai?.thinking;
     if (!thinking || thinking.type === 'enabled') {
-      return thinking?.clearThinking === false
-        ? 'enabled-preserve'
-        : 'enabled';
+      return thinking?.clearThinking === false ? 'enabled-preserve' : 'enabled';
+    }
+
+    return 'disabled';
+  }
+
+  if (providerId === 'zai') {
+    const thinking = conversation?.providerOptions?.zai?.thinking;
+    if (!thinking || thinking.type === 'enabled') {
+      return thinking?.clearThinking === false ? 'enabled-preserve' : 'enabled';
     }
 
     return 'disabled';
@@ -204,17 +260,62 @@ function readThinkingSelection(
   return 'enabled';
 }
 
-function supportsAnthropicAdaptiveThinking(modelId: string): boolean {
-  return (
-    modelId.includes('claude-opus-4-6') ||
-    modelId.includes('claude-opus-4-7') ||
-    modelId.includes('claude-sonnet-4-6') ||
-    modelId.includes('claude-mythos-preview')
-  );
+function buildReasoningEffortProviderOptions(
+  providerId: string,
+  effort: ReasoningEffortUiMode,
+): GatewayChatProviderOptions | undefined {
+  if (effort === 'provider-default') {
+    return undefined;
+  }
+
+  if (providerId === 'openrouter') {
+    return { openrouter: { reasoning: { effort } } };
+  }
+
+  if (providerId === 'nanogpt') {
+    return { nanogpt: { reasoning: { effort } } };
+  }
+
+  if (providerId === 'openai' || providerId === 'xai') {
+    return { [providerId]: { reasoning: { effort } } };
+  }
+
+  return undefined;
 }
 
-function supportsAnthropicExtendedThinking(modelId: string): boolean {
-  return !modelId.includes('claude-haiku');
+function readReasoningEffortSelection(
+  providerId: string,
+  conversation: StoredConversation | null,
+): ReasoningEffortUiMode {
+  if (providerId === 'openrouter') {
+    return (
+      conversation?.providerOptions?.openrouter?.reasoning?.effort ??
+      'provider-default'
+    );
+  }
+
+  if (providerId === 'nanogpt') {
+    return (
+      conversation?.providerOptions?.nanogpt?.reasoning?.effort ??
+      'provider-default'
+    );
+  }
+
+  if (providerId === 'openai' || providerId === 'xai') {
+    return (
+      conversation?.providerOptions?.[providerId]?.reasoning?.effort ??
+      'provider-default'
+    );
+  }
+
+  return 'provider-default';
+}
+
+function getModelReasoningCapability(
+  models: ProviderModelSummary[] | undefined,
+  modelId: string,
+) {
+  return models?.find((entry) => entry.id === modelId)?.capabilities?.reasoning;
 }
 
 function buildChatProviderOptions(input: {
@@ -223,15 +324,41 @@ function buildChatProviderOptions(input: {
   anthropicThinkingMode: AnthropicExtendedThinkingUiMode;
   anthropicThinkingBudgetTokens: number | '';
   thinkingMode: ThinkingUiMode;
+  reasoningSupported: boolean;
+  reasoningMandatory: boolean;
+  reasoningControls: ReasoningControl[];
+  reasoningEffort: ReasoningEffortUiMode;
 }): GatewayChatProviderOptions | undefined {
+  if (!input.reasoningSupported) {
+    return undefined;
+  }
+
+  const effortOptions = input.reasoningControls.includes('effort')
+    ? buildReasoningEffortProviderOptions(
+        input.providerId,
+        input.reasoningEffort,
+      )
+    : undefined;
+  if (effortOptions) {
+    return effortOptions;
+  }
+
+  if (input.reasoningMandatory) {
+    return undefined;
+  }
+
   return (
     buildAnthropicProviderOptions(
       input.providerId,
       input.anthropicThinkingMode,
       input.anthropicThinkingBudgetTokens,
     ) ??
-    (supportsThinkingModelFamily(input.providerId, input.model)
-      ? buildThinkingProviderOptions(input.providerId, input.thinkingMode)
+    (input.reasoningControls.includes('toggle')
+      ? buildThinkingProviderOptions(
+          input.providerId,
+          input.model,
+          input.thinkingMode,
+        )
       : undefined)
   );
 }
@@ -255,6 +382,8 @@ export function ChatPage() {
   const [anthropicThinkingBudgetTokens, setAnthropicThinkingBudgetTokens] =
     useState<number | ''>(4096);
   const [thinkingMode, setThinkingMode] = useState<ThinkingUiMode>('enabled');
+  const [reasoningEffort, setReasoningEffort] =
+    useState<ReasoningEffortUiMode>('provider-default');
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatWarning, setChatWarning] = useState<string | null>(null);
   const [streamingSignal, setStreamingSignal] = useState(false);
@@ -411,6 +540,9 @@ export function ChatPage() {
 
   useEffect(() => {
     setThinkingMode(readThinkingSelection(providerId, activeConversation));
+    setReasoningEffort(
+      readReasoningEffortSelection(providerId, activeConversation),
+    );
     forcedThinkingDisabledRef.current = false;
   }, [activeConversation?.id, activeConversation?.providerOptions, providerId]);
 
@@ -427,38 +559,64 @@ export function ChatPage() {
     typeof maxOutputTokens === 'number' && Number.isInteger(maxOutputTokens)
       ? maxOutputTokens
       : undefined;
+  const selectedModel = modelsQuery.data?.models.find(
+    (entry) => entry.id === model,
+  );
+  const reasoningCapability = selectedModel?.capabilities?.reasoning;
   const anthropicThinkingDisabledForModel =
     providerId === 'anthropic' &&
     model.length > 0 &&
-    !supportsAnthropicExtendedThinking(model);
+    reasoningCapability?.supported !== true;
   const effectiveAnthropicThinkingMode = anthropicThinkingDisabledForModel
     ? 'none'
     : anthropicThinkingMode;
   const thinkingControlVisible =
-    providerId === 'zai' ||
-    providerId === 'nanogpt' ||
-    providerId === 'openrouter' ||
-    providerId === 'ollama';
+    providerId !== 'anthropic' &&
+    reasoningCapability?.supported === true &&
+    reasoningCapability.mandatory !== true &&
+    reasoningCapability.controls.includes('toggle') &&
+    (providerId === 'zai' ||
+      providerId === 'nanogpt' ||
+      providerId === 'openrouter' ||
+      providerId === 'ollama');
+  const reasoningEffortControlVisible =
+    reasoningCapability?.supported === true &&
+    reasoningCapability.controls.includes('effort') &&
+    Boolean(reasoningCapability.supportedEfforts?.length) &&
+    (providerId === 'nanogpt' ||
+      providerId === 'openrouter' ||
+      providerId === 'openai' ||
+      providerId === 'xai');
   const thinkingSupported =
     thinkingControlVisible &&
     model.length > 0 &&
-    supportsThinkingModelFamily(providerId, model);
+    reasoningCapability?.supported === true;
   const preserveThinkingSupported =
     thinkingControlVisible &&
     model.length > 0 &&
     supportsPreservedThinking(providerId, model);
-  const effectiveThinkingMode =
-    thinkingControlVisible && model.length > 0 && !thinkingSupported
+  const effectiveThinkingMode = reasoningCapability?.mandatory
+    ? 'enabled'
+    : thinkingControlVisible && model.length > 0 && !thinkingSupported
       ? 'disabled'
       : preserveThinkingSupported || thinkingMode !== 'enabled-preserve'
         ? thinkingMode
         : 'enabled';
+  const effectiveReasoningEffort =
+    reasoningEffort !== 'provider-default' &&
+    reasoningCapability?.supportedEfforts?.includes(reasoningEffort)
+      ? reasoningEffort
+      : 'provider-default';
   const chatProviderOptions = buildChatProviderOptions({
     providerId,
     model,
     anthropicThinkingMode: effectiveAnthropicThinkingMode,
     anthropicThinkingBudgetTokens,
     thinkingMode: effectiveThinkingMode,
+    reasoningSupported: reasoningCapability?.supported === true,
+    reasoningMandatory: reasoningCapability?.mandatory === true,
+    reasoningControls: reasoningCapability?.controls ?? [],
+    reasoningEffort: effectiveReasoningEffort,
   });
   const preserveThinkingEnabled = effectiveThinkingMode === 'enabled-preserve';
   const providerCatalogPricingNote = getProviderCatalogPricingNote(providerId);
@@ -468,13 +626,18 @@ export function ChatPage() {
   const selectedModelDisplayName =
     sortedModelOptions.find((option) => option.value === model)?.label ?? model;
   const anthropicAdaptiveThinkingSupported =
-    providerId === 'anthropic' && supportsAnthropicAdaptiveThinking(model);
+    providerId === 'anthropic' &&
+    reasoningCapability?.controls.includes('adaptive') === true;
   const persistConversationProviderFromEffect = useEffectEvent(
     (nextProviderId: string, nextModel: string) => {
       if (!activeConversation) {
         return;
       }
 
+      const nextReasoningCapability = getModelReasoningCapability(
+        modelsQuery.data?.models,
+        nextModel,
+      );
       void persistConversationProvider(
         nextProviderId,
         nextModel,
@@ -484,6 +647,10 @@ export function ChatPage() {
           anthropicThinkingMode,
           anthropicThinkingBudgetTokens,
           thinkingMode,
+          reasoningSupported: nextReasoningCapability?.supported === true,
+          reasoningMandatory: nextReasoningCapability?.mandatory === true,
+          reasoningControls: nextReasoningCapability?.controls ?? [],
+          reasoningEffort,
         }),
       );
     },
@@ -529,7 +696,7 @@ export function ChatPage() {
     if (
       pendingConversationProviderSyncRef.current &&
       activeConversation &&
-        nextModel
+      nextModel
     ) {
       pendingConversationProviderSyncRef.current = false;
       persistConversationProviderFromEffect(providerId, nextModel);
@@ -556,7 +723,7 @@ export function ChatPage() {
     setThinkingMode('disabled');
     if (activeConversation) {
       persistConversationProviderOptionsFromEffect(
-        buildThinkingProviderOptions(providerId, 'disabled'),
+        buildThinkingProviderOptions(providerId, model, 'disabled'),
       );
     }
   }, [
@@ -583,7 +750,7 @@ export function ChatPage() {
     setThinkingMode('enabled');
     if (activeConversation) {
       persistConversationProviderOptionsFromEffect(
-        buildThinkingProviderOptions(providerId, 'enabled'),
+        buildThinkingProviderOptions(providerId, model, 'enabled'),
       );
     }
   }, [
@@ -607,7 +774,7 @@ export function ChatPage() {
     setThinkingMode('enabled');
     if (activeConversation) {
       persistConversationProviderOptionsFromEffect(
-        buildThinkingProviderOptions(providerId, 'enabled'),
+        buildThinkingProviderOptions(providerId, model, 'enabled'),
       );
     }
   }, [
@@ -633,20 +800,31 @@ export function ChatPage() {
         anthropicThinkingMode: effectiveAnthropicThinkingMode,
         anthropicThinkingBudgetTokens,
         thinkingMode: effectiveThinkingMode,
+        reasoningSupported: reasoningCapability?.supported === true,
+        reasoningMandatory: reasoningCapability?.mandatory === true,
+        reasoningControls: reasoningCapability?.controls ?? [],
+        reasoningEffort: effectiveReasoningEffort,
       }),
       systemPrompt: systemPrompt.trim(),
     };
   }
 
   useEffect(() => {
-    if (!anthropicThinkingDisabledForModel || anthropicThinkingMode === 'none') {
+    if (
+      !anthropicThinkingDisabledForModel ||
+      anthropicThinkingMode === 'none'
+    ) {
       return;
     }
 
     setAnthropicThinkingMode('none');
     if (activeConversation) {
       persistConversationProviderOptionsFromEffect(
-        buildAnthropicProviderOptions(providerId, 'none', anthropicThinkingBudgetTokens),
+        buildAnthropicProviderOptions(
+          providerId,
+          'none',
+          anthropicThinkingBudgetTokens,
+        ),
       );
     }
   }, [
@@ -764,10 +942,13 @@ export function ChatPage() {
                       nextProviderId === 'anthropic'
                         ? readAnthropicThinkingSelection(activeConversation)
                         : { mode: 'none' as const, budgetTokens: 4096 };
-                    const defaultProviderThinkingSelection = readThinkingSelection(
-                      nextProviderId,
-                      activeConversation,
-                    );
+                    const defaultProviderThinkingSelection =
+                      readThinkingSelection(nextProviderId, activeConversation);
+                    const defaultProviderEffortSelection =
+                      readReasoningEffortSelection(
+                        nextProviderId,
+                        activeConversation,
+                      );
                     pendingConversationProviderSyncRef.current =
                       Boolean(activeConversation);
                     setProviderId(nextProviderId);
@@ -776,6 +957,7 @@ export function ChatPage() {
                       defaultThinkingSelection.budgetTokens,
                     );
                     setThinkingMode(defaultProviderThinkingSelection);
+                    setReasoningEffort(defaultProviderEffortSelection);
                     setModel('');
                   }}
                   value={providerId}
@@ -791,12 +973,24 @@ export function ChatPage() {
                     pendingConversationProviderSyncRef.current = false;
                     setModel(nextModel);
                     if (activeConversation && nextModel) {
+                      const nextReasoningCapability =
+                        getModelReasoningCapability(
+                          modelsQuery.data?.models,
+                          nextModel,
+                        );
                       const nextChatProviderOptions = buildChatProviderOptions({
                         providerId,
                         model: nextModel,
                         anthropicThinkingMode: effectiveAnthropicThinkingMode,
                         anthropicThinkingBudgetTokens,
                         thinkingMode: effectiveThinkingMode,
+                        reasoningSupported:
+                          nextReasoningCapability?.supported === true,
+                        reasoningMandatory:
+                          nextReasoningCapability?.mandatory === true,
+                        reasoningControls:
+                          nextReasoningCapability?.controls ?? [],
+                        reasoningEffort,
                       });
                       void persistConversationModel(
                         nextModel,
@@ -808,7 +1002,9 @@ export function ChatPage() {
                   selectFirstOptionOnChange
                   value={model}
                   className="chat-model-select"
-                  disabled={!providerId || modelsQuery.isPending || modelsQuery.isError}
+                  disabled={
+                    !providerId || modelsQuery.isPending || modelsQuery.isError
+                  }
                 />
                 <NumberInput
                   data-testid="chat-max-output-tokens-input"
@@ -834,8 +1030,22 @@ export function ChatPage() {
                     <Select
                       data={[
                         { value: 'none', label: 'Extended thinking: none' },
-                        { value: 'auto', label: 'Extended thinking: auto' },
-                        { value: 'budget', label: 'Extended thinking: budget' },
+                        ...(reasoningCapability?.controls.includes('adaptive')
+                          ? [
+                              {
+                                value: 'auto',
+                                label: 'Extended thinking: auto',
+                              },
+                            ]
+                          : []),
+                        ...(reasoningCapability?.controls.includes('budget')
+                          ? [
+                              {
+                                value: 'budget',
+                                label: 'Extended thinking: budget',
+                              },
+                            ]
+                          : []),
                       ]}
                       data-testid="chat-anthropic-thinking-mode-select"
                       disabled={anthropicThinkingDisabledForModel}
@@ -845,11 +1055,12 @@ export function ChatPage() {
                           (value as AnthropicExtendedThinkingUiMode | null) ??
                           'none';
                         setAnthropicThinkingMode(nextMode);
-                        const nextProviderOptions = buildAnthropicProviderOptions(
-                          providerId,
-                          nextMode,
-                          anthropicThinkingBudgetTokens,
-                        );
+                        const nextProviderOptions =
+                          buildAnthropicProviderOptions(
+                            providerId,
+                            nextMode,
+                            anthropicThinkingBudgetTokens,
+                          );
                         if (activeConversation) {
                           void persistConversationProviderOptions(
                             nextProviderOptions,
@@ -896,7 +1107,14 @@ export function ChatPage() {
                             },
                           ]
                         : []),
-                      { value: 'disabled', label: 'Thinking: disabled' },
+                      ...(reasoningCapability?.mandatory
+                        ? []
+                        : [
+                            {
+                              value: 'disabled',
+                              label: 'Thinking: disabled',
+                            },
+                          ]),
                     ]}
                     data-testid="chat-thinking-mode-select"
                     disabled={Boolean(model) && !thinkingSupported}
@@ -906,13 +1124,70 @@ export function ChatPage() {
                         (value as ThinkingUiMode | null) ?? 'enabled';
                       forcedThinkingDisabledRef.current = false;
                       setThinkingMode(nextMode);
+                      setReasoningEffort('provider-default');
                       if (activeConversation) {
                         void persistConversationProviderOptions(
-                          buildThinkingProviderOptions(providerId, nextMode),
+                          buildThinkingProviderOptions(
+                            providerId,
+                            model,
+                            nextMode,
+                          ),
                         );
                       }
                     }}
                     value={effectiveThinkingMode}
+                  />
+                ) : null}
+                {reasoningEffortControlVisible ? (
+                  <Select
+                    data={[
+                      {
+                        value: 'provider-default',
+                        label: reasoningCapability?.defaultEffort
+                          ? `Provider default (${reasoningCapability.defaultEffort})`
+                          : 'Provider default',
+                      },
+                      ...(reasoningCapability?.supportedEfforts ?? [])
+                        .filter(
+                          (effort) =>
+                            !reasoningCapability?.mandatory ||
+                            effort !== 'none',
+                        )
+                        .map((effort) => ({
+                          value: effort,
+                          label: `Reasoning effort: ${effort}`,
+                        })),
+                    ]}
+                    data-testid="chat-reasoning-effort-select"
+                    label="Reasoning effort"
+                    onChange={(value) => {
+                      const nextEffort =
+                        (value as ReasoningEffortUiMode | null) ??
+                        'provider-default';
+                      setReasoningEffort(nextEffort);
+                      if (nextEffort !== 'provider-default') {
+                        setThinkingMode('enabled');
+                      }
+                      if (activeConversation) {
+                        void persistConversationProviderOptions(
+                          buildChatProviderOptions({
+                            providerId,
+                            model,
+                            anthropicThinkingMode:
+                              effectiveAnthropicThinkingMode,
+                            anthropicThinkingBudgetTokens,
+                            thinkingMode: effectiveThinkingMode,
+                            reasoningSupported: true,
+                            reasoningMandatory:
+                              reasoningCapability?.mandatory === true,
+                            reasoningControls:
+                              reasoningCapability?.controls ?? [],
+                            reasoningEffort: nextEffort,
+                          }),
+                        );
+                      }
+                    }}
+                    value={effectiveReasoningEffort}
                   />
                 ) : null}
               </Stack>
@@ -922,67 +1197,42 @@ export function ChatPage() {
                 {providerCatalogPricingNote}
               </Alert>
             ) : null}
-            {providerId === 'anthropic' ? (
-              <Alert color="blue" mb="md" title="Anthropic thinking">
-                {anthropicThinkingDisabledForModel
-                  ? 'Extended thinking is unavailable for Claude Haiku models in this chat surface, so the setting is forced to none.'
-                  : anthropicThinkingMode === 'auto'
-                  ? 'Auto uses Anthropic adaptive thinking with summarized reasoning when the selected model supports it.'
-                  : anthropicThinkingMode === 'budget'
-                    ? 'Budget mode sends a fixed Anthropic thinking budget. The gateway keeps max output tokens above the requested budget for compatibility.'
-                    : 'None explicitly disables Anthropic extended thinking for this conversation.'}
-              </Alert>
-            ) : null}
-            {thinkingControlVisible ? (
+            {providerId && model ? (
               <Alert
                 color="blue"
                 mb="md"
-                title={
-                  providerId === 'nanogpt'
-                    ? 'NanoGPT GLM thinking'
-                    : providerId === 'openrouter'
-                      ? 'OpenRouter GLM thinking'
-                      : providerId === 'ollama'
-                        ? 'Ollama GLM thinking'
-                        : 'Z.ai thinking'
-                }
+                title={`${selectedProviderDisplayName} reasoning`}
               >
-                {!model
-                  ? providerId === 'nanogpt'
-                    ? 'Thinking options appear for NanoGPT when the selected chat model is a Z.ai GLM 4.5+ route.'
-                    : providerId === 'openrouter'
-                      ? 'Thinking options are available for OpenRouter GLM 4.5+ routes.'
-                      : providerId === 'ollama'
-                        ? 'Thinking options are available for Ollama GLM 4.5+ models.'
-                        : 'Thinking options are available for GLM 4.5 and newer Z.ai chat models.'
-                  : !thinkingSupported
-                    ? `The selected model (${selectedModelDisplayName}) does not appear to support GLM 4.5+ thinking in this provider route.`
-                    : preserveThinkingEnabled
-                      ? providerId === 'nanogpt'
-                        ? 'Preserve prior reasoning keeps `clear_thinking` disabled and replays stored assistant `reasoning_content` back through NanoGPT for later GLM turns.'
-                        : 'Preserve prior reasoning keeps `clear_thinking` disabled and replays stored assistant `reasoning_content` back to Z.ai on later turns.'
-                      : effectiveThinkingMode === 'disabled'
-                        ? providerId === 'openrouter'
-                          ? 'Disabled sends `reasoning` as excluded for this OpenRouter GLM conversation.'
-                          : providerId === 'ollama'
-                            ? 'Disabled sends `think=false` for this Ollama GLM conversation.'
-                            : providerId === 'nanogpt'
-                              ? 'Disabled sends `thinking.type=disabled` through NanoGPT for this GLM conversation.'
-                              : 'Disabled sends `thinking.type=disabled` for this conversation.'
-                        : providerId === 'openrouter'
-                          ? 'Enabled sends OpenRouter `reasoning` for this GLM conversation.'
-                          : providerId === 'ollama'
-                            ? 'Enabled sends `think=true` for this Ollama GLM conversation.'
-                            : providerId === 'nanogpt'
-                              ? 'Enabled sends `thinking.type=enabled` through NanoGPT and clears previous reasoning traces between turns.'
-                              : 'Enabled sends `thinking.type=enabled` and clears previous reasoning traces between turns.'}
+                {!reasoningCapability
+                  ? `The ${selectedProviderDisplayName} model API does not declare reasoning capabilities for ${selectedModelDisplayName}. Chat Lab will not infer them from the model name.`
+                  : !reasoningCapability.supported
+                    ? `The ${selectedProviderDisplayName} model API declares that ${selectedModelDisplayName} does not support reasoning.`
+                    : reasoningCapability.mandatory
+                      ? reasoningEffortControlVisible
+                        ? `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. The toggle is unavailable; select a supported effort or keep the provider default.`
+                        : `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. Chat Lab sends no reasoning configuration and uses the provider default.`
+                      : providerId === 'anthropic'
+                        ? anthropicThinkingMode === 'auto'
+                          ? 'Auto uses Anthropic adaptive thinking as declared by the model API.'
+                          : anthropicThinkingMode === 'budget'
+                            ? 'Budget mode sends a fixed Anthropic thinking budget. The gateway keeps max output tokens above the requested budget.'
+                            : 'None explicitly disables Anthropic extended thinking for this conversation.'
+                        : preserveThinkingEnabled
+                          ? 'Reasoning is enabled and prior reasoning content is preserved when this provider route supports replay.'
+                          : effectiveThinkingMode === 'disabled'
+                            ? 'Reasoning is disabled for this conversation using the selected provider transport.'
+                            : 'Reasoning is enabled for this conversation using capabilities declared by the provider model API.'}
               </Alert>
             ) : null}
             {providerId === 'anthropic' &&
             effectiveAnthropicThinkingMode === 'auto' &&
             model &&
             !anthropicAdaptiveThinkingSupported ? (
-              <Alert color="yellow" mb="md" title="Adaptive thinking compatibility">
+              <Alert
+                color="yellow"
+                mb="md"
+                title="Adaptive thinking compatibility"
+              >
                 This model may reject adaptive thinking. If Anthropic returns a
                 400 error, switch to `budget` for older Claude models.
               </Alert>

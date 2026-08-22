@@ -30,6 +30,19 @@ export type GatewayAnthropicExtendedThinking =
       budgetTokens: number;
     };
 
+export type GatewayReasoningEffort =
+  | 'none'
+  | 'minimal'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'xhigh'
+  | 'max';
+
+export interface GatewayModelReasoning {
+  effort: GatewayReasoningEffort;
+}
+
 export type GatewayZaiThinking =
   | {
       type: 'enabled';
@@ -43,18 +56,33 @@ export type GatewayZaiThinking =
 export interface GatewayOpenRouterReasoning {
   enabled?: boolean;
   exclude?: boolean;
+  effort?: GatewayReasoningEffort;
+  maxTokens?: number;
 }
 
 export interface GatewayOllamaThinking {
   enabled?: boolean;
 }
 
+export interface GatewayNanoGptReasoning {
+  effort: GatewayReasoningEffort;
+}
+
 export interface GatewayChatProviderOptions {
   anthropic?: {
     extendedThinking?: GatewayAnthropicExtendedThinking;
   };
+  openai?: {
+    reasoning?: GatewayModelReasoning;
+  };
+  xai?: {
+    reasoning?: GatewayModelReasoning;
+  };
   zai?: {
     thinking?: GatewayZaiThinking;
+  };
+  nanogpt?: {
+    reasoning?: GatewayNanoGptReasoning;
   };
   openrouter?: {
     reasoning?: GatewayOpenRouterReasoning;

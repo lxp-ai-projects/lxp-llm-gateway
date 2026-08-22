@@ -107,6 +107,16 @@ test('OllamaProviderAdapter maps native /api/tags responses into provider models
       init,
     });
 
+    if (String(url).endsWith('/api/show')) {
+      return new Response(
+        JSON.stringify({ capabilities: ['completion', 'thinking'] }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+    }
+
     return new Response(
       JSON.stringify({
         models: [
@@ -140,8 +150,50 @@ test('OllamaProviderAdapter maps native /api/tags responses into provider models
       {
         id: 'qwen3:8b',
         displayName: 'qwen3:8b',
+        capabilities: {
+          reasoning: {
+            supported: true,
+            controls: ['toggle'],
+            source: {
+              kind: 'provider-api',
+              providerId: 'ollama',
+              modelId: 'qwen3:8b',
+            },
+          },
+        },
       },
     ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OllamaProviderAdapter soft-fails timed-out /api/show capability checks', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url, init) => {
+    if (String(url).endsWith('/api/show')) {
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    }
+
+    return new Response(JSON.stringify({ models: [{ name: 'qwen3:8b' }] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OllamaProviderAdapter(undefined, 5);
+    const models = await adapter.listModels?.({
+      requestId: 'req-show-timeout',
+      userId: 'user-1',
+      providerAccess: { baseUrl: 'http://127.0.0.1:11434/v1' },
+    });
+
+    assert.deepEqual(models, [{ id: 'qwen3:8b', displayName: 'qwen3:8b' }]);
   } finally {
     globalThis.fetch = originalFetch;
   }

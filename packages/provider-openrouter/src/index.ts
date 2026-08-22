@@ -11,7 +11,9 @@ import type {
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
-import { isGlmThinkingModel } from '@lxp/domain';
+import { buildProviderChatHttpError } from '@lxp/provider-sdk';
+import { resolveAggregatorReasoningOptions } from '@lxp/model-family-capabilities';
+import type { ModelReasoningEffort } from '@lxp/domain';
 import {
   buildOpenRouterImageCatalog,
   buildKnownOpenRouterImageCatalog,
@@ -20,11 +22,19 @@ import {
 import { OpenRouterImageApiClient } from './image/api-client.js';
 import { OpenRouterImageEditService } from './image/edit-service.js';
 import { OpenRouterImageGenerationService } from './image/generation-service.js';
-import {
-  buildOpenRouterVideoCatalog,
-} from './video/catalog.js';
+import { buildOpenRouterVideoCatalog } from './video/catalog.js';
 import { OpenRouterVideoApiClient } from './video/api-client.js';
 import { OpenRouterVideoGenerationService } from './video/generation-service.js';
+
+const OPENROUTER_STANDARD_REASONING_EFFORTS: ModelReasoningEffort[] = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+];
 
 export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -92,14 +102,68 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       data?: Array<{
         id: string;
         name?: string;
+        supported_parameters?: string[];
+        reasoning?: {
+          supported_efforts?: ModelReasoningEffort[] | null;
+          default_effort?: ModelReasoningEffort;
+          default_enabled?: boolean;
+          supports_max_tokens?: boolean;
+          mandatory?: boolean;
+        };
       }>;
     };
 
     return buildOpenRouterModelCatalog(
-      (payload.data ?? []).map((model) => ({
-        id: model.id,
-        displayName: model.name ?? model.id,
-      })),
+      (payload.data ?? []).map((model) => {
+        const supportedEfforts =
+          model.reasoning &&
+          Object.prototype.hasOwnProperty.call(
+            model.reasoning,
+            'supported_efforts',
+          )
+            ? (model.reasoning.supported_efforts ??
+              OPENROUTER_STANDARD_REASONING_EFFORTS)
+            : undefined;
+
+        return {
+          id: model.id,
+          displayName: model.name ?? model.id,
+          ...(model.reasoning ||
+          model.supported_parameters?.includes('reasoning')
+            ? {
+                capabilities: {
+                  reasoning: {
+                    supported: true,
+                    controls: [
+                      ...(model.reasoning?.mandatory
+                        ? []
+                        : (['toggle'] as const)),
+                      ...(supportedEfforts ? (['effort'] as const) : []),
+                      ...(model.reasoning?.supports_max_tokens
+                        ? (['budget'] as const)
+                        : []),
+                    ],
+                    ...(supportedEfforts ? { supportedEfforts } : {}),
+                    ...(model.reasoning?.default_effort
+                      ? { defaultEffort: model.reasoning.default_effort }
+                      : {}),
+                    ...(typeof model.reasoning?.default_enabled === 'boolean'
+                      ? { defaultEnabled: model.reasoning.default_enabled }
+                      : {}),
+                    ...(typeof model.reasoning?.mandatory === 'boolean'
+                      ? { mandatory: model.reasoning.mandatory }
+                      : {}),
+                    source: {
+                      kind: 'provider-api' as const,
+                      providerId: this.providerId,
+                      modelId: model.id,
+                    },
+                  },
+                },
+              }
+            : {}),
+        };
+      }),
     );
   }
 
@@ -126,10 +190,7 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     const response = await this.dispatchChatRequest(request, context, false);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `OpenRouter request failed with status ${response.status}: ${errorText}`,
-      );
+      throw await buildProviderChatHttpError('OpenRouter', response);
     }
 
     const payload = (await response.json()) as {
@@ -155,7 +216,7 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     };
 
     const message = payload.choices?.[0]?.message;
-    const providerMetadata = Object.fromEntries(
+    const providerMetadata: Record<string, unknown> = Object.fromEntries(
       Object.entries(payload).filter(
         ([key]) =>
           key.startsWith('x_') ||
@@ -164,6 +225,13 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
           key === 'created',
       ),
     );
+    providerMetadata.tokenCounting = {
+      preflight: 'unavailable',
+      responseUsage:
+        typeof payload.usage?.prompt_tokens === 'number'
+          ? 'provider-reported'
+          : 'unavailable',
+    };
 
     return {
       requestId: context.requestId,
@@ -197,10 +265,7 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     const response = await this.dispatchChatRequest(request, context, true);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `OpenRouter streaming request failed with status ${response.status}: ${errorText}`,
-      );
+      throw await buildProviderChatHttpError('OpenRouter streaming', response);
     }
 
     if (!response.body) {
@@ -240,7 +305,9 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
         ? context.metadata.requestedModel
         : 'unknown-model';
     const prompt =
-      typeof context.metadata?.prompt === 'string' ? context.metadata.prompt : '';
+      typeof context.metadata?.prompt === 'string'
+        ? context.metadata.prompt
+        : '';
 
     return this.videoGenerationService.getJob(
       requestedModel,
@@ -280,7 +347,18 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
     stream: boolean,
   ): Promise<Response> {
-    const openRouterReasoning = request.providerOptions?.openrouter?.reasoning;
+    const reasoningOptions = resolveAggregatorReasoningOptions(
+      this.providerId,
+      request.model,
+      request.providerOptions,
+    );
+    const effectiveMaxTokens =
+      typeof reasoningOptions.minimumOutputTokens === 'number'
+        ? Math.max(
+            request.maxOutputTokens ?? 0,
+            reasoningOptions.minimumOutputTokens,
+          )
+        : request.maxOutputTokens;
 
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}/chat/completions`,
@@ -296,14 +374,11 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
-          ...(typeof request.maxOutputTokens === 'number'
-            ? { max_tokens: request.maxOutputTokens }
+          ...(typeof effectiveMaxTokens === 'number'
+            ? { max_tokens: effectiveMaxTokens }
             : {}),
-          ...(supportsOpenRouterGlmThinking(request.model) &&
-          openRouterReasoning
-            ? {
-                reasoning: openRouterReasoning,
-              }
+          ...(reasoningOptions.reasoning
+            ? { reasoning: reasoningOptions.reasoning }
             : {}),
         }),
       },
@@ -360,8 +435,4 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       clearTimeout(timeoutId);
     }
   }
-}
-
-function supportsOpenRouterGlmThinking(model: string | undefined): boolean {
-  return isGlmThinkingModel(model);
 }

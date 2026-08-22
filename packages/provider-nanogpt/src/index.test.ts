@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { validateVideoRequestAgainstFamily } from '@lxp/model-family-capabilities';
+import { ProviderHttpError } from '@lxp/provider-sdk';
 
 import { NanoGptProviderAdapter } from './index';
 import { buildNanoGptImageCatalog } from './image/catalog.js';
@@ -153,6 +154,10 @@ test('NanoGptProviderAdapter sends an OpenAI-compatible chat completions request
       x_nanogpt_pricing: {
         amount: 0,
       },
+      tokenCounting: {
+        preflight: 'unavailable',
+        responseUsage: 'provider-reported',
+      },
     });
   } finally {
     globalThis.fetch = originalFetch;
@@ -201,6 +206,134 @@ test('NanoGptProviderAdapter maps reasoning_content responses for GLM-style prov
     );
 
     assert.equal(response.message.reasoning, 'glm reasoning');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter extracts structured upstream error metadata', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        request_id: 'nano-request-1',
+        error: {
+          message: 'Upstream rejected the request.',
+          code: 'invalid_request',
+          type: 'invalid_request_error',
+          metadata: {
+            provider_name: 'Anthropic',
+            raw: JSON.stringify({
+              error: { request_id: 'anthropic-request-1' },
+            }),
+          },
+        },
+      }),
+      { status: 400, headers: { 'content-type': 'application/json' } },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter();
+    await assert.rejects(
+      () =>
+        adapter.chat(
+          {
+            model: 'anthropic/claude-opus-4.6',
+            messages: [{ role: 'user', content: 'hello' }],
+          },
+          {
+            requestId: 'gateway-request-1',
+            userId: 'user-1',
+            providerAccess: { apiKey: 'secret' },
+          },
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof ProviderHttpError);
+        assert.deepEqual(error.providerMetadata, {
+          requestId: 'nano-request-1',
+          upstreamRequestId: 'anthropic-request-1',
+          errorCode: 'invalid_request',
+          errorType: 'invalid_request_error',
+          upstreamProvider: 'Anthropic',
+          upstreamStatus: 400,
+        });
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter maps OpenAI family reasoning effort', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> = {};
+
+  globalThis.fetch = (async (_url, init) => {
+    requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<
+      string,
+      unknown
+    >;
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { role: 'assistant', content: 'ok' } }],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'openai/gpt-5.2',
+        providerOptions: {
+          openai: { reasoning: { effort: 'high' } },
+        },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-openai-reasoning',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'secret' },
+      },
+    );
+
+    assert.deepEqual(requestBody.reasoning, { effort: 'high' });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NanoGptProviderAdapter rejects mismatched family options before fetch', async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = (async () => {
+    fetchCalled = true;
+    return new Response('{}');
+  }) as typeof fetch;
+
+  try {
+    const adapter = new NanoGptProviderAdapter();
+    await assert.rejects(
+      () =>
+        adapter.chat(
+          {
+            model: 'x-ai/grok-4.1-fast',
+            providerOptions: {
+              anthropic: { extendedThinking: { mode: 'adaptive' } },
+            },
+            messages: [{ role: 'user', content: 'hello' }],
+          },
+          {
+            requestId: 'req-mismatch',
+            userId: 'user-1',
+            providerAccess: { apiKey: 'secret' },
+          },
+        ),
+      /targets anthropic-claude.*belongs to xai-grok/,
+    );
+    assert.equal(fetchCalled, false);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -394,7 +527,8 @@ test('NanoGptProviderAdapter forwards an external cancellation signal to provide
       observedSignal = init?.signal as AbortSignal | undefined;
       observedSignal?.addEventListener(
         'abort',
-        () => reject(new DOMException('The operation was aborted.', 'AbortError')),
+        () =>
+          reject(new DOMException('The operation was aborted.', 'AbortError')),
         { once: true },
       );
     })) as typeof fetch;
@@ -437,27 +571,46 @@ test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtim
       init,
     });
 
-    return new Response(JSON.stringify({ data: [] }), {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'anthropic/claude-sonnet-5:thinking',
+            name: 'Claude Sonnet 5',
+            capabilities: { reasoning: true },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
       },
-    });
+    );
   }) as typeof fetch;
 
   try {
     const adapter = new NanoGptProviderAdapter('https://nano-gpt.com/api/v1');
-    await adapter.listModels?.({
+    const models = await adapter.listModels?.({
       requestId: 'req-legacy',
       userId: 'user-1',
       providerAccess: undefined as never,
     });
 
-    assert.equal(calls[0]?.url, 'https://nano-gpt.com/api/v1/models');
+    assert.equal(
+      calls[0]?.url,
+      'https://nano-gpt.com/api/v1/models?detailed=true',
+    );
     const headers = calls[0]?.init?.headers as
       | Record<string, string>
       | undefined;
     assert.equal(headers?.authorization, undefined);
+    assert.equal(models?.[0]?.capabilities?.reasoning?.supported, true);
+    assert.equal(
+      models?.[0]?.capabilities?.reasoning?.source.providerId,
+      'nanogpt',
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

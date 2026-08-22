@@ -1,7 +1,4 @@
-import type {
-  GatewayChatRequest,
-  GatewayChatResponse,
-} from '@lxp/contracts';
+import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import type {
   LlmProviderAdapter,
   ProviderExecutionContext,
@@ -14,12 +11,18 @@ type OpenAiCompatibleModelListPayload =
         id: string;
         name?: string;
         owned_by?: string;
+        capabilities?: {
+          reasoning?: boolean | { supported?: boolean };
+        };
       }>;
     }
   | Array<{
       id: string;
       name?: string;
       owned_by?: string;
+      capabilities?: {
+        reasoning?: boolean | { supported?: boolean };
+      };
     }>;
 
 type OpenAiCompatibleChatPayload = {
@@ -74,9 +77,7 @@ export interface OpenAiCompatibleTextProviderOptions {
   }) => string;
 }
 
-export class OpenAiCompatibleTextProviderAdapter
-  implements LlmProviderAdapter
-{
+export class OpenAiCompatibleTextProviderAdapter implements LlmProviderAdapter {
   readonly capabilities;
 
   private readonly modelListPath: string;
@@ -274,12 +275,37 @@ export class OpenAiCompatibleTextProviderAdapter
     );
   }
 
-  private mapModels(payload: OpenAiCompatibleModelListPayload): ProviderModel[] {
-    const data = Array.isArray(payload) ? payload : payload.data ?? [];
-    return data.map((model) => ({
-      id: model.id,
-      displayName: model.name ?? model.id,
-    }));
+  private mapModels(
+    payload: OpenAiCompatibleModelListPayload,
+  ): ProviderModel[] {
+    const data = Array.isArray(payload) ? payload : (payload.data ?? []);
+    return data.map((model) => {
+      const declaredReasoning = model.capabilities?.reasoning;
+      const reasoningSupported =
+        typeof declaredReasoning === 'boolean'
+          ? declaredReasoning
+          : declaredReasoning?.supported;
+
+      return {
+        id: model.id,
+        displayName: model.name ?? model.id,
+        ...(typeof reasoningSupported === 'boolean'
+          ? {
+              capabilities: {
+                reasoning: {
+                  supported: reasoningSupported,
+                  controls: reasoningSupported ? ['toggle' as const] : [],
+                  source: {
+                    kind: 'provider-api' as const,
+                    providerId: this.providerId,
+                    modelId: model.id,
+                  },
+                },
+              },
+            }
+          : {}),
+      };
+    });
   }
 
   private collectDefaultProviderMetadata(
@@ -317,12 +343,16 @@ export class OpenAiCompatibleTextProviderAdapter
     }
 
     const message =
-      this.extractErrorMessage(parsedBody) ?? rawBody.trim() ?? 'Unknown error.';
+      this.extractErrorMessage(parsedBody) ??
+      rawBody.trim() ??
+      'Unknown error.';
     const requestId = this.extractRequestId(parsedBody);
     const baseMessage = `${this.options.displayName} ${operation} failed with status ${response.status}: ${message}`;
 
     void context;
-    return requestId ? `${baseMessage} (request_id: ${requestId})` : baseMessage;
+    return requestId
+      ? `${baseMessage} (request_id: ${requestId})`
+      : baseMessage;
   }
 
   private tryParseJson(value: string): unknown {
@@ -352,9 +382,7 @@ export class OpenAiCompatibleTextProviderAdapter
       typeof record.error === 'object' &&
       typeof (record.error as { message?: unknown }).message === 'string'
     ) {
-      return (
-        (record.error as { message?: string }).message?.trim() ?? null
-      );
+      return (record.error as { message?: string }).message?.trim() ?? null;
     }
 
     return null;

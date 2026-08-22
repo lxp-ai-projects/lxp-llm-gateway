@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { ProviderHttpError } from '@lxp/provider-sdk';
 import { OpenRouterProviderAdapter } from './index';
 import { buildOpenRouterVideoGenerationRequest } from './video/request-mapper.js';
 
@@ -60,10 +61,17 @@ test('OpenRouterProviderAdapter sends an OpenAI-compatible chat completions requ
     );
 
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]?.url, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.equal(
+      calls[0]?.url,
+      'https://openrouter.ai/api/v1/chat/completions',
+    );
     const headers = calls[0]?.init?.headers as Record<string, string>;
     assert.equal(headers.authorization, 'Bearer openrouter-secret-token');
     assert.equal(response.message.content, 'hello from openrouter');
+    assert.deepEqual(response.providerMetadata?.tokenCounting, {
+      preflight: 'unavailable',
+      responseUsage: 'provider-reported',
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -137,6 +145,162 @@ test('OpenRouterProviderAdapter forwards GLM thinking controls through reasoning
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('OpenRouterProviderAdapter extracts request and upstream provider errors', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          message: 'Provider rejected the prompt.',
+          code: 400,
+          metadata: { provider_name: 'OpenAI' },
+        },
+      }),
+      {
+        status: 400,
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': 'openrouter-request-1',
+        },
+      },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    await assert.rejects(
+      () =>
+        adapter.chat(
+          {
+            model: 'openai/gpt-5.2',
+            messages: [{ role: 'user', content: 'hello' }],
+          },
+          {
+            requestId: 'gateway-request-1',
+            userId: 'user-1',
+            providerAccess: { apiKey: 'secret' },
+          },
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof ProviderHttpError);
+        assert.deepEqual(error.providerMetadata, {
+          requestId: 'openrouter-request-1',
+          errorCode: '400',
+          upstreamProvider: 'OpenAI',
+          upstreamStatus: 400,
+        });
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouterProviderAdapter maps a Claude budget and keeps output above it', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> = {};
+
+  globalThis.fetch = (async (_url, init) => {
+    requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<
+      string,
+      unknown
+    >;
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { role: 'assistant', content: 'ok' } }],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'anthropic/claude-opus-4.6',
+        maxOutputTokens: 2048,
+        providerOptions: {
+          anthropic: {
+            extendedThinking: { mode: 'budget', budgetTokens: 4096 },
+          },
+        },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-claude-budget',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'secret' },
+      },
+    );
+
+    assert.deepEqual(requestBody.reasoning, { max_tokens: 4096 });
+    assert.equal(requestBody.max_tokens, 4097);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouterProviderAdapter maps xAI family reasoning effort', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> = {};
+
+  globalThis.fetch = (async (_url, init) => {
+    requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<
+      string,
+      unknown
+    >;
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { role: 'assistant', content: 'ok' } }],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'x-ai/grok-4.1-fast',
+        providerOptions: { xai: { reasoning: { effort: 'xhigh' } } },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-xai-reasoning',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'secret' },
+      },
+    );
+
+    assert.deepEqual(requestBody.reasoning, { effort: 'xhigh' });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouterProviderAdapter rejects family options for a non-reasoning model', async () => {
+  const adapter = new OpenRouterProviderAdapter();
+
+  await assert.rejects(
+    () =>
+      adapter.chat(
+        {
+          model: 'openai/gpt-4.1-mini',
+          providerOptions: {
+            openai: { reasoning: { effort: 'high' } },
+          },
+          messages: [{ role: 'user', content: 'hello' }],
+        },
+        {
+          requestId: 'req-non-reasoning',
+          userId: 'user-1',
+          providerAccess: { apiKey: 'secret' },
+        },
+      ),
+    /belongs to no supported reasoning family/,
+  );
 });
 
 test('OpenRouterProviderAdapter forwards multimodal chat content blocks unchanged', async () => {
@@ -237,17 +401,34 @@ test('OpenRouterProviderAdapter respects a credential-level baseUrl override', a
       init,
     });
 
-    return new Response(JSON.stringify({ data: [] }), {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'openai/gpt-5.6-luna',
+            name: 'GPT-5.6 Luna',
+            supported_parameters: ['reasoning'],
+            reasoning: {
+              supported_efforts: ['high', 'medium', 'low'],
+              default_effort: 'medium',
+              default_enabled: true,
+              mandatory: false,
+            },
+          },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
       },
-    });
+    );
   }) as typeof fetch;
 
   try {
     const adapter = new OpenRouterProviderAdapter();
-    await adapter.listModels?.({
+    const models = await adapter.listModels?.({
       requestId: 'req-2',
       userId: 'user-1',
       providerAccess: {
@@ -257,6 +438,67 @@ test('OpenRouterProviderAdapter respects a credential-level baseUrl override', a
     });
 
     assert.equal(calls[0]?.url, 'https://custom-openrouter.example/v1/models');
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning, {
+      supported: true,
+      controls: ['toggle', 'effort'],
+      supportedEfforts: ['high', 'medium', 'low'],
+      defaultEffort: 'medium',
+      defaultEnabled: true,
+      mandatory: false,
+      source: {
+        kind: 'provider-api',
+        providerId: 'openrouter',
+        modelId: 'openai/gpt-5.6-luna',
+      },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouterProviderAdapter treats null supported efforts as all standard efforts', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'future/reasoning-model',
+            reasoning: { supported_efforts: null },
+          },
+          {
+            id: 'future/toggle-only-model',
+            supported_parameters: ['reasoning'],
+          },
+        ],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    const models = await adapter.listModels?.({
+      requestId: 'req-null-efforts',
+      userId: 'user-1',
+      providerAccess: { apiKey: 'secret' },
+    });
+
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning?.controls, [
+      'toggle',
+      'effort',
+    ]);
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning?.supportedEfforts, [
+      'none',
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ]);
+    assert.deepEqual(models?.[1]?.capabilities?.reasoning?.controls, [
+      'toggle',
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -339,7 +581,10 @@ test('OpenRouterProviderAdapter exposes an image catalog with reused provider op
 
     assert.ok(catalog);
     assert.equal(catalog?.providerId, 'openrouter');
-    assert.equal(catalog?.defaultModelId, 'google/gemini-3.1-flash-image-preview');
+    assert.equal(
+      catalog?.defaultModelId,
+      'google/gemini-3.1-flash-image-preview',
+    );
 
     const geminiModel = catalog?.models.find(
       (model) => model.id === 'google/gemini-3.1-flash-image-preview',
@@ -379,7 +624,9 @@ test('OpenRouterProviderAdapter exposes an image catalog with reused provider op
       (model) => model.id === 'black-forest-labs/flux.2-pro',
     );
     assert.ok(genericModel);
-    assert.deepEqual(genericModel?.capabilities.supportedImageResponseFormats, ['b64_json']);
+    assert.deepEqual(genericModel?.capabilities.supportedImageResponseFormats, [
+      'b64_json',
+    ]);
     assert.equal(genericModel?.capabilities.supportsImageEditing, true);
     assert.ok(
       genericModel?.capabilities.supportedImageResolutions?.some(
@@ -403,7 +650,10 @@ test('OpenRouterProviderAdapter exposes an image catalog with reused provider op
     );
     assert.ok(riverflowPreviewModel);
     assert.equal(riverflowPreviewModel?.lifecycleStatus, 'preview');
-    assert.equal(riverflowPreviewModel?.capabilities.supportsImageEditing, true);
+    assert.equal(
+      riverflowPreviewModel?.capabilities.supportsImageEditing,
+      true,
+    );
     assert.ok(
       riverflowPreviewModel?.capabilities.supportedImageResolutions?.some(
         (option) => option.value === '4K',
@@ -450,9 +700,7 @@ test('OpenRouterProviderAdapter falls back to the known image catalog when remot
     assert.ok(
       catalog?.models.some((model) => model.id === 'openai/gpt-5-image'),
     );
-    assert.ok(
-      catalog?.models.some((model) => model.id === 'openrouter/auto'),
-    );
+    assert.ok(catalog?.models.some((model) => model.id === 'openrouter/auto'));
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -524,7 +772,10 @@ test('OpenRouterProviderAdapter sends image generation through chat completions 
     );
 
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]?.url, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.equal(
+      calls[0]?.url,
+      'https://openrouter.ai/api/v1/chat/completions',
+    );
 
     const payload = JSON.parse(String(calls[0]?.init?.body)) as {
       modalities: string[];
@@ -618,7 +869,10 @@ test('OpenRouterProviderAdapter sends image edit requests through chat completio
     );
 
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]?.url, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.equal(
+      calls[0]?.url,
+      'https://openrouter.ai/api/v1/chat/completions',
+    );
 
     const payload = JSON.parse(String(calls[0]?.init?.body)) as {
       modalities: string[];
@@ -714,11 +968,19 @@ test('OpenRouterProviderAdapter exposes a video catalog', async () => {
     assert.ok(catalog);
     assert.equal(catalog?.providerId, 'openrouter');
     assert.equal(catalog?.defaultModelId, 'kling/kling-2.1-master');
-    assert.equal(catalog?.models[0]?.capabilities.supportsVideoGeneration, true);
-    assert.equal(catalog?.models[0]?.capabilities.supportsVideoAudioGeneration, false);
+    assert.equal(
+      catalog?.models[0]?.capabilities.supportsVideoGeneration,
+      true,
+    );
+    assert.equal(
+      catalog?.models[0]?.capabilities.supportsVideoAudioGeneration,
+      false,
+    );
     assert.ok(
       catalog?.models[0]?.capabilities.capabilityDiagnostics?.some(
-        (diagnostic) => diagnostic.code === 'provider_claims_capability_unknown_to_native_spec',
+        (diagnostic) =>
+          diagnostic.code ===
+          'provider_claims_capability_unknown_to_native_spec',
       ),
     );
     assert.deepEqual(
@@ -732,7 +994,9 @@ test('OpenRouterProviderAdapter exposes a video catalog', async () => {
       [5, 10],
     );
 
-    const nonKlingModel = catalog?.models.find((model) => model.id === 'google/veo-3.1');
+    const nonKlingModel = catalog?.models.find(
+      (model) => model.id === 'google/veo-3.1',
+    );
     assert.ok(nonKlingModel);
     assert.equal(nonKlingModel?.family, undefined);
   } finally {
@@ -844,7 +1108,10 @@ test('OpenRouterProviderAdapter submits and polls a video generation job', async
 
     assert.ok(polled);
     assert.equal(polled?.status, 'succeeded');
-    assert.equal(polled?.outputs[0]?.contentUrl, 'https://provider.example/video.mp4');
+    assert.equal(
+      polled?.outputs[0]?.contentUrl,
+      'https://provider.example/video.mp4',
+    );
     assert.equal(
       (polled?.providerMetadata?.usage as { cost?: number } | undefined)?.cost,
       0.5,
@@ -924,4 +1191,3 @@ test('OpenRouter video transport keeps generic single-reference models on input_
     ],
   });
 });
-

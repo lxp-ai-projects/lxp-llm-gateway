@@ -21,6 +21,15 @@ test('AnthropicProviderAdapter lists models from the Anthropic models endpoint',
           {
             id: 'claude-sonnet-4-20250514',
             display_name: 'Claude Sonnet 4',
+            capabilities: {
+              thinking: {
+                supported: true,
+                types: {
+                  adaptive: { supported: true },
+                  enabled: { supported: true },
+                },
+              },
+            },
           },
         ],
       }),
@@ -47,6 +56,15 @@ test('AnthropicProviderAdapter lists models from the Anthropic models endpoint',
     assert.equal(headers['anthropic-version'], '2023-06-01');
     assertProviderModelIds(models, ['claude-sonnet-4-20250514']);
     assert.equal(models[0]?.displayName, 'Claude Sonnet 4');
+    assert.deepEqual(models[0]?.capabilities?.reasoning, {
+      supported: true,
+      controls: ['adaptive', 'budget'],
+      source: {
+        kind: 'provider-api',
+        providerId: 'anthropic',
+        modelId: 'claude-sonnet-4-20250514',
+      },
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -59,19 +77,17 @@ test('AnthropicProviderAdapter maps gateway messages into the Messages API paylo
     calls.push({ url: String(url), init });
 
     return createJsonResponse({
-        id: 'msg_123',
-        type: 'message',
-        role: 'assistant',
-        model: 'claude-sonnet-4-20250514',
-        stop_reason: 'end_turn',
-        content: [
-          { type: 'text', text: 'Hello from Claude' },
-        ],
-        usage: {
-          input_tokens: 12,
-          output_tokens: 15,
-        },
-      });
+      id: 'msg_123',
+      type: 'message',
+      role: 'assistant',
+      model: 'claude-sonnet-4-20250514',
+      stop_reason: 'end_turn',
+      content: [{ type: 'text', text: 'Hello from Claude' }],
+      usage: {
+        input_tokens: 12,
+        output_tokens: 15,
+      },
+    });
   }) as typeof fetch;
 
   try {
@@ -182,7 +198,10 @@ test('AnthropicProviderAdapter maps adaptive extended thinking for Anthropic req
       role: 'assistant',
       model: 'claude-sonnet-4-6',
       stop_reason: 'end_turn',
-      content: [{ type: 'thinking', thinking: 'Plan' }, { type: 'text', text: 'Done' }],
+      content: [
+        { type: 'thinking', thinking: 'Plan' },
+        { type: 'text', text: 'Done' },
+      ],
       usage: {
         input_tokens: 20,
         output_tokens: 30,
@@ -234,7 +253,10 @@ test('AnthropicProviderAdapter maps budgeted extended thinking and keeps max_tok
       role: 'assistant',
       model: 'claude-opus-4-1-20250805',
       stop_reason: 'end_turn',
-      content: [{ type: 'thinking', thinking: 'Reasoning' }, { type: 'text', text: 'Done' }],
+      content: [
+        { type: 'thinking', thinking: 'Reasoning' },
+        { type: 'text', text: 'Done' },
+      ],
       usage: {
         input_tokens: 40,
         output_tokens: 60,
@@ -372,7 +394,10 @@ test('AnthropicProviderAdapter counts input tokens through the Anthropic count_t
       messages?: Array<{ role: string; content: string }>;
       thinking?: Record<string, unknown>;
     };
-    assert.equal(calls[0]?.url, 'https://api.anthropic.com/v1/messages/count_tokens');
+    assert.equal(
+      calls[0]?.url,
+      'https://api.anthropic.com/v1/messages/count_tokens',
+    );
     assert.equal(body.system, 'Be precise.');
     assert.deepEqual(body.messages, [{ role: 'user', content: 'Hello' }]);
     assert.deepEqual(body.thinking, {
@@ -680,7 +705,8 @@ test('AnthropicProviderAdapter reassembles fragmented SSE chunks before transfor
 test('AnthropicProviderAdapter formats JSON error payloads with the upstream message and request id', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () =>
-    createJsonResponse({
+    createJsonResponse(
+      {
         type: 'error',
         error: {
           type: 'invalid_request_error',
@@ -688,7 +714,9 @@ test('AnthropicProviderAdapter formats JSON error payloads with the upstream mes
             'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
         },
         request_id: 'req_011CaCHTz95wsUnfuqWxLQaq',
-      }, 400)) as typeof fetch;
+      },
+      400,
+    )) as typeof fetch;
 
   try {
     const adapter = new AnthropicProviderAdapter();

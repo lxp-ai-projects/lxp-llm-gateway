@@ -58,7 +58,23 @@ const {
   })),
   getModelsMock: vi.fn(async () => ({
     providerId: 'nanogpt',
-    models: [{ id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' }],
+    models: [
+      {
+        id: 'z-ai/glm-4.6:thinking',
+        displayName: 'GLM 4.6 Thinking',
+        capabilities: {
+          reasoning: {
+            supported: true,
+            controls: ['toggle'],
+            source: {
+              kind: 'provider-api',
+              providerId: 'nanogpt',
+              modelId: 'z-ai/glm-4.6:thinking',
+            },
+          },
+        },
+      },
+    ],
   })),
   importConversationFileMock: vi.fn(async () => ({
     conversations: [],
@@ -77,20 +93,20 @@ vi.mock('../lib/api-client', () => ({
       registrationEnabled: true,
       forgotPasswordEnabled: true,
       gatewayOnline: true,
-        supportedProviders: [
-          { providerId: 'nanogpt', displayName: 'NanoGPT' },
-          { providerId: 'openrouter', displayName: 'OpenRouter' },
-          { providerId: 'ollama', displayName: 'Ollama' },
-          { providerId: 'groq', displayName: 'Groq' },
-          { providerId: 'google', displayName: 'Google Gemini' },
-          { providerId: 'mistral', displayName: 'Mistral' },
-          { providerId: 'deepseek', displayName: 'DeepSeek' },
-          { providerId: 'moonshot', displayName: 'Moonshot / Kimi' },
-          { providerId: 'openai', displayName: 'OpenAI' },
-          { providerId: 'anthropic', displayName: 'Anthropic Claude' },
-          { providerId: 'xai', displayName: 'xAI Grok' },
-          { providerId: 'zai', displayName: 'Z.ai' },
-        ],
+      supportedProviders: [
+        { providerId: 'nanogpt', displayName: 'NanoGPT' },
+        { providerId: 'openrouter', displayName: 'OpenRouter' },
+        { providerId: 'ollama', displayName: 'Ollama' },
+        { providerId: 'groq', displayName: 'Groq' },
+        { providerId: 'google', displayName: 'Google Gemini' },
+        { providerId: 'mistral', displayName: 'Mistral' },
+        { providerId: 'deepseek', displayName: 'DeepSeek' },
+        { providerId: 'moonshot', displayName: 'Moonshot / Kimi' },
+        { providerId: 'openai', displayName: 'OpenAI' },
+        { providerId: 'anthropic', displayName: 'Anthropic Claude' },
+        { providerId: 'xai', displayName: 'xAI Grok' },
+        { providerId: 'zai', displayName: 'Z.ai' },
+      ],
     })),
     importConversationFile: importConversationFileMock,
   },
@@ -129,7 +145,40 @@ beforeEach(() => {
         providerId: 'openrouter',
         models: [
           { id: 'openrouter/auto', displayName: 'OpenRouter Auto' },
-          { id: 'z-ai/glm-4.5', displayName: 'Z.ai GLM 4.5' },
+          {
+            id: 'stealth/ox-alpha',
+            displayName: 'Ox Alpha',
+            capabilities: {
+              reasoning: {
+                supported: true,
+                controls: ['effort'],
+                supportedEfforts: ['max', 'high', 'low'],
+                defaultEffort: 'max',
+                defaultEnabled: true,
+                mandatory: true,
+                source: {
+                  kind: 'provider-api',
+                  providerId: 'openrouter',
+                  modelId: 'stealth/ox-alpha',
+                },
+              },
+            },
+          },
+          {
+            id: 'z-ai/glm-4.5',
+            displayName: 'Z.ai GLM 4.5',
+            capabilities: {
+              reasoning: {
+                supported: true,
+                controls: ['toggle'],
+                source: {
+                  kind: 'provider-api',
+                  providerId: 'openrouter',
+                  modelId: 'z-ai/glm-4.5',
+                },
+              },
+            },
+          },
         ],
       };
     }
@@ -139,7 +188,21 @@ beforeEach(() => {
         providerId: 'ollama',
         models: [
           { id: 'qwen3:8b', displayName: 'Qwen3 8B' },
-          { id: 'glm-4.5', displayName: 'GLM 4.5' },
+          {
+            id: 'glm-4.5',
+            displayName: 'GLM 4.5',
+            capabilities: {
+              reasoning: {
+                supported: true,
+                controls: ['toggle'],
+                source: {
+                  kind: 'provider-api',
+                  providerId: 'ollama',
+                  modelId: 'glm-4.5',
+                },
+              },
+            },
+          },
         ],
       };
     }
@@ -181,10 +244,32 @@ beforeEach(() => {
           {
             id: 'claude-haiku-4-5-20251001',
             displayName: 'Claude Haiku 4.5',
+            capabilities: {
+              reasoning: {
+                supported: false,
+                controls: [],
+                source: {
+                  kind: 'provider-api',
+                  providerId: 'anthropic',
+                  modelId: 'claude-haiku-4-5-20251001',
+                },
+              },
+            },
           },
           {
             id: 'claude-sonnet-4-20250514',
             displayName: 'Claude Sonnet 4',
+            capabilities: {
+              reasoning: {
+                supported: true,
+                controls: ['budget'],
+                source: {
+                  kind: 'provider-api',
+                  providerId: 'anthropic',
+                  modelId: 'claude-sonnet-4-20250514',
+                },
+              },
+            },
           },
           {
             id: 'claude-opus-4-1-20250805',
@@ -198,8 +283,36 @@ beforeEach(() => {
       return {
         providerId: 'zai',
         models: [
-          { id: 'glm-4.5', displayName: 'GLM-4.5' },
-          { id: 'glm-4-32b-0414-128k', displayName: 'GLM-4 32B 0414 128K' },
+          {
+            id: 'glm-4.5',
+            displayName: 'GLM-4.5',
+            capabilities: {
+              reasoning: {
+                supported: true,
+                controls: ['toggle'],
+                source: {
+                  kind: 'provider-api',
+                  providerId: 'zai',
+                  modelId: 'glm-4.5',
+                },
+              },
+            },
+          },
+          {
+            id: 'glm-4-32b-0414-128k',
+            displayName: 'GLM-4 32B 0414 128K',
+            capabilities: {
+              reasoning: {
+                supported: false,
+                controls: [],
+                source: {
+                  kind: 'provider-api',
+                  providerId: 'zai',
+                  modelId: 'glm-4-32b-0414-128k',
+                },
+              },
+            },
+          },
         ],
       };
     }
@@ -207,7 +320,36 @@ beforeEach(() => {
     return {
       providerId: 'nanogpt',
       models: [
-        { id: 'z-ai/glm-4.6:thinking', displayName: 'GLM 4.6 Thinking' },
+        {
+          id: 'z-ai/glm-4.6:thinking',
+          displayName: 'GLM 4.6 Thinking',
+          capabilities: {
+            reasoning: {
+              supported: true,
+              controls: ['toggle'],
+              source: {
+                kind: 'provider-api',
+                providerId: 'nanogpt',
+                modelId: 'z-ai/glm-4.6:thinking',
+              },
+            },
+          },
+        },
+        {
+          id: 'anthropic/claude-sonnet-5:thinking',
+          displayName: 'Claude Sonnet 5 Thinking',
+          capabilities: {
+            reasoning: {
+              supported: true,
+              controls: ['toggle'],
+              source: {
+                kind: 'provider-api',
+                providerId: 'nanogpt',
+                modelId: 'anthropic/claude-sonnet-5:thinking',
+              },
+            },
+          },
+        },
       ],
     };
   });
@@ -281,9 +423,7 @@ test('ChatPage sends Z.ai thinking settings and prior reasoning with the chat re
 
   await screen.findByRole('heading', { name: 'Chat Lab' });
   expect(
-    await screen.findByText(
-      /Preserve prior reasoning keeps `clear_thinking` disabled/i,
-    ),
+    await screen.findByText(/prior reasoning content is preserved/i),
   ).toBeInTheDocument();
 
   const composer = screen.getByPlaceholderText(
@@ -324,9 +464,7 @@ test('ChatPage exposes GLM thinking controls for NanoGPT Z.ai routes', async () 
   renderWithProviders(<ChatPage />);
 
   await screen.findByRole('heading', { name: 'Chat Lab' });
-  expect(
-    await screen.findByText('NanoGPT GLM thinking'),
-  ).toBeInTheDocument();
+  expect(await screen.findByText('NanoGPT reasoning')).toBeInTheDocument();
 
   await user.click(screen.getByTestId('chat-thinking-mode-select'));
   const preserveOption = document.querySelector(
@@ -358,7 +496,67 @@ test('ChatPage exposes GLM thinking controls for NanoGPT Z.ai routes', async () 
   );
 });
 
-test('ChatPage disables Z.ai thinking for models below GLM 4.5', async () => {
+test('ChatPage uses NanoGPT API capabilities for a Claude route without GLM messaging', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-model-select'));
+  const claudeOption = document.querySelector(
+    '[role="option"][value="anthropic/claude-sonnet-5:thinking"]',
+  ) as HTMLElement | null;
+  expect(claudeOption).not.toBeNull();
+  await user.click(claudeOption!);
+
+  expect(await screen.findByText('NanoGPT reasoning')).toBeInTheDocument();
+  expect(screen.queryByText(/GLM 4\.5\+/i)).not.toBeInTheDocument();
+  expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use Claude reasoning{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'nanogpt',
+      model: 'anthropic/claude-sonnet-5:thinking',
+      providerOptions: {
+        nanogpt: {
+          reasoning: { effort: 'medium' },
+        },
+      },
+    }),
+    expect.any(Object),
+  );
+});
+
+test('ChatPage does not infer native OpenAI reasoning when the model API omits it', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const openAiOption = document.querySelector(
+    '[role="option"][value="openai"]',
+  ) as HTMLElement | null;
+  expect(openAiOption).not.toBeNull();
+  await user.click(openAiOption!);
+
+  expect(
+    await screen.findByText(
+      /OpenAI model API does not declare reasoning capabilities/i,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
+});
+
+test('ChatPage hides Z.ai thinking controls for unsupported models', async () => {
   const user = userEvent.setup();
 
   renderWithProviders(<ChatPage />);
@@ -379,9 +577,13 @@ test('ChatPage disables Z.ai thinking for models below GLM 4.5', async () => {
   await user.click(olderGlmOption!);
 
   expect(
-    await screen.findByText(/The selected model \(.+\) does not appear to support GLM 4\.5\+ thinking in this provider route/i),
+    await screen.findByText(
+      /model API declares that .+ does not support reasoning/i,
+    ),
   ).toBeInTheDocument();
-  expect(screen.getByTestId('chat-thinking-mode-select')).toBeDisabled();
+  expect(
+    screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
 });
 
 test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async () => {
@@ -404,7 +606,7 @@ test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async (
   expect(glmOption).not.toBeNull();
   await user.click(glmOption!);
 
-  expect(await screen.findByText('OpenRouter GLM thinking')).toBeInTheDocument();
+  expect(await screen.findByText('OpenRouter reasoning')).toBeInTheDocument();
   expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
 
   const composer = screen.getByPlaceholderText(
@@ -422,6 +624,61 @@ test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async (
           reasoning: {
             enabled: true,
           },
+        },
+      },
+    }),
+    expect.any(Object),
+  );
+});
+
+test('ChatPage exposes only catalog-declared effort for mandatory OpenRouter reasoning', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const openRouterOption = document.querySelector(
+    '[role="option"][value="openrouter"]',
+  ) as HTMLElement | null;
+  expect(openRouterOption).not.toBeNull();
+  await user.click(openRouterOption!);
+
+  await user.click(screen.getByTestId('chat-model-select'));
+  const oxAlphaOption = document.querySelector(
+    '[role="option"][value="stealth/ox-alpha"]',
+  ) as HTMLElement | null;
+  expect(oxAlphaOption).not.toBeNull();
+  await user.click(oxAlphaOption!);
+
+  expect(
+    await screen.findByText(
+      /model API declares reasoning mandatory for Ox Alpha/i,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByTestId('chat-reasoning-effort-select'));
+  const highEffortOption = document.querySelector(
+    '[role="option"][value="high"]',
+  ) as HTMLElement | null;
+  expect(highEffortOption).not.toBeNull();
+  await user.click(highEffortOption!);
+
+  const composer = screen.getByPlaceholderText(
+    'Ask the provider something meaningful...',
+  );
+  await user.type(composer, 'Use Ox Alpha{enter}');
+
+  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
+  expect(chatStreamMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providerId: 'openrouter',
+      model: 'stealth/ox-alpha',
+      providerOptions: {
+        openrouter: {
+          reasoning: { effort: 'high' },
         },
       },
     }),
@@ -449,7 +706,7 @@ test('ChatPage exposes GLM thinking controls for Ollama GLM routes', async () =>
   expect(glmOption).not.toBeNull();
   await user.click(glmOption!);
 
-  expect(await screen.findByText('Ollama GLM thinking')).toBeInTheDocument();
+  expect(await screen.findByText('Ollama reasoning')).toBeInTheDocument();
   expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
 
   const composer = screen.getByPlaceholderText(
@@ -639,10 +896,16 @@ test('ChatPage disables Anthropic thinking for Haiku models and forces none', as
   await user.click(haikuOption!);
 
   expect(
-    await screen.findByText(/extended thinking is unavailable for claude haiku models/i),
+    await screen.findByText(
+      /model API declares that .+ does not support reasoning/i,
+    ),
   ).toBeInTheDocument();
-  expect(screen.queryByLabelText('Thinking budget tokens')).not.toBeInTheDocument();
-  expect(screen.getByTestId('chat-anthropic-thinking-mode-select')).toBeDisabled();
+  expect(
+    screen.queryByLabelText('Thinking budget tokens'),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByTestId('chat-anthropic-thinking-mode-select'),
+  ).toBeDisabled();
 
   const composer = screen.getByPlaceholderText(
     'Ask the provider something meaningful...',
@@ -654,13 +917,7 @@ test('ChatPage disables Anthropic thinking for Haiku models and forces none', as
     expect.objectContaining({
       providerId: 'anthropic',
       model: 'claude-haiku-4-5-20251001',
-      providerOptions: {
-        anthropic: {
-          extendedThinking: {
-            mode: 'disabled',
-          },
-        },
-      },
+      providerOptions: undefined,
     }),
     expect.any(Object),
   );
@@ -671,7 +928,8 @@ test('ChatPage sends max output tokens with the chat request when configured', a
 
   renderWithProviders(<ChatPage />);
 
-  const maxOutputTokensInput = await screen.findByLabelText('Max output tokens');
+  const maxOutputTokensInput =
+    await screen.findByLabelText('Max output tokens');
   await user.clear(maxOutputTokensInput);
   await user.type(maxOutputTokensInput, '2048');
 

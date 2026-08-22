@@ -54,3 +54,16 @@ The same pattern can later support:
 - embeddings and moderation profiles
 
 The rule stays the same: normalize family semantics once, then let multiple transports consume them.
+
+## Text reasoning families
+
+Text reasoning is owned by the underlying model family, not by the transport.
+`@lxp/domain` detects Claude, OpenAI reasoning, xAI Grok, and GLM families from
+the model identifier alone and holds the explicit transport compatibility table.
+`@lxp/model-family-capabilities` validates family-owned request options and maps
+them to a result consumed by NanoGPT and OpenRouter adapters.
+
+Unsupported or mismatched controls fail before provider dispatch. The layer does
+not assume that two OpenAI-compatible transports accept identical controls; exact
+Claude budgets map to OpenRouter `reasoning.max_tokens` but are rejected on
+NanoGPT Chat Completions because only effort is documented there. See ADR-014.

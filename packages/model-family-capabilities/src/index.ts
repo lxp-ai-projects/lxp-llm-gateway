@@ -17,3 +17,8 @@ export {
   normalizeVideoGenerationMode,
   validateVideoRequestAgainstFamily,
 } from './video-validation.js';
+export { resolveAggregatorReasoningOptions } from './reasoning-options.js';
+export type {
+  AggregatorReasoningRequestOptions,
+  ReasoningTransportProviderId,
+} from './reasoning-options.js';

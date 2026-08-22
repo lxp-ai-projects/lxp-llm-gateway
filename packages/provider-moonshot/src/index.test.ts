@@ -17,7 +17,11 @@ test('MoonshotProviderAdapter lists models from the Moonshot models endpoint', a
     return createJsonResponse({
       object: 'list',
       data: [
-        { id: 'kimi-k2.5', owned_by: 'moonshot' },
+        {
+          id: 'kimi-k2.5',
+          owned_by: 'moonshot',
+          capabilities: { reasoning: true },
+        },
         { id: 'moonshot-v1-128k', owned_by: 'moonshot' },
       ],
     });
@@ -37,6 +41,12 @@ test('MoonshotProviderAdapter lists models from the Moonshot models endpoint', a
       'Bearer moonshot-token',
     );
     assertProviderModelIds(models, ['kimi-k2.5', 'moonshot-v1-128k']);
+    assert.equal(models[0]?.capabilities?.reasoning?.supported, true);
+    assert.equal(
+      models[0]?.capabilities?.reasoning?.source.providerId,
+      'moonshot',
+    );
+    assert.equal(models[1]?.capabilities?.reasoning, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -83,10 +93,7 @@ test('MoonshotProviderAdapter sends chat requests to the Moonshot chat completio
       },
     );
 
-    assert.equal(
-      calls[0]?.url,
-      'https://api.moonshot.ai/v1/chat/completions',
-    );
+    assert.equal(calls[0]?.url, 'https://api.moonshot.ai/v1/chat/completions');
     assert.equal(
       (calls[0]?.init?.headers as Record<string, string>).authorization,
       'Bearer moonshot-token',

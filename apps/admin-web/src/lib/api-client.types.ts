@@ -3,8 +3,15 @@ import type {
   ModelFamilyProfile,
   UnsupportedFeatureReason,
 } from '@lxp/domain';
-export type { GatewayVideoRetryRequest } from '@lxp/contracts';
-import type { GatewayVideoRetryRequest } from '@lxp/contracts';
+export type {
+  GatewayChatProviderOptions,
+  GatewayReasoningEffort,
+  GatewayVideoRetryRequest,
+} from '@lxp/contracts';
+import type {
+  GatewayChatProviderOptions,
+  GatewayVideoRetryRequest,
+} from '@lxp/contracts';
 
 export type RuntimeConfig = {
   registrationEnabled: boolean;
@@ -74,57 +81,6 @@ export type GatewayChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
   reasoningContent?: string;
-};
-
-export type GatewayAnthropicExtendedThinkingMode =
-  | 'disabled'
-  | 'adaptive'
-  | 'budget';
-
-export type GatewayAnthropicExtendedThinking =
-  | {
-      mode: 'disabled';
-    }
-  | {
-      mode: 'adaptive';
-    }
-  | {
-      mode: 'budget';
-      budgetTokens: number;
-    };
-
-export type GatewayZaiThinking =
-  | {
-      type: 'enabled';
-      clearThinking?: boolean;
-    }
-  | {
-      type: 'disabled';
-      clearThinking?: boolean;
-    };
-
-export type GatewayOpenRouterReasoning = {
-  enabled?: boolean;
-  exclude?: boolean;
-};
-
-export type GatewayOllamaThinking = {
-  enabled?: boolean;
-};
-
-export type GatewayChatProviderOptions = {
-  anthropic?: {
-    extendedThinking?: GatewayAnthropicExtendedThinking;
-  };
-  zai?: {
-    thinking?: GatewayZaiThinking;
-  };
-  openrouter?: {
-    reasoning?: GatewayOpenRouterReasoning;
-  };
-  ollama?: {
-    thinking?: GatewayOllamaThinking;
-  };
 };
 
 export type GatewayChatResponse = {
@@ -418,6 +374,28 @@ export type ProviderModelSummary = {
     };
     imageGenerationOptions?: ImageModeCapabilityOptions;
     imageEditOptions?: ImageModeCapabilityOptions;
+    reasoning?: {
+      supported: boolean;
+      controls: Array<'adaptive' | 'budget' | 'effort' | 'toggle'>;
+      supportedEfforts?: Array<
+        'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      >;
+      defaultEffort?:
+        | 'none'
+        | 'minimal'
+        | 'low'
+        | 'medium'
+        | 'high'
+        | 'xhigh'
+        | 'max';
+      defaultEnabled?: boolean;
+      mandatory?: boolean;
+      source: {
+        kind: 'provider-api';
+        providerId: string;
+        modelId: string;
+      };
+    };
   };
 };
 

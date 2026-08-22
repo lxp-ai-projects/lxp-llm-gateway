@@ -21,7 +21,9 @@ const OPENROUTER_IMAGE_ASPECT_RATIOS = [
   { value: '16:9', label: '16:9', useCase: 'Widescreen and banners' },
   { value: '21:9', label: '21:9', useCase: 'Ultra-wide hero visuals' },
 ] as const;
-const OPENROUTER_GEMINI_1K_ONLY_RESOLUTIONS = [{ value: '1K', label: '1K' }] as const;
+const OPENROUTER_GEMINI_1K_ONLY_RESOLUTIONS = [
+  { value: '1K', label: '1K' },
+] as const;
 const OPENROUTER_GEMINI_PRO_RESOLUTIONS = [
   { value: '1K', label: '1K' },
   { value: '2K', label: '2K' },
@@ -186,7 +188,9 @@ const OPENROUTER_KNOWN_IMAGE_MODELS = [
         supportsImageEditing: true,
         supportedImageResponseFormats: [...OPENROUTER_IMAGE_RESPONSE_FORMATS],
         supportedImageResolutions: [...OPENROUTER_OPENAI_IMAGE_RESOLUTIONS],
-        supportedImageOutputFormats: [...OPENROUTER_OPENAI_IMAGE_OUTPUT_FORMATS],
+        supportedImageOutputFormats: [
+          ...OPENROUTER_OPENAI_IMAGE_OUTPUT_FORMATS,
+        ],
         supportedImageBackgrounds: [...OPENROUTER_OPENAI_IMAGE_BACKGROUNDS],
         supportedImageQualities: [...OPENROUTER_OPENAI_IMAGE_QUALITIES],
         supportedImageModerations: [...OPENROUTER_OPENAI_IMAGE_MODERATIONS],
@@ -222,7 +226,9 @@ const OPENROUTER_KNOWN_IMAGE_MODELS = [
         supportsImageEditing: true,
         supportedImageResponseFormats: [...OPENROUTER_IMAGE_RESPONSE_FORMATS],
         supportedImageResolutions: [...OPENROUTER_OPENAI_IMAGE_RESOLUTIONS],
-        supportedImageOutputFormats: [...OPENROUTER_OPENAI_IMAGE_OUTPUT_FORMATS],
+        supportedImageOutputFormats: [
+          ...OPENROUTER_OPENAI_IMAGE_OUTPUT_FORMATS,
+        ],
         supportedImageBackgrounds: [...OPENROUTER_OPENAI_IMAGE_BACKGROUNDS],
         supportedImageQualities: [...OPENROUTER_OPENAI_IMAGE_QUALITIES],
         supportedImageModerations: [...OPENROUTER_OPENAI_IMAGE_MODERATIONS],
@@ -270,7 +276,9 @@ const OPENROUTER_KNOWN_IMAGE_MODELS = [
         supportsImageEditing: true,
         supportedImageResponseFormats: [...OPENROUTER_IMAGE_RESPONSE_FORMATS],
         supportedImageResolutions: [...OPENROUTER_OPENAI_IMAGE_RESOLUTIONS],
-        supportedImageOutputFormats: [...OPENROUTER_OPENAI_IMAGE_OUTPUT_FORMATS],
+        supportedImageOutputFormats: [
+          ...OPENROUTER_OPENAI_IMAGE_OUTPUT_FORMATS,
+        ],
         supportedImageBackgrounds: [...OPENROUTER_OPENAI_IMAGE_BACKGROUNDS],
         supportedImageQualities: [...OPENROUTER_OPENAI_IMAGE_QUALITIES],
         supportedImageModerations: [...OPENROUTER_OPENAI_IMAGE_MODERATIONS],
@@ -540,9 +548,7 @@ const OPENROUTER_KNOWN_IMAGE_MODELS = [
 const OPENROUTER_KNOWN_IMAGE_MODEL_MAP = new Map<
   string,
   OpenRouterImageModelMetadata
->(
-  OPENROUTER_KNOWN_IMAGE_MODELS.map((entry) => [entry.id, entry]),
-);
+>(OPENROUTER_KNOWN_IMAGE_MODELS.map((entry) => [entry.id, entry]));
 
 export function buildOpenRouterImageCatalog(
   models: OpenRouterImageModelRecord[],
@@ -577,13 +583,22 @@ export function buildKnownOpenRouterImageCatalog(): CanonicalImageProviderCatalo
 }
 
 export function buildOpenRouterModelCatalog(
-  models: Array<{ id: string; displayName: string }>,
+  models: ProviderModel[],
 ): ProviderModel[] {
-  return models.map((model) => ({
-    id: model.id,
-    displayName: model.displayName,
-    capabilities: resolveOpenRouterModelCapabilities(model.id),
-  }));
+  return models.map((model) => {
+    const imageCapabilities = resolveOpenRouterModelCapabilities(model.id);
+    return {
+      ...model,
+      ...(imageCapabilities || model.capabilities
+        ? {
+            capabilities: {
+              ...imageCapabilities,
+              ...model.capabilities,
+            },
+          }
+        : {}),
+    };
+  });
 }
 
 export function resolveOpenRouterModelCapabilities(modelId: string) {

@@ -6,9 +6,10 @@ import type {
   GatewayChatRequest,
   GatewayChatResponse,
 } from '@lxp/contracts';
-import type {
-  LlmProviderAdapter,
-  ProviderExecutionContext,
+import {
+  ProviderHttpError,
+  type LlmProviderAdapter,
+  type ProviderExecutionContext,
 } from '@lxp/provider-sdk';
 
 import type { GatewayServiceAuthContext } from '../auth/auth.types';
@@ -142,6 +143,25 @@ class FailingProvider extends FakeProvider {
 class FailingProviderRegistryService {
   getProvider(): LlmProviderAdapter {
     return new FailingProvider();
+  }
+}
+
+class StructuredFailingProvider extends FakeProvider {
+  override async chat(): Promise<GatewayChatResponse> {
+    throw new ProviderHttpError(
+      'OpenRouter request failed with status 400.',
+      400,
+      {
+        requestId: 'openrouter-request-1',
+        upstreamProvider: 'Anthropic',
+      },
+    );
+  }
+}
+
+class StructuredFailingProviderRegistryService {
+  getProvider(): LlmProviderAdapter {
+    return new StructuredFailingProvider();
   }
 }
 
@@ -737,6 +757,44 @@ test('GatewayService wraps provider failures in a BadGatewayException', async ()
         String(error),
         /Anthropic request failed with status 400: Your credit balance is too low/,
       );
+      return true;
+    },
+  );
+});
+
+test('GatewayService preserves normalized provider error metadata', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new StructuredFailingProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.chat(
+        {
+          providerId: 'nanogpt',
+          model: 'anthropic/claude-opus-4.6',
+          messages: [{ role: 'user', content: 'hello' }],
+        } as GatewayChatRequestDto,
+        buildAuthContext(),
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof BadGatewayException);
+      assert.deepEqual(error.getResponse(), {
+        statusCode: 502,
+        code: 'provider_request_failed',
+        message: 'OpenRouter request failed with status 400.',
+        providerMetadata: {
+          requestId: 'openrouter-request-1',
+          upstreamProvider: 'Anthropic',
+        },
+      });
       return true;
     },
   );
