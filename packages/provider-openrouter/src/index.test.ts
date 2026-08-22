@@ -154,7 +154,7 @@ test('OpenRouterProviderAdapter extracts request and upstream provider errors', 
       JSON.stringify({
         error: {
           message: 'Provider rejected the prompt.',
-          code: 'content_policy',
+          code: 400,
           metadata: { provider_name: 'OpenAI' },
         },
       }),
@@ -186,7 +186,7 @@ test('OpenRouterProviderAdapter extracts request and upstream provider errors', 
         assert.ok(error instanceof ProviderHttpError);
         assert.deepEqual(error.providerMetadata, {
           requestId: 'openrouter-request-1',
-          errorCode: 'content_policy',
+          errorCode: '400',
           upstreamProvider: 'OpenAI',
           upstreamStatus: 400,
         });
@@ -451,6 +451,54 @@ test('OpenRouterProviderAdapter respects a credential-level baseUrl override', a
         modelId: 'openai/gpt-5.6-luna',
       },
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OpenRouterProviderAdapter treats null supported efforts as all standard efforts', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 'future/reasoning-model',
+            reasoning: { supported_efforts: null },
+          },
+          {
+            id: 'future/toggle-only-model',
+            supported_parameters: ['reasoning'],
+          },
+        ],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )) as typeof fetch;
+
+  try {
+    const adapter = new OpenRouterProviderAdapter();
+    const models = await adapter.listModels?.({
+      requestId: 'req-null-efforts',
+      userId: 'user-1',
+      providerAccess: { apiKey: 'secret' },
+    });
+
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning?.controls, [
+      'toggle',
+      'effort',
+    ]);
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning?.supportedEfforts, [
+      'none',
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ]);
+    assert.deepEqual(models?.[1]?.capabilities?.reasoning?.controls, [
+      'toggle',
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }

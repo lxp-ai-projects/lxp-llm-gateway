@@ -29,15 +29,21 @@ only basic model identity and ownership information.
 - Let Chat Lab render controls and explanatory text from the selected catalog
   entry. Provider-family detection remains only for request mapping and
   preservation compatibility after the catalog has declared support.
+- Render only controls declared by the selected catalog entry. A missing toggle
+  or effort control is non-configurable rather than inferred from the model ID.
 - When an aggregator declares reasoning mandatory, do not render a toggle or
-  send an enable/disable override; use the provider-declared default.
+  send an enable/disable override. A declared effort control remains
+  configurable; otherwise use the provider-declared default.
+- Treat OpenRouter `supported_efforts: null` as support for every standard
+  effort value, while an omitted field does not declare an effort control.
 - Allow OpenRouter's generic `reasoning` transport for catalog-declared models
   whose native family is not yet known to LXP. Family-owned options still
   require a known, compatible family.
 - Keep the NanoGPT GLM-specific payload for GLM routes, while using NanoGPT's
   documented generic `reasoning.effort` control for other reasoning families.
-- Query Ollama `/api/show` per listed model. A detail failure leaves that model
-  unknown instead of failing the complete model list.
+- Query Ollama `/api/show` per listed model with the adapter request deadline. A
+  detail failure or timeout leaves that model unknown instead of failing the
+  complete model list.
 
 ## Consequences
 

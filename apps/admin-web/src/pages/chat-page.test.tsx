@@ -556,7 +556,7 @@ test('ChatPage does not infer native OpenAI reasoning when the model API omits i
   ).not.toBeInTheDocument();
 });
 
-test('ChatPage disables Z.ai thinking for models below GLM 4.5', async () => {
+test('ChatPage hides Z.ai thinking controls for unsupported models', async () => {
   const user = userEvent.setup();
 
   renderWithProviders(<ChatPage />);
@@ -581,7 +581,9 @@ test('ChatPage disables Z.ai thinking for models below GLM 4.5', async () => {
       /model API declares that .+ does not support reasoning/i,
     ),
   ).toBeInTheDocument();
-  expect(screen.getByTestId('chat-thinking-mode-select')).toBeDisabled();
+  expect(
+    screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
 });
 
 test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async () => {
@@ -629,7 +631,7 @@ test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async (
   );
 });
 
-test('ChatPage uses the OpenRouter default for mandatory reasoning on an unknown family', async () => {
+test('ChatPage exposes only catalog-declared effort for mandatory OpenRouter reasoning', async () => {
   const user = userEvent.setup();
 
   renderWithProviders(<ChatPage />);
@@ -657,6 +659,12 @@ test('ChatPage uses the OpenRouter default for mandatory reasoning on an unknown
   expect(
     screen.queryByTestId('chat-thinking-mode-select'),
   ).not.toBeInTheDocument();
+  await user.click(screen.getByTestId('chat-reasoning-effort-select'));
+  const highEffortOption = document.querySelector(
+    '[role="option"][value="high"]',
+  ) as HTMLElement | null;
+  expect(highEffortOption).not.toBeNull();
+  await user.click(highEffortOption!);
 
   const composer = screen.getByPlaceholderText(
     'Ask the provider something meaningful...',
@@ -668,7 +676,11 @@ test('ChatPage uses the OpenRouter default for mandatory reasoning on an unknown
     expect.objectContaining({
       providerId: 'openrouter',
       model: 'stealth/ox-alpha',
-      providerOptions: undefined,
+      providerOptions: {
+        openrouter: {
+          reasoning: { effort: 'high' },
+        },
+      },
     }),
     expect.any(Object),
   );

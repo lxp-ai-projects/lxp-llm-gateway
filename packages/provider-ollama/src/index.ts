@@ -90,7 +90,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
   ): Promise<ModelReasoningCapability | undefined> {
     try {
-      const response = await fetch(
+      const response = await this.fetchWithTimeout(
         `${this.resolveNativeBaseUrl(context)}/api/show`,
         {
           method: 'POST',
@@ -100,6 +100,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           },
           body: JSON.stringify({ model: modelId, verbose: false }),
         },
+        this.requestTimeoutMs,
       );
       if (!response.ok) {
         return undefined;

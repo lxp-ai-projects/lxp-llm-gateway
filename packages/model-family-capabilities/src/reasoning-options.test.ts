@@ -56,6 +56,16 @@ test('maps NanoGPT catalog-driven reasoning without requiring a known family', (
   );
 });
 
+test('rejects NanoGPT max reasoning effort', () => {
+  assert.throws(
+    () =>
+      resolveAggregatorReasoningOptions('nanogpt', 'future-model', {
+        nanogpt: { reasoning: { effort: 'max' } },
+      }),
+    /does not document reasoning effort "max"/,
+  );
+});
+
 test('maps OpenRouter catalog-driven reasoning without requiring a known family', () => {
   // Regression test: OpenRouter can declare a model as reasoning-capable in
   // its own catalog (supported_parameters / reasoning object) before LXP has
@@ -119,5 +129,25 @@ test('fails loudly for transport-specific options sent to another aggregator', (
         openrouter: { reasoning: { effort: 'high' } },
       }),
     /cannot be relayed by nanogpt/,
+  );
+});
+
+test('rejects clear_thinking for OpenRouter GLM reasoning', () => {
+  assert.throws(
+    () =>
+      resolveAggregatorReasoningOptions('openrouter', 'z-ai/glm-4.5', {
+        zai: { thinking: { type: 'enabled', clearThinking: true } },
+      }),
+    /does not document a clear_thinking mapping/,
+  );
+});
+
+test('rejects non-integer OpenRouter reasoning maxTokens', () => {
+  assert.throws(
+    () =>
+      resolveAggregatorReasoningOptions('openrouter', 'future-model', {
+        openrouter: { reasoning: { maxTokens: 10.5 } },
+      }),
+    /maxTokens must be a positive integer/,
   );
 });

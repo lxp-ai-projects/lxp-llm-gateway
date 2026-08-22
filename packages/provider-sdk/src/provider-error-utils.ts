@@ -24,8 +24,8 @@ export async function buildProviderChatHttpError(
       readNonEmptyString(parsed?.request_id),
     upstreamRequestId: readNonEmptyString(upstreamError?.request_id),
     errorCode:
-      readNonEmptyString(error?.code) ??
-      readNonEmptyString(upstreamError?.code),
+      readProviderErrorCode(error?.code) ??
+      readProviderErrorCode(upstreamError?.code),
     errorType:
       readNonEmptyString(error?.type) ??
       readNonEmptyString(upstreamError?.type),
@@ -115,6 +115,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readNonEmptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function readProviderErrorCode(value: unknown): string | undefined {
+  return (
+    readNonEmptyString(value) ??
+    (typeof value === 'number' && Number.isFinite(value)
+      ? String(value)
+      : undefined)
+  );
 }
 
 export async function buildProviderImageHttpError(

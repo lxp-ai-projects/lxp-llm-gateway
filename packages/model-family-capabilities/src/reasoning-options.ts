@@ -91,7 +91,7 @@ export function resolveAggregatorReasoningOptions(
     );
   }
 
-  if (!configuredOption && !legacyOpenRouterReasoning && !nanoGptReasoning) {
+  if (!configuredOption && !nanoGptReasoning) {
     return {};
   }
 

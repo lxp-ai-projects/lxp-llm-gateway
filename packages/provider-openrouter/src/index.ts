@@ -26,6 +26,16 @@ import { buildOpenRouterVideoCatalog } from './video/catalog.js';
 import { OpenRouterVideoApiClient } from './video/api-client.js';
 import { OpenRouterVideoGenerationService } from './video/generation-service.js';
 
+const OPENROUTER_STANDARD_REASONING_EFFORTS: ModelReasoningEffort[] = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+];
+
 export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
     chat: true,
@@ -104,47 +114,56 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
     };
 
     return buildOpenRouterModelCatalog(
-      (payload.data ?? []).map((model) => ({
-        id: model.id,
-        displayName: model.name ?? model.id,
-        ...(model.reasoning || model.supported_parameters?.includes('reasoning')
-          ? {
-              capabilities: {
-                reasoning: {
-                  supported: true,
-                  controls: [
-                    ...(model.reasoning?.mandatory
-                      ? []
-                      : (['toggle'] as const)),
-                    ...(model.reasoning?.supported_efforts
-                      ? (['effort'] as const)
-                      : []),
-                    ...(model.reasoning?.supports_max_tokens
-                      ? (['budget'] as const)
-                      : []),
-                  ],
-                  ...(model.reasoning?.supported_efforts
-                    ? { supportedEfforts: model.reasoning.supported_efforts }
-                    : {}),
-                  ...(model.reasoning?.default_effort
-                    ? { defaultEffort: model.reasoning.default_effort }
-                    : {}),
-                  ...(typeof model.reasoning?.default_enabled === 'boolean'
-                    ? { defaultEnabled: model.reasoning.default_enabled }
-                    : {}),
-                  ...(typeof model.reasoning?.mandatory === 'boolean'
-                    ? { mandatory: model.reasoning.mandatory }
-                    : {}),
-                  source: {
-                    kind: 'provider-api' as const,
-                    providerId: this.providerId,
-                    modelId: model.id,
+      (payload.data ?? []).map((model) => {
+        const supportedEfforts =
+          model.reasoning &&
+          Object.prototype.hasOwnProperty.call(
+            model.reasoning,
+            'supported_efforts',
+          )
+            ? (model.reasoning.supported_efforts ??
+              OPENROUTER_STANDARD_REASONING_EFFORTS)
+            : undefined;
+
+        return {
+          id: model.id,
+          displayName: model.name ?? model.id,
+          ...(model.reasoning ||
+          model.supported_parameters?.includes('reasoning')
+            ? {
+                capabilities: {
+                  reasoning: {
+                    supported: true,
+                    controls: [
+                      ...(model.reasoning?.mandatory
+                        ? []
+                        : (['toggle'] as const)),
+                      ...(supportedEfforts ? (['effort'] as const) : []),
+                      ...(model.reasoning?.supports_max_tokens
+                        ? (['budget'] as const)
+                        : []),
+                    ],
+                    ...(supportedEfforts ? { supportedEfforts } : {}),
+                    ...(model.reasoning?.default_effort
+                      ? { defaultEffort: model.reasoning.default_effort }
+                      : {}),
+                    ...(typeof model.reasoning?.default_enabled === 'boolean'
+                      ? { defaultEnabled: model.reasoning.default_enabled }
+                      : {}),
+                    ...(typeof model.reasoning?.mandatory === 'boolean'
+                      ? { mandatory: model.reasoning.mandatory }
+                      : {}),
+                    source: {
+                      kind: 'provider-api' as const,
+                      providerId: this.providerId,
+                      modelId: model.id,
+                    },
                   },
                 },
-              },
-            }
-          : {}),
-      })),
+              }
+            : {}),
+        };
+      }),
     );
   }
 
@@ -333,6 +352,13 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       request.model,
       request.providerOptions,
     );
+    const effectiveMaxTokens =
+      typeof reasoningOptions.minimumOutputTokens === 'number'
+        ? Math.max(
+            request.maxOutputTokens ?? 0,
+            reasoningOptions.minimumOutputTokens,
+          )
+        : request.maxOutputTokens;
 
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}/chat/completions`,
@@ -348,19 +374,11 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
-          ...(typeof request.maxOutputTokens === 'number'
-            ? { max_tokens: request.maxOutputTokens }
+          ...(typeof effectiveMaxTokens === 'number'
+            ? { max_tokens: effectiveMaxTokens }
             : {}),
           ...(reasoningOptions.reasoning
             ? { reasoning: reasoningOptions.reasoning }
-            : {}),
-          ...(typeof reasoningOptions.minimumOutputTokens === 'number'
-            ? {
-                max_tokens: Math.max(
-                  request.maxOutputTokens ?? 0,
-                  reasoningOptions.minimumOutputTokens,
-                ),
-              }
             : {}),
         }),
       },

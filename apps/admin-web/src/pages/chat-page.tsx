@@ -36,6 +36,7 @@ import { DEFAULT_SYSTEM_PROMPT } from '../lib/chat-thread';
 import { type StoredConversation } from '../lib/chat-store';
 import type {
   GatewayChatProviderOptions,
+  GatewayReasoningEffort,
   ProviderModelSummary,
 } from '../lib/api-client.types';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
@@ -48,6 +49,8 @@ import {
 
 type AnthropicExtendedThinkingUiMode = 'none' | 'auto' | 'budget';
 type ThinkingUiMode = 'enabled' | 'enabled-preserve' | 'disabled';
+type ReasoningEffortUiMode = GatewayReasoningEffort | 'provider-default';
+type ReasoningControl = 'adaptive' | 'budget' | 'effort' | 'toggle';
 
 function buildAnthropicProviderOptions(
   providerId: string,
@@ -257,6 +260,57 @@ function readThinkingSelection(
   return 'enabled';
 }
 
+function buildReasoningEffortProviderOptions(
+  providerId: string,
+  effort: ReasoningEffortUiMode,
+): GatewayChatProviderOptions | undefined {
+  if (effort === 'provider-default') {
+    return undefined;
+  }
+
+  if (providerId === 'openrouter') {
+    return { openrouter: { reasoning: { effort } } };
+  }
+
+  if (providerId === 'nanogpt') {
+    return { nanogpt: { reasoning: { effort } } };
+  }
+
+  if (providerId === 'openai' || providerId === 'xai') {
+    return { [providerId]: { reasoning: { effort } } };
+  }
+
+  return undefined;
+}
+
+function readReasoningEffortSelection(
+  providerId: string,
+  conversation: StoredConversation | null,
+): ReasoningEffortUiMode {
+  if (providerId === 'openrouter') {
+    return (
+      conversation?.providerOptions?.openrouter?.reasoning?.effort ??
+      'provider-default'
+    );
+  }
+
+  if (providerId === 'nanogpt') {
+    return (
+      conversation?.providerOptions?.nanogpt?.reasoning?.effort ??
+      'provider-default'
+    );
+  }
+
+  if (providerId === 'openai' || providerId === 'xai') {
+    return (
+      conversation?.providerOptions?.[providerId]?.reasoning?.effort ??
+      'provider-default'
+    );
+  }
+
+  return 'provider-default';
+}
+
 function getModelReasoningCapability(
   models: ProviderModelSummary[] | undefined,
   modelId: string,
@@ -272,8 +326,24 @@ function buildChatProviderOptions(input: {
   thinkingMode: ThinkingUiMode;
   reasoningSupported: boolean;
   reasoningMandatory: boolean;
+  reasoningControls: ReasoningControl[];
+  reasoningEffort: ReasoningEffortUiMode;
 }): GatewayChatProviderOptions | undefined {
-  if (!input.reasoningSupported || input.reasoningMandatory) {
+  if (!input.reasoningSupported) {
+    return undefined;
+  }
+
+  const effortOptions = input.reasoningControls.includes('effort')
+    ? buildReasoningEffortProviderOptions(
+        input.providerId,
+        input.reasoningEffort,
+      )
+    : undefined;
+  if (effortOptions) {
+    return effortOptions;
+  }
+
+  if (input.reasoningMandatory) {
     return undefined;
   }
 
@@ -283,11 +353,13 @@ function buildChatProviderOptions(input: {
       input.anthropicThinkingMode,
       input.anthropicThinkingBudgetTokens,
     ) ??
-    buildThinkingProviderOptions(
-      input.providerId,
-      input.model,
-      input.thinkingMode,
-    )
+    (input.reasoningControls.includes('toggle')
+      ? buildThinkingProviderOptions(
+          input.providerId,
+          input.model,
+          input.thinkingMode,
+        )
+      : undefined)
   );
 }
 
@@ -310,6 +382,8 @@ export function ChatPage() {
   const [anthropicThinkingBudgetTokens, setAnthropicThinkingBudgetTokens] =
     useState<number | ''>(4096);
   const [thinkingMode, setThinkingMode] = useState<ThinkingUiMode>('enabled');
+  const [reasoningEffort, setReasoningEffort] =
+    useState<ReasoningEffortUiMode>('provider-default');
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatWarning, setChatWarning] = useState<string | null>(null);
   const [streamingSignal, setStreamingSignal] = useState(false);
@@ -466,6 +540,9 @@ export function ChatPage() {
 
   useEffect(() => {
     setThinkingMode(readThinkingSelection(providerId, activeConversation));
+    setReasoningEffort(
+      readReasoningEffortSelection(providerId, activeConversation),
+    );
     forcedThinkingDisabledRef.current = false;
   }, [activeConversation?.id, activeConversation?.providerOptions, providerId]);
 
@@ -495,12 +572,21 @@ export function ChatPage() {
     : anthropicThinkingMode;
   const thinkingControlVisible =
     providerId !== 'anthropic' &&
-    reasoningCapability !== undefined &&
+    reasoningCapability?.supported === true &&
     reasoningCapability.mandatory !== true &&
+    reasoningCapability.controls.includes('toggle') &&
     (providerId === 'zai' ||
       providerId === 'nanogpt' ||
       providerId === 'openrouter' ||
       providerId === 'ollama');
+  const reasoningEffortControlVisible =
+    reasoningCapability?.supported === true &&
+    reasoningCapability.controls.includes('effort') &&
+    Boolean(reasoningCapability.supportedEfforts?.length) &&
+    (providerId === 'nanogpt' ||
+      providerId === 'openrouter' ||
+      providerId === 'openai' ||
+      providerId === 'xai');
   const thinkingSupported =
     thinkingControlVisible &&
     model.length > 0 &&
@@ -516,6 +602,11 @@ export function ChatPage() {
       : preserveThinkingSupported || thinkingMode !== 'enabled-preserve'
         ? thinkingMode
         : 'enabled';
+  const effectiveReasoningEffort =
+    reasoningEffort !== 'provider-default' &&
+    reasoningCapability?.supportedEfforts?.includes(reasoningEffort)
+      ? reasoningEffort
+      : 'provider-default';
   const chatProviderOptions = buildChatProviderOptions({
     providerId,
     model,
@@ -524,6 +615,8 @@ export function ChatPage() {
     thinkingMode: effectiveThinkingMode,
     reasoningSupported: reasoningCapability?.supported === true,
     reasoningMandatory: reasoningCapability?.mandatory === true,
+    reasoningControls: reasoningCapability?.controls ?? [],
+    reasoningEffort: effectiveReasoningEffort,
   });
   const preserveThinkingEnabled = effectiveThinkingMode === 'enabled-preserve';
   const providerCatalogPricingNote = getProviderCatalogPricingNote(providerId);
@@ -541,6 +634,10 @@ export function ChatPage() {
         return;
       }
 
+      const nextReasoningCapability = getModelReasoningCapability(
+        modelsQuery.data?.models,
+        nextModel,
+      );
       void persistConversationProvider(
         nextProviderId,
         nextModel,
@@ -550,12 +647,10 @@ export function ChatPage() {
           anthropicThinkingMode,
           anthropicThinkingBudgetTokens,
           thinkingMode,
-          reasoningSupported:
-            getModelReasoningCapability(modelsQuery.data?.models, nextModel)
-              ?.supported === true,
-          reasoningMandatory:
-            getModelReasoningCapability(modelsQuery.data?.models, nextModel)
-              ?.mandatory === true,
+          reasoningSupported: nextReasoningCapability?.supported === true,
+          reasoningMandatory: nextReasoningCapability?.mandatory === true,
+          reasoningControls: nextReasoningCapability?.controls ?? [],
+          reasoningEffort,
         }),
       );
     },
@@ -707,6 +802,8 @@ export function ChatPage() {
         thinkingMode: effectiveThinkingMode,
         reasoningSupported: reasoningCapability?.supported === true,
         reasoningMandatory: reasoningCapability?.mandatory === true,
+        reasoningControls: reasoningCapability?.controls ?? [],
+        reasoningEffort: effectiveReasoningEffort,
       }),
       systemPrompt: systemPrompt.trim(),
     };
@@ -847,6 +944,11 @@ export function ChatPage() {
                         : { mode: 'none' as const, budgetTokens: 4096 };
                     const defaultProviderThinkingSelection =
                       readThinkingSelection(nextProviderId, activeConversation);
+                    const defaultProviderEffortSelection =
+                      readReasoningEffortSelection(
+                        nextProviderId,
+                        activeConversation,
+                      );
                     pendingConversationProviderSyncRef.current =
                       Boolean(activeConversation);
                     setProviderId(nextProviderId);
@@ -855,6 +957,7 @@ export function ChatPage() {
                       defaultThinkingSelection.budgetTokens,
                     );
                     setThinkingMode(defaultProviderThinkingSelection);
+                    setReasoningEffort(defaultProviderEffortSelection);
                     setModel('');
                   }}
                   value={providerId}
@@ -870,6 +973,11 @@ export function ChatPage() {
                     pendingConversationProviderSyncRef.current = false;
                     setModel(nextModel);
                     if (activeConversation && nextModel) {
+                      const nextReasoningCapability =
+                        getModelReasoningCapability(
+                          modelsQuery.data?.models,
+                          nextModel,
+                        );
                       const nextChatProviderOptions = buildChatProviderOptions({
                         providerId,
                         model: nextModel,
@@ -877,15 +985,12 @@ export function ChatPage() {
                         anthropicThinkingBudgetTokens,
                         thinkingMode: effectiveThinkingMode,
                         reasoningSupported:
-                          getModelReasoningCapability(
-                            modelsQuery.data?.models,
-                            nextModel,
-                          )?.supported === true,
+                          nextReasoningCapability?.supported === true,
                         reasoningMandatory:
-                          getModelReasoningCapability(
-                            modelsQuery.data?.models,
-                            nextModel,
-                          )?.mandatory === true,
+                          nextReasoningCapability?.mandatory === true,
+                        reasoningControls:
+                          nextReasoningCapability?.controls ?? [],
+                        reasoningEffort,
                       });
                       void persistConversationModel(
                         nextModel,
@@ -1019,6 +1124,7 @@ export function ChatPage() {
                         (value as ThinkingUiMode | null) ?? 'enabled';
                       forcedThinkingDisabledRef.current = false;
                       setThinkingMode(nextMode);
+                      setReasoningEffort('provider-default');
                       if (activeConversation) {
                         void persistConversationProviderOptions(
                           buildThinkingProviderOptions(
@@ -1030,6 +1136,58 @@ export function ChatPage() {
                       }
                     }}
                     value={effectiveThinkingMode}
+                  />
+                ) : null}
+                {reasoningEffortControlVisible ? (
+                  <Select
+                    data={[
+                      {
+                        value: 'provider-default',
+                        label: reasoningCapability?.defaultEffort
+                          ? `Provider default (${reasoningCapability.defaultEffort})`
+                          : 'Provider default',
+                      },
+                      ...(reasoningCapability?.supportedEfforts ?? [])
+                        .filter(
+                          (effort) =>
+                            !reasoningCapability?.mandatory ||
+                            effort !== 'none',
+                        )
+                        .map((effort) => ({
+                          value: effort,
+                          label: `Reasoning effort: ${effort}`,
+                        })),
+                    ]}
+                    data-testid="chat-reasoning-effort-select"
+                    label="Reasoning effort"
+                    onChange={(value) => {
+                      const nextEffort =
+                        (value as ReasoningEffortUiMode | null) ??
+                        'provider-default';
+                      setReasoningEffort(nextEffort);
+                      if (nextEffort !== 'provider-default') {
+                        setThinkingMode('enabled');
+                      }
+                      if (activeConversation) {
+                        void persistConversationProviderOptions(
+                          buildChatProviderOptions({
+                            providerId,
+                            model,
+                            anthropicThinkingMode:
+                              effectiveAnthropicThinkingMode,
+                            anthropicThinkingBudgetTokens,
+                            thinkingMode: effectiveThinkingMode,
+                            reasoningSupported: true,
+                            reasoningMandatory:
+                              reasoningCapability?.mandatory === true,
+                            reasoningControls:
+                              reasoningCapability?.controls ?? [],
+                            reasoningEffort: nextEffort,
+                          }),
+                        );
+                      }
+                    }}
+                    value={effectiveReasoningEffort}
                   />
                 ) : null}
               </Stack>
@@ -1050,7 +1208,9 @@ export function ChatPage() {
                   : !reasoningCapability.supported
                     ? `The ${selectedProviderDisplayName} model API declares that ${selectedModelDisplayName} does not support reasoning.`
                     : reasoningCapability.mandatory
-                      ? `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. Chat Lab sends no reasoning toggle and uses the provider default.`
+                      ? reasoningEffortControlVisible
+                        ? `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. The toggle is unavailable; select a supported effort or keep the provider default.`
+                        : `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. Chat Lab sends no reasoning configuration and uses the provider default.`
                       : providerId === 'anthropic'
                         ? anthropicThinkingMode === 'auto'
                           ? 'Auto uses Anthropic adaptive thinking as declared by the model API.'

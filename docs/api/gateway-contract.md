@@ -386,8 +386,10 @@ NanoGPT and OpenRouter non-stream responses include
 `responseUsage=provider-reported` value refers only to usage returned after
 execution and is not an exact preflight tokenizer result.
 
-Aggregator failures use the Gateway 502 envelope with
-`code=provider_request_failed`. When relayed fields are available,
-`providerMetadata` may include `requestId`, `upstreamRequestId`, `errorCode`,
-`errorType`, `upstreamProvider`, and `upstreamStatus`. Raw upstream payloads are
-not promoted into normalized metadata.
+Aggregator failures represented by `ProviderHttpError` use the Gateway 502
+envelope with `code=provider_request_failed`. When relayed fields are
+available, `providerMetadata` may include `requestId`, `upstreamRequestId`,
+`errorCode`, `errorType`, `upstreamProvider`, and `upstreamStatus`. Generic
+`Error` instances may also produce a 502 response, but do not guarantee that
+code or provider metadata. Raw upstream payloads are not promoted into
+normalized metadata.
