@@ -269,8 +269,14 @@ test('ProvidersPage shows the current gateway defaults and loads models for the 
     await screen.findByText('Current gateway defaults'),
   ).toBeInTheDocument();
   expect(getModelsMock).toHaveBeenCalledWith('nanogpt');
-  expect(screen.getByText(/Anthropic, Groq, and Ollama do not currently expose image generation or image editing/)).toBeInTheDocument();
-  expect(screen.getByTestId('providers-default-image-provider')).toHaveTextContent('NanoGPT');
+  expect(
+    screen.getByText(
+      /Anthropic, Groq, and Ollama do not currently expose image generation or image editing/,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByTestId('providers-default-image-provider'),
+  ).toHaveTextContent('NanoGPT');
 });
 
 test('ProvidersPage creates a new credential and ignores empty submit payloads', async () => {
@@ -307,7 +313,10 @@ test('ProvidersPage creates a new credential and ignores empty submit payloads',
   fireEvent.submit(credentialForm!);
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
 
-  await user.type(screen.getByTestId('providers-token-input'), 'fresh-secret-token');
+  await user.type(
+    screen.getByTestId('providers-token-input'),
+    'fresh-secret-token',
+  );
   await user.click(saveCredentialButton);
 
   await waitFor(() =>
@@ -334,17 +343,23 @@ test('ProvidersPage confirms credential deletion before removing it', async () =
     'providers-delete-credential-modal',
   );
   expect(deleteModal).toBeInTheDocument();
-  expect(within(deleteModal).getByText(/This provider may stop working/i)).toBeInTheDocument();
+  expect(
+    within(deleteModal).getByText(/This provider may stop working/i),
+  ).toBeInTheDocument();
 
   await user.click(
     within(deleteModal).getByTestId('providers-delete-credential-confirm'),
   );
 
   await waitFor(() =>
-    expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1'),
+    expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith(
+      'credential-1',
+    ),
   );
   await waitFor(() =>
-    expect(screen.queryByText(/Delete the credential for/i)).not.toBeInTheDocument(),
+    expect(
+      screen.queryByText(/Delete the credential for/i),
+    ).not.toBeInTheDocument(),
   );
 });
 
@@ -362,12 +377,14 @@ test('ProvidersPage disables credential actions while a delete is pending', asyn
 
   await screen.findByRole('heading', { name: 'My credentials' });
   await user.click(
-    (await screen.findAllByTestId(
-      'providers-delete-credential-credential-1',
-    ))[0]!,
+    (
+      await screen.findAllByTestId('providers-delete-credential-credential-1')
+    )[0]!,
   );
 
-  const deleteModal = await screen.findByTestId('providers-delete-credential-modal');
+  const deleteModal = await screen.findByTestId(
+    'providers-delete-credential-modal',
+  );
   const confirmButton = within(deleteModal).getByTestId(
     'providers-delete-credential-confirm',
   );
@@ -382,7 +399,9 @@ test('ProvidersPage disables credential actions while a delete is pending', asyn
 
   resolveDelete?.();
   await waitFor(() =>
-    expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1'),
+    expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith(
+      'credential-1',
+    ),
   );
 });
 
@@ -395,22 +414,30 @@ test('ProvidersPage keeps the delete modal open when deletion fails and allows c
   renderWithProviders(<ProvidersPage />);
 
   await user.click(
-    (await screen.findAllByTestId(
-      'providers-delete-credential-credential-1',
-    ))[0]!,
+    (
+      await screen.findAllByTestId('providers-delete-credential-credential-1')
+    )[0]!,
   );
 
-  const deleteModal = await screen.findByTestId('providers-delete-credential-modal');
+  const deleteModal = await screen.findByTestId(
+    'providers-delete-credential-modal',
+  );
   await user.click(
     within(deleteModal).getByTestId('providers-delete-credential-confirm'),
   );
 
-  expect(await within(deleteModal).findByText('Delete failed')).toBeInTheDocument();
+  expect(
+    await within(deleteModal).findByText(
+      'Something went wrong. Please try again.',
+    ),
+  ).toBeInTheDocument();
   expect(deleteOwnProviderCredentialMock).toHaveBeenCalledWith('credential-1');
 
   await user.click(within(deleteModal).getByRole('button', { name: 'Cancel' }));
   await waitFor(() =>
-    expect(screen.queryByText(/Delete the credential for/i)).not.toBeInTheDocument(),
+    expect(
+      screen.queryByText(/Delete the credential for/i),
+    ).not.toBeInTheDocument(),
   );
 });
 
@@ -426,7 +453,10 @@ test('ProvidersPage offers edit and replace actions after a credential conflict'
 
   renderWithProviders(<ProvidersPage />);
 
-  await user.type(screen.getByTestId('providers-token-input'), 'fresh-secret-token');
+  await user.type(
+    screen.getByTestId('providers-token-input'),
+    'fresh-secret-token',
+  );
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
 
   expect(
@@ -436,7 +466,9 @@ test('ProvidersPage offers edit and replace actions after a credential conflict'
     screen.getByRole('button', { name: 'Replace existing credential' }),
   ).toBeInTheDocument();
 
-  await user.click(screen.getByRole('button', { name: 'Edit existing credential' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Edit existing credential' }),
+  );
   expect(
     await screen.findByRole('heading', { name: 'Edit provider credential' }),
   ).toBeInTheDocument();
@@ -450,9 +482,14 @@ test('ProvidersPage offers edit and replace actions after a credential conflict'
     }),
   );
 
-  await user.type(screen.getByTestId('providers-token-input'), 'fresh-secret-token');
+  await user.type(
+    screen.getByTestId('providers-token-input'),
+    'fresh-secret-token',
+  );
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
-  await user.click(screen.getByRole('button', { name: 'Replace existing credential' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Replace existing credential' }),
+  );
 
   expect(
     await screen.findByRole('heading', { name: 'Replace provider credential' }),
@@ -546,15 +583,15 @@ test('ProvidersPage saves separate image gateway defaults', async () => {
 
   await screen.findByText('Current gateway defaults');
   await waitFor(() =>
-    expect(screen.getByTestId('providers-default-image-model')).not.toBeDisabled(),
+    expect(
+      screen.getByTestId('providers-default-image-model'),
+    ).not.toBeDisabled(),
   );
   const imageModelSelect = screen.getByTestId('providers-default-image-model');
-    await user.clear(imageModelSelect);
-    await user.type(imageModelSelect, 'GLM 4.6 Thinking');
-    await user.keyboard('{Enter}');
-    await waitFor(() =>
-      expect(imageModelSelect).toHaveValue('GLM 4.6 Thinking'),
-    );
+  await user.clear(imageModelSelect);
+  await user.type(imageModelSelect, 'GLM 4.6 Thinking');
+  await user.keyboard('{Enter}');
+  await waitFor(() => expect(imageModelSelect).toHaveValue('GLM 4.6 Thinking'));
   await user.click(screen.getByRole('button', { name: 'Save defaults' }));
 
   await waitFor(() =>
@@ -590,7 +627,7 @@ test('ProvidersPage surfaces model loading failures and raw provider fallback na
 
   expect(await screen.findByText('Model loading failed')).toBeInTheDocument();
   expect(
-    screen.getByText('NanoGPT model directory is offline.'),
+    screen.getByText('Something went wrong. Please try again.'),
   ).toBeInTheDocument();
 });
 
@@ -603,7 +640,9 @@ test('ProvidersPage shows an xAI model access note when model loading fails', as
     defaultImageModel: null,
   });
   getModelsMock.mockRejectedValue(
-    new Error('xAI model listing failed with status 500: Internal server error'),
+    new Error(
+      'xAI model listing failed with status 500: Internal server error',
+    ),
   );
 
   renderWithProviders(<ProvidersPage />);
@@ -624,7 +663,9 @@ test('ProvidersPage marks default providers in both mobile and desktop credentia
   ).toBeInTheDocument();
 
   const chatDefaultLabels = await screen.findAllByText('Chat default provider');
-  const imageDefaultLabels = await screen.findAllByText('Image default provider');
+  const imageDefaultLabels = await screen.findAllByText(
+    'Image default provider',
+  );
   expect(chatDefaultLabels.length).toBeGreaterThanOrEqual(1);
   expect(imageDefaultLabels.length).toBeGreaterThanOrEqual(1);
 });
@@ -661,9 +702,7 @@ test('ProvidersPage creates an Ollama endpoint credential with a base URL', asyn
 
   await user.selectOptions(screen.getByLabelText('Provider'), 'ollama');
 
-  expect(
-    screen.getByText('Endpoint-based credential'),
-  ).toBeInTheDocument();
+  expect(screen.getByText('Endpoint-based credential')).toBeInTheDocument();
 
   await user.clear(screen.getByTestId('providers-label-input'));
   await user.type(screen.getByTestId('providers-label-input'), 'local-ollama');
@@ -702,7 +741,10 @@ test('ProvidersPage blocks Ollama Cloud credentials without an API token', async
   await user.selectOptions(screen.getByLabelText('Provider'), 'ollama');
   await user.clear(screen.getByTestId('providers-label-input'));
   await user.type(screen.getByTestId('providers-label-input'), 'ollama-cloud');
-  await user.type(screen.getByTestId('providers-base-url-input'), 'https://ollama.com');
+  await user.type(
+    screen.getByTestId('providers-base-url-input'),
+    'https://ollama.com',
+  );
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
 
   expect(
@@ -738,7 +780,10 @@ test('ProvidersPage shows the xAI Grok billing warning and blocks missing tokens
 
   await user.clear(screen.getByTestId('providers-label-input'));
   await user.type(screen.getByTestId('providers-label-input'), 'grok-primary');
-  await user.type(screen.getByTestId('providers-base-url-input'), 'https://api.x.ai/v1');
+  await user.type(
+    screen.getByTestId('providers-base-url-input'),
+    'https://api.x.ai/v1',
+  );
   await user.click(screen.getByRole('button', { name: 'Save credential' }));
 
   expect(
@@ -771,7 +816,10 @@ test('ProvidersPage shows the Google Gemini billing warning and blocks missing t
   ).toBeInTheDocument();
 
   await user.clear(screen.getByTestId('providers-label-input'));
-  await user.type(screen.getByTestId('providers-label-input'), 'gemini-primary');
+  await user.type(
+    screen.getByTestId('providers-label-input'),
+    'gemini-primary',
+  );
   await user.type(
     screen.getByTestId('providers-base-url-input'),
     'https://generativelanguage.googleapis.com/v1beta/openai',
@@ -808,7 +856,10 @@ test('ProvidersPage shows the OpenAI billing warning and blocks missing tokens',
   ).toBeInTheDocument();
 
   await user.clear(screen.getByTestId('providers-label-input'));
-  await user.type(screen.getByTestId('providers-label-input'), 'openai-primary');
+  await user.type(
+    screen.getByTestId('providers-label-input'),
+    'openai-primary',
+  );
   await user.type(
     screen.getByTestId('providers-base-url-input'),
     'https://api.openai.com/v1',
@@ -845,7 +896,10 @@ test('ProvidersPage shows the Anthropic billing warning and blocks missing token
   ).toBeInTheDocument();
 
   await user.clear(screen.getByTestId('providers-label-input'));
-  await user.type(screen.getByTestId('providers-label-input'), 'anthropic-primary');
+  await user.type(
+    screen.getByTestId('providers-label-input'),
+    'anthropic-primary',
+  );
   await user.type(
     screen.getByTestId('providers-base-url-input'),
     'https://api.anthropic.com',
@@ -876,7 +930,10 @@ test('ProvidersPage blocks Mistral credentials without an API token', async () =
 
   await user.selectOptions(screen.getByLabelText('Provider'), 'mistral');
   await user.clear(screen.getByTestId('providers-label-input'));
-  await user.type(screen.getByTestId('providers-label-input'), 'mistral-primary');
+  await user.type(
+    screen.getByTestId('providers-label-input'),
+    'mistral-primary',
+  );
   await user.type(
     screen.getByTestId('providers-base-url-input'),
     'https://api.mistral.ai/v1',
@@ -907,7 +964,10 @@ test('ProvidersPage blocks DeepSeek credentials without an API token', async () 
 
   await user.selectOptions(screen.getByLabelText('Provider'), 'deepseek');
   await user.clear(screen.getByTestId('providers-label-input'));
-  await user.type(screen.getByTestId('providers-label-input'), 'deepseek-primary');
+  await user.type(
+    screen.getByTestId('providers-label-input'),
+    'deepseek-primary',
+  );
   await user.type(
     screen.getByTestId('providers-base-url-input'),
     'https://api.deepseek.com/v1',

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Badge,
@@ -19,6 +20,7 @@ export function ImageResultsPanel({
 }: {
   imageLab: ReturnTypeUseImageLab;
 }) {
+  const { t } = useTranslation('image');
   const selectedAspectRatio = resolveCssAspectRatio(imageLab.aspectRatio);
   const loadingCards = Array.from(
     { length: imageLab.pendingResultCount },
@@ -29,7 +31,7 @@ export function ImageResultsPanel({
     <Card className="section-card">
       <Stack gap="md">
         <Group justify="space-between">
-          <Title order={3}>Results</Title>
+          <Title order={3}>{t('imageResultsPanel.results')}</Title>
           <Badge color={imageLab.canEdit ? 'orange' : 'teal'} variant="light">
             {imageLab.canEdit ? 'Edit mode' : 'Generation mode'}
           </Badge>
@@ -44,63 +46,73 @@ export function ImageResultsPanel({
                 data-testid={`image-loading-${index}`}
                 padding="sm"
                 radius="lg"
-                style={{
-                  '--image-result-aspect-ratio': selectedAspectRatio,
-                } as CSSProperties}
+                style={
+                  {
+                    '--image-result-aspect-ratio': selectedAspectRatio,
+                  } as CSSProperties
+                }
                 withBorder
               >
                 <Stack gap="sm">
-                  <div
-                    aria-hidden="true"
-                    className="image-result-loading"
-                  >
+                  <div aria-hidden="true" className="image-result-loading">
                     <div className="image-result-loading-plasma" />
                     <div className="image-result-loading-glow" />
                   </div>
                   <Group justify="space-between" wrap="nowrap">
                     <Text fw={600} size="sm">
-                      Rendering {index + 1}
+                      {t('imageResultsPanel.rendering')}
+                      {index + 1}
                     </Text>
                     <Badge color="cyan" variant="light">
-                      In progress
+                      {t('imageResultsPanel.inProgress')}
                     </Badge>
                   </Group>
                   <Text c="dimmed" size="sm">
-                    The gateway is generating this image.
+                    {t('imageResultsPanel.theGatewayIsGeneratingThisImage')}
                   </Text>
                   <Group gap="md" grow>
                     <Stack gap={2}>
                       <Text c="dimmed" size="xs" tt="uppercase">
-                        Elapsed
+                        {t('imageResultsPanel.elapsed')}
                       </Text>
-                      <Text data-testid={`image-loading-elapsed-${index}`} fw={600} size="sm">
+                      <Text
+                        data-testid={`image-loading-elapsed-${index}`}
+                        fw={600}
+                        size="sm"
+                      >
                         {formatDuration(imageLab.currentRenderElapsedMs)}
                       </Text>
                     </Stack>
                     <Stack gap={2}>
                       <Text c="dimmed" size="xs" tt="uppercase">
-                        Estimated
+                        {t('imageResultsPanel.estimated')}
                       </Text>
-                      <Text data-testid={`image-loading-estimated-${index}`} fw={600} size="sm">
+                      <Text
+                        data-testid={`image-loading-estimated-${index}`}
+                        fw={600}
+                        size="sm"
+                      >
                         {imageLab.estimatedRenderDurationMs
                           ? formatDuration(imageLab.estimatedRenderDurationMs)
-                          : 'Calculating...'}
+                          : t('imageResultsPanel.calculating')}
                       </Text>
                     </Stack>
                   </Group>
                   {imageLab.currentRenderProgressPercent !== null ? (
                     <Stack gap={4}>
                       <Progress
-                        aria-label={`Rendering progress ${index + 1}`}
+                        aria-label={t('imageResultsPanel.renderingProgress', {
+                          index: index + 1,
+                        })}
                         data-testid={`image-loading-progress-${index}`}
                         radius="xl"
                         size="md"
                         value={imageLab.currentRenderProgressPercent}
                       />
                       <Text c="dimmed" size="xs">
-                        Estimate based on {imageLab.estimatedRenderSampleSize} previous{' '}
-                        {imageLab.estimatedRenderSampleSize === 1 ? 'run' : 'runs'} for this
-                        provider and model.
+                        {t('imageResultsPanel.estimateSummary', {
+                          count: imageLab.estimatedRenderSampleSize,
+                        })}
                       </Text>
                     </Stack>
                   ) : null}
@@ -109,8 +121,8 @@ export function ImageResultsPanel({
             ))}
           </div>
         ) : !imageLab.results.length ? (
-          <Alert color="gray" title="No images yet">
-            Submit a prompt to render image results here.
+          <Alert color="gray" title={t('imageResultsPanel.noImagesYet')}>
+            {t('imageResultsPanel.submitAPromptToRenderImageResults')}
           </Alert>
         ) : (
           <div className="image-results-grid">
@@ -124,24 +136,36 @@ export function ImageResultsPanel({
                   data-testid={`image-result-${index}`}
                   padding="sm"
                   radius="lg"
-                  style={{
-                    '--image-result-aspect-ratio': selectedAspectRatio,
-                  } as CSSProperties}
+                  style={
+                    {
+                      '--image-result-aspect-ratio': selectedAspectRatio,
+                    } as CSSProperties
+                  }
                   withBorder
                 >
                   <Stack gap="sm">
                     {src ? (
                       <div className="image-result-preview">
-                        <Image alt={`Generated result ${index + 1}`} radius="md" src={src} />
+                        <Image
+                          alt={`Generated result ${index + 1}`}
+                          radius="md"
+                          src={src}
+                        />
                       </div>
                     ) : (
-                      <Alert color="yellow" title="No preview available">
-                        The gateway returned an image entry without a displayable payload.
+                      <Alert
+                        color="yellow"
+                        title={t('imageResultsPanel.noPreviewAvailable')}
+                      >
+                        {t(
+                          'imageResultsPanel.theGatewayReturnedAnImageEntryWithout',
+                        )}
                       </Alert>
                     )}
                     <Group justify="space-between" wrap="nowrap">
                       <Text fw={600} size="sm">
-                        Result {index + 1}
+                        {t('imageResultsPanel.result')}
+                        {index + 1}
                       </Text>
                       <Group gap="xs">
                         {image.assetId ? (
@@ -161,7 +185,7 @@ export function ImageResultsPanel({
                               size="xs"
                               variant="light"
                             >
-                              Use as reference
+                              {t('imageResultsPanel.useAsReference')}
                             </Button>
                             <Button
                               onClick={() =>
@@ -181,7 +205,8 @@ export function ImageResultsPanel({
                     </Group>
                     {image.revisedPrompt ? (
                       <Text c="dimmed" size="sm">
-                        Revised prompt: {image.revisedPrompt}
+                        {t('imageResultsPanel.revisedPrompt')}
+                        {image.revisedPrompt}
                       </Text>
                     ) : null}
                   </Stack>
@@ -201,7 +226,12 @@ function resolveCssAspectRatio(value: string | undefined) {
   }
 
   const [width, height] = value.split(':').map((part) => Number(part.trim()));
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
     return '1 / 1';
   }
 

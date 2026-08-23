@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { copyText } from '../../../lib/copy-text';
+import { getLocalizedErrorMessage } from '../../../i18n/errors';
 
 export function useChatClipboard(setChatError: (value: string | null) => void) {
   const [copiedAssistantMessageId, setCopiedAssistantMessageId] = useState<
@@ -32,10 +33,8 @@ export function useChatClipboard(setChatError: (value: string | null) => void) {
         setCopiedAssistantMessageId(null);
         copiedMessageTimeoutRef.current = null;
       }, 1800);
-    } catch {
-      setChatError(
-        'Unable to copy the assistant response from this browser session.',
-      );
+    } catch (error) {
+      setChatError(getLocalizedErrorMessage(error));
     }
   }
 

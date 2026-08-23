@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ActionIcon,
   Alert,
@@ -80,19 +81,23 @@ export function ChatMessageList({
   scrollRef,
   userDisplayName,
 }: ChatMessageListProps) {
+  const { t } = useTranslation('chat');
   return (
     <Stack gap="md">
       {modelsErrorMessage ? (
         <Alert
           color="red"
           icon={<IconAlertCircle size={18} />}
-          title="Model loading failed"
+          title={t('chatMessageList.modelLoadingFailed')}
         >
           {modelsErrorMessage}
         </Alert>
       ) : null}
       {modelsErrorMessage && getProviderModelLoadingNote(providerId) ? (
-        <Alert color="blue" title="Provider model access note">
+        <Alert
+          color="blue"
+          title={t('chatMessageList.providerModelAccessNote')}
+        >
           {getProviderModelLoadingNote(providerId)}
         </Alert>
       ) : null}
@@ -101,7 +106,7 @@ export function ChatMessageList({
         <Alert
           color="red"
           icon={<IconAlertCircle size={18} />}
-          title="Chat request failed"
+          title={t('chatMessageList.chatRequestFailed')}
         >
           {chatError}
         </Alert>
@@ -110,7 +115,7 @@ export function ChatMessageList({
         <Alert
           color="yellow"
           icon={<IconAlertCircle size={18} />}
-          title="Response may be incomplete"
+          title={t('chatMessageList.responseMayBeIncomplete')}
         >
           {chatWarning}
         </Alert>
@@ -128,8 +133,9 @@ export function ChatMessageList({
             size="compact-xs"
             variant="subtle"
           >
-            Load {Math.min(10, hiddenMessageCountAbove)} earlier message
-            {hiddenMessageCountAbove > 1 ? 's' : ''}
+            {t('chatMessageList.loadEarlier', {
+              count: Math.min(10, hiddenMessageCountAbove),
+            })}
           </Button>
         ) : null}
         {renderedMessages.length ? (
@@ -161,7 +167,7 @@ export function ChatMessageList({
                   ) : null}
                   {!isStreaming && message.role === 'user' ? (
                     <ActionIcon
-                      aria-label="Edit message"
+                      aria-label={t('chatMessageList.editMessage')}
                       data-testid={`chat-edit-message-${message.id}`}
                       onClick={() => onEditMessage(message.id, message.content)}
                       size="sm"
@@ -172,7 +178,7 @@ export function ChatMessageList({
                   ) : null}
                   {!isStreaming && message.role === 'assistant' ? (
                     <ActionIcon
-                      aria-label="Retry response"
+                      aria-label={t('chatMessageList.retryResponse')}
                       data-testid={`chat-retry-message-${message.id}`}
                       onClick={() => onRetryAssistantMessage(message.id)}
                       size="sm"
@@ -202,7 +208,7 @@ export function ChatMessageList({
                       size="xs"
                       variant="subtle"
                     >
-                      Cancel
+                      {t('chatMessageList.cancel')}
                     </Button>
                     <Button
                       data-testid={`chat-resend-message-${message.id}`}
@@ -211,7 +217,7 @@ export function ChatMessageList({
                       onClick={() => onSubmitEditedMessage(message.id)}
                       size="xs"
                     >
-                      Resend
+                      {t('chatMessageList.resend')}
                     </Button>
                   </Group>
                 </Stack>
@@ -220,7 +226,7 @@ export function ChatMessageList({
                   {message.reasoning ? (
                     <Card className="reasoning-card" mb="sm" p="sm">
                       <Text size="xs" fw={700} tt="uppercase">
-                        Reasoning
+                        {t('chatMessageList.reasoning')}
                       </Text>
                       <MarkdownText dimmed value={message.reasoning} />
                     </Card>
@@ -234,10 +240,9 @@ export function ChatMessageList({
                           color="yellow"
                           icon={<IconAlertCircle size={16} />}
                           mt="sm"
-                          title="Response may be incomplete"
+                          title={t('chatMessageList.responseMayBeIncomplete')}
                         >
-                          The model stopped at its output limit before finishing
-                          the answer.
+                          {t('chatMessageList.theModelStoppedAtItsOutputLimit')}
                         </Alert>
                       ) : null}
                       {!isStreaming ? (
@@ -269,12 +274,15 @@ export function ChatMessageList({
                     </>
                   ) : message.reasoning ? (
                     <Text className="message-text" c="dimmed" fs="italic">
-                      Assistant response was interrupted before content
-                      generation completed.
+                      {t(
+                        'chatMessageList.assistantResponseWasInterruptedBeforeContentGeneration',
+                      )}
                     </Text>
                   ) : (
                     <Text className="message-text" c="dimmed" fs="italic">
-                      No assistant response content was received.
+                      {t(
+                        'chatMessageList.noAssistantResponseContentWasReceived',
+                      )}
                     </Text>
                   )}
                 </>
@@ -283,8 +291,7 @@ export function ChatMessageList({
           ))
         ) : (
           <Text c="dimmed" size="sm">
-            Start a conversation to verify provider behavior, model output, and
-            optional thinking traces.
+            {t('chatMessageList.startAConversationToVerifyProviderBehavior')}
           </Text>
         )}
         {hiddenMessageCountBelow > 0 ? (
@@ -294,15 +301,16 @@ export function ChatMessageList({
             size="compact-xs"
             variant="subtle"
           >
-            Load {Math.min(10, hiddenMessageCountBelow)} newer message
-            {hiddenMessageCountBelow > 1 ? 's' : ''}
+            {t('chatMessageList.loadNewer', {
+              count: Math.min(10, hiddenMessageCountBelow),
+            })}
           </Button>
         ) : null}
         {isLoadingModels ? (
           <Group gap="sm" mt="sm">
             <Loader color="teal" size="sm" />
             <Text size="sm" c="dimmed">
-              Loading provider models...
+              {t('chatMessageList.loadingProviderModels')}
             </Text>
           </Group>
         ) : null}

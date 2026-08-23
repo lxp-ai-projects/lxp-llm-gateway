@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Badge,
@@ -36,12 +37,15 @@ export function VideoRequestForm({
 }: {
   videoLab: ReturnTypeUseVideoLab;
 }) {
+  const { t } = useTranslation('video');
   const [referenceCatalogOpened, setReferenceCatalogOpened] = useState(false);
   const [assetSearch, setAssetSearch] = useState('');
-  const [assetSort, setAssetSort] = useState<'newest' | 'oldest' | 'label'>('newest');
-  const [assetFilter, setAssetFilter] = useState<'all' | 'available' | 'selected'>(
-    'all',
+  const [assetSort, setAssetSort] = useState<'newest' | 'oldest' | 'label'>(
+    'newest',
   );
+  const [assetFilter, setAssetFilter] = useState<
+    'all' | 'available' | 'selected'
+  >('all');
   const [referenceCatalogPage, setReferenceCatalogPage] = useState(1);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
   const capabilities = videoLab.capabilities;
@@ -64,7 +68,9 @@ export function VideoRequestForm({
       const normalizedSearch = assetSearch.trim().toLowerCase();
       if (
         normalizedSearch &&
-        !(asset.label ?? 'Gateway image asset').toLowerCase().includes(normalizedSearch)
+        !(asset.label ?? 'Gateway image asset')
+          .toLowerCase()
+          .includes(normalizedSearch)
       ) {
         return false;
       }
@@ -88,7 +94,9 @@ export function VideoRequestForm({
 
       const leftTime = new Date(left.createdAt).getTime();
       const rightTime = new Date(right.createdAt).getTime();
-      return assetSort === 'oldest' ? leftTime - rightTime : rightTime - leftTime;
+      return assetSort === 'oldest'
+        ? leftTime - rightTime
+        : rightTime - leftTime;
     });
   const referenceCatalogTotalPages = Math.max(
     1,
@@ -115,34 +123,42 @@ export function VideoRequestForm({
         onClose={closeReferenceCatalog}
         opened={referenceCatalogOpened}
         size={isSmallViewport ? '100%' : 'calc(100vw - 10rem)'}
-        title="Uploaded reference catalog"
+        title={t('videoRequestForm.uploadedReferenceCatalog')}
       >
         <Stack gap="md">
           <Group justify="space-between" wrap="wrap">
             <Text c="dimmed" size="sm">
-              Reuse uploaded image assets for video requests without uploading again.
+              {t('videoRequestForm.reuseUploadedImageAssetsForVideoRequests')}
             </Text>
-            <Badge color={referenceLimitReached ? 'orange' : 'teal'} variant="light">
-              {videoLab.references.length} / {videoLab.maxReferenceImages} selected
+            <Badge
+              color={referenceLimitReached ? 'orange' : 'teal'}
+              variant="light"
+            >
+              {videoLab.references.length} / {videoLab.maxReferenceImages}{' '}
+              {t('videoRequestForm.selected')}
             </Badge>
           </Group>
 
           {referenceLimitReached ? (
-            <Alert color="orange" title="Reference limit reached">
-              This model supports up to {videoLab.maxReferenceImages} reference
-              {videoLab.maxReferenceImages > 1 ? 's' : ''}. Remove one before adding more.
+            <Alert
+              color="orange"
+              title={t('videoRequestForm.referenceLimitReached')}
+            >
+              {t('videoRequestForm.referenceLimitDescription', {
+                count: videoLab.maxReferenceImages,
+              })}
             </Alert>
           ) : null}
 
           <Group grow align="end">
             <TextInput
               data-testid="video-reference-catalog-search"
-              label="Search"
+              label={t('videoRequestForm.search')}
               onChange={(event) => {
                 setAssetSearch(event.currentTarget.value);
                 setReferenceCatalogPage(1);
               }}
-              placeholder="Search by label"
+              placeholder={t('videoRequestForm.searchByLabel')}
               value={assetSearch}
             />
             <Select
@@ -152,9 +168,11 @@ export function VideoRequestForm({
                 { value: 'label', label: 'Label' },
               ]}
               data-testid="video-reference-catalog-sort"
-              label="Sort"
+              label={t('videoRequestForm.sort')}
               onChange={(value) => {
-                setAssetSort((value as 'newest' | 'oldest' | 'label') ?? 'newest');
+                setAssetSort(
+                  (value as 'newest' | 'oldest' | 'label') ?? 'newest',
+                );
                 setReferenceCatalogPage(1);
               }}
               value={assetSort}
@@ -166,9 +184,11 @@ export function VideoRequestForm({
                 { value: 'selected', label: 'Selected' },
               ]}
               data-testid="video-reference-catalog-filter"
-              label="Filter"
+              label={t('videoRequestForm.filter')}
               onChange={(value) => {
-                setAssetFilter((value as 'all' | 'available' | 'selected') ?? 'all');
+                setAssetFilter(
+                  (value as 'all' | 'available' | 'selected') ?? 'all',
+                );
                 setReferenceCatalogPage(1);
               }}
               value={assetFilter}
@@ -184,7 +204,9 @@ export function VideoRequestForm({
                   <ReferenceCatalogAssetCard
                     alreadySelected={alreadySelected}
                     asset={asset}
-                    assetSrc={videoLab.mediaUrl(asset.contentUrl) ?? asset.contentUrl}
+                    assetSrc={
+                      videoLab.mediaUrl(asset.contentUrl) ?? asset.contentUrl
+                    }
                     disabled={referenceLimitReached}
                     key={asset.id}
                     onSelect={() => videoLab.addReferenceAsset(asset)}
@@ -194,13 +216,14 @@ export function VideoRequestForm({
             </SimpleGrid>
           ) : (
             <Text c="dimmed" size="sm">
-              No uploaded references match the current filters.
+              {t('videoRequestForm.noUploadedReferencesMatchTheCurrentFilters')}
             </Text>
           )}
 
           <Group justify="space-between" wrap="wrap">
             <Text c="dimmed" size="sm">
-              Page {referenceCatalogPage} / {referenceCatalogTotalPages}
+              {t('videoRequestForm.page')}
+              {referenceCatalogPage} / {referenceCatalogTotalPages}
             </Text>
             <Pagination
               onChange={setReferenceCatalogPage}
@@ -208,7 +231,7 @@ export function VideoRequestForm({
               value={referenceCatalogPage}
             />
             <Button onClick={closeReferenceCatalog} variant="default">
-              Close
+              {t('videoRequestForm.close')}
             </Button>
           </Group>
         </Stack>
@@ -216,11 +239,10 @@ export function VideoRequestForm({
 
       <Card className="section-card">
         <Stack gap="md">
-          <Title order={3}>Video request</Title>
+          <Title order={3}>{t('videoRequestForm.videoRequest')}</Title>
 
-          <Alert color="blue" title="MVP flow">
-            This first lab is optimized for image-to-video. If you leave references
-            empty, the same contract still works in text-to-video mode.
+          <Alert color="blue" title={t('videoRequestForm.mvpFlow')}>
+            {t('videoRequestForm.thisFirstLabIsOptimizedForImage')}
           </Alert>
 
           <Select
@@ -229,7 +251,7 @@ export function VideoRequestForm({
               label: provider.displayName,
             }))}
             data-testid="video-provider-select"
-            label="Provider"
+            label={t('videoRequestForm.provider')}
             onChange={(value) => {
               videoLab.setProviderId(value ?? '');
               videoLab.setModelId('');
@@ -243,7 +265,7 @@ export function VideoRequestForm({
               label: model.displayName,
             }))}
             data-testid="video-model-select"
-            label="Model"
+            label={t('videoRequestForm.model')}
             limit={100}
             nothingFoundMessage="No models found"
             onChange={(value) => videoLab.setModelId(value ?? '')}
@@ -274,7 +296,9 @@ export function VideoRequestForm({
                       <Badge
                         color={mode === videoLab.currentMode ? 'teal' : 'gray'}
                         key={mode}
-                        variant={mode === videoLab.currentMode ? 'filled' : 'light'}
+                        variant={
+                          mode === videoLab.currentMode ? 'filled' : 'light'
+                        }
                       >
                         {mode}
                       </Badge>
@@ -288,10 +312,12 @@ export function VideoRequestForm({
           <Textarea
             autosize
             data-testid="video-prompt-input"
-            label="Prompt"
+            label={t('videoRequestForm.prompt')}
             minRows={5}
             onChange={(event) => videoLab.setPrompt(event.currentTarget.value)}
-            placeholder="Describe the motion, camera movement, subject, and atmosphere."
+            placeholder={t(
+              'videoRequestForm.describeTheMotionCameraMovementSubjectAnd',
+            )}
             value={videoLab.prompt}
           />
 
@@ -303,7 +329,7 @@ export function VideoRequestForm({
                   label: option.label,
                 }))}
                 data-testid="video-duration-select"
-                label="Duration"
+                label={t('videoRequestForm.duration')}
                 onChange={(value) => videoLab.setDurationSeconds(value ?? '')}
                 value={videoLab.durationSeconds}
               />
@@ -315,7 +341,7 @@ export function VideoRequestForm({
                   label: option.label,
                 }))}
                 data-testid="video-aspect-ratio-select"
-                label="Aspect ratio"
+                label={t('videoRequestForm.aspectRatio')}
                 onChange={(value) => videoLab.setAspectRatio(value ?? '')}
                 value={videoLab.aspectRatio}
               />
@@ -330,7 +356,7 @@ export function VideoRequestForm({
                   label: option.label,
                 }))}
                 data-testid="video-resolution-select"
-                label="Resolution"
+                label={t('videoRequestForm.resolution')}
                 onChange={(value) => videoLab.setResolution(value ?? '')}
                 value={videoLab.resolution}
               />
@@ -342,7 +368,7 @@ export function VideoRequestForm({
                   label: option.label,
                 }))}
                 data-testid="video-size-select"
-                label="Size"
+                label={t('videoRequestForm.size')}
                 onChange={(value) => videoLab.setSize(value ?? '')}
                 value={videoLab.size}
               />
@@ -353,7 +379,7 @@ export function VideoRequestForm({
             <Checkbox
               checked={videoLab.generateAudio}
               data-testid="video-generate-audio-toggle"
-              label="Generate audio when the model supports it"
+              label={t('videoRequestForm.generateAudioWhenTheModelSupportsIt')}
               onChange={(event) =>
                 videoLab.setGenerateAudio(event.currentTarget.checked)
               }
@@ -361,19 +387,24 @@ export function VideoRequestForm({
           ) : null}
 
           {!videoLab.supportsReferenceImages ? (
-            <Alert color="yellow" title="Reference images unavailable">
-              This model currently accepts prompt-only video generation.
+            <Alert
+              color="yellow"
+              title={t('videoRequestForm.referenceImagesUnavailable')}
+            >
+              {t('videoRequestForm.thisModelCurrentlyAcceptsPromptOnlyVideo')}
             </Alert>
           ) : (
             <>
               <Group align="end">
                 <TextInput
                   data-testid="video-reference-url-input"
-                  label="Reference image URL"
+                  label={t('videoRequestForm.referenceImageURL')}
                   onChange={(event) =>
                     videoLab.setReferenceUrl(event.currentTarget.value)
                   }
-                  placeholder="https://example.com/scene-frame.jpg or data:image/...;base64,..."
+                  placeholder={t(
+                    'videoRequestForm.httpsExampleComSceneFrameJpgOr',
+                  )}
                   value={videoLab.referenceUrl}
                 />
                 <Button
@@ -384,7 +415,7 @@ export function VideoRequestForm({
                   }}
                   variant="light"
                 >
-                  Add reference
+                  {t('videoRequestForm.addReference')}
                 </Button>
               </Group>
 
@@ -396,7 +427,9 @@ export function VideoRequestForm({
                     hidden
                     id="video-reference-upload-input"
                     onChange={(event) => {
-                      void videoLab.handleFileSelection(event.currentTarget.files);
+                      void videoLab.handleFileSelection(
+                        event.currentTarget.files,
+                      );
                       event.currentTarget.value = '';
                     }}
                     ref={videoLab.fileInputRef}
@@ -410,7 +443,7 @@ export function VideoRequestForm({
                     leftSection={<IconUpload size={16} />}
                     variant="light"
                   >
-                    Upload image
+                    {t('videoRequestForm.uploadImage')}
                   </Button>
                   <Button
                     data-testid="video-reference-catalog-open"
@@ -418,28 +451,44 @@ export function VideoRequestForm({
                     onClick={openReferenceCatalog}
                     variant="light"
                   >
-                    Browse catalog
+                    {t('videoRequestForm.browseCatalog')}
                   </Button>
                 </Group>
-                <Badge color={referenceLimitReached ? 'orange' : 'teal'} variant="light">
-                  {videoLab.references.length} / {videoLab.maxReferenceImages} selected
+                <Badge
+                  color={referenceLimitReached ? 'orange' : 'teal'}
+                  variant="light"
+                >
+                  {videoLab.references.length} / {videoLab.maxReferenceImages}{' '}
+                  {t('videoRequestForm.selected')}
                 </Badge>
               </Group>
 
               <Text c="dimmed" size="sm">
-                Uploaded or pasted image data becomes a reusable gateway-managed image asset.
-                Browse catalog reuses the same uploaded asset pool as the image lab.
+                {t('videoRequestForm.uploadedOrPastedImageDataBecomesA')}
               </Text>
 
               <Stack gap="xs">
                 <Text fw={600} size="sm">
-                  Selected references
+                  {t('videoRequestForm.selectedReferences')}
                 </Text>
                 {videoLab.references.length ? (
                   videoLab.references.map((reference) => (
-                    <Card key={reference.id} padding="sm" radius="md" withBorder>
-                      <Group justify="space-between" align="flex-start" wrap="nowrap">
-                        <Group align="flex-start" style={{ flex: 1, minWidth: 0 }} wrap="nowrap">
+                    <Card
+                      key={reference.id}
+                      padding="sm"
+                      radius="md"
+                      withBorder
+                    >
+                      <Group
+                        justify="space-between"
+                        align="flex-start"
+                        wrap="nowrap"
+                      >
+                        <Group
+                          align="flex-start"
+                          style={{ flex: 1, minWidth: 0 }}
+                          wrap="nowrap"
+                        >
                           <Image
                             alt={reference.label}
                             h={72}
@@ -452,7 +501,9 @@ export function VideoRequestForm({
                               {reference.label}
                             </Text>
                             <Badge size="sm" variant="light">
-                              {reference.kind === 'asset' ? reference.sourceType : 'url'}
+                              {reference.kind === 'asset'
+                                ? reference.sourceType
+                                : 'url'}
                             </Badge>
                           </Stack>
                         </Group>
@@ -465,15 +516,14 @@ export function VideoRequestForm({
                           style={{ flexShrink: 0 }}
                           variant="subtle"
                         >
-                          Remove
+                          {t('videoRequestForm.remove')}
                         </Button>
                       </Group>
                     </Card>
                   ))
                 ) : (
                   <Text c="dimmed" size="sm">
-                    No reference selected. Submit now for text-to-video, or add an
-                    image for image-to-video.
+                    {t('videoRequestForm.noReferenceSelectedSubmitNowForText')}
                   </Text>
                 )}
               </Stack>
@@ -482,10 +532,10 @@ export function VideoRequestForm({
                 <Group justify="space-between" wrap="wrap">
                   <div>
                     <Text fw={600} size="sm">
-                      Uploaded reference catalog
+                      {t('videoRequestForm.uploadedReferenceCatalog')}
                     </Text>
                     <Text c="dimmed" size="xs">
-                      Reuse without uploading again
+                      {t('videoRequestForm.reuseWithoutUploadingAgain')}
                     </Text>
                   </div>
                   <Button
@@ -494,16 +544,21 @@ export function VideoRequestForm({
                     onClick={openReferenceCatalog}
                     variant="light"
                   >
-                    Browse catalog
+                    {t('videoRequestForm.browseCatalog')}
                   </Button>
                 </Group>
                 {referenceLimitReached ? (
-                  <Alert color="orange" title="Reference limit reached">
-                    Remove a selected reference before adding another one from the catalog.
+                  <Alert
+                    color="orange"
+                    title={t('videoRequestForm.referenceLimitReached')}
+                  >
+                    {t(
+                      'videoRequestForm.removeASelectedReferenceBeforeAddingAnother',
+                    )}
                   </Alert>
                 ) : (
                   <Text c="dimmed" size="sm">
-                    Open the catalog to search, filter, and paginate the same uploaded image assets used by the image lab.
+                    {t('videoRequestForm.openTheCatalogToSearchFilterAnd')}
                   </Text>
                 )}
               </Stack>
@@ -511,13 +566,16 @@ export function VideoRequestForm({
           )}
 
           {familyIssues.length ? (
-            <Alert color="yellow" title="Model-family validation">
+            <Alert
+              color="yellow"
+              title={t('videoRequestForm.modelFamilyValidation')}
+            >
               {familyIssues[0]?.message}
             </Alert>
           ) : null}
 
           {videoLab.requestError ? (
-            <Alert color="red" title="Video request failed">
+            <Alert color="red" title={t('videoRequestForm.videoRequestFailed')}>
               {videoLab.requestError}
             </Alert>
           ) : null}
@@ -528,7 +586,9 @@ export function VideoRequestForm({
             loading={videoLab.generateMutation.isPending}
             onClick={() => videoLab.generateMutation.mutate(undefined)}
           >
-            {videoLab.references.length ? 'Generate video from image' : 'Generate video'}
+            {videoLab.references.length
+              ? 'Generate video from image'
+              : 'Generate video'}
           </Button>
         </Stack>
       </Card>
@@ -549,6 +609,7 @@ function ReferenceCatalogAssetCard({
   disabled: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useTranslation('video');
   return (
     <Card padding="sm" radius="md" withBorder>
       <Stack gap="xs">
@@ -566,9 +627,13 @@ function ReferenceCatalogAssetCard({
         </Text>
         <Group justify="space-between" wrap="wrap">
           <Badge color="gray" size="sm" variant="light">
-            upload
+            {t('referenceCatalogAssetCard.upload')}
           </Badge>
-          <Badge color={alreadySelected ? 'teal' : 'blue'} size="sm" variant="light">
+          <Badge
+            color={alreadySelected ? 'teal' : 'blue'}
+            size="sm"
+            variant="light"
+          >
             {alreadySelected ? 'Selected' : 'Available'}
           </Badge>
         </Group>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Button,
@@ -12,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { adminApiClient } from '../../../lib/admin-api-client';
+import { getLocalizedErrorMessage } from '../../../i18n/errors';
 
 export function TenantRegistrationPanel({
   tenantId,
@@ -20,6 +22,7 @@ export function TenantRegistrationPanel({
   tenantId: string;
   activeTenantCount: number;
 }) {
+  const { t } = useTranslation('tenants');
   const queryClient = useQueryClient();
   const [hostname, setHostname] = useState('');
   const settings = useQuery({
@@ -81,72 +84,84 @@ export function TenantRegistrationPanel({
     updateHost.isError;
 
   if (settings.isPending || hosts.isPending || emailReadiness.isPending)
-    return <Loader aria-label="Loading registration settings" />;
+    return (
+      <Loader
+        aria-label={t('tenantRegistrationPanel.loadingRegistrationSettings')}
+      />
+    );
   if (settings.isError || hosts.isError || emailReadiness.isError) {
     const error = settings.error ?? hosts.error ?? emailReadiness.error;
-    const detail =
-      error instanceof Error ? error.message : 'Unknown API error.';
+    const detail = getLocalizedErrorMessage(error);
     return (
-      <Alert color="red" title="Registration settings could not be loaded.">
-        {detail} Retry the request or contact the deployment operator if the
-        problem continues.
+      <Alert
+        color="red"
+        title={t(
+          'tenantRegistrationPanel.registrationSettingsCouldNotBeLoaded',
+        )}
+      >
+        {detail}{' '}
+        {t('tenantRegistrationPanel.retryTheRequestOrContactTheDeployment')}
       </Alert>
     );
   }
 
-  const emailReadinessLabel =
-    emailReadiness.data.status === 'ready'
-      ? 'ready'
-      : emailReadiness.data.status === 'disabled'
-        ? 'disabled'
-        : 'not ready';
+  const emailReadinessLabel = t(
+    `tenantRegistrationPanel.emailStatus.${emailReadiness.data.status}`,
+  );
 
   return (
     <Stack gap="md">
       {mutationFailed ? (
         <Alert color="red">
-          Registration settings could not be saved. Please try again.
+          {t(
+            'tenantRegistrationPanel.registrationSettingsCouldNotBeSavedPlease',
+          )}
         </Alert>
       ) : null}
       {activeTenantCount > 1 && !hosts.data.some((host) => host.enabled) ? (
         <Alert color="yellow">
-          A public hostname mapping is required when more than one active tenant
-          exists.
+          {t('tenantRegistrationPanel.aPublicHostnameMappingIsRequiredWhen')}
         </Alert>
       ) : null}
       {!emailReadiness.data.globalRegistrationEnabled ? (
-        <Alert color="yellow" title="Global registration kill switch is off">
-          This tenant setting cannot enable public registration while
-          `LXP_REGISTRATION_ENABLED` is false. Set it to `true` in the admin-api
-          deployment environment and restart the service. Set it back to `false`
-          to temporarily disable registration for every tenant.
+        <Alert
+          color="yellow"
+          title={t('tenantRegistrationPanel.globalRegistrationKillSwitchIsOff')}
+        >
+          {t(
+            'tenantRegistrationPanel.thisTenantSettingCannotEnablePublicRegistration',
+          )}
         </Alert>
       ) : null}
       <Alert
         color={emailReadiness.data.status === 'ready' ? 'teal' : 'yellow'}
-        title={`Email delivery: ${emailReadinessLabel}`}
+        title={t('tenantRegistrationPanel.emailDeliveryStatus', {
+          status: emailReadinessLabel,
+        })}
       >
-        Provider: {emailReadiness.data.provider}. From:{' '}
-        {emailReadiness.data.fromEmail ?? 'not configured'}.
+        {t('tenantRegistrationPanel.emailReadinessDetails', {
+          provider: emailReadiness.data.provider,
+          from:
+            emailReadiness.data.fromEmail ??
+            t('tenantRegistrationPanel.notConfigured'),
+        })}
         {settings.data.enabled && emailReadiness.data.status !== 'ready'
           ? ' Public registration is enabled but email verification is unavailable.'
           : ''}
       </Alert>
       <Switch
-        label="Allow public registration"
+        label={t('tenantRegistrationPanel.allowPublicRegistration')}
         checked={settings.data.enabled}
         disabled={pending}
         onChange={(event) => updateSettings.mutate(event.currentTarget.checked)}
       />
       <Text size="sm" c="dimmed">
-        This switch controls only the selected tenant. The deployment-level kill
-        switch can temporarily close registration for every tenant. This release
-        does not create accounts.
+        {t('tenantRegistrationPanel.thisSwitchControlsOnlyTheSelectedTenant')}
       </Text>
       <Group align="end">
         <TextInput
-          label="Public hostname"
-          placeholder="app.example.com"
+          label={t('tenantRegistrationPanel.publicHostname')}
+          placeholder={t('tenantRegistrationPanel.appExampleCom')}
           value={hostname}
           disabled={pending}
           onChange={(event) => setHostname(event.currentTarget.value)}
@@ -157,7 +172,7 @@ export function TenantRegistrationPanel({
           loading={createHost.isPending}
           disabled={pending || !hostname.trim()}
         >
-          Add hostname
+          {t('tenantRegistrationPanel.addHostname')}
         </Button>
       </Group>
       {hosts.data.map((host) => (
@@ -165,7 +180,7 @@ export function TenantRegistrationPanel({
           <Text>{host.hostname}</Text>
           <Group gap="xs">
             <Switch
-              label="Enabled"
+              label={t('tenantRegistrationPanel.enabled')}
               aria-label={`Enabled ${host.hostname}`}
               checked={host.enabled}
               disabled={pending}
@@ -177,7 +192,7 @@ export function TenantRegistrationPanel({
               }
             />
             <Switch
-              label="Primary"
+              label={t('tenantRegistrationPanel.primary')}
               aria-label={`Primary ${host.hostname}`}
               checked={host.isPrimary}
               disabled={pending}
@@ -199,7 +214,7 @@ export function TenantRegistrationPanel({
               disabled={pending}
               aria-label={`Remove ${host.hostname}`}
             >
-              Remove
+              {t('tenantRegistrationPanel.remove')}
             </Button>
           </Group>
         </Group>

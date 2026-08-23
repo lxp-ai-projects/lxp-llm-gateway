@@ -11,7 +11,9 @@ export const localeMetadata: Record<SupportedLocale, { label: string }> = {
   de: { label: 'Deutsch' },
 };
 
-export function normalizeLocale(locale: string | null | undefined): SupportedLocale | null {
+export function normalizeLocale(
+  locale: string | null | undefined,
+): SupportedLocale | null {
   if (!locale) return null;
   const language = locale.trim().toLowerCase().split(/[-_]/)[0];
   return supportedLocales.find((candidate) => candidate === language) ?? null;

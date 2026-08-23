@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Button, Group, Stack, Text, Textarea } from '@mantine/core';
 
 type ChatSystemPromptPanelProps = {
@@ -15,26 +16,27 @@ export function ChatSystemPromptPanel({
   onSave,
   systemPrompt,
 }: ChatSystemPromptPanelProps) {
+  const { t } = useTranslation('chat');
   return (
     <Stack gap="md">
       <Text c="dimmed" size="sm">
-        Use this for test-time steering only. It is persisted per local
-        conversation and prepended as a `system` message before the chat
-        history.
+        {t('chatSystemPromptPanel.useThisForTestTimeSteeringOnly')}
       </Text>
       <Textarea
         autosize
         data-testid="chat-system-prompt-input"
-        label="System prompt"
+        label={t('chatSystemPromptPanel.systemPrompt')}
         maxRows={18}
         minRows={8}
         onChange={(event) => onChange(event.currentTarget.value)}
-        placeholder="I am a helpful assistant."
+        placeholder={t('chatSystemPromptPanel.iAmAHelpfulAssistant')}
         value={systemPrompt}
       />
       <Group justify="space-between">
         <Text c="dimmed" size="sm">
-          Default: helpful assistant with application guardrails.
+          {t(
+            'chatSystemPromptPanel.defaultHelpfulAssistantWithApplicationGuardrails',
+          )}
         </Text>
         <Group>
           <Button
@@ -42,14 +44,14 @@ export function ChatSystemPromptPanel({
             onClick={onReset}
             variant="light"
           >
-            Reset to default
+            {t('chatSystemPromptPanel.resetToDefault')}
           </Button>
           <Button
             data-testid="chat-system-prompt-save"
             disabled={!isDirty}
             onClick={onSave}
           >
-            Save prompt
+            {t('chatSystemPromptPanel.savePrompt')}
           </Button>
         </Group>
       </Group>

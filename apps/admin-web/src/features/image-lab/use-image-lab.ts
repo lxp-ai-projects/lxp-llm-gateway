@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { resolveMaxReferenceImages } from '@lxp/domain';
 
 import { adminApiUrl, gatewayApiClient } from '../../lib/api-client';
+import { getLocalizedErrorMessage } from '../../i18n/errors';
 import type {
   GatewayGeneratedImage,
   GatewayImageAssetSummary,
@@ -39,24 +40,48 @@ export function useImageLab() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const storedDraftRef = useRef<ImageLabDraft>(readStoredImageLabDraft());
-  const [providerId, setProviderId] = useState(() => storedDraftRef.current.providerId ?? '');
-  const [modelId, setModelId] = useState(() => storedDraftRef.current.modelId ?? '');
-  const [prompt, setPrompt] = useState(() => storedDraftRef.current.prompt ?? '');
-  const [aspectRatio, setAspectRatio] = useState(() => storedDraftRef.current.aspectRatio ?? '');
-  const [responseFormat, setResponseFormat] = useState<'url' | 'b64_json'>(() =>
-    storedDraftRef.current.responseFormat ?? 'b64_json',
+  const [providerId, setProviderId] = useState(
+    () => storedDraftRef.current.providerId ?? '',
   );
-  const [resolution, setResolution] = useState(() => storedDraftRef.current.resolution ?? '');
-  const [background, setBackground] = useState(() => storedDraftRef.current.background ?? '');
-  const [quality, setQuality] = useState(() => storedDraftRef.current.quality ?? '');
-  const [moderation, setModeration] = useState(() => storedDraftRef.current.moderation ?? '');
-  const [outputFormat, setOutputFormat] = useState(() => storedDraftRef.current.outputFormat ?? '');
-  const [outputCompression, setOutputCompression] = useState<number | ''>(() =>
-    storedDraftRef.current.outputCompression ?? '',
+  const [modelId, setModelId] = useState(
+    () => storedDraftRef.current.modelId ?? '',
   );
-  const [inputFidelity, setInputFidelity] = useState(() => storedDraftRef.current.inputFidelity ?? '');
-  const [imageCount, setImageCount] = useState(() => storedDraftRef.current.imageCount ?? '1');
-  const [referenceUrl, setReferenceUrl] = useState(() => storedDraftRef.current.referenceUrl ?? '');
+  const [prompt, setPrompt] = useState(
+    () => storedDraftRef.current.prompt ?? '',
+  );
+  const [aspectRatio, setAspectRatio] = useState(
+    () => storedDraftRef.current.aspectRatio ?? '',
+  );
+  const [responseFormat, setResponseFormat] = useState<'url' | 'b64_json'>(
+    () => storedDraftRef.current.responseFormat ?? 'b64_json',
+  );
+  const [resolution, setResolution] = useState(
+    () => storedDraftRef.current.resolution ?? '',
+  );
+  const [background, setBackground] = useState(
+    () => storedDraftRef.current.background ?? '',
+  );
+  const [quality, setQuality] = useState(
+    () => storedDraftRef.current.quality ?? '',
+  );
+  const [moderation, setModeration] = useState(
+    () => storedDraftRef.current.moderation ?? '',
+  );
+  const [outputFormat, setOutputFormat] = useState(
+    () => storedDraftRef.current.outputFormat ?? '',
+  );
+  const [outputCompression, setOutputCompression] = useState<number | ''>(
+    () => storedDraftRef.current.outputCompression ?? '',
+  );
+  const [inputFidelity, setInputFidelity] = useState(
+    () => storedDraftRef.current.inputFidelity ?? '',
+  );
+  const [imageCount, setImageCount] = useState(
+    () => storedDraftRef.current.imageCount ?? '1',
+  );
+  const [referenceUrl, setReferenceUrl] = useState(
+    () => storedDraftRef.current.referenceUrl ?? '',
+  );
   const [references, setReferences] = useState<ImageReferenceDraft[]>(
     () => storedDraftRef.current.references ?? [],
   );
@@ -66,7 +91,9 @@ export function useImageLab() {
   const [showNanoGptPaidModels, setShowNanoGptPaidModels] = useState(
     () => storedDraftRef.current.showNanoGptPaidModels ?? false,
   );
-  const [activeRenderStartedAt, setActiveRenderStartedAt] = useState<number | null>(null);
+  const [activeRenderStartedAt, setActiveRenderStartedAt] = useState<
+    number | null
+  >(null);
   const [renderNowMs, setRenderNowMs] = useState(() => Date.now());
 
   const catalogQuery = useQuery({
@@ -86,7 +113,9 @@ export function useImageLab() {
   });
 
   const providers = catalogQuery.data?.providers ?? [];
-  const selectedProvider = providers.find((provider) => provider.providerId === providerId);
+  const selectedProvider = providers.find(
+    (provider) => provider.providerId === providerId,
+  );
   const hasNanoGptPaidModels = Boolean(
     selectedProvider?.providerId === 'nanogpt' &&
     selectedProvider.models.some(
@@ -96,19 +125,24 @@ export function useImageLab() {
   const models: ProviderModelSummary[] = (
     selectedProvider?.providerId === 'nanogpt' && !showNanoGptPaidModels
       ? (selectedProvider?.models ?? []).filter(
-        (model: ProviderModelSummary) =>
-          model.capabilities?.requiresPaidAccess !== true,
-      )
-      : selectedProvider?.models ?? []
+          (model: ProviderModelSummary) =>
+            model.capabilities?.requiresPaidAccess !== true,
+        )
+      : (selectedProvider?.models ?? [])
   )
     .slice()
     .sort((left: ProviderModelSummary, right: ProviderModelSummary) =>
-      (left.displayName || left.id).localeCompare(right.displayName || right.id),
+      (left.displayName || left.id).localeCompare(
+        right.displayName || right.id,
+      ),
     );
-  const selectedModel = models.find((model: ProviderModelSummary) => model.id === modelId);
+  const selectedModel = models.find(
+    (model: ProviderModelSummary) => model.id === modelId,
+  );
   const capabilities = selectedModel?.capabilities;
   const supportsImageEditing = capabilities?.supportsImageEditing === true;
-  const activeImageMode = references.length > 0 && supportsImageEditing ? 'edit' : 'generation';
+  const activeImageMode =
+    references.length > 0 && supportsImageEditing ? 'edit' : 'generation';
   const selectedCapabilities = resolveImageModeCapabilities(
     capabilities,
     activeImageMode,
@@ -135,7 +169,9 @@ export function useImageLab() {
       return;
     }
 
-    setModelId(selectedProvider.defaultModelId ?? selectedProvider.models[0]?.id ?? '');
+    setModelId(
+      selectedProvider.defaultModelId ?? selectedProvider.models[0]?.id ?? '',
+    );
   }, [modelId, selectedProvider]);
 
   useEffect(() => {
@@ -202,11 +238,19 @@ export function useImageLab() {
     modelId,
   );
   const currentRenderElapsedMs =
-    activeRenderStartedAt === null ? 0 : Math.max(0, renderNowMs - activeRenderStartedAt);
+    activeRenderStartedAt === null
+      ? 0
+      : Math.max(0, renderNowMs - activeRenderStartedAt);
   const currentRenderProgressPercent =
     activeRenderStartedAt === null || !renderStats.estimatedDurationMs
       ? null
-      : Math.min(99, Math.max(0, (currentRenderElapsedMs / renderStats.estimatedDurationMs) * 100));
+      : Math.min(
+          99,
+          Math.max(
+            0,
+            (currentRenderElapsedMs / renderStats.estimatedDurationMs) * 100,
+          ),
+        );
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -252,9 +296,7 @@ export function useImageLab() {
     },
     onError: (error) => {
       setResults([]);
-      setRequestError(
-        error instanceof Error ? error.message : 'The image request failed.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     },
     onSettled: () => {
       setActiveRenderStartedAt(null);
@@ -293,15 +335,17 @@ export function useImageLab() {
   });
   const updateAssetMutation = useMutation({
     mutationFn: (payload: { assetId: string; label: string }) =>
-      gatewayApiClient.updateImageAsset(payload.assetId, { label: payload.label }),
+      gatewayApiClient.updateImageAsset(payload.assetId, {
+        label: payload.label,
+      }),
     onSuccess: ({ asset }) => {
       setReferences((current) =>
         current.map((reference) =>
           reference.kind === 'asset' && reference.assetId === asset.id
             ? {
-              ...reference,
-              label: asset.label ?? 'Gateway image asset',
-            }
+                ...reference,
+                label: asset.label ?? 'Gateway image asset',
+              }
             : reference,
         ),
       );
@@ -313,7 +357,8 @@ export function useImageLab() {
     onSuccess: (_, assetId) => {
       setReferences((current) =>
         current.filter(
-          (reference) => reference.kind !== 'asset' || reference.assetId !== assetId,
+          (reference) =>
+            reference.kind !== 'asset' || reference.assetId !== assetId,
         ),
       );
       void queryClient.invalidateQueries({ queryKey: ['image-assets'] });
@@ -343,9 +388,7 @@ export function useImageLab() {
       );
       void queryClient.invalidateQueries({ queryKey: ['image-assets'] });
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : 'Image upload failed.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     }
   }
 
@@ -372,15 +415,14 @@ export function useImageLab() {
 
   function addReferenceAsset(asset: GatewayImageAssetSummary) {
     setReferences((current) =>
-      [
-        ...current,
-        mapAssetReference(asset),
-      ].slice(0, maxReferenceImages),
+      [...current, mapAssetReference(asset)].slice(0, maxReferenceImages),
     );
   }
 
   function removeReference(referenceId: string) {
-    setReferences((current) => current.filter((reference) => reference.id !== referenceId));
+    setReferences((current) =>
+      current.filter((reference) => reference.id !== referenceId),
+    );
   }
 
   async function deleteReferenceAsset(assetId: string) {
@@ -388,9 +430,7 @@ export function useImageLab() {
       await deleteAssetMutation.mutateAsync(assetId);
       setRequestError(null);
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : 'Image asset deletion failed.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     }
   }
 
@@ -402,9 +442,7 @@ export function useImageLab() {
       });
       setRequestError(null);
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : 'Image asset rename failed.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     }
   }
 
@@ -482,7 +520,9 @@ export function useImageLab() {
   };
 }
 
-function mapAssetReference(asset: GatewayImageAssetSummary): ImageReferenceDraft {
+function mapAssetReference(
+  asset: GatewayImageAssetSummary,
+): ImageReferenceDraft {
   return {
     id: createClientId(),
     kind: 'asset',
@@ -494,7 +534,11 @@ function mapAssetReference(asset: GatewayImageAssetSummary): ImageReferenceDraft
 }
 
 function resolveGatewayMediaUrl(value: string) {
-  if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
+  if (
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('data:')
+  ) {
     return value;
   }
 
@@ -578,8 +622,8 @@ function resolveRenderStats(
     sortedDurations.length % 2 === 1
       ? sortedDurations[middleIndex]
       : Math.round(
-        (sortedDurations[middleIndex - 1] + sortedDurations[middleIndex]) / 2,
-      );
+          (sortedDurations[middleIndex - 1] + sortedDurations[middleIndex]) / 2,
+        );
 
   return {
     estimatedDurationMs,

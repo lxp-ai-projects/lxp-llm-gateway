@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Accordion,
   Alert,
@@ -23,19 +24,22 @@ export function VideoResultsPanel({
 }: {
   videoLab: ReturnTypeUseVideoLab;
 }) {
+  const { t } = useTranslation('video');
   const job = videoLab.activeJob;
   const isTerminal = job ? isTerminalStatus(job.status) : false;
   const pollingEnabled = Boolean(job && !isTerminal);
   const isPollingNow = pollingEnabled && videoLab.activeJobQuery.isFetching;
   const providerState = job ? describeProviderState(job.status) : null;
   const providerDiagnostics =
-    job && job.providerMetadata ? buildProviderDiagnostics(job.providerMetadata) : [];
+    job && job.providerMetadata
+      ? buildProviderDiagnostics(job.providerMetadata)
+      : [];
 
   return (
     <Card className="section-card">
       <Stack gap="md">
         <Group justify="space-between" wrap="wrap">
-          <Title order={3}>Current job</Title>
+          <Title order={3}>{t('videoResultsPanel.currentJob')}</Title>
           {job ? (
             <Group gap="xs">
               {pollingEnabled ? (
@@ -43,63 +47,88 @@ export function VideoResultsPanel({
                   color={isPollingNow ? 'cyan' : 'blue'}
                   variant={isPollingNow ? 'filled' : 'light'}
                 >
-                  {isPollingNow ? 'Polling now' : 'Polling armed'}
+                  {isPollingNow
+                    ? t('videoResultsPanel.pollingNow')
+                    : t('videoResultsPanel.pollingArmed')}
                 </Badge>
               ) : null}
               <Badge color={resolveStatusColor(job.status)} variant="light">
-                {job.status}
+                {t(`videoResultsPanel.status.${job.status}`)}
               </Badge>
             </Group>
           ) : null}
         </Group>
 
         {!job ? (
-          <Alert color="gray" title="No video job yet">
-            Submit a request to create an async video job, then this panel will
-            follow the polling and show the ingested result asset.
+          <Alert color="gray" title={t('videoResultsPanel.noVideoJobYet')}>
+            {t('videoResultsPanel.submitARequestToCreateAnAsync')}
           </Alert>
         ) : (
           <Stack gap="md">
             <Group gap="xs" wrap="wrap">
               <Badge variant="light">{job.providerId}</Badge>
               <Badge variant="light">{job.model}</Badge>
-              <Badge variant="outline">Request {job.requestId}</Badge>
+              <Badge variant="outline">
+                {t('videoResultsPanel.requestValue', {
+                  request: job.requestId,
+                })}
+              </Badge>
             </Group>
 
             {providerState ? (
               <Alert
                 color={providerState.color}
-                title={providerState.title}
+                title={t(providerState.titleKey)}
                 variant="light"
               >
                 <Group align="flex-start" gap="sm" wrap="nowrap">
-                  {pollingEnabled ? <Loader color={providerState.loaderColor} size="sm" /> : null}
-                  <Text size="sm">{providerState.message}</Text>
+                  {pollingEnabled ? (
+                    <Loader color={providerState.loaderColor} size="sm" />
+                  ) : null}
+                  <Text size="sm">{t(providerState.messageKey)}</Text>
                 </Group>
               </Alert>
             ) : null}
 
             <Stack gap={4}>
               <Text fw={600} size="sm">
-                Prompt
+                {t('videoResultsPanel.prompt')}
               </Text>
               <Text size="sm">{job.prompt}</Text>
             </Stack>
 
             <Group gap="md" wrap="wrap">
-              <Metric label="State" value={formatJobStatus(job.status)} />
-              <Metric label="Created" value={formatDateTime(job.createdAt)} />
               <Metric
-                label="Started"
-                value={job.startedAt ? formatDateTime(job.startedAt) : 'Not started yet'}
+                label={t('videoResultsPanel.state')}
+                value={t(`videoResultsPanel.status.${job.status}`)}
               />
               <Metric
-                label="Completed"
-                value={job.completedAt ? formatDateTime(job.completedAt) : 'Pending'}
+                label={t('videoResultsPanel.created')}
+                value={formatDateTime(job.createdAt)}
               />
               <Metric
-                label="Duration"
-                value={job.durationMs ? formatDuration(job.durationMs) : 'Pending'}
+                label={t('videoResultsPanel.started')}
+                value={
+                  job.startedAt
+                    ? formatDateTime(job.startedAt)
+                    : t('videoResultsPanel.notStartedYet')
+                }
+              />
+              <Metric
+                label={t('videoResultsPanel.completed')}
+                value={
+                  job.completedAt
+                    ? formatDateTime(job.completedAt)
+                    : t('videoResultsPanel.pending')
+                }
+              />
+              <Metric
+                label={t('videoResultsPanel.duration')}
+                value={
+                  job.durationMs
+                    ? formatDuration(job.durationMs)
+                    : t('videoResultsPanel.pending')
+                }
               />
             </Group>
 
@@ -108,35 +137,43 @@ export function VideoResultsPanel({
                 <Stack gap="sm">
                   <Group gap="md" grow>
                     <Metric
-                      label="Elapsed"
-                      value={formatClockDuration(videoLab.currentRenderElapsedMs)}
+                      label={t('videoResultsPanel.elapsed')}
+                      value={formatClockDuration(
+                        videoLab.currentRenderElapsedMs,
+                      )}
                     />
                     <Metric
-                      label="Estimated"
+                      label={t('videoResultsPanel.estimated')}
                       value={
                         videoLab.estimatedRenderDurationMs
-                          ? formatClockDuration(videoLab.estimatedRenderDurationMs)
-                          : 'Calculating...'
+                          ? formatClockDuration(
+                              videoLab.estimatedRenderDurationMs,
+                            )
+                          : t('videoResultsPanel.calculating')
                       }
                     />
                   </Group>
                   {videoLab.currentRenderProgressPercent !== null ? (
                     <Stack gap={4}>
                       <Progress
-                        aria-label="Video rendering progress"
+                        aria-label={t(
+                          'videoResultsPanel.videoRenderingProgress',
+                        )}
                         radius="xl"
                         size="md"
                         value={videoLab.currentRenderProgressPercent}
                       />
                       <Text c="dimmed" size="xs">
-                        Estimate based on {videoLab.estimatedRenderSampleSize} previous{' '}
-                        {videoLab.estimatedRenderSampleSize === 1 ? 'run' : 'runs'} for this
-                        provider and model.
+                        {t('videoResultsPanel.estimateSummary', {
+                          count: videoLab.estimatedRenderSampleSize,
+                        })}
                       </Text>
                     </Stack>
                   ) : (
                     <Text c="dimmed" size="xs">
-                      Estimation will appear after a few completed runs for this provider and model.
+                      {t(
+                        'videoResultsPanel.estimationWillAppearAfterAFewCompleted',
+                      )}
                     </Text>
                   )}
                 </Stack>
@@ -148,7 +185,7 @@ export function VideoResultsPanel({
                 <Stack gap="sm">
                   <Group justify="space-between" wrap="wrap">
                     <Text fw={600} size="sm">
-                      Provider diagnostics
+                      {t('videoResultsPanel.providerDiagnostics')}
                     </Text>
                     <Badge variant="light">
                       {formatProviderName(job.providerId)}
@@ -169,15 +206,21 @@ export function VideoResultsPanel({
 
             {job.request || job.providerMetadata ? (
               <Card padding="sm" radius="md" withBorder>
-                <Accordion chevronPosition="right" defaultValue={null} variant="separated">
+                <Accordion
+                  chevronPosition="right"
+                  defaultValue={null}
+                  variant="separated"
+                >
                   <Accordion.Item value="debug-payloads">
                     <Accordion.Control>
                       <Stack gap={2}>
                         <Text fw={600} size="sm">
-                          Debug payloads
+                          {t('videoResultsPanel.debugPayloads')}
                         </Text>
                         <Text c="dimmed" size="sm">
-                          Gateway snapshot plus normalized provider metadata for troubleshooting.
+                          {t(
+                            'videoResultsPanel.gatewaySnapshotPlusNormalizedProviderMetadataFor',
+                          )}
                         </Text>
                       </Stack>
                     </Accordion.Control>
@@ -186,7 +229,7 @@ export function VideoResultsPanel({
                         {job.request ? (
                           <Stack gap={4}>
                             <Text fw={500} size="sm">
-                              Gateway request snapshot
+                              {t('videoResultsPanel.gatewayRequestSnapshot')}
                             </Text>
                             <Code block>{formatDebugJson(job.request)}</Code>
                           </Stack>
@@ -194,9 +237,11 @@ export function VideoResultsPanel({
                         {job.providerMetadata ? (
                           <Stack gap={4}>
                             <Text fw={500} size="sm">
-                              Provider metadata
+                              {t('videoResultsPanel.providerMetadata')}
                             </Text>
-                            <Code block>{formatDebugJson(job.providerMetadata)}</Code>
+                            <Code block>
+                              {formatDebugJson(job.providerMetadata)}
+                            </Code>
                           </Stack>
                         ) : null}
                       </Stack>
@@ -207,15 +252,20 @@ export function VideoResultsPanel({
             ) : null}
 
             {job.status === 'failed' && job.error ? (
-              <Alert color="red" title="Generation failed">
+              <Alert
+                color="red"
+                title={t('videoResultsPanel.generationFailed')}
+              >
                 {job.error}
               </Alert>
             ) : null}
 
             {job.status === 'cancelled' ? (
-              <Alert color="yellow" title="Generation cancelled">
-                Cancellation is normalized by the gateway and may be best-effort at
-                provider level.
+              <Alert
+                color="yellow"
+                title={t('videoResultsPanel.generationCancelled')}
+              >
+                {t('videoResultsPanel.cancellationIsNormalizedByTheGatewayAnd')}
               </Alert>
             ) : null}
 
@@ -231,7 +281,7 @@ export function VideoResultsPanel({
                   onClick={() => videoLab.cancelMutation.mutate(job.id)}
                   variant="default"
                 >
-                  Cancel job
+                  {t('videoResultsPanel.cancelJob')}
                 </Button>
                 <Button
                   disabled={!job.request}
@@ -239,7 +289,7 @@ export function VideoResultsPanel({
                   onClick={() => void videoLab.retryJob(job)}
                   variant="light"
                 >
-                  Retry
+                  {t('videoResultsPanel.retry')}
                 </Button>
                 <Button
                   color="red"
@@ -248,7 +298,7 @@ export function VideoResultsPanel({
                   onClick={() => void videoLab.deleteMutation.mutate(job.id)}
                   variant="light"
                 >
-                  Delete job
+                  {t('videoResultsPanel.deleteJob')}
                 </Button>
               </Group>
             ) : (
@@ -259,7 +309,7 @@ export function VideoResultsPanel({
                   onClick={() => void videoLab.retryJob(job)}
                   variant="light"
                 >
-                  Retry
+                  {t('videoResultsPanel.retry')}
                 </Button>
                 <Button
                   color="red"
@@ -268,38 +318,48 @@ export function VideoResultsPanel({
                   onClick={() => void videoLab.deleteMutation.mutate(job.id)}
                   variant="light"
                 >
-                  Delete job
+                  {t('videoResultsPanel.deleteJob')}
                 </Button>
               </Group>
             )}
 
             {!job.outputs.length ? (
               <Text c="dimmed" size="sm">
-                No ingested output is available yet.
+                {t('videoResultsPanel.noIngestedOutputIsAvailableYet')}
               </Text>
             ) : (
               job.outputs.map((output, index) => (
-                <Card key={output.assetId ?? `${job.id}-${index}`} radius="md" withBorder>
+                <Card
+                  key={output.assetId ?? `${job.id}-${index}`}
+                  radius="md"
+                  withBorder
+                >
                   <Stack gap="sm">
                     <Text fw={600} size="sm">
-                      Output {index + 1}
+                      {t('videoResultsPanel.outputValue', { index: index + 1 })}
                     </Text>
                     {output.contentUrl ? (
                       <video
                         controls
                         preload="metadata"
                         src={videoLab.mediaUrl(output.contentUrl)}
-                        style={{ borderRadius: '12px', maxWidth: '100%', width: '100%' }}
+                        style={{
+                          borderRadius: '12px',
+                          maxWidth: '100%',
+                          width: '100%',
+                        }}
                       />
                     ) : (
-                      <Alert color="yellow" title="Preview unavailable">
-                        The job succeeded, but this output is missing an application
-                        asset URL.
+                      <Alert
+                        color="yellow"
+                        title={t('videoResultsPanel.previewUnavailable')}
+                      >
+                        {t('videoResultsPanel.theJobSucceededButThisOutputIs')}
                       </Alert>
                     )}
                     <Group gap="md" wrap="wrap">
                       <Metric
-                        label="Resolution"
+                        label={t('videoResultsPanel.resolution')}
                         value={
                           output.width && output.height
                             ? `${output.width} x ${output.height}`
@@ -307,7 +367,7 @@ export function VideoResultsPanel({
                         }
                       />
                       <Metric
-                        label="Duration"
+                        label={t('videoResultsPanel.duration')}
                         value={
                           typeof output.durationSeconds === 'number'
                             ? `${output.durationSeconds}s`
@@ -315,7 +375,7 @@ export function VideoResultsPanel({
                         }
                       />
                       <Metric
-                        label="Size"
+                        label={t('videoResultsPanel.size')}
                         value={
                           typeof output.byteSize === 'number'
                             ? formatBytes(output.byteSize)
@@ -350,7 +410,7 @@ export function VideoResultsPanel({
                           rel="noreferrer"
                           target="_blank"
                         >
-                          Open application asset
+                          {t('videoResultsPanel.openApplicationAsset')}
                         </Anchor>
                       ) : null}
                     </Group>
@@ -365,13 +425,7 @@ export function VideoResultsPanel({
   );
 }
 
-function Metric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <Stack gap={2}>
       <Text c="dimmed" size="xs" tt="uppercase">
@@ -399,34 +453,15 @@ function resolveStatusColor(status: GatewayVideoGenerationJob['status']) {
 
 function isTerminalStatus(status: GatewayVideoGenerationJob['status']) {
   return (
-    status === 'succeeded' ||
-    status === 'failed' ||
-    status === 'cancelled'
+    status === 'succeeded' || status === 'failed' || status === 'cancelled'
   );
-}
-
-function formatJobStatus(status: GatewayVideoGenerationJob['status']) {
-  if (status === 'queued') {
-    return 'Queued';
-  }
-  if (status === 'running') {
-    return 'Rendering';
-  }
-  if (status === 'succeeded') {
-    return 'Succeeded';
-  }
-  if (status === 'failed') {
-    return 'Failed';
-  }
-  return 'Cancelled';
 }
 
 function describeProviderState(status: GatewayVideoGenerationJob['status']) {
   if (status === 'queued') {
     return {
-      title: 'Queued at provider',
-      message:
-        'The gateway submitted the job successfully, but the provider has not started rendering yet. The gateway will keep polling until the job starts or finishes.',
+      titleKey: 'videoResultsPanel.providerState.queuedTitle',
+      messageKey: 'videoResultsPanel.providerState.queuedMessage',
       color: 'blue',
       loaderColor: 'blue',
     } as const;
@@ -434,9 +469,8 @@ function describeProviderState(status: GatewayVideoGenerationJob['status']) {
 
   if (status === 'running') {
     return {
-      title: 'Generation in progress',
-      message:
-        'The provider is actively rendering the video. The result will appear here after the gateway ingests the provider artifact into application storage.',
+      titleKey: 'videoResultsPanel.providerState.runningTitle',
+      messageKey: 'videoResultsPanel.providerState.runningMessage',
       color: 'teal',
       loaderColor: 'teal',
     } as const;
@@ -444,9 +478,8 @@ function describeProviderState(status: GatewayVideoGenerationJob['status']) {
 
   if (status === 'succeeded') {
     return {
-      title: 'Generation completed',
-      message:
-        'The provider job completed and the gateway has an ingested application-owned asset available below.',
+      titleKey: 'videoResultsPanel.providerState.succeededTitle',
+      messageKey: 'videoResultsPanel.providerState.succeededMessage',
       color: 'teal',
       loaderColor: 'teal',
     } as const;
@@ -454,9 +487,8 @@ function describeProviderState(status: GatewayVideoGenerationJob['status']) {
 
   if (status === 'failed') {
     return {
-      title: 'Generation failed',
-      message:
-        'The provider job reached a terminal failure state. Review the error details below before retrying.',
+      titleKey: 'videoResultsPanel.providerState.failedTitle',
+      messageKey: 'videoResultsPanel.providerState.failedMessage',
       color: 'red',
       loaderColor: 'red',
     } as const;
@@ -464,9 +496,8 @@ function describeProviderState(status: GatewayVideoGenerationJob['status']) {
 
   if (status === 'cancelled') {
     return {
-      title: 'Generation cancelled',
-      message:
-        'The gateway marked this job as cancelled. Provider-side cancellation may be best-effort depending on upstream support.',
+      titleKey: 'videoResultsPanel.providerState.cancelledTitle',
+      messageKey: 'videoResultsPanel.providerState.cancelledMessage',
       color: 'yellow',
       loaderColor: 'yellow',
     } as const;
@@ -536,11 +567,15 @@ function buildProviderDiagnostics(metadata: Record<string, unknown>) {
 }
 
 function readString(value: unknown) {
-  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+  return typeof value === 'string' && value.trim().length > 0
+    ? value
+    : undefined;
 }
 
 function readNumber(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function readRecord(value: unknown) {
@@ -560,5 +595,3 @@ function formatProviderName(providerId: string) {
 function formatDebugJson(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
-
-

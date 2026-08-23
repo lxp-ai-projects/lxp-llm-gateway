@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Accordion,
   Alert,
@@ -38,6 +39,7 @@ import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 
 export function EvaluationLabPage() {
+  const { t } = useTranslation('evaluation');
   const labels = getEvaluationLabCopy(navigator.language);
   const session = useSession();
   const [presetId, setPresetId] = useState(EVALUATION_PRESETS[0].id);
@@ -83,16 +85,16 @@ export function EvaluationLabPage() {
     <>
       <PageHeader
         title={labels.title}
-        description="Exercise server-controlled structured evaluation profiles through the real tenant-aware Gateway pipeline."
+        description={t(
+          'evaluationLabPage.exerciseServerControlledStructuredEvaluationProfilesThrough',
+        )}
         context={getActiveTenantLabel(session.data)}
       />
 
       <Alert color="blue" icon={<IconFlask size={18} />} mb="lg">
-        Evaluation results are structured evidence produced by the Gateway.
-        Downstream services such as PGS remain responsible for policy and
-        capability decisions. In local development, this request goes through
-        Admin API on port 3002 to Gateway API on port 3001; it does not call the
-        PGS application on port 3004.
+        {t(
+          'evaluationLabPage.evaluationResultsAreStructuredEvidenceProducedBy',
+        )}
       </Alert>
 
       <Grid align="stretch">
@@ -101,8 +103,13 @@ export function EvaluationLabPage() {
             <Stack gap="md">
               <Title order={2}>{labels.input}</Title>
               {profiles.isError ? (
-                <Alert color="red" title="Profiles unavailable">
-                  Evaluation profile metadata could not be loaded.
+                <Alert
+                  color="red"
+                  title={t('evaluationLabPage.profilesUnavailable')}
+                >
+                  {t(
+                    'evaluationLabPage.evaluationProfileMetadataCouldNotBeLoaded',
+                  )}
                 </Alert>
               ) : null}
               <Select
@@ -120,9 +127,13 @@ export function EvaluationLabPage() {
               {selectedProfile ? (
                 <Stack gap="xs">
                   <Group gap="xs">
-                    <Badge>Schema {selectedProfile.schemaVersion}</Badge>
+                    <Badge>
+                      {t('evaluationLabPage.schema')}
+                      {selectedProfile.schemaVersion}
+                    </Badge>
                     <Badge variant="light">
-                      Profile v{selectedProfile.profileVersion}
+                      {t('evaluationLabPage.profileV')}
+                      {selectedProfile.profileVersion}
                     </Badge>
                     <Badge
                       color={
@@ -133,14 +144,18 @@ export function EvaluationLabPage() {
                     </Badge>
                   </Group>
                   <Text size="sm" c="dimmed">
-                    Provider:{' '}
-                    {selectedProfile.readiness.providerId ?? 'not configured'} ·
-                    Model: {selectedProfile.readiness.model ?? 'not configured'}{' '}
-                    · Credential:{' '}
+                    {t('evaluationLabPage.provider')}{' '}
+                    {selectedProfile.readiness.providerId ?? 'not configured'}{' '}
+                    {t('evaluationLabPage.model')}
+                    {selectedProfile.readiness.model ?? 'not configured'}{' '}
+                    {t('evaluationLabPage.credential')}{' '}
                     {selectedProfile.readiness.credentialPath ?? 'unavailable'}
                   </Text>
                   {!selectedProfile.readiness.ready ? (
-                    <Alert color="orange" title="Profile preflight failed">
+                    <Alert
+                      color="orange"
+                      title={t('evaluationLabPage.profilePreflightFailed')}
+                    >
                       {getReadinessFailureMessage(
                         selectedProfile.readiness,
                         navigator.language,
@@ -151,7 +166,9 @@ export function EvaluationLabPage() {
               ) : null}
               <Select
                 label={labels.preset}
-                description="Presets populate test data; they do not prescribe an expected policy outcome."
+                description={t(
+                  'evaluationLabPage.presetsPopulateTestDataTheyDoNot',
+                )}
                 data={EVALUATION_PRESETS.map((preset) => ({
                   value: preset.id,
                   label: preset.label,
@@ -161,7 +178,7 @@ export function EvaluationLabPage() {
                 onChange={applyPreset}
               />
               <TextInput
-                label="Question version ID"
+                label={t('evaluationLabPage.questionVersionID')}
                 value={input.questionVersionId}
                 onChange={(event) =>
                   setInput({
@@ -174,7 +191,7 @@ export function EvaluationLabPage() {
               <Grid>
                 <Grid.Col span={{ base: 12, sm: 8 }}>
                   <TextInput
-                    label="Rubric ID"
+                    label={t('evaluationLabPage.rubricID')}
                     value={input.rubric.id}
                     onChange={(event) =>
                       setInput({
@@ -190,7 +207,7 @@ export function EvaluationLabPage() {
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 4 }}>
                   <NumberInput
-                    label="Rubric version"
+                    label={t('evaluationLabPage.rubricVersion')}
                     min={1}
                     value={input.rubric.version}
                     onChange={(value) =>
@@ -207,7 +224,7 @@ export function EvaluationLabPage() {
                 </Grid.Col>
               </Grid>
               <Textarea
-                label="Rubric guidance"
+                label={t('evaluationLabPage.rubricGuidance')}
                 minRows={3}
                 maxLength={8000}
                 value={input.rubric.guidance}
@@ -223,8 +240,8 @@ export function EvaluationLabPage() {
                 required
               />
               <Textarea
-                label="Candidate / observable content"
-                description="This test content may be sent to the evaluator model configured for the active tenant."
+                label={t('evaluationLabPage.candidateObservableContent')}
+                description={t('evaluationLabPage.thisTestContentMayBeSentTo')}
                 minRows={7}
                 maxLength={10000}
                 value={input.answerText}
@@ -234,7 +251,7 @@ export function EvaluationLabPage() {
                 required
               />
               <TextInput
-                label="Evidence reference"
+                label={t('evaluationLabPage.evidenceReference')}
                 value={input.evidenceReference.referenceId}
                 onChange={(event) =>
                   setInput({
@@ -249,7 +266,7 @@ export function EvaluationLabPage() {
               />
               <Paper p="sm" withBorder>
                 <Text fw={600} size="sm" mb="xs">
-                  Allowed observable dimensions
+                  {t('evaluationLabPage.allowedObservableDimensions')}
                 </Text>
                 <Group gap="xs">
                   {Array.from(
@@ -287,8 +304,7 @@ export function EvaluationLabPage() {
               <Title order={2}>{labels.result}</Title>
               {probe.isIdle ? (
                 <Text c="dimmed">
-                  Select a profile and run an evaluation to inspect structured
-                  evidence.
+                  {t('evaluationLabPage.selectAProfileAndRunAnEvaluation')}
                 </Text>
               ) : null}
               {probe.isError ? (
@@ -302,8 +318,11 @@ export function EvaluationLabPage() {
                 />
               ) : null}
               {copyError ? (
-                <Alert color="red" title="Copy unavailable">
-                  The sanitized result could not be copied.
+                <Alert
+                  color="red"
+                  title={t('evaluationLabPage.copyUnavailable')}
+                >
+                  {t('evaluationLabPage.theSanitizedResultCouldNotBeCopied')}
                 </Alert>
               ) : null}
             </Stack>
@@ -359,10 +378,11 @@ function ResultPanel({
   result: EvaluationProbeResult;
   onCopy(): void;
 }) {
+  const { t } = useTranslation('evaluation');
   return (
     <Stack gap="md">
       <Group gap="xs">
-        <Badge color="teal">Succeeded</Badge>
+        <Badge color="teal">{t('resultPanel.succeeded')}</Badge>
         <Badge variant="outline">{result.profileId}</Badge>
         <Badge variant="outline">v{result.profileVersion}</Badge>
       </Group>
@@ -371,11 +391,13 @@ function ResultPanel({
           <Text size="xs" c="dimmed">
             {labels.latency}
           </Text>
-          <Text fw={600}>{result.latencyMs} ms</Text>
+          <Text fw={600}>
+            {result.latencyMs} {t('resultPanel.ms')}
+          </Text>
         </Grid.Col>
         <Grid.Col span={6}>
           <Text size="xs" c="dimmed">
-            Schema version
+            {t('resultPanel.schemaVersion')}
           </Text>
           <Text fw={600}>{result.schemaVersion}</Text>
         </Grid.Col>
@@ -387,13 +409,13 @@ function ResultPanel({
         </Grid.Col>
         <Grid.Col span={12}>
           <Text size="xs" c="dimmed">
-            Request / correlation ID
+            {t('resultPanel.requestCorrelationID')}
           </Text>
           <Code>{result.requestId}</Code>
         </Grid.Col>
         <Grid.Col span={12}>
           <Text size="xs" c="dimmed">
-            Timestamp
+            {t('resultPanel.timestamp')}
           </Text>
           <Text>{result.timestamp}</Text>
         </Grid.Col>
@@ -424,12 +446,14 @@ function ResultPanel({
           </Paper>
         ))
       ) : (
-        <Text c="dimmed">No observable signals were returned.</Text>
+        <Text c="dimmed">
+          {t('resultPanel.noObservableSignalsWereReturned')}
+        </Text>
       )}
       <Grid>
         <Grid.Col span={6}>
           <Text size="sm" c="dimmed">
-            Ambiguity
+            {t('resultPanel.ambiguity')}
           </Text>
           <Text fw={600}>
             {Math.round(result.evidence.ambiguity.score * 100)}%
@@ -437,18 +461,22 @@ function ResultPanel({
         </Grid.Col>
         <Grid.Col span={6}>
           <Text size="sm" c="dimmed">
-            Contradiction detected
+            {t('resultPanel.contradictionDetected')}
           </Text>
           <Text fw={600}>
-            {result.evidence.contradiction.detected ? 'Yes' : 'No'}
+            {result.evidence.contradiction.detected
+              ? t('resultPanel.yes')
+              : t('resultPanel.no')}
           </Text>
         </Grid.Col>
         <Grid.Col span={12}>
           <Text size="sm" c="dimmed">
-            Follow-up recommended
+            {t('resultPanel.followUpRecommended')}
           </Text>
           <Text fw={600}>
-            {result.evidence.followUpRecommended ? 'Yes' : 'No'}
+            {result.evidence.followUpRecommended
+              ? t('resultPanel.yes')
+              : t('resultPanel.no')}
           </Text>
         </Grid.Col>
       </Grid>
@@ -457,11 +485,13 @@ function ResultPanel({
         leftSection={<IconClipboard size={16} />}
         onClick={onCopy}
       >
-        Copy sanitized result
+        {t('resultPanel.copySanitizedResult')}
       </Button>
       <Accordion variant="contained">
         <Accordion.Item value="raw">
-          <Accordion.Control>Raw sanitized response</Accordion.Control>
+          <Accordion.Control>
+            {t('resultPanel.rawSanitizedResponse')}
+          </Accordion.Control>
           <Accordion.Panel>
             <Code block>{JSON.stringify(result, null, 2)}</Code>
           </Accordion.Panel>
@@ -478,6 +508,7 @@ function ProbeError({
   error: Error;
   labels: ReturnType<typeof getEvaluationLabCopy>;
 }) {
+  const { t } = useTranslation('evaluation');
   const apiError = error as Error & Partial<ParsedApiError>;
   const copyByCode: Record<string, string> = {
     evaluation_timeout: labels.timeout,
@@ -509,7 +540,7 @@ function ProbeError({
       ? labels.unauthorized
       : 'The evaluation probe failed unexpectedly.');
   return (
-    <Alert color="red" title="Evaluation failed">
+    <Alert color="red" title={t('probeError.evaluationFailed')}>
       {message}
     </Alert>
   );

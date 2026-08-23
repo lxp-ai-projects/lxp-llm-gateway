@@ -15,6 +15,7 @@ import {
   type ProviderCredentialSummary,
 } from '../../../lib/api-client';
 import { getActiveTenantLabel } from '../../../lib/tenant-context';
+import { getLocalizedErrorMessage } from '../../../i18n/errors';
 import { useSession } from '../../../lib/use-session';
 
 export function useTenantsController() {
@@ -1294,10 +1295,9 @@ export function useTenantsController() {
       testTenantProviderConfigurationMutation.isPending,
     testTenantProviderConfigurationResult:
       testTenantProviderConfigurationMutation.data ?? null,
-    updateGlobalRolesError:
-      updateGlobalRolesMutation.error instanceof Error
-        ? updateGlobalRolesMutation.error.message
-        : null,
+    updateGlobalRolesError: updateGlobalRolesMutation.error
+      ? getLocalizedErrorMessage(updateGlobalRolesMutation.error)
+      : null,
     onDismissRevealedIntegrationApiKey: () =>
       setRevealedIntegrationApiKey(null),
     onTestIntegrationClient: (

@@ -93,8 +93,10 @@ export const es = {
     generic: 'Algo salió mal. Inténtalo de nuevo.',
     authenticationRequired: 'Se requiere autenticación. Inicia sesión.',
     permissionDenied: 'No tienes permiso para realizar esta acción.',
-    networkUnavailable: 'El servicio no está disponible. Comprueba tu conexión e inténtalo de nuevo.',
-    serverFailure: 'El servidor no pudo completar la solicitud. Inténtalo de nuevo.',
+    networkUnavailable:
+      'El servicio no está disponible. Comprueba tu conexión e inténtalo de nuevo.',
+    serverFailure:
+      'El servidor no pudo completar la solicitud. Inténtalo de nuevo.',
     sessionExpired: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
     credentialConflict: 'Ya existe una credencial para este proveedor.',
     validation: 'Revisa los valores indicados e inténtalo de nuevo.',

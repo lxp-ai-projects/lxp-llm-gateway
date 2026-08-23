@@ -6,8 +6,77 @@ import { de } from './resources/de';
 import { en } from './resources/en';
 import { es } from './resources/es';
 import { fr } from './resources/fr';
+import chatEn from './generated/chat.en.json';
+import chatFr from './generated/chat.fr.json';
+import chatEs from './generated/chat.es.json';
+import chatDe from './generated/chat.de.json';
+import imageEn from './generated/image.en.json';
+import imageFr from './generated/image.fr.json';
+import imageEs from './generated/image.es.json';
+import imageDe from './generated/image.de.json';
+import videoEn from './generated/video.en.json';
+import videoFr from './generated/video.fr.json';
+import videoEs from './generated/video.es.json';
+import videoDe from './generated/video.de.json';
+import providersEn from './generated/providers.en.json';
+import providersFr from './generated/providers.fr.json';
+import providersEs from './generated/providers.es.json';
+import providersDe from './generated/providers.de.json';
+import profileEn from './generated/profile.en.json';
+import profileFr from './generated/profile.fr.json';
+import profileEs from './generated/profile.es.json';
+import profileDe from './generated/profile.de.json';
+import evaluationEn from './generated/evaluation.en.json';
+import evaluationFr from './generated/evaluation.fr.json';
+import evaluationEs from './generated/evaluation.es.json';
+import evaluationDe from './generated/evaluation.de.json';
+import tenantsEn from './generated/tenants.en.json';
+import tenantsFr from './generated/tenants.fr.json';
+import tenantsEs from './generated/tenants.es.json';
+import tenantsDe from './generated/tenants.de.json';
 
-export const resources = { en, fr, es, de } as const;
+export const resources = {
+  en: {
+    ...en,
+    chat: chatEn,
+    image: imageEn,
+    video: videoEn,
+    providers: providersEn,
+    profile: profileEn,
+    evaluation: evaluationEn,
+    tenants: tenantsEn,
+  },
+  fr: {
+    ...fr,
+    chat: chatFr,
+    image: imageFr,
+    video: videoFr,
+    providers: providersFr,
+    profile: profileFr,
+    evaluation: evaluationFr,
+    tenants: tenantsFr,
+  },
+  es: {
+    ...es,
+    chat: chatEs,
+    image: imageEs,
+    video: videoEs,
+    providers: providersEs,
+    profile: profileEs,
+    evaluation: evaluationEs,
+    tenants: tenantsEs,
+  },
+  de: {
+    ...de,
+    chat: chatDe,
+    image: imageDe,
+    video: videoDe,
+    providers: providersDe,
+    profile: profileDe,
+    evaluation: evaluationDe,
+    tenants: tenantsDe,
+  },
+} as const;
 
 void i18n.use(initReactI18next).init({
   resources,

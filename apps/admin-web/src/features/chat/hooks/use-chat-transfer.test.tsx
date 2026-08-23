@@ -201,7 +201,7 @@ test('useChatTransfer surfaces export and import failures with fallback messages
   });
 
   expect(hook.result.current.transferError).toBe(
-    'The conversation export failed unexpectedly.',
+    'Something went wrong. Please try again.',
   );
 
   await act(async () => {
@@ -209,7 +209,7 @@ test('useChatTransfer surfaces export and import failures with fallback messages
   });
 
   expect(hook.result.current.transferError).toBe(
-    'The conversation import failed unexpectedly.',
+    'Something went wrong. Please try again.',
   );
   expect(hook.result.current.isTransferBusy).toBe(false);
 });

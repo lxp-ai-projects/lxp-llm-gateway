@@ -226,7 +226,8 @@ test('useChatStreaming warns when the assistant stream stops at the model output
     };
   });
 
-  const { hook, onSetChatError, onSetChatWarning, currentConversations } = setup();
+  const { hook, onSetChatError, onSetChatWarning, currentConversations } =
+    setup();
 
   await act(async () => {
     await hook.result.current.sendMessage(createConversation, 'Hello');
@@ -380,7 +381,7 @@ test('useChatStreaming preserves partial assistant output when the stream fails 
     await hook.result.current.sendMessage(createConversation, 'Hello');
   });
 
-  expect(onSetChatError).toHaveBeenLastCalledWith('socket reset');
+  expect(onSetChatError).toHaveBeenLastCalledWith('Something went wrong. Please try again.');
   expect(saveConversationMock).toHaveBeenCalled();
   expect(currentConversations()[0]?.messages.at(-1)).toMatchObject({
     role: 'assistant',
@@ -399,7 +400,7 @@ test('useChatStreaming removes the draft assistant message when the stream fails
   });
 
   expect(onSetChatError).toHaveBeenLastCalledWith(
-    'The gateway stream failed unexpectedly.',
+    'Something went wrong. Please try again.',
   );
   expect(currentConversations()[0]?.messages).toHaveLength(2);
   expect(

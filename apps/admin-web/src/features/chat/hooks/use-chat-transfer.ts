@@ -1,6 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 
 import { adminApiClient } from '../../../lib/api-client';
+import { getLocalizedErrorMessage } from '../../../i18n/errors';
 import {
   type ConversationScope,
   saveConversation,
@@ -42,11 +43,7 @@ export function useChatTransfer({
         exported.fileName ?? `${conversation.title}.json`,
       );
     } catch (error) {
-      setTransferError(
-        error instanceof Error
-          ? error.message
-          : 'The conversation export failed unexpectedly.',
-      );
+      setTransferError(getLocalizedErrorMessage(error));
     } finally {
       setIsTransferBusy(false);
     }
@@ -68,11 +65,7 @@ export function useChatTransfer({
         exported.fileName ?? 'lxp-chat-conversations.zip',
       );
     } catch (error) {
-      setTransferError(
-        error instanceof Error
-          ? error.message
-          : 'The conversation archive export failed unexpectedly.',
-      );
+      setTransferError(getLocalizedErrorMessage(error));
     } finally {
       setIsTransferBusy(false);
     }
@@ -84,11 +77,13 @@ export function useChatTransfer({
 
     try {
       const imported = await adminApiClient.importConversationFile(file);
-      const scopedConversations = imported.conversations.map((conversation) => ({
-        ...conversation,
-        ownerUserUuid: scope.userUuid,
-        tenantId: scope.tenantId,
-      }));
+      const scopedConversations = imported.conversations.map(
+        (conversation) => ({
+          ...conversation,
+          ownerUserUuid: scope.userUuid,
+          tenantId: scope.tenantId,
+        }),
+      );
       for (const conversation of scopedConversations) {
         await saveConversation(conversation);
       }
@@ -103,11 +98,7 @@ export function useChatTransfer({
       );
       setActivePanel('conversation');
     } catch (error) {
-      setTransferError(
-        error instanceof Error
-          ? error.message
-          : 'The conversation import failed unexpectedly.',
-      );
+      setTransferError(getLocalizedErrorMessage(error));
     } finally {
       setIsTransferBusy(false);
     }

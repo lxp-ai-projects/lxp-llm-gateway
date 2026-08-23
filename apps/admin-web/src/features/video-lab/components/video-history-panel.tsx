@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Badge,
@@ -18,25 +19,26 @@ export function VideoHistoryPanel({
 }: {
   videoLab: ReturnTypeUseVideoLab;
 }) {
+  const { t } = useTranslation('video');
   const history = videoLab.historyQuery.data;
 
   return (
     <Card className="section-card">
       <Stack gap="md">
         <Group justify="space-between" wrap="wrap">
-          <Title order={3}>Video history</Title>
+          <Title order={3}>{t('videoHistoryPanel.videoHistory')}</Title>
           <Text c="dimmed" size="sm">
-            10 items per page
+            {t('videoHistoryPanel.10ItemsPerPage')}
           </Text>
         </Group>
 
         {videoLab.historyQuery.isPending ? (
           <Text c="dimmed" size="sm">
-            Loading previous jobs...
+            {t('videoHistoryPanel.loadingPreviousJobs')}
           </Text>
         ) : !history?.items.length ? (
-          <Alert color="gray" title="No history yet">
-            Submitted video jobs will appear here once the pipeline starts.
+          <Alert color="gray" title={t('videoHistoryPanel.noHistoryYet')}>
+            {t('videoHistoryPanel.submittedVideoJobsWillAppearHereOnce')}
           </Alert>
         ) : (
           <Stack gap="sm">
@@ -53,7 +55,10 @@ export function VideoHistoryPanel({
                       </Text>
                     </Stack>
                     <Group gap="xs">
-                      <Badge color={resolveStatusColor(job.status)} variant="light">
+                      <Badge
+                        color={resolveStatusColor(job.status)}
+                        variant="light"
+                      >
                         {job.status}
                       </Badge>
                       <Button
@@ -61,7 +66,7 @@ export function VideoHistoryPanel({
                         size="xs"
                         variant="light"
                       >
-                        Load in results
+                        {t('videoHistoryPanel.loadInResults')}
                       </Button>
                       <Button
                         disabled={!job.request}
@@ -70,7 +75,7 @@ export function VideoHistoryPanel({
                         size="xs"
                         variant="light"
                       >
-                        Retry
+                        {t('videoHistoryPanel.retry')}
                       </Button>
                       <Button
                         color="red"
@@ -79,11 +84,13 @@ export function VideoHistoryPanel({
                           videoLab.deleteMutation.isPending
                         }
                         loading={videoLab.deleteMutation.isPending}
-                        onClick={() => void videoLab.deleteMutation.mutate(job.id)}
+                        onClick={() =>
+                          void videoLab.deleteMutation.mutate(job.id)
+                        }
                         size="xs"
                         variant="light"
                       >
-                        Delete
+                        {t('videoHistoryPanel.delete')}
                       </Button>
                     </Group>
                   </Group>
@@ -92,7 +99,9 @@ export function VideoHistoryPanel({
 
                   <Group gap="xs" wrap="wrap">
                     <Badge variant="outline">
-                      {job.outputs.length} output{job.outputs.length === 1 ? '' : 's'}
+                      {t('videoHistoryPanel.outputCount', {
+                        count: job.outputs.length,
+                      })}
                     </Badge>
                     {job.durationMs ? (
                       <Badge variant="outline">
@@ -103,21 +112,31 @@ export function VideoHistoryPanel({
 
                   {job.outputs.length ? (
                     job.outputs.map((output, index) => (
-                      <Card key={output.assetId ?? `${job.id}-output-${index}`} withBorder>
+                      <Card
+                        key={output.assetId ?? `${job.id}-output-${index}`}
+                        withBorder
+                      >
                         <Stack gap="xs">
                           <Text fw={500} size="sm">
-                            Output {index + 1}
+                            {t('videoHistoryPanel.output2')}
+                            {index + 1}
                           </Text>
                           {output.contentUrl ? (
                             <video
                               controls
                               preload="metadata"
                               src={videoLab.mediaUrl(output.contentUrl)}
-                              style={{ borderRadius: '12px', maxWidth: '100%', width: '100%' }}
+                              style={{
+                                borderRadius: '12px',
+                                maxWidth: '100%',
+                                width: '100%',
+                              }}
                             />
                           ) : (
                             <Text c="dimmed" size="sm">
-                              No application asset is available for this output yet.
+                              {t(
+                                'videoHistoryPanel.noApplicationAssetIsAvailableForThis',
+                              )}
                             </Text>
                           )}
                         </Stack>
@@ -125,7 +144,7 @@ export function VideoHistoryPanel({
                     ))
                   ) : (
                     <Text c="dimmed" size="sm">
-                      No output has been ingested for this job yet.
+                      {t('videoHistoryPanel.noOutputHasBeenIngestedForThis')}
                     </Text>
                   )}
                 </Stack>
@@ -142,17 +161,18 @@ export function VideoHistoryPanel({
             }
             variant="default"
           >
-            Previous
+            {t('videoHistoryPanel.previous')}
           </Button>
           <Text c="dimmed" size="sm">
-            Page {history?.page ?? 1} / {history?.totalPages ?? 1}
+            {t('videoHistoryPanel.page')}
+            {history?.page ?? 1} / {history?.totalPages ?? 1}
           </Text>
           <Button
             disabled={!history || history.page >= history.totalPages}
             onClick={() => videoLab.setHistoryPage((current) => current + 1)}
             variant="default"
           >
-            Next
+            {t('videoHistoryPanel.next')}
           </Button>
         </Group>
       </Stack>
@@ -175,8 +195,6 @@ function resolveStatusColor(status: GatewayVideoGenerationJob['status']) {
 
 function isTerminalStatus(status: GatewayVideoGenerationJob['status']) {
   return (
-    status === 'succeeded' ||
-    status === 'failed' ||
-    status === 'cancelled'
+    status === 'succeeded' || status === 'failed' || status === 'cancelled'
   );
 }

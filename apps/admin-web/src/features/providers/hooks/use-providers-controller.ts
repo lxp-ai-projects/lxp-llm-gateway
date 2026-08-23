@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { adminApiClient } from '../../../lib/api-client';
 import type { ParsedApiError } from '../../../lib/api-base';
+import { getLocalizedErrorMessage } from '../../../i18n/errors';
 import type { ProviderCredentialSummary } from '../../../lib/api-client.types';
 import { useRuntimeConfig } from '../../../lib/use-runtime-config';
 import {
@@ -32,9 +33,9 @@ export function useProvidersController() {
   const [credentialValidationError, setCredentialValidationError] = useState<
     string | null
   >(null);
-  const [credentialSubmitError, setCredentialSubmitError] = useState<string | null>(
-    null,
-  );
+  const [credentialSubmitError, setCredentialSubmitError] = useState<
+    string | null
+  >(null);
   const [credentialConflictPrompt, setCredentialConflictPrompt] = useState<{
     providerId: string;
     label: string;
@@ -49,19 +50,21 @@ export function useProvidersController() {
   >('edit');
   const [credentialDeleteTarget, setCredentialDeleteTarget] =
     useState<ProviderCredentialSummary | null>(null);
-  const [deleteCredentialError, setDeleteCredentialError] = useState<string | null>(
-    null,
-  );
+  const [deleteCredentialError, setDeleteCredentialError] = useState<
+    string | null
+  >(null);
   const [deleteCredentialSuccessMessage, setDeleteCredentialSuccessMessage] =
     useState<string | null>(null);
   const [defaultProviderId, setDefaultProviderId] = useState<string | null>(
     null,
   );
   const [defaultModel, setDefaultModel] = useState<string | null>(null);
-  const [defaultImageProviderId, setDefaultImageProviderId] = useState<string | null>(
+  const [defaultImageProviderId, setDefaultImageProviderId] = useState<
+    string | null
+  >(null);
+  const [defaultImageModel, setDefaultImageModel] = useState<string | null>(
     null,
   );
-  const [defaultImageModel, setDefaultImageModel] = useState<string | null>(null);
 
   const credentialsQuery = useQuery({
     queryKey: ['own-provider-credentials'],
@@ -95,7 +98,9 @@ export function useProvidersController() {
 
     setDefaultProviderId(providerSettingsQuery.data.defaultProviderId);
     setDefaultModel(providerSettingsQuery.data.defaultModel);
-    setDefaultImageProviderId(providerSettingsQuery.data.defaultImageProviderId);
+    setDefaultImageProviderId(
+      providerSettingsQuery.data.defaultImageProviderId,
+    );
     setDefaultImageModel(providerSettingsQuery.data.defaultImageModel);
   }, [providerSettingsQuery.data]);
 
@@ -111,7 +116,11 @@ export function useProvidersController() {
       supportedProviders,
       imageCatalogQuery.data?.providers ?? [],
     );
-  }, [credentialsQuery.data, imageCatalogQuery.data?.providers, supportedProviders]);
+  }, [
+    credentialsQuery.data,
+    imageCatalogQuery.data?.providers,
+    supportedProviders,
+  ]);
 
   const modelsQuery = useQuery({
     queryKey: ['provider-models', defaultProviderId],
@@ -199,20 +208,14 @@ export function useProvidersController() {
           providerId,
           label: label.trim(),
           scope: 'user',
-          message:
-            apiError.message ||
-            'A credential already exists for this provider.',
+          message: getLocalizedErrorMessage(error),
         });
         setCredentialSubmitError(null);
         return;
       }
 
       setCredentialConflictPrompt(null);
-      setCredentialSubmitError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to save the provider credential.',
-      );
+      setCredentialSubmitError(getLocalizedErrorMessage(error));
     },
   });
 
@@ -234,11 +237,7 @@ export function useProvidersController() {
       });
     },
     onError: (error) => {
-      setDeleteCredentialError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to delete the provider credential.',
-      );
+      setDeleteCredentialError(getLocalizedErrorMessage(error));
     },
   });
 
@@ -248,7 +247,9 @@ export function useProvidersController() {
         defaultProviderId: defaultProviderId ?? null,
         defaultModel: defaultProviderId ? (defaultModel ?? null) : null,
         defaultImageProviderId: defaultImageProviderId ?? null,
-        defaultImageModel: defaultImageProviderId ? (defaultImageModel ?? null) : null,
+        defaultImageModel: defaultImageProviderId
+          ? (defaultImageModel ?? null)
+          : null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -263,7 +264,8 @@ export function useProvidersController() {
     defaultModel !== (providerSettingsQuery.data?.defaultModel ?? null) ||
     defaultImageProviderId !==
       (providerSettingsQuery.data?.defaultImageProviderId ?? null) ||
-    defaultImageModel !== (providerSettingsQuery.data?.defaultImageModel ?? null);
+    defaultImageModel !==
+      (providerSettingsQuery.data?.defaultImageModel ?? null);
 
   function resetCredentialForm() {
     setEditingCredentialId(null);
@@ -401,7 +403,8 @@ export function useProvidersController() {
       : null,
     currentDefaultProviderId:
       providerSettingsQuery.data?.defaultProviderId ?? null,
-    currentDefaultImageModel: providerSettingsQuery.data?.defaultImageModel ?? null,
+    currentDefaultImageModel:
+      providerSettingsQuery.data?.defaultImageModel ?? null,
     currentDefaultImageProviderDisplayName: providerSettingsQuery.data
       ?.defaultImageProviderId
       ? resolveProviderDisplayName(
@@ -446,14 +449,10 @@ export function useProvidersController() {
     isImageModelLoading: imageCatalogQuery.isPending,
     label,
     modelErrorMessage: modelsQuery.isError
-      ? modelsQuery.error instanceof Error
-        ? modelsQuery.error.message
-        : 'Unable to load models for the selected provider.'
+      ? getLocalizedErrorMessage(modelsQuery.error)
       : null,
     imageModelErrorMessage: imageCatalogQuery.isError
-      ? imageCatalogQuery.error instanceof Error
-        ? imageCatalogQuery.error.message
-        : 'Unable to load models for the selected image provider.'
+      ? getLocalizedErrorMessage(imageCatalogQuery.error)
       : null,
     onApiTokenChange: (value: string) => {
       setApiToken(value);
@@ -488,7 +487,8 @@ export function useProvidersController() {
       setDefaultProviderId(value);
       setDefaultModel(null);
     },
-    onDefaultImageModelChange: (value: string | null) => setDefaultImageModel(value),
+    onDefaultImageModelChange: (value: string | null) =>
+      setDefaultImageModel(value),
     onDefaultImageProviderChange: (value: string | null) => {
       setDefaultImageProviderId(value);
       setDefaultImageModel(null);

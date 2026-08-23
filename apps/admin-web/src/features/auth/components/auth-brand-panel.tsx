@@ -6,9 +6,6 @@ export function AuthBrandPanel() {
   return (
     <section className="auth-brand-panel" aria-labelledby="auth-brand-title">
       <Stack gap="xl">
-        <div className="auth-brand-mark" aria-label="LXP">
-          LXP
-        </div>
         <div>
           <Badge className="auth-brand-badge" variant="light">
             {t('brand.badge')}

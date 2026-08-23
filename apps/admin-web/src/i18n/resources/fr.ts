@@ -91,10 +91,13 @@ export const fr = {
   },
   errors: {
     generic: 'Une erreur est survenue. Veuillez réessayer.',
-    authenticationRequired: 'Une authentification est requise. Veuillez vous connecter.',
+    authenticationRequired:
+      'Une authentification est requise. Veuillez vous connecter.',
     permissionDenied: "Vous n'avez pas la permission d'effectuer cette action.",
-    networkUnavailable: 'Le service est indisponible. Vérifiez votre connexion et réessayez.',
-    serverFailure: "Le serveur n'a pas pu traiter la demande. Veuillez réessayer.",
+    networkUnavailable:
+      'Le service est indisponible. Vérifiez votre connexion et réessayez.',
+    serverFailure:
+      "Le serveur n'a pas pu traiter la demande. Veuillez réessayer.",
     sessionExpired: 'Votre session a expiré. Veuillez vous reconnecter.',
     credentialConflict: 'Un identifiant existe déjà pour ce fournisseur.',
     validation: 'Vérifiez les valeurs indiquées et réessayez.',

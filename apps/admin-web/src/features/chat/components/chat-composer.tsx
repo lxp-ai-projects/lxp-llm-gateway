@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Button, Group, Loader, Text, Textarea } from '@mantine/core';
 import { IconSend } from '@tabler/icons-react';
 import type { CSSProperties, KeyboardEvent } from 'react';
@@ -21,6 +22,7 @@ export function ChatComposer({
   prompt,
   providerDisplayName,
 }: ChatComposerProps) {
+  const { t } = useTranslation('chat');
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -39,7 +41,7 @@ export function ChatComposer({
           minRows={1}
           onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask the provider something meaningful..."
+          placeholder={t('chatComposer.askTheProviderSomethingMeaningful')}
           value={prompt}
         />
         <Group
@@ -49,13 +51,15 @@ export function ChatComposer({
         >
           <Group gap="sm">
             <Text c="dimmed" size="sm">
-              Selected provider: {providerDisplayName}
+              {t('chatComposer.selectedProviderValue', {
+                provider: providerDisplayName,
+              })}
             </Text>
             {isStreaming ? (
               <Group gap={6}>
                 <Loader color="teal" size="xs" />
                 <Text c="dimmed" size="sm">
-                  Streaming response...
+                  {t('chatComposer.streamingResponse')}
                 </Text>
               </Group>
             ) : null}
@@ -67,7 +71,7 @@ export function ChatComposer({
             loading={isStreaming}
             onClick={onPromptSubmit}
           >
-            Send
+            {t('chatComposer.send')}
           </Button>
         </Group>
       </div>

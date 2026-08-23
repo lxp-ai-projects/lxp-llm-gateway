@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supportsPreservedThinking } from '@lxp/domain';
 
 import { gatewayApiClient } from '../../../lib/api-client';
+import { getLocalizedErrorMessage } from '../../../i18n/errors';
 import {
   isTruncatedAssistantFinishReason,
   shouldFlagMissingAssistantContent,
@@ -171,10 +172,7 @@ export function useChatStreaming({
         );
       }
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'The gateway stream failed unexpectedly.';
+      const message = getLocalizedErrorMessage(error);
       onSetChatError(message);
       onConversationUpdated((current) => {
         const updatedConversation = current.find(
@@ -250,11 +248,7 @@ export function useChatStreaming({
         ),
       );
     } catch (error) {
-      onSetChatError(
-        error instanceof Error
-          ? error.message
-          : 'The selected user message could not be resent.',
-      );
+      onSetChatError(getLocalizedErrorMessage(error));
     }
   }
 
@@ -276,11 +270,7 @@ export function useChatStreaming({
         ),
       );
     } catch (error) {
-      onSetChatError(
-        error instanceof Error
-          ? error.message
-          : 'The selected assistant response could not be retried.',
-      );
+      onSetChatError(getLocalizedErrorMessage(error));
     }
   }
 

@@ -93,8 +93,10 @@ export const en = {
     generic: 'Something went wrong. Please try again.',
     authenticationRequired: 'Authentication is required. Please sign in.',
     permissionDenied: 'You do not have permission to perform this action.',
-    networkUnavailable: 'The service is unavailable. Check your connection and try again.',
-    serverFailure: 'The server could not complete the request. Please try again.',
+    networkUnavailable:
+      'The service is unavailable. Check your connection and try again.',
+    serverFailure:
+      'The server could not complete the request. Please try again.',
     sessionExpired: 'Your session expired. Please sign in again.',
     credentialConflict: 'A credential already exists for this provider.',
     validation: 'Check the highlighted values and try again.',

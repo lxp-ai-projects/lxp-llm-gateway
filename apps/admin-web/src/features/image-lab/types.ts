@@ -25,9 +25,7 @@ export type ImageLabResult = GatewayGeneratedImage;
 
 export type ImageLabSelectedCatalog = {
   provider: GatewayImageCatalogProvider | undefined;
-  model:
-    | GatewayImageCatalogProvider['models'][number]
-    | undefined;
+  model: GatewayImageCatalogProvider['models'][number] | undefined;
 };
 
 export type ImageLabReferenceAsset = GatewayImageAssetSummary;

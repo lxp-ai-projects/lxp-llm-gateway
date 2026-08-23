@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ActionIcon,
   Alert,
@@ -15,13 +16,7 @@ import { IconHelpCircle, IconKey, IconRestore } from '@tabler/icons-react';
 
 import { getProviderCredentialResponsibilityNote } from '../lib/provider-utils';
 
-function HelpLabel({
-  label,
-  help,
-}: {
-  label: string;
-  help: string;
-}) {
+function HelpLabel({ label, help }: { label: string; help: string }) {
   return (
     <Group gap={6} wrap="nowrap">
       <Text component="span" inherit>
@@ -94,12 +89,14 @@ export function ProviderCredentialForm({
   providerId,
   providerOptions,
 }: ProviderCredentialFormProps) {
+  const { t } = useTranslation('providers');
   const isEditing = Boolean(editingCredentialId);
   const isReplacingExisting = isEditing && editingCredentialMode === 'replace';
   const usesEndpointAccess = providerId === 'ollama';
   const isGroq = providerId === 'groq';
   const isGoogle = providerId === 'google';
-  const responsibilityNote = getProviderCredentialResponsibilityNote(providerId);
+  const responsibilityNote =
+    getProviderCredentialResponsibilityNote(providerId);
   const isSubmitDisabled =
     !label.trim() ||
     (!isEditing && !apiToken.trim() && !baseUrl.trim()) ||
@@ -120,46 +117,64 @@ export function ProviderCredentialForm({
             <IconKey size={18} />
           </Group>
           <Text c="dimmed" size="sm">
-            Credential values remain write-only. After save, only a masked hint
-            is shown back to you.
+            {t(
+              'providerCredentialForm.credentialValuesRemainWriteOnlyAfterSave',
+            )}
           </Text>
           {usesEndpointAccess ? (
-            <Alert color="blue" variant="light" title="Endpoint-based credential">
-              Ollama credentials may rely on a local/runtime base URL or the
-              Ollama Cloud API on `https://ollama.com`. API tokens are optional
-              for local instances and required for Ollama Cloud.
+            <Alert
+              color="blue"
+              variant="light"
+              title={t('providerCredentialForm.endpointBasedCredential')}
+            >
+              {t('providerCredentialForm.ollamaCredentialsMayRelyOnALocal')}
             </Alert>
           ) : null}
           {isGroq ? (
-            <Alert color="blue" variant="light" title="Provider identity note">
-              Groq is Groq's inference API, not Grok from xAI.
+            <Alert
+              color="blue"
+              variant="light"
+              title={t('providerCredentialForm.providerIdentityNote')}
+            >
+              {t('providerCredentialForm.groqIsGroqsInferenceAPINotGrok')}
             </Alert>
           ) : null}
           {responsibilityNote ? (
             <Alert
               color="orange"
               variant="light"
-              title="Billing and key responsibility"
+              title={t('providerCredentialForm.billingAndKeyResponsibility')}
             >
               {responsibilityNote}
             </Alert>
           ) : null}
           {credentialValidationError ? (
-            <Alert color="red" title="Credential validation failed">
+            <Alert
+              color="red"
+              title={t('providerCredentialForm.credentialValidationFailed')}
+            >
               {credentialValidationError}
             </Alert>
           ) : null}
           {credentialSubmitError ? (
-            <Alert color="red" title="Unable to save credential">
+            <Alert
+              color="red"
+              title={t('providerCredentialForm.unableToSaveCredential')}
+            >
               {credentialSubmitError}
             </Alert>
           ) : null}
           {credentialConflictPrompt ? (
-            <Alert color="yellow" title="Credential already exists">
+            <Alert
+              color="yellow"
+              title={t('providerCredentialForm.credentialAlreadyExists')}
+            >
               <Stack gap="xs">
                 <Text size="sm">
-                  {credentialConflictPrompt.message} Edit the existing credential
-                  or explicitly replace its secret value.
+                  {credentialConflictPrompt.message}{' '}
+                  {t(
+                    'providerCredentialForm.editTheExistingCredentialOrExplicitlyReplace',
+                  )}
                 </Text>
                 <Group gap="xs">
                   <Button
@@ -168,7 +183,7 @@ export function ProviderCredentialForm({
                     type="button"
                     variant="light"
                   >
-                    Edit existing credential
+                    {t('providerCredentialForm.editExistingCredential')}
                   </Button>
                   <Button
                     onClick={onReplaceExistingCredential}
@@ -176,24 +191,26 @@ export function ProviderCredentialForm({
                     type="button"
                     variant="light"
                   >
-                    Replace existing credential
+                    {t('providerCredentialForm.replaceExistingCredential')}
                   </Button>
                 </Group>
               </Stack>
             </Alert>
           ) : null}
           {isReplacingExisting ? (
-            <Alert color="orange" title="Replace existing credential">
-              Saving this form will rotate the stored secret for this credential
-              without deleting and recreating it.
+            <Alert
+              color="orange"
+              title={t('providerCredentialForm.replaceExistingCredential')}
+            >
+              {t('providerCredentialForm.savingThisFormWillRotateTheStored')}
             </Alert>
           ) : null}
           <label className="form-native-field">
             <Text component="span" size="sm" fw={500}>
-              Provider
+              {t('providerCredentialForm.provider')}
             </Text>
             <select
-              aria-label="Provider"
+              aria-label={t('providerCredentialForm.provider')}
               className="form-native-select"
               data-testid="providers-provider-select"
               disabled={isEditing}
@@ -211,7 +228,7 @@ export function ProviderCredentialForm({
             data-testid="providers-label-input"
             label={
               <HelpLabel
-                label="Label"
+                label={t('providerCredentialForm.label')}
                 help="A human-friendly name for the secret, such as primary, staging, or rotated-2026-05."
               />
             }
@@ -237,19 +254,19 @@ export function ProviderCredentialForm({
                 ? 'Enter a new token only if you want to rotate it'
                 : usesEndpointAccess
                   ? 'Optional for local Ollama; required for protected or cloud endpoints'
-                : isGoogle
-                  ? 'Required for Google Gemini'
-                : providerId === 'xai'
-                  ? 'Required for xAI Grok'
-                : providerId === 'openai'
-                  ? 'Required for OpenAI'
-                : providerId === 'anthropic'
-                  ? 'Required for Anthropic'
-                : providerId === 'mistral'
-                  ? 'Required for Mistral'
-                : providerId === 'deepseek'
-                  ? 'Required for DeepSeek'
-                : undefined
+                  : isGoogle
+                    ? 'Required for Google Gemini'
+                    : providerId === 'xai'
+                      ? 'Required for xAI Grok'
+                      : providerId === 'openai'
+                        ? 'Required for OpenAI'
+                        : providerId === 'anthropic'
+                          ? 'Required for Anthropic'
+                          : providerId === 'mistral'
+                            ? 'Required for Mistral'
+                            : providerId === 'deepseek'
+                              ? 'Required for DeepSeek'
+                              : undefined
             }
             value={apiToken}
           />
@@ -270,9 +287,7 @@ export function ProviderCredentialForm({
             }
             onChange={(event) => onBaseUrlChange(event.currentTarget.value)}
             placeholder={
-              usesEndpointAccess
-                ? 'http://127.0.0.1:11434/v1'
-                : undefined
+              usesEndpointAccess ? 'http://127.0.0.1:11434/v1' : undefined
             }
             value={baseUrl}
           />
@@ -286,7 +301,7 @@ export function ProviderCredentialForm({
                   type="button"
                   variant="light"
                 >
-                  Cancel edit
+                  {t('providerCredentialForm.cancelEdit')}
                 </Button>
               ) : null}
             </Group>

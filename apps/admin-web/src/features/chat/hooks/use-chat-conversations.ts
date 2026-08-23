@@ -84,7 +84,9 @@ export function useChatConversations({
 
     const updatedConversation = mutate(currentConversation);
     const nextConversations = conversationsRef.current.map((conversation) =>
-      conversation.id === activeConversationId ? updatedConversation : conversation,
+      conversation.id === activeConversationId
+        ? updatedConversation
+        : conversation,
     );
 
     conversationsRef.current = nextConversations;

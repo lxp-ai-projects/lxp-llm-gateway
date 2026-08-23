@@ -125,8 +125,8 @@ export function buildDefaultImageProviderOptions(
     imageCatalogProviders.map((provider) => provider.providerId),
   );
 
-  return buildDefaultProviderOptions(credentials, supportedProviders).filter((provider) =>
-    imageProviderIds.has(provider.value),
+  return buildDefaultProviderOptions(credentials, supportedProviders).filter(
+    (provider) => imageProviderIds.has(provider.value),
   );
 }
 
@@ -170,18 +170,18 @@ export function validateProviderCredentialInput(input: {
     return input.providerId === 'google'
       ? 'Google Gemini credentials require an API token.'
       : input.providerId === 'xai'
-      ? 'xAI Grok credentials require an API token.'
-      : input.providerId === 'openai'
-        ? 'OpenAI credentials require an API token.'
-        : input.providerId === 'anthropic'
-          ? 'Anthropic credentials require an API token.'
-          : input.providerId === 'mistral'
-            ? 'Mistral credentials require an API token.'
-            : input.providerId === 'deepseek'
-              ? 'DeepSeek credentials require an API token.'
-              : input.providerId === 'moonshot'
-                ? 'Moonshot / Kimi credentials require an API token.'
-                : 'Z.ai credentials require an API token.';
+        ? 'xAI Grok credentials require an API token.'
+        : input.providerId === 'openai'
+          ? 'OpenAI credentials require an API token.'
+          : input.providerId === 'anthropic'
+            ? 'Anthropic credentials require an API token.'
+            : input.providerId === 'mistral'
+              ? 'Mistral credentials require an API token.'
+              : input.providerId === 'deepseek'
+                ? 'DeepSeek credentials require an API token.'
+                : input.providerId === 'moonshot'
+                  ? 'Moonshot / Kimi credentials require an API token.'
+                  : 'Z.ai credentials require an API token.';
   }
 
   if (input.providerId !== 'ollama' || !input.baseUrl.trim()) {

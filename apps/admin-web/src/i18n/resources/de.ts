@@ -94,12 +94,17 @@ export const de = {
   },
   errors: {
     generic: 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
-    authenticationRequired: 'Eine Authentifizierung ist erforderlich. Bitte melden Sie sich an.',
+    authenticationRequired:
+      'Eine Authentifizierung ist erforderlich. Bitte melden Sie sich an.',
     permissionDenied: 'Sie sind zu dieser Aktion nicht berechtigt.',
-    networkUnavailable: 'Der Dienst ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
-    serverFailure: 'Der Server konnte die Anfrage nicht abschließen. Bitte versuchen Sie es erneut.',
-    sessionExpired: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
-    credentialConflict: 'Für diesen Provider ist bereits eine Anmeldeinformation vorhanden.',
+    networkUnavailable:
+      'Der Dienst ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
+    serverFailure:
+      'Der Server konnte die Anfrage nicht abschließen. Bitte versuchen Sie es erneut.',
+    sessionExpired:
+      'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
+    credentialConflict:
+      'Für diesen Provider ist bereits eine Anmeldeinformation vorhanden.',
     validation: 'Prüfen Sie die markierten Werte und versuchen Sie es erneut.',
     route: {
       title: 'Anwendungsfehler',

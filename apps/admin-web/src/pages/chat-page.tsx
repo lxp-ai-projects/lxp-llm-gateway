@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Button,
@@ -32,6 +33,7 @@ import { useChatTransfer } from '../features/chat/hooks/use-chat-transfer';
 import { createConversation } from '../features/chat/lib/chat-conversation-utils';
 import { PageHeader } from '../components/page-header';
 import { adminApiClient, gatewayApiClient } from '../lib/api-client';
+import { getLocalizedErrorMessage } from '../i18n/errors';
 import { DEFAULT_SYSTEM_PROMPT } from '../lib/chat-thread';
 import { type StoredConversation } from '../lib/chat-store';
 import type {
@@ -364,6 +366,7 @@ function buildChatProviderOptions(input: {
 }
 
 export function ChatPage() {
+  const { t } = useTranslation('chat');
   const runtimeConfigQuery = useRuntimeConfig();
   const sessionQuery = useSession();
   const conversationScope = useMemo(
@@ -855,15 +858,15 @@ export function ChatPage() {
         data-testid="chat-delete-conversation-modal"
         opened={conversationPendingDeletion !== null}
         onClose={() => setConversationPendingDeletion(null)}
-        title="Delete conversation?"
+        title={t('chatPage.deleteConversation')}
       >
         <Stack gap="md">
           <Text size="sm">
-            This permanently removes the local conversation{' '}
+            {t('chatPage.thisPermanentlyRemovesTheLocalConversation')}{' '}
             <Text component="span" fw={700} inherit>
               {conversationPendingDeletion?.title ?? 'Untitled conversation'}
             </Text>
-            . The operation cannot be undone.
+            {t('chatPage.theOperationCannotBeUndone')}
           </Text>
           <Group justify="flex-end">
             <Button
@@ -871,22 +874,22 @@ export function ChatPage() {
               onClick={() => setConversationPendingDeletion(null)}
               variant="subtle"
             >
-              Cancel
+              {t('chatPage.cancel')}
             </Button>
             <Button
               color="red"
               data-testid="chat-delete-conversation-confirm"
               onClick={() => void confirmConversationDeletion()}
             >
-              Delete permanently
+              {t('chatPage.deletePermanently')}
             </Button>
           </Group>
         </Stack>
       </Modal>
 
       <PageHeader
-        title="Chat Lab"
-        description="A lightweight provider test surface with local IndexedDB persistence and optional reasoning display when thinking models expose it."
+        title={t('chatPage.chatLab')}
+        description={t('chatPage.aLightweightProviderTestSurfaceWithLocal')}
       />
 
       <Grid>
@@ -922,9 +925,9 @@ export function ChatPage() {
               mb="lg"
             >
               <Stack gap={4}>
-                <Title order={3}>Provider test surface</Title>
+                <Title order={3}>{t('chatPage.providerTestSurface')}</Title>
                 <Text c="dimmed" size="sm">
-                  Runtime gateway status:{' '}
+                  {t('chatPage.runtimeGatewayStatus')}{' '}
                   {runtimeConfigQuery.data?.gatewayOnline
                     ? 'online'
                     : 'offline'}
@@ -934,7 +937,7 @@ export function ChatPage() {
                 <Select
                   data={providerOptions}
                   data-testid="chat-provider-select"
-                  label="Provider"
+                  label={t('chatPage.provider')}
                   onChange={(value) => {
                     const nextProviderId =
                       value ?? providerOptions[0]?.value ?? 'nanogpt';
@@ -965,7 +968,7 @@ export function ChatPage() {
                 <Select
                   data={sortedModelOptions}
                   data-testid="chat-model-select"
-                  label="Model"
+                  label={t('chatPage.model')}
                   limit={100}
                   nothingFoundMessage="No models found"
                   onChange={(value) => {
@@ -1008,7 +1011,7 @@ export function ChatPage() {
                 />
                 <NumberInput
                   data-testid="chat-max-output-tokens-input"
-                  label="Max output tokens"
+                  label={t('chatPage.maxOutputTokens')}
                   min={1}
                   onChange={(value) => {
                     const nextMaxOutputTokens =
@@ -1022,7 +1025,7 @@ export function ChatPage() {
                       );
                     }
                   }}
-                  placeholder="Provider default"
+                  placeholder={t('chatPage.providerDefault')}
                   value={maxOutputTokens}
                 />
                 {providerId === 'anthropic' ? (
@@ -1049,7 +1052,7 @@ export function ChatPage() {
                       ]}
                       data-testid="chat-anthropic-thinking-mode-select"
                       disabled={anthropicThinkingDisabledForModel}
-                      label="Thinking"
+                      label={t('chatPage.thinking')}
                       onChange={(value) => {
                         const nextMode =
                           (value as AnthropicExtendedThinkingUiMode | null) ??
@@ -1072,7 +1075,7 @@ export function ChatPage() {
                     {effectiveAnthropicThinkingMode === 'budget' ? (
                       <NumberInput
                         data-testid="chat-anthropic-thinking-budget-input"
-                        label="Thinking budget tokens"
+                        label={t('chatPage.thinkingBudgetTokens')}
                         min={1024}
                         step={256}
                         onChange={(value) => {
@@ -1118,7 +1121,7 @@ export function ChatPage() {
                     ]}
                     data-testid="chat-thinking-mode-select"
                     disabled={Boolean(model) && !thinkingSupported}
-                    label="Thinking"
+                    label={t('chatPage.thinking')}
                     onChange={(value) => {
                       const nextMode =
                         (value as ThinkingUiMode | null) ?? 'enabled';
@@ -1159,7 +1162,7 @@ export function ChatPage() {
                         })),
                     ]}
                     data-testid="chat-reasoning-effort-select"
-                    label="Reasoning effort"
+                    label={t('chatPage.reasoningEffort')}
                     onChange={(value) => {
                       const nextEffort =
                         (value as ReasoningEffortUiMode | null) ??
@@ -1193,7 +1196,11 @@ export function ChatPage() {
               </Stack>
             </Group>
             {providerCatalogPricingNote ? (
-              <Alert color="blue" mb="md" title="Model catalog note">
+              <Alert
+                color="blue"
+                mb="md"
+                title={t('chatPage.modelCatalogNote')}
+              >
                 {providerCatalogPricingNote}
               </Alert>
             ) : null}
@@ -1231,10 +1238,9 @@ export function ChatPage() {
               <Alert
                 color="yellow"
                 mb="md"
-                title="Adaptive thinking compatibility"
+                title={t('chatPage.adaptiveThinkingCompatibility')}
               >
-                This model may reject adaptive thinking. If Anthropic returns a
-                400 error, switch to `budget` for older Claude models.
+                {t('chatPage.thisModelMayRejectAdaptiveThinkingIf')}
               </Alert>
             ) : null}
 
@@ -1251,7 +1257,7 @@ export function ChatPage() {
                   data-testid="chat-tab-conversation"
                   value="conversation"
                 >
-                  Conversation
+                  {t('chatPage.conversation')}
                 </Tabs.Tab>
                 <Tabs.Tab
                   data-testid="chat-tab-system-prompt"
@@ -1280,9 +1286,7 @@ export function ChatPage() {
                       providerId={providerId}
                       modelsErrorMessage={
                         modelsQuery.isError
-                          ? modelsQuery.error instanceof Error
-                            ? modelsQuery.error.message
-                            : 'Unable to load provider models.'
+                          ? getLocalizedErrorMessage(modelsQuery.error)
                           : null
                       }
                       onCancelEdit={() => {
