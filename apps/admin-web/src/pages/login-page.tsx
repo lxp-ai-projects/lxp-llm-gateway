@@ -8,6 +8,7 @@ import { AuthShell } from '../features/auth/components/auth-shell';
 import { LoginFormCard } from '../features/auth/components/login-form-card';
 import {
   adminApiClient,
+  SESSION_TIMEOUT_MESSAGE_CODE,
   SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
 } from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
@@ -32,7 +33,12 @@ export function LoginPage() {
       return;
     }
 
-    setSessionTimeoutMessage(message);
+    setSessionTimeoutMessage(
+      message === SESSION_TIMEOUT_MESSAGE_CODE ||
+        message === 'Session is timed out, you have to login again.'
+        ? getLocalizedErrorMessage({ code: SESSION_TIMEOUT_MESSAGE_CODE })
+        : message,
+    );
     window.sessionStorage.removeItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY);
   }, []);
 

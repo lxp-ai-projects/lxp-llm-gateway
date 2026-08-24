@@ -33,7 +33,9 @@ export function ImageResultsPanel({
         <Group justify="space-between">
           <Title order={3}>{t('imageResultsPanel.results')}</Title>
           <Badge color={imageLab.canEdit ? 'orange' : 'teal'} variant="light">
-            {imageLab.canEdit ? 'Edit mode' : 'Generation mode'}
+            {imageLab.canEdit
+              ? t('imageResultsPanel.editMode')
+              : t('imageResultsPanel.generationMode')}
           </Badge>
         </Group>
 
@@ -197,7 +199,9 @@ export function ImageResultsPanel({
                               size="xs"
                               variant="default"
                             >
-                              {image.saved ? 'Saved' : 'Save'}
+                              {image.saved
+                                ? t('imageResultsPanel.savedAction')
+                                : t('imageResultsPanel.saveAction')}
                             </Button>
                           </>
                         ) : null}

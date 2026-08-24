@@ -146,7 +146,7 @@ export function TenantRegistrationPanel({
             t('tenantRegistrationPanel.notConfigured'),
         })}
         {settings.data.enabled && emailReadiness.data.status !== 'ready'
-          ? ' Public registration is enabled but email verification is unavailable.'
+          ? t('tenantRegistrationPanel.emailVerificationUnavailable')
           : ''}
       </Alert>
       <Switch
@@ -181,7 +181,9 @@ export function TenantRegistrationPanel({
           <Group gap="xs">
             <Switch
               label={t('tenantRegistrationPanel.enabled')}
-              aria-label={`Enabled ${host.hostname}`}
+              aria-label={t('tenantRegistrationPanel.enabledHostname', {
+                hostname: host.hostname,
+              })}
               checked={host.enabled}
               disabled={pending}
               onChange={(event) =>
@@ -193,7 +195,9 @@ export function TenantRegistrationPanel({
             />
             <Switch
               label={t('tenantRegistrationPanel.primary')}
-              aria-label={`Primary ${host.hostname}`}
+              aria-label={t('tenantRegistrationPanel.primaryHostname', {
+                hostname: host.hostname,
+              })}
               checked={host.isPrimary}
               disabled={pending}
               onChange={(event) =>
@@ -208,11 +212,19 @@ export function TenantRegistrationPanel({
               color="red"
               variant="subtle"
               onClick={() => {
-                if (window.confirm(`Remove public hostname ${host.hostname}?`))
+                if (
+                  window.confirm(
+                    t('tenantRegistrationPanel.removeHostnameConfirm', {
+                      hostname: host.hostname,
+                    }),
+                  )
+                )
                   deleteHost.mutate(host.id);
               }}
               disabled={pending}
-              aria-label={`Remove ${host.hostname}`}
+              aria-label={t('tenantRegistrationPanel.removeHostname', {
+                hostname: host.hostname,
+              })}
             >
               {t('tenantRegistrationPanel.remove')}
             </Button>

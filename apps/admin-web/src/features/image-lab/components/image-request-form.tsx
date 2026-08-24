@@ -788,7 +788,9 @@ export function ImageRequestForm({
                             </Stack>
                           </Group>
                           <Button
-                            aria-label={`Remove ${reference.label}`}
+                            aria-label={t('imageRequestForm.removeReference', {
+                              label: reference.label,
+                            })}
                             color="red"
                             leftSection={<IconTrash size={14} />}
                             onClick={() =>
@@ -869,7 +871,9 @@ export function ImageRequestForm({
             loading={imageLab.generateMutation.isPending}
             onClick={() => imageLab.generateMutation.mutate()}
           >
-            {imageLab.canEdit ? 'Edit image' : 'Generate image'}
+            {imageLab.canEdit
+              ? t('imageRequestForm.editImage')
+              : t('imageRequestForm.generateImage')}
           </Button>
         </Stack>
       </Card>

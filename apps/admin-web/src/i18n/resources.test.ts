@@ -54,6 +54,13 @@ describe('translation completeness', () => {
     expect(i18n.t('providers:providerCredentialForm.apiToken')).toBe(
       'Jeton API',
     );
+    expect(i18n.t('image:imageRequestForm.editImage')).toBe('Modifier l’image');
+    expect(i18n.t('image:imageHistoryPanel.saveAction')).toBe('Enregistrer');
+    expect(i18n.t('chat:chatPage.systemPrompt')).toBe('Invite système');
+    expect(i18n.t('tenants:tenantsPage.noPolicyPersisted')).toContain(
+      'Aucune politique',
+    );
+    expect(i18n.t('tenants:tenantsPage.enabled')).toBe('Activé');
     await i18n.changeLanguage('es');
     expect(i18n.t('video:videoResultsPanel.outputValue', { index: 2 })).toBe(
       'Salida 2',

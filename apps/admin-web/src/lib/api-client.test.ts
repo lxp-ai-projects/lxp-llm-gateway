@@ -105,7 +105,7 @@ test('adminApiClient.getSession returns null and stores the timeout message when
   await expect(adminApiClient.getSession()).resolves.toBeNull();
   expect(
     window.sessionStorage.getItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY),
-  ).toBe('Session is timed out, you have to login again.');
+  ).toBe('SESSION_EXPIRED');
   expect(assignMock).toHaveBeenCalledWith('http://localhost:3003/login');
 });
 

@@ -266,8 +266,8 @@ export function ChatMessageList({
                             variant="subtle"
                           >
                             {copiedAssistantMessageId === message.id
-                              ? 'Copied'
-                              : 'Copy'}
+                              ? t('chatMessageList.copied')
+                              : t('chatMessageList.copy')}
                           </Button>
                         </Group>
                       ) : null}

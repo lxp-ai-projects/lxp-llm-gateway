@@ -101,5 +101,8 @@
   "providerDefaultsForm.noModelsFound": "Keine Modelle gefunden",
   "providerDefaultsForm.loadingModels": "Provider-Modelle werden geladen...",
   "providerDefaultsForm.chooseDefaultModel": "Standardmodell auswählen",
-  "providerDefaultsForm.chooseProviderFirst": "Zuerst einen Standardprovider auswählen"
+  "providerDefaultsForm.chooseProviderFirst": "Zuerst einen Standardprovider auswählen",
+  "providerDefaultsForm.helpFor": "Hilfe zu {{label}}",
+  "providerCredentialsPanel.unknownProvider": "Unbekannter Provider",
+  "providerCredentialsPanel.unknownLabel": "Unbekannte Bezeichnung"
 }

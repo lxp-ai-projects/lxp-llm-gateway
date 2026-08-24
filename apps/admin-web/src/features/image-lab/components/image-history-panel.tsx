@@ -174,8 +174,8 @@ export function ImageHistoryPanel({
                                   variant="light"
                                 >
                                   {copiedPromptId === item.id
-                                    ? 'Copied prompt'
-                                    : 'Copy prompt to clipboard'}
+                                    ? t('imageHistoryPanel.copiedPrompt')
+                                    : t('imageHistoryPanel.copyPrompt')}
                                 </Button>
                                 {copyError ? (
                                   <Alert
@@ -343,7 +343,9 @@ export function ImageHistoryPanel({
                             size="compact-sm"
                             variant="default"
                           >
-                            {primaryImage.saved ? 'Saved' : 'Save'}
+                            {primaryImage.saved
+                              ? t('imageHistoryPanel.savedAction')
+                              : t('imageHistoryPanel.saveAction')}
                           </Button>
                         </Group>
                       ) : null}

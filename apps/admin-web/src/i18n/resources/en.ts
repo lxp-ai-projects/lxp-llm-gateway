@@ -4,6 +4,8 @@ export const en = {
       cancel: 'Cancel',
       close: 'Close',
       confirm: 'Confirm',
+      copy: 'Copy',
+      copied: 'Copied',
       delete: 'Delete',
       install: 'Install app',
       logout: 'Logout',

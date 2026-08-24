@@ -34,5 +34,9 @@
   "evaluationLabPage.evidenceReference": "Referencia de evidencia",
   "evaluationLabPage.allowedObservableDimensions": "Dimensiones observables permitidas",
   "evaluationLabPage.selectAProfileAndRunAnEvaluation": "Seleccione un perfil y ejecute una evaluación para inspeccionar la evidencia estructurada.",
-  "evaluationLabPage.copyUnavailable": "Copiar no disponible"
+  "evaluationLabPage.copyUnavailable": "Copiar no disponible",
+  "evaluationLabPage.ready": "Listo",
+  "evaluationLabPage.notReady": "No listo",
+  "evaluationLabPage.notConfigured": "no configurado",
+  "evaluationLabPage.unavailable": "no disponible"
 }

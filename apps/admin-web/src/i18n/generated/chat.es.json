@@ -74,5 +74,17 @@
   "chatPage.reasoningEnabledPreserved": "El razonamiento está activado y se conserva su contenido anterior cuando la ruta del proveedor admite la repetición.",
   "chatPage.reasoningDisabledDescription": "El razonamiento está desactivado para esta conversación con el transporte de proveedor seleccionado.",
   "chatPage.reasoningEnabledDescription": "El razonamiento está activado para esta conversación según las capacidades declaradas por la API de modelos del proveedor.",
-  "chatPage.noModelsFound": "No se encontraron modelos"
+  "chatPage.noModelsFound": "No se encontraron modelos",
+  "chatMessageList.copy": "Copiar",
+  "chatMessageList.copied": "Copiado",
+  "chatSidebar.exportConversation": "Exportar {{title}}",
+  "chatSidebar.deleteConversation": "Eliminar {{title}}",
+  "chatPage.untitledConversation": "Conversación sin título",
+  "chatPage.online": "en línea",
+  "chatPage.offline": "sin conexión",
+  "chatPage.systemPrompt": "Instrucción del sistema",
+  "chatPage.systemPromptRequired": "Instrucción del sistema *",
+  "chatPage.extendedThinkingNone": "Razonamiento ampliado: ninguno",
+  "chatPage.extendedThinkingAuto": "Razonamiento ampliado: automático",
+  "chatPage.extendedThinkingBudget": "Razonamiento ampliado: presupuesto"
 }

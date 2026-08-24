@@ -34,5 +34,9 @@
   "evaluationLabPage.evidenceReference": "Beweisreferenz",
   "evaluationLabPage.allowedObservableDimensions": "Zulässige beobachtbare Dimensionen",
   "evaluationLabPage.selectAProfileAndRunAnEvaluation": "Wählen Sie ein Profil und führen Sie eine Bewertung durch, um strukturierte Beweise zu prüfen.",
-  "evaluationLabPage.copyUnavailable": "Kopieren nicht verfügbar"
+  "evaluationLabPage.copyUnavailable": "Kopieren nicht verfügbar",
+  "evaluationLabPage.ready": "Bereit",
+  "evaluationLabPage.notReady": "Nicht bereit",
+  "evaluationLabPage.notConfigured": "nicht konfiguriert",
+  "evaluationLabPage.unavailable": "nicht verfügbar"
 }

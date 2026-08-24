@@ -35,6 +35,7 @@ vi.mock('../lib/use-runtime-config', () => ({
 
 vi.mock('../lib/api-client', () => ({
   SESSION_TIMEOUT_MESSAGE_STORAGE_KEY: sessionTimeoutStorageKey,
+  SESSION_TIMEOUT_MESSAGE_CODE: 'SESSION_EXPIRED',
   adminApiClient: {
     login: loginMock,
   },
@@ -116,13 +117,13 @@ test('LoginPage renders a non-interactive decorative wave background', () => {
 test('LoginPage displays and clears the session timeout message', async () => {
   window.sessionStorage.setItem(
     sessionTimeoutStorageKey,
-    'Session is timed out, you have to login again.',
+    'SESSION_EXPIRED',
   );
 
   renderWithProviders(<LoginPage />);
 
   expect(
-    await screen.findByText('Session is timed out, you have to login again.'),
+    await screen.findByText('Your session expired. Please sign in again.'),
   ).toBeInTheDocument();
   expect(window.sessionStorage.getItem(sessionTimeoutStorageKey)).toBeNull();
 });
@@ -132,18 +133,18 @@ test('LoginPage clears the session timeout message when the user edits the form'
 
   window.sessionStorage.setItem(
     sessionTimeoutStorageKey,
-    'Session is timed out, you have to login again.',
+    'SESSION_EXPIRED',
   );
 
   renderWithProviders(<LoginPage />);
 
   expect(
-    await screen.findByText('Session is timed out, you have to login again.'),
+    await screen.findByText('Your session expired. Please sign in again.'),
   ).toBeInTheDocument();
 
   await user.type(screen.getByLabelText('Email'), 'email@domain.com');
 
   expect(
-    screen.queryByText('Session is timed out, you have to login again.'),
+    screen.queryByText('Your session expired. Please sign in again.'),
   ).not.toBeInTheDocument();
 });

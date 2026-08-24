@@ -4,6 +4,8 @@ export const es = {
       cancel: 'Cancelar',
       close: 'Cerrar',
       confirm: 'Confirmar',
+      copy: 'Copiar',
+      copied: 'Copiado',
       delete: 'Eliminar',
       install: 'Instalar aplicación',
       logout: 'Cerrar sesión',

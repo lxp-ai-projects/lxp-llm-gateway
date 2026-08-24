@@ -74,5 +74,17 @@
   "chatPage.reasoningEnabledPreserved": "Die Begründung ist aktiviert und vorherige Begründungsinhalte bleiben erhalten, wenn diese Provider-Route die Wiedergabe unterstützt.",
   "chatPage.reasoningDisabledDescription": "Die Begründung ist für diese Unterhaltung mit dem ausgewählten Provider-Transport deaktiviert.",
   "chatPage.reasoningEnabledDescription": "Die Begründung ist für diese Unterhaltung gemäß den von der Provider-Modell-API deklarierten Fähigkeiten aktiviert.",
-  "chatPage.noModelsFound": "Keine Modelle gefunden"
+  "chatPage.noModelsFound": "Keine Modelle gefunden",
+  "chatMessageList.copy": "Kopieren",
+  "chatMessageList.copied": "Kopiert",
+  "chatSidebar.exportConversation": "{{title}} exportieren",
+  "chatSidebar.deleteConversation": "{{title}} löschen",
+  "chatPage.untitledConversation": "Unbenannte Unterhaltung",
+  "chatPage.online": "online",
+  "chatPage.offline": "offline",
+  "chatPage.systemPrompt": "Systemanweisung",
+  "chatPage.systemPromptRequired": "Systemanweisung *",
+  "chatPage.extendedThinkingNone": "Erweitertes Denken: keines",
+  "chatPage.extendedThinkingAuto": "Erweitertes Denken: automatisch",
+  "chatPage.extendedThinkingBudget": "Erweitertes Denken: Budget"
 }

@@ -68,6 +68,7 @@ export const gatewayApiUrl = resolveApiBaseUrl(
 let refreshInFlight: Promise<void> | null = null;
 export const SESSION_TIMEOUT_MESSAGE_STORAGE_KEY =
   'lxp.session-timeout-message';
+export const SESSION_TIMEOUT_MESSAGE_CODE = 'SESSION_EXPIRED';
 
 export type ParsedApiError = {
   status: number;
@@ -189,7 +190,7 @@ function handleSessionRefreshFailure(message: string): void {
 
   window.sessionStorage.setItem(
     SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
-    'Session is timed out, you have to login again.',
+    SESSION_TIMEOUT_MESSAGE_CODE,
   );
 
   const loginUrl = new URL('/login', window.location.origin);

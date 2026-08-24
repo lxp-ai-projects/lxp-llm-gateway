@@ -140,16 +140,21 @@ export function EvaluationLabPage() {
                         selectedProfile.readiness.ready ? 'green' : 'orange'
                       }
                     >
-                      {selectedProfile.readiness.ready ? 'Ready' : 'Not ready'}
+                      {selectedProfile.readiness.ready
+                        ? t('evaluationLabPage.ready')
+                        : t('evaluationLabPage.notReady')}
                     </Badge>
                   </Group>
                   <Text size="sm" c="dimmed">
                     {t('evaluationLabPage.provider')}{' '}
-                    {selectedProfile.readiness.providerId ?? 'not configured'}{' '}
+                    {selectedProfile.readiness.providerId ??
+                      t('evaluationLabPage.notConfigured')}{' '}
                     {t('evaluationLabPage.model')}
-                    {selectedProfile.readiness.model ?? 'not configured'}{' '}
+                    {selectedProfile.readiness.model ??
+                      t('evaluationLabPage.notConfigured')}{' '}
                     {t('evaluationLabPage.credential')}{' '}
-                    {selectedProfile.readiness.credentialPath ?? 'unavailable'}
+                    {selectedProfile.readiness.credentialPath ??
+                      t('evaluationLabPage.unavailable')}
                   </Text>
                   {!selectedProfile.readiness.ready ? (
                     <Alert

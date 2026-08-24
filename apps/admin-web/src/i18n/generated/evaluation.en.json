@@ -34,5 +34,9 @@
   "resultPanel.followUpRecommended": "Follow-up recommended",
   "resultPanel.copySanitizedResult": "Copy sanitized result",
   "resultPanel.rawSanitizedResponse": "Raw sanitized response",
-  "probeError.evaluationFailed": "Evaluation failed"
+  "probeError.evaluationFailed": "Evaluation failed",
+  "evaluationLabPage.ready": "Ready",
+  "evaluationLabPage.notReady": "Not ready",
+  "evaluationLabPage.notConfigured": "not configured",
+  "evaluationLabPage.unavailable": "unavailable"
 }

@@ -3,6 +3,7 @@ import { IconCheck, IconCopy } from '@tabler/icons-react';
 import type { TitleOrder } from '@mantine/core';
 import type { ReactElement, ReactNode } from 'react';
 import { Fragment, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type MarkdownTextProps = {
   value: string;
@@ -87,6 +88,7 @@ async function copyCodeBlock(value: string): Promise<void> {
 }
 
 function MarkdownCodeBlock(input: { code: string; language?: string }) {
+  const { t } = useTranslation('common');
   const [copied, setCopied] = useState(false);
 
   return (
@@ -97,7 +99,9 @@ function MarkdownCodeBlock(input: { code: string; language?: string }) {
         </Text>
         <Button
           className="markdown-code-copy"
-          leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+          leftSection={
+            copied ? <IconCheck size={14} /> : <IconCopy size={14} />
+          }
           onClick={() => {
             void copyCodeBlock(input.code)
               .then(() => {
@@ -109,7 +113,7 @@ function MarkdownCodeBlock(input: { code: string; language?: string }) {
           size="compact-xs"
           variant="subtle"
         >
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? t('actions.copied') : t('actions.copy')}
         </Button>
       </Group>
       <pre className="markdown-code-pre">
@@ -159,7 +163,10 @@ function parseMarkdownTableRow(line: string): string[] {
     .map((cell) => cell.trim());
 }
 
-function tryParseMarkdownTable(lines: string[], startIndex: number): {
+function tryParseMarkdownTable(
+  lines: string[],
+  startIndex: number,
+): {
   table: ParsedMarkdownTable;
   nextIndex: number;
 } | null {

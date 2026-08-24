@@ -74,5 +74,17 @@
   "chatPage.reasoningEnabledPreserved": "Reasoning is enabled and prior reasoning content is preserved when this provider route supports replay.",
   "chatPage.reasoningDisabledDescription": "Reasoning is disabled for this conversation using the selected provider transport.",
   "chatPage.reasoningEnabledDescription": "Reasoning is enabled for this conversation using capabilities declared by the provider model API.",
-  "chatPage.noModelsFound": "No models found"
+  "chatPage.noModelsFound": "No models found",
+  "chatMessageList.copy": "Copy",
+  "chatMessageList.copied": "Copied",
+  "chatSidebar.exportConversation": "Export {{title}}",
+  "chatSidebar.deleteConversation": "Delete {{title}}",
+  "chatPage.untitledConversation": "Untitled conversation",
+  "chatPage.online": "online",
+  "chatPage.offline": "offline",
+  "chatPage.systemPrompt": "System prompt",
+  "chatPage.systemPromptRequired": "System prompt *",
+  "chatPage.extendedThinkingNone": "Extended thinking: none",
+  "chatPage.extendedThinkingAuto": "Extended thinking: auto",
+  "chatPage.extendedThinkingBudget": "Extended thinking: budget"
 }

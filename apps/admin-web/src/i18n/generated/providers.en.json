@@ -101,5 +101,8 @@
   "providerDefaultsForm.noModelsFound": "No models found",
   "providerDefaultsForm.loadingModels": "Loading provider models...",
   "providerDefaultsForm.chooseDefaultModel": "Choose a default model",
-  "providerDefaultsForm.chooseProviderFirst": "Choose a default provider first"
+  "providerDefaultsForm.chooseProviderFirst": "Choose a default provider first",
+  "providerDefaultsForm.helpFor": "Help for {{label}}",
+  "providerCredentialsPanel.unknownProvider": "Unknown provider",
+  "providerCredentialsPanel.unknownLabel": "Unknown label"
 }

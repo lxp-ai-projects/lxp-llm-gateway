@@ -30,6 +30,7 @@ import { INTEGRATION_CLIENT_SCOPES } from '@lxp/domain';
 import { PageHeader } from '../components/page-header';
 import { useTenantsController } from '../features/tenants/hooks/use-tenants-controller';
 import { TenantRegistrationPanel } from '../features/tenants/components/tenant-registration-panel';
+import { formatDateTime } from '../i18n/format';
 
 function HelpTooltip({ text }: { text: string }) {
   const { t } = useTranslation('tenants');
@@ -336,7 +337,9 @@ export function TenantsPage() {
                       color={tenant.status === 'active' ? 'moss' : 'red'}
                       variant="light"
                     >
-                      {tenant.status}
+                      {tenant.status === 'active'
+                        ? t('tenantsPage.active')
+                        : t('tenantsPage.disabled')}
                     </Badge>
                   </Group>
                   <SimpleGrid cols={2} mt="md" spacing="sm">
@@ -352,8 +355,8 @@ export function TenantsPage() {
                       </Text>
                       <Text fw={600}>
                         {tenant.allowUserCredentialOverride
-                          ? 'Allowed'
-                          : 'Disabled'}
+                          ? t('tenantsPage.allowed')
+                          : t('tenantsPage.disabled')}
                       </Text>
                     </div>
                   </SimpleGrid>
@@ -404,7 +407,7 @@ export function TenantsPage() {
                 <Group justify="space-between" mb="md">
                   <SectionTitle
                     title={t('tenantsPage.publicRegistration')}
-                    help="Controls the tenant registration switch and exact public hostname mappings. The global kill switch remains authoritative."
+                    help={t('tenantsPage.help.publicRegistration')}
                   />
                   {selectedTenant ? (
                     <Badge variant="outline">{selectedTenant.slug}</Badge>
@@ -434,7 +437,7 @@ export function TenantsPage() {
                 <Group justify="space-between" mb="md">
                   <SectionTitle
                     title={t('tenantsPage.tenantSettings')}
-                    help="Basic tenant operating posture: friendly name, active or disabled state, and whether members may override tenant-level BYOK credentials with their own."
+                    help={t('tenantsPage.help.tenantSettings')}
                   />
                   {selectedTenant ? (
                     <Badge variant="outline">{selectedTenant.slug}</Badge>
@@ -447,7 +450,7 @@ export function TenantsPage() {
                         label={
                           <FieldLabel
                             label={t('tenantsPage.displayName')}
-                            help="Human-friendly tenant name shown in the admin UI."
+                            help={t('tenantsPage.help.displayName')}
                           />
                         }
                         value={editDisplayName}
@@ -459,12 +462,18 @@ export function TenantsPage() {
                         label={
                           <FieldLabel
                             label={t('tenantsPage.status')}
-                            help="Active tenants can operate normally. Disabled tenants stay in the system but should no longer be used operationally."
+                            help={t('tenantsPage.help.tenantStatus')}
                           />
                         }
                         data={[
-                          { value: 'active', label: 'Active' },
-                          { value: 'disabled', label: 'Disabled' },
+                          {
+                            value: 'active',
+                            label: t('tenantsPage.active'),
+                          },
+                          {
+                            value: 'disabled',
+                            label: t('tenantsPage.disabled'),
+                          },
                         ]}
                         value={editStatus}
                         onChange={onEditStatusChange}
@@ -474,7 +483,7 @@ export function TenantsPage() {
                         label={
                           <FieldLabel
                             label={t('tenantsPage.allowUserCredentialOverride')}
-                            help="If enabled, a member's own BYOK credential can override the tenant default when the provider configuration also permits it."
+                            help={t('tenantsPage.help.userCredentialOverride')}
                           />
                         }
                         description={t(
@@ -504,7 +513,7 @@ export function TenantsPage() {
                 <Group justify="space-between" mb="md">
                   <SectionTitle
                     title={t('tenantsPage.memberships')}
-                    help="Defines which global users belong to this tenant and which tenant-scoped roles they hold here. A user may appear in multiple tenants with different roles."
+                    help={t('tenantsPage.help.memberships')}
                   />
                   <Group gap="sm">
                     {selectedTenant ? (
@@ -581,7 +590,9 @@ export function TenantsPage() {
                                 }
                                 variant="light"
                               >
-                                {membership.status}
+                                {membership.status === 'active'
+                                  ? t('tenantsPage.active')
+                                  : t('tenantsPage.disabled')}
                               </Badge>
                             </Table.Td>
                             <Table.Td>
@@ -594,8 +605,8 @@ export function TenantsPage() {
                                   {membership.globalRoles.includes(
                                     'super_admin',
                                   )
-                                    ? 'Protected'
-                                    : 'Edit member'}
+                                    ? t('tenantsPage.protected')
+                                    : t('tenantsPage.editMember')}
                                 </Button>
                                 <Button
                                   size="xs"
@@ -633,7 +644,7 @@ export function TenantsPage() {
                 <Group justify="space-between" mb="md">
                   <SectionTitle
                     title={t('tenantsPage.policiesLimits')}
-                    help="Operational guardrails like request rates, budget ceilings, token ceilings, logging posture, and retention defaults. Some fields are enforced now, while others are persisted for future hardening."
+                    help={t('tenantsPage.help.policies')}
                   />
                   {selectedTenant ? (
                     <Badge variant="light">
@@ -654,7 +665,7 @@ export function TenantsPage() {
                           label={
                             <FieldLabel
                               label={t('tenantsPage.monthlyBudgetUSD')}
-                              help="Soft budget ceiling for this tenant's monthly usage. Once reached, the gateway blocks further requests with a quota event."
+                              help={t('tenantsPage.help.monthlyBudget')}
                             />
                           }
                           placeholder="250.00"
@@ -669,7 +680,7 @@ export function TenantsPage() {
                           label={
                             <FieldLabel
                               label={t('tenantsPage.retentionDays')}
-                              help="Planned retention posture for tenant-owned telemetry and operational records."
+                              help={t('tenantsPage.help.retention')}
                             />
                           }
                           value={editPolicyRetentionDays}
@@ -685,7 +696,7 @@ export function TenantsPage() {
                           label={
                             <FieldLabel
                               label={t('tenantsPage.requestsPerMinute')}
-                              help="Per-tenant request rate ceiling across gateway calls."
+                              help={t('tenantsPage.help.requestRate')}
                             />
                           }
                           value={editPolicyRequestsPerMinute}
@@ -699,7 +710,7 @@ export function TenantsPage() {
                           label={
                             <FieldLabel
                               label={t('tenantsPage.tokensPerMinute')}
-                              help="Per-tenant rolling token ceiling across compatible requests."
+                              help={t('tenantsPage.help.tokenRate')}
                             />
                           }
                           value={editPolicyTokensPerMinute}
@@ -792,10 +803,13 @@ export function TenantsPage() {
                       </Group>
                       <Text size="xs" c="dimmed">
                         {tenantPolicy?.createdAt
-                          ? `Policy row persisted and last updated ${new Date(
-                              tenantPolicy.updatedAt ?? tenantPolicy.createdAt,
-                            ).toLocaleString()}.`
-                          : 'No policy row has been persisted yet. Saving here will materialize the tenant defaults.'}
+                          ? t('tenantsPage.policyPersisted', {
+                              date: formatDateTime(
+                                tenantPolicy.updatedAt ??
+                                  tenantPolicy.createdAt,
+                              ),
+                            })
+                          : t('tenantsPage.noPolicyPersisted')}
                       </Text>
                       <Group justify="flex-end">
                         <Button
@@ -829,7 +843,7 @@ export function TenantsPage() {
                 <Group justify="space-between" mb="md">
                   <SectionTitle
                     title={t('tenantsPage.providerConfigurations')}
-                    help="Controls whether a provider is available to this tenant, which default models it uses, and how credentials are resolved between platform, tenant, and user scopes."
+                    help={t('tenantsPage.help.providers')}
                   />
                   {selectedTenant ? (
                     <Badge variant="light">
@@ -868,8 +882,8 @@ export function TenantsPage() {
                                   variant="light"
                                 >
                                   {configuration.enabled
-                                    ? 'enabled'
-                                    : 'disabled'}
+                                    ? t('tenantsPage.enabled')
+                                    : t('tenantsPage.disabled')}
                                 </Badge>
                                 <Badge
                                   color={
@@ -880,7 +894,9 @@ export function TenantsPage() {
                                   variant="outline"
                                 >
                                   {t('tenantsPage.platform')}
-                                  {configuration.providerStatus}
+                                  {configuration.providerStatus === 'active'
+                                    ? t('tenantsPage.active')
+                                    : t('tenantsPage.disabled')}
                                 </Badge>
                               </Group>
                             </Table.Td>
@@ -890,28 +906,28 @@ export function TenantsPage() {
                               </Text>
                               <Text size="sm" c="dimmed">
                                 {configuration.preferUserCredentials
-                                  ? 'User-first'
-                                  : 'Tenant-first'}
+                                  ? t('tenantsPage.userFirst')
+                                  : t('tenantsPage.tenantFirst')}
                                 {' / '}
                                 {configuration.allowTenantFallback
-                                  ? 'tenant fallback'
-                                  : 'no tenant fallback'}
+                                  ? t('tenantsPage.tenantFallback')
+                                  : t('tenantsPage.noTenantFallback')}
                                 {' / '}
                                 {configuration.allowPlatformFallback
-                                  ? 'platform fallback'
-                                  : 'no platform fallback'}
+                                  ? t('tenantsPage.platformFallback')
+                                  : t('tenantsPage.noPlatformFallback')}
                               </Text>
                             </Table.Td>
                             <Table.Td>
                               <Text size="sm">
                                 {t('tenantsPage.text')}{' '}
                                 {configuration.defaultTextModel ??
-                                  'No tenant default'}
+                                  t('tenantsPage.noTenantDefault')}
                               </Text>
                               <Text size="sm">
                                 {t('tenantsPage.image')}{' '}
                                 {configuration.defaultImageModel ??
-                                  'No tenant default'}
+                                  t('tenantsPage.noTenantDefault')}
                               </Text>
                             </Table.Td>
                             <Table.Td>
@@ -950,7 +966,7 @@ export function TenantsPage() {
                 <Group justify="space-between" mb="md">
                   <SectionTitle
                     title={t('tenantsPage.integrationClients')}
-                    help="Technical identities for apps like Open WebUI. They are tenant-bound, scoped, and own one or more rotatable API keys."
+                    help={t('tenantsPage.help.integrationClients')}
                   />
                   <Group gap="sm">
                     {selectedTenant ? (
@@ -1010,8 +1026,8 @@ export function TenantsPage() {
                         variant="light"
                         title={
                           testTenantIntegrationClientResult.ready
-                            ? 'Integration client authentication succeeded'
-                            : 'Integration client authentication failed'
+                            ? t('tenantsPage.clientAuthSucceeded')
+                            : t('tenantsPage.clientAuthFailed')
                         }
                       >
                         <Stack gap={4}>
@@ -1029,7 +1045,7 @@ export function TenantsPage() {
                             {t('tenantsPage.scopes')}{' '}
                             {testTenantIntegrationClientResult.scopes.join(
                               ', ',
-                            ) || 'none'}
+                            ) || t('tenantsPage.none')}
                           </Text>
                           {testTenantIntegrationClientResult.scopes.includes(
                             'evaluation:invoke',
@@ -1087,13 +1103,14 @@ export function TenantsPage() {
                                 </Text>
                                 <Text size="sm">
                                   {t('tenantsPage.defaultUserFallback')}{' '}
-                                  {client.defaultUserDisplayName ?? 'None'}
+                                  {client.defaultUserDisplayName ??
+                                    t('tenantsPage.none')}
                                 </Text>
                                 <Text size="sm" c="dimmed">
                                   {t('tenantsPage.forwardedIdentity')}{' '}
                                   {client.trustedForwardedIdentityEnabled
-                                    ? 'trusted'
-                                    : 'disabled'}
+                                    ? t('tenantsPage.trusted')
+                                    : t('tenantsPage.disabled')}
                                 </Text>
                               </Table.Td>
                               <Table.Td>
@@ -1115,7 +1132,9 @@ export function TenantsPage() {
                                     }
                                     variant="light"
                                   >
-                                    {client.status}
+                                    {client.status === 'active'
+                                      ? t('tenantsPage.active')
+                                      : t('tenantsPage.disabled')}
                                   </Badge>
                                   <Badge variant="outline">
                                     {client.apiKeyCount} {t('tenantsPage.keys')}
@@ -1126,7 +1145,9 @@ export function TenantsPage() {
                                 <Menu position="bottom-end" withinPortal>
                                   <Menu.Target>
                                     <Button
-                                      aria-label={`Actions for ${client.displayName}`}
+                                      aria-label={t('tenantsPage.actionsFor', {
+                                        name: client.displayName,
+                                      })}
                                       disabled={
                                         isDeleteTenantIntegrationClientPending
                                       }
@@ -1233,12 +1254,19 @@ export function TenantsPage() {
                                     <Text fw={600}>{apiKey.label}</Text>
                                     <Text size="sm" c="dimmed">
                                       {apiKey.expiresAt
-                                        ? `Expires ${new Date(apiKey.expiresAt).toLocaleString()}`
-                                        : 'No expiry'}
+                                        ? t('tenantsPage.expiresDate', {
+                                            date: formatDateTime(
+                                              apiKey.expiresAt,
+                                            ),
+                                          })
+                                        : t('tenantsPage.noExpiry')}
                                     </Text>
                                   </Table.Td>
                                   <Table.Td>
-                                    <Code>{apiKey.keyHint ?? 'hidden'}</Code>
+                                    <Code>
+                                      {apiKey.keyHint ??
+                                        t('tenantsPage.hidden')}
+                                    </Code>
                                   </Table.Td>
                                   <Table.Td>
                                     <Group gap="xs" wrap="wrap">
@@ -1258,23 +1286,26 @@ export function TenantsPage() {
                                       }
                                       variant="light"
                                     >
-                                      {apiKey.status}
+                                      {apiKey.status === 'active'
+                                        ? t('tenantsPage.active')
+                                        : t('tenantsPage.disabled')}
                                     </Badge>
                                   </Table.Td>
                                   <Table.Td>
                                     <Text size="sm">
                                       {apiKey.lastUsedAt
-                                        ? new Date(
-                                            apiKey.lastUsedAt,
-                                          ).toLocaleString()
-                                        : 'Never'}
+                                        ? formatDateTime(apiKey.lastUsedAt)
+                                        : t('tenantsPage.never')}
                                     </Text>
                                   </Table.Td>
                                   <Table.Td>
                                     <Menu position="bottom-end" withinPortal>
                                       <Menu.Target>
                                         <Button
-                                          aria-label={`Actions for ${apiKey.label}`}
+                                          aria-label={t(
+                                            'tenantsPage.actionsFor',
+                                            { name: apiKey.label },
+                                          )}
                                           disabled={
                                             isDeleteTenantIntegrationApiKeyPending
                                           }
@@ -1351,7 +1382,7 @@ export function TenantsPage() {
                 <Group justify="space-between" mb="md">
                   <SectionTitle
                     title={t('tenantsPage.modelAccessRules')}
-                    help="Allow or deny rules for provider models, evaluated by priority. At equal priority, deny wins over allow."
+                    help={t('tenantsPage.help.modelRules')}
                   />
                   <Group gap="sm">
                     {selectedTenant ? (
@@ -1463,7 +1494,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.slug')}
-                  help="Stable human-readable identifier used in URLs, ops, and tenant references. It should remain stable after creation."
+                  help={t('tenantsPage.help.slug')}
                 />
               }
               placeholder={t('tenantsPage.customerAcme')}
@@ -1476,7 +1507,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.displayName')}
-                  help="Friendly tenant name shown to operators throughout the control plane."
+                  help={t('tenantsPage.help.operatorDisplayName')}
                 />
               }
               placeholder={t('tenantsPage.customerAcme2')}
@@ -1490,7 +1521,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.allowUserCredentialOverride')}
-                  help="Sets the tenant default for whether members may use their own BYOK credential instead of the tenant default."
+                  help={t('tenantsPage.help.defaultUserOverride')}
                 />
               }
               onChange={(event) =>
@@ -1527,7 +1558,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.displayName')}
-                  help="Friendly name for the member when provisioning a brand-new global account."
+                  help={t('tenantsPage.help.memberDisplayName')}
                 />
               }
               description={t(
@@ -1542,7 +1573,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.email')}
-                  help="Global user identity. If this email already exists, the user is attached to this tenant instead of being recreated."
+                  help={t('tenantsPage.help.memberEmail')}
                 />
               }
               type="email"
@@ -1555,7 +1586,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.temporaryPassword')}
-                  help="Only needed when creating a brand-new global account. Existing users keep their current password."
+                  help={t('tenantsPage.help.memberPassword')}
                 />
               }
               description={t(
@@ -1570,17 +1601,20 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.tenantRoles')}
-                  help="Tenant-scoped permissions granted inside this tenant only, such as tenant_admin or operator."
+                  help={t('tenantsPage.help.memberRoles')}
                 />
               }
               value={createMemberRoles}
               onChange={onCreateMemberRolesChange}
               searchable={false}
               data={[
-                { value: 'viewer', label: 'Viewer' },
-                { value: 'user', label: 'User' },
-                { value: 'operator', label: 'Operator' },
-                { value: 'tenant_admin', label: 'Tenant admin' },
+                { value: 'viewer', label: t('tenantsPage.viewer') },
+                { value: 'user', label: t('tenantsPage.user') },
+                { value: 'operator', label: t('tenantsPage.operator') },
+                {
+                  value: 'tenant_admin',
+                  label: t('tenantsPage.tenantAdmin'),
+                },
               ]}
             />
             <Group justify="space-between">
@@ -1612,8 +1646,8 @@ export function TenantsPage() {
           <Stack gap="md">
             <Text size="sm" c="dimmed">
               {selectedMembershipIsProtected
-                ? 'This account has the global super_admin role. Tenant workflows can inspect it, but cannot downgrade or disable it.'
-                : 'Update tenant-scoped roles or disable the selected user account for this tenant workflow.'}
+                ? t('tenantsPage.protectedMemberDescription')
+                : t('tenantsPage.editMemberDescription')}
             </Text>
             {selectedMembership ? (
               <div>
@@ -1628,17 +1662,20 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.tenantRoles')}
-                  help="Tenant-scoped permissions for this user inside the selected tenant only."
+                  help={t('tenantsPage.help.editMemberRoles')}
                 />
               }
               value={editMemberRoles}
               onChange={onEditMemberRolesChange}
               searchable={false}
               data={[
-                { value: 'viewer', label: 'Viewer' },
-                { value: 'user', label: 'User' },
-                { value: 'operator', label: 'Operator' },
-                { value: 'tenant_admin', label: 'Tenant admin' },
+                { value: 'viewer', label: t('tenantsPage.viewer') },
+                { value: 'user', label: t('tenantsPage.user') },
+                { value: 'operator', label: t('tenantsPage.operator') },
+                {
+                  value: 'tenant_admin',
+                  label: t('tenantsPage.tenantAdmin'),
+                },
               ]}
             />
             <Select
@@ -1646,14 +1683,14 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.status')}
-                  help="Disabled members remain in the tenant history but should no longer operate through this tenant workflow."
+                  help={t('tenantsPage.help.memberStatus')}
                 />
               }
               value={editMemberStatus}
               onChange={onEditMemberStatusChange}
               data={[
-                { value: 'active', label: 'Active' },
-                { value: 'disabled', label: 'Disabled' },
+                { value: 'active', label: t('tenantsPage.active') },
+                { value: 'disabled', label: t('tenantsPage.disabled') },
               ]}
             />
             <Group justify="space-between">
@@ -1665,7 +1702,9 @@ export function TenantsPage() {
                 type="submit"
                 disabled={selectedMembershipIsProtected}
               >
-                {selectedMembershipIsProtected ? 'Protected' : 'Save member'}
+                {selectedMembershipIsProtected
+                  ? t('tenantsPage.protected')
+                  : t('tenantsPage.saveMember')}
               </Button>
             </Group>
           </Stack>
@@ -1713,13 +1752,18 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.globalRoles')}
-                  help="Global control-plane privileges that apply across tenants. This is separate from tenant membership."
+                  help={t('tenantsPage.help.globalRoles')}
                 />
               }
               value={editGlobalRoles}
               onChange={onEditGlobalRolesChange}
               searchable={false}
-              data={[{ value: 'super_admin', label: 'Super admin' }]}
+              data={[
+                {
+                  value: 'super_admin',
+                  label: t('tenantsPage.superAdmin'),
+                },
+              ]}
             />
             <Group justify="space-between">
               <Button
@@ -1742,8 +1786,8 @@ export function TenantsPage() {
         onClose={onCloseEditIntegrationClient}
         title={
           selectedIntegrationClient
-            ? 'Edit integration client'
-            : 'Add integration client'
+            ? t('tenantsPage.editIntegrationClient')
+            : t('tenantsPage.addIntegrationClient')
         }
       >
         <form onSubmit={handleUpsertTenantIntegrationClientSubmit}>
@@ -1762,7 +1806,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.clientID')}
-                  help="Stable technical identifier for this integration client. It is part of the trust boundary and should not be changed casually."
+                  help={t('tenantsPage.help.clientId')}
                 />
               }
               placeholder={t('tenantsPage.openWebuiDemo')}
@@ -1775,7 +1819,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.displayName')}
-                  help="Friendly name shown to operators for this technical client."
+                  help={t('tenantsPage.help.clientDisplayName')}
                 />
               }
               placeholder={t('tenantsPage.openWebUIDemo')}
@@ -1790,7 +1834,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.applicationID')}
-                  help="Human-readable application grouping such as open-webui or creative-studio."
+                  help={t('tenantsPage.help.applicationId')}
                 />
               }
               placeholder={t('tenantsPage.openWebui')}
@@ -1807,7 +1851,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.defaultUser')}
-                  help="Optional fallback used only when no validated delegated user is supplied. Leave empty for a service-only client."
+                  help={t('tenantsPage.help.defaultUser')}
                 />
               }
               placeholder={t('tenantsPage.noneUseServiceIdentity')}
@@ -1821,7 +1865,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.scopes2')}
-                  help="Capabilities this technical client may call through the gateway. Keep this as narrow as practical."
+                  help={t('tenantsPage.help.clientScopes')}
                 />
               }
               searchable={false}
@@ -1837,7 +1881,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.trustForwardedHumanIdentity')}
-                  help="Allows a validated delegated user to supplement the service caller. The integration client remains attributable as the technical caller."
+                  help={t('tenantsPage.help.forwardedIdentity')}
                 />
               }
               description={t('tenantsPage.onlyEnableThisBehindATrustedProxy')}
@@ -1852,14 +1896,14 @@ export function TenantsPage() {
                 label={
                   <FieldLabel
                     label={t('tenantsPage.status')}
-                    help="Disabled technical clients can remain defined without being able to authenticate."
+                    help={t('tenantsPage.help.clientStatus')}
                   />
                 }
                 value={editIntegrationClientStatus}
                 onChange={onEditIntegrationClientStatusChange}
                 data={[
-                  { value: 'active', label: 'Active' },
-                  { value: 'disabled', label: 'Disabled' },
+                  { value: 'active', label: t('tenantsPage.active') },
+                  { value: 'disabled', label: t('tenantsPage.disabled') },
                 ]}
               />
             ) : null}
@@ -1884,7 +1928,9 @@ export function TenantsPage() {
                     !editIntegrationClientId.trim())
                 }
               >
-                {selectedIntegrationClient ? 'Save client' : 'Create client'}
+                {selectedIntegrationClient
+                  ? t('tenantsPage.saveClient')
+                  : t('tenantsPage.createClient')}
               </Button>
             </Group>
           </Stack>
@@ -1894,7 +1940,11 @@ export function TenantsPage() {
       <Modal
         opened={editIntegrationApiKeyOpened}
         onClose={onCloseEditIntegrationApiKey}
-        title={selectedIntegrationApiKey ? 'Edit API key' : 'Create API key'}
+        title={
+          selectedIntegrationApiKey
+            ? t('tenantsPage.editApiKey')
+            : t('tenantsPage.createApiKey')
+        }
       >
         <form onSubmit={handleUpsertTenantIntegrationApiKeySubmit}>
           <Stack gap="md">
@@ -1913,7 +1963,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.label')}
-                  help="Operator-friendly name for this secret, such as primary, staging, or rotated-2026-05."
+                  help={t('tenantsPage.help.keyLabel')}
                 />
               }
               placeholder={t('tenantsPage.primaryKey')}
@@ -1926,7 +1976,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.scopes2')}
-                  help="Delegated subset for this key. The API copies the client ceiling only when scopes are omitted; an explicit empty selection grants no capability."
+                  help={t('tenantsPage.help.keyScopes')}
                 />
               }
               description={t(
@@ -1944,7 +1994,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.expiresAt')}
-                  help="Optional expiry date and time after which this API key should no longer authenticate."
+                  help={t('tenantsPage.help.keyExpiry')}
                 />
               }
               type="datetime-local"
@@ -1960,14 +2010,14 @@ export function TenantsPage() {
                 label={
                   <FieldLabel
                     label={t('tenantsPage.status')}
-                    help="Disabled keys remain auditable but can no longer be used."
+                    help={t('tenantsPage.help.keyStatus')}
                   />
                 }
                 value={editIntegrationApiKeyStatus}
                 onChange={onEditIntegrationApiKeyStatusChange}
                 data={[
-                  { value: 'active', label: 'Active' },
-                  { value: 'disabled', label: 'Disabled' },
+                  { value: 'active', label: t('tenantsPage.active') },
+                  { value: 'disabled', label: t('tenantsPage.disabled') },
                 ]}
               />
             ) : null}
@@ -2010,7 +2060,9 @@ export function TenantsPage() {
                 type="submit"
                 disabled={!editIntegrationApiKeyLabel.trim()}
               >
-                {selectedIntegrationApiKey ? 'Save key' : 'Create key'}
+                {selectedIntegrationApiKey
+                  ? t('tenantsPage.saveKey')
+                  : t('tenantsPage.createKey')}
               </Button>
             </Group>
           </Stack>
@@ -2022,8 +2074,8 @@ export function TenantsPage() {
         onClose={onCloseEditModelAccessRule}
         title={
           selectedModelAccessRule
-            ? 'Edit model access rule'
-            : 'Add model access rule'
+            ? t('tenantsPage.editModelAccessRule')
+            : t('tenantsPage.addModelAccessRule')
         }
       >
         <form onSubmit={handleUpsertTenantModelAccessRuleSubmit}>
@@ -2035,7 +2087,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.provider')}
-                  help="The provider family this rule applies to, such as OpenAI or OpenRouter."
+                  help={t('tenantsPage.help.ruleProvider')}
                 />
               }
               value={editModelRuleProviderId}
@@ -2055,7 +2107,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.modelPattern')}
-                  help="Pattern matched against provider model IDs, for example meta-llama/* or gpt-4.1."
+                  help={t('tenantsPage.help.modelPattern')}
                 />
               }
               placeholder={t('tenantsPage.metaLlama')}
@@ -2069,31 +2121,34 @@ export function TenantsPage() {
                 label={
                   <FieldLabel
                     label={t('tenantsPage.capability')}
-                    help="The capability surface this rule governs, such as text or image."
+                    help={t('tenantsPage.help.ruleCapability')}
                   />
                 }
                 value={editModelRuleCapability}
                 onChange={onEditModelRuleCapabilityChange}
                 data={[
-                  { value: 'text', label: 'Text' },
-                  { value: 'image', label: 'Image' },
+                  { value: 'text', label: t('tenantsPage.textCapability') },
+                  { value: 'image', label: t('tenantsPage.imageCapability') },
                   { value: 'stt', label: 'STT' },
                   { value: 'tts', label: 'TTS' },
-                  { value: 'embedding', label: 'Embedding' },
+                  {
+                    value: 'embedding',
+                    label: t('tenantsPage.embedding'),
+                  },
                 ]}
               />
               <Select
                 label={
                   <FieldLabel
                     label={t('tenantsPage.effect')}
-                    help="Allow grants access when matched. Deny blocks access and wins ties at the same priority."
+                    help={t('tenantsPage.help.ruleEffect')}
                   />
                 }
                 value={editModelRuleEffect}
                 onChange={onEditModelRuleEffectChange}
                 data={[
-                  { value: 'allow', label: 'Allow' },
-                  { value: 'deny', label: 'Deny' },
+                  { value: 'allow', label: t('tenantsPage.allow') },
+                  { value: 'deny', label: t('tenantsPage.deny') },
                 ]}
               />
             </Group>
@@ -2101,7 +2156,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.priority')}
-                  help="Rules are evaluated by descending priority. Higher numbers win first."
+                  help={t('tenantsPage.help.rulePriority')}
                 />
               }
               value={editModelRulePriority}
@@ -2331,10 +2386,13 @@ export function TenantsPage() {
               value={editProviderCredentialMode}
               onChange={onEditProviderCredentialModeChange}
               data={[
-                { value: 'hybrid', label: 'Hybrid' },
-                { value: 'tenant_byok', label: 'Tenant BYOK' },
-                { value: 'user_byok', label: 'User BYOK' },
-                { value: 'platform_default', label: 'Platform default' },
+                { value: 'hybrid', label: t('tenantsPage.hybrid') },
+                { value: 'tenant_byok', label: t('tenantsPage.tenantByok') },
+                { value: 'user_byok', label: t('tenantsPage.userByok') },
+                {
+                  value: 'platform_default',
+                  label: t('tenantsPage.platformDefault'),
+                },
               ]}
             />
             <Switch
@@ -2342,7 +2400,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.preferUserCredentials')}
-                  help="When hybrid resolution is active, try user BYOK credentials before tenant defaults."
+                  help={t('tenantsPage.preferUserCredentialsHelp')}
                 />
               }
               disabled={
@@ -2361,7 +2419,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.allowTenantFallback')}
-                  help="If user credentials are missing or not allowed, fall back to a tenant-scoped credential when possible."
+                  help={t('tenantsPage.allowTenantFallbackHelp')}
                 />
               }
               disabled={
@@ -2379,7 +2437,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.allowPlatformFallback')}
-                  help="Legacy interactive-request policy. Structured Evaluation service identities ignore this setting and require a tenant credential."
+                  help={t('tenantsPage.allowPlatformFallbackHelp')}
                 />
               }
               disabled={editProviderCredentialMode === 'platform_default'}
@@ -2393,7 +2451,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.defaultTextModel')}
-                  help="Tenant default model used for text generation when the caller does not specify one."
+                  help={t('tenantsPage.defaultTextModelHelp')}
                 />
               }
               placeholder={t('tenantsPage.openaiGpt41')}
@@ -2406,7 +2464,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.defaultImageModel')}
-                  help="Tenant default model used for image generation or edits when the caller does not specify one."
+                  help={t('tenantsPage.defaultImageModelHelp')}
                 />
               }
               placeholder={t('tenantsPage.gptImage1')}

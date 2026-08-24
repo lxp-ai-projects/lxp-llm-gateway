@@ -117,5 +117,16 @@
   "imageRequestForm.useAsReference": "Utiliser comme référence",
   "imageRequestForm.uploadedReferenceAsset": "Ressource de référence téléversée",
   "imageRequestForm.gatewayImageAsset": "Ressource image de la passerelle",
-  "imageRequestForm.noModelsFound": "Aucun modèle trouvé"
+  "imageRequestForm.noModelsFound": "Aucun modèle trouvé",
+  "imageHistoryPanel.copiedPrompt": "Invite copiée",
+  "imageHistoryPanel.copyPrompt": "Copier l’invite dans le presse-papiers",
+  "imageHistoryPanel.savedAction": "Enregistrée",
+  "imageHistoryPanel.saveAction": "Enregistrer",
+  "imageRequestForm.removeReference": "Retirer {{label}}",
+  "imageRequestForm.editImage": "Modifier l’image",
+  "imageRequestForm.generateImage": "Générer l’image",
+  "imageResultsPanel.editMode": "Mode modification",
+  "imageResultsPanel.generationMode": "Mode génération",
+  "imageResultsPanel.savedAction": "Enregistrée",
+  "imageResultsPanel.saveAction": "Enregistrer"
 }

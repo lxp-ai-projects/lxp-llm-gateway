@@ -4,6 +4,8 @@ export const fr = {
       cancel: 'Annuler',
       close: 'Fermer',
       confirm: 'Confirmer',
+      copy: 'Copier',
+      copied: 'Copié',
       delete: 'Supprimer',
       install: "Installer l'application",
       logout: 'Se déconnecter',

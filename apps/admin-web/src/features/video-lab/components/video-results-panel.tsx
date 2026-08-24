@@ -401,7 +401,9 @@ export function VideoResultsPanel({
                           size="xs"
                           variant={output.saved ? 'filled' : 'light'}
                         >
-                          {output.saved ? 'Saved' : 'Save'}
+                          {output.saved
+                            ? t('videoResultsPanel.savedAction')
+                            : t('videoResultsPanel.saveAction')}
                         </Button>
                       ) : null}
                       {output.contentUrl ? (

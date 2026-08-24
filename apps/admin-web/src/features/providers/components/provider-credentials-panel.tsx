@@ -303,11 +303,12 @@ export function ProviderCredentialsPanel({
             {t('providerCredentialsPanel.deleteTheCredentialFor')}{' '}
             <Text component="span" fw={700}>
               {credentialDeleteTarget?.providerDisplayName ??
-                'Unknown provider'}
+                t('providerCredentialsPanel.unknownProvider')}
             </Text>{' '}
             {t('providerCredentialsPanel.withLabel')}{' '}
             <Text component="span" fw={700}>
-              {credentialDeleteTarget?.label ?? 'Unknown label'}
+              {credentialDeleteTarget?.label ??
+                t('providerCredentialsPanel.unknownLabel')}
             </Text>
             ?
           </Text>

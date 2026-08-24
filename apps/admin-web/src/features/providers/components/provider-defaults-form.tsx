@@ -24,6 +24,7 @@ import {
 } from '../lib/provider-utils';
 
 function HelpLabel({ label, help }: { label: string; help: string }) {
+  const { t } = useTranslation('providers');
   return (
     <Group gap={6} wrap="nowrap">
       <Text component="span" inherit>
@@ -31,7 +32,7 @@ function HelpLabel({ label, help }: { label: string; help: string }) {
       </Text>
       <Tooltip label={help} multiline w={280} withArrow>
         <ActionIcon
-          aria-label={`Help for ${label}`}
+          aria-label={t('providerDefaultsForm.helpFor', { label })}
           color="gray"
           radius="xl"
           size="sm"

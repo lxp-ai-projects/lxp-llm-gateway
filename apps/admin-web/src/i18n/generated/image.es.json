@@ -117,5 +117,16 @@
   "imageRequestForm.useAsReference": "Usar como referencia",
   "imageRequestForm.uploadedReferenceAsset": "Recurso de referencia cargado",
   "imageRequestForm.gatewayImageAsset": "Recurso de imagen de la pasarela",
-  "imageRequestForm.noModelsFound": "No se encontraron modelos"
+  "imageRequestForm.noModelsFound": "No se encontraron modelos",
+  "imageHistoryPanel.copiedPrompt": "Instrucción copiada",
+  "imageHistoryPanel.copyPrompt": "Copiar instrucción al portapapeles",
+  "imageHistoryPanel.savedAction": "Guardada",
+  "imageHistoryPanel.saveAction": "Guardar",
+  "imageRequestForm.removeReference": "Quitar {{label}}",
+  "imageRequestForm.editImage": "Editar imagen",
+  "imageRequestForm.generateImage": "Generar imagen",
+  "imageResultsPanel.editMode": "Modo de edición",
+  "imageResultsPanel.generationMode": "Modo de generación",
+  "imageResultsPanel.savedAction": "Guardada",
+  "imageResultsPanel.saveAction": "Guardar"
 }

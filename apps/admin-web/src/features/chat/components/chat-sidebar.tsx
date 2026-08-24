@@ -108,7 +108,9 @@ export function ChatSidebar({
                 {conversation.title}
               </Button>
               <ActionIcon
-                aria-label={`Export ${conversation.title}`}
+                aria-label={t('chatSidebar.exportConversation', {
+                  title: conversation.title,
+                })}
                 data-testid={`chat-conversation-export-${conversation.id}`}
                 disabled={isTransferBusy}
                 onClick={() => onExportConversation(conversation)}
@@ -117,7 +119,9 @@ export function ChatSidebar({
                 <IconDownload size={16} />
               </ActionIcon>
               <ActionIcon
-                aria-label={`Delete ${conversation.title}`}
+                aria-label={t('chatSidebar.deleteConversation', {
+                  title: conversation.title,
+                })}
                 data-testid={`chat-conversation-delete-${conversation.id}`}
                 color="red"
                 disabled={isStreaming}

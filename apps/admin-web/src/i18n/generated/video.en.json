@@ -131,5 +131,7 @@
   "videoRequestForm.generateFromImage": "Generate video from image",
   "videoRequestForm.uploadedImageAsset": "Uploaded image asset",
   "videoRequestForm.gatewayImageAsset": "Gateway image asset",
-  "videoRequestForm.useAsReference": "Use as reference"
+  "videoRequestForm.useAsReference": "Use as reference",
+  "videoResultsPanel.savedAction": "Saved",
+  "videoResultsPanel.saveAction": "Save"
 }

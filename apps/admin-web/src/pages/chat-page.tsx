@@ -864,7 +864,8 @@ export function ChatPage() {
           <Text size="sm">
             {t('chatPage.thisPermanentlyRemovesTheLocalConversation')}{' '}
             <Text component="span" fw={700} inherit>
-              {conversationPendingDeletion?.title ?? 'Untitled conversation'}
+              {conversationPendingDeletion?.title ??
+                t('chatPage.untitledConversation')}
             </Text>
             {t('chatPage.theOperationCannotBeUndone')}
           </Text>
@@ -929,8 +930,8 @@ export function ChatPage() {
                 <Text c="dimmed" size="sm">
                   {t('chatPage.runtimeGatewayStatus')}{' '}
                   {runtimeConfigQuery.data?.gatewayOnline
-                    ? 'online'
-                    : 'offline'}
+                    ? t('chatPage.online')
+                    : t('chatPage.offline')}
                 </Text>
               </Stack>
               <Stack gap="xs" w={240}>
@@ -1032,12 +1033,15 @@ export function ChatPage() {
                   <>
                     <Select
                       data={[
-                        { value: 'none', label: 'Extended thinking: none' },
+                        {
+                          value: 'none',
+                          label: t('chatPage.extendedThinkingNone'),
+                        },
                         ...(reasoningCapability?.controls.includes('adaptive')
                           ? [
                               {
                                 value: 'auto',
-                                label: 'Extended thinking: auto',
+                                label: t('chatPage.extendedThinkingAuto'),
                               },
                             ]
                           : []),
@@ -1045,7 +1049,7 @@ export function ChatPage() {
                           ? [
                               {
                                 value: 'budget',
-                                label: 'Extended thinking: budget',
+                                label: t('chatPage.extendedThinkingBudget'),
                               },
                             ]
                           : []),
@@ -1282,8 +1286,8 @@ export function ChatPage() {
                   value="system-prompt"
                 >
                   {systemPrompt.trim() !== DEFAULT_SYSTEM_PROMPT
-                    ? 'System prompt *'
-                    : 'System prompt'}
+                    ? t('chatPage.systemPromptRequired')
+                    : t('chatPage.systemPrompt')}
                 </Tabs.Tab>
               </Tabs.List>
 

@@ -101,5 +101,8 @@
   "providerDefaultsForm.noModelsFound": "No se encontraron modelos",
   "providerDefaultsForm.loadingModels": "Cargando modelos del proveedor...",
   "providerDefaultsForm.chooseDefaultModel": "Elegir un modelo predeterminado",
-  "providerDefaultsForm.chooseProviderFirst": "Elegir primero un proveedor predeterminado"
+  "providerDefaultsForm.chooseProviderFirst": "Elegir primero un proveedor predeterminado",
+  "providerDefaultsForm.helpFor": "Ayuda para {{label}}",
+  "providerCredentialsPanel.unknownProvider": "Proveedor desconocido",
+  "providerCredentialsPanel.unknownLabel": "Etiqueta desconocida"
 }
