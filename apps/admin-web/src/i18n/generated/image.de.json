@@ -105,5 +105,17 @@
   "imageResultsPanel.estimateBasedOn": "Schätzung basierend auf",
   "imageResultsPanel.previous": "vorherigen",
   "imageResultsPanel.forThisProviderAndModel": "für diesen Anbieter und dieses Modell.",
-  "imageResultsPanel.noImagesYet": "Noch keine Bilder"
+  "imageResultsPanel.noImagesYet": "Noch keine Bilder",
+  "imageRequestForm.selectedReferences_one": "Ausgewählte Referenz ({{count}})",
+  "imageRequestForm.selectedReferences_other": "Ausgewählte Referenzen ({{count}})",
+  "imageRequestForm.newest": "Neueste",
+  "imageRequestForm.oldest": "Älteste",
+  "imageRequestForm.all": "Alle",
+  "imageRequestForm.available": "Verfügbar",
+  "imageRequestForm.selectedState": "Ausgewählt",
+  "imageRequestForm.alreadySelected": "Bereits ausgewählt",
+  "imageRequestForm.useAsReference": "Als Referenz verwenden",
+  "imageRequestForm.uploadedReferenceAsset": "Hochgeladene Referenzressource",
+  "imageRequestForm.gatewayImageAsset": "Gateway-Bildressource",
+  "imageRequestForm.noModelsFound": "Keine Modelle gefunden"
 }

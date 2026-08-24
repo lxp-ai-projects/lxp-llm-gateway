@@ -22,5 +22,6 @@
   "profilePage.security": "Seguridad",
   "profilePage.changeYourPasswordWithoutLeavingTheCurrent": "Cambia tu contraseña sin salir de la sesión actual.",
   "profilePage.passwordUpdated": "Contraseña actualizada",
-  "profilePage.checkYourEntries": "Verifica tus entradas"
+  "profilePage.checkYourEntries": "Verifica tus entradas",
+  "profilePage.profileUpdatedMessage": "Tu perfil se ha actualizado."
 }

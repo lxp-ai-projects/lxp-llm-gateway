@@ -119,5 +119,17 @@
   "videoResultsPanel.theJobSucceededButThisOutputIs": "The job succeeded, but this output is missing an application asset URL.",
   "videoResultsPanel.resolution": "Resolution",
   "videoResultsPanel.size": "Size",
-  "videoResultsPanel.openApplicationAsset": "Open application asset"
+  "videoResultsPanel.openApplicationAsset": "Open application asset",
+  "videoRequestForm.newest": "Newest",
+  "videoRequestForm.oldest": "Oldest",
+  "videoRequestForm.label": "Label",
+  "videoRequestForm.all": "All",
+  "videoRequestForm.available": "Available",
+  "videoRequestForm.selectedState": "Selected",
+  "videoRequestForm.noModelsFound": "No models found",
+  "videoRequestForm.generate": "Generate video",
+  "videoRequestForm.generateFromImage": "Generate video from image",
+  "videoRequestForm.uploadedImageAsset": "Uploaded image asset",
+  "videoRequestForm.gatewayImageAsset": "Gateway image asset",
+  "videoRequestForm.useAsReference": "Use as reference"
 }

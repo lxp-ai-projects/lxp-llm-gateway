@@ -22,5 +22,6 @@
   "profilePage.changePassword": "Change password",
   "profilePage.providers": "Providers",
   "profilePage.providerTokensAndEndpointConfigurationLiveOn": "Provider tokens and endpoint configuration live on the dedicated provider setup page.",
-  "profilePage.openProviderSettings": "Open provider settings"
+  "profilePage.openProviderSettings": "Open provider settings",
+  "profilePage.profileUpdatedMessage": "Your profile has been updated."
 }

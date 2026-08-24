@@ -9,7 +9,7 @@ test('StatusTile renders neutral content with fallback badge text', () => {
 
   expect(screen.getByText('Session')).toBeInTheDocument();
   expect(screen.getByText('Authenticated')).toBeInTheDocument();
-  expect(screen.getByText('live')).toBeInTheDocument();
+  expect(screen.getByText('Live')).toBeInTheDocument();
 });
 
 test('StatusTile renders a custom icon and warning tone', () => {

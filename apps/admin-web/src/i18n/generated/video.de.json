@@ -119,5 +119,17 @@
   "videoResultsPanel.providerMetadata": "Anbietermetadaten",
   "videoResultsPanel.generationFailed": "Generierung fehlgeschlagen",
   "videoResultsPanel.generationCancelled": "Generierung abgebrochen",
-  "videoResultsPanel.cancellationIsNormalizedByTheGatewayAnd": "Die Stornierung wird vom Gateway normalisiert und kann auf Anbieterebene nur nach bestem Bemühen erfolgen."
+  "videoResultsPanel.cancellationIsNormalizedByTheGatewayAnd": "Die Stornierung wird vom Gateway normalisiert und kann auf Anbieterebene nur nach bestem Bemühen erfolgen.",
+  "videoRequestForm.newest": "Neueste",
+  "videoRequestForm.oldest": "Älteste",
+  "videoRequestForm.label": "Bezeichnung",
+  "videoRequestForm.all": "Alle",
+  "videoRequestForm.available": "Verfügbar",
+  "videoRequestForm.selectedState": "Ausgewählt",
+  "videoRequestForm.noModelsFound": "Keine Modelle gefunden",
+  "videoRequestForm.generate": "Video generieren",
+  "videoRequestForm.generateFromImage": "Video aus Bild generieren",
+  "videoRequestForm.uploadedImageAsset": "Hochgeladene Bildressource",
+  "videoRequestForm.gatewayImageAsset": "Gateway-Bildressource",
+  "videoRequestForm.useAsReference": "Als Referenz verwenden"
 }

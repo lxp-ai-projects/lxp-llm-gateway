@@ -105,5 +105,17 @@
   "imageResultsPanel.theGatewayReturnedAnImageEntryWithout": "The gateway returned an image entry without a displayable payload.",
   "imageResultsPanel.result": "Result",
   "imageResultsPanel.useAsReference": "Use as reference",
-  "imageResultsPanel.revisedPrompt": "Revised prompt:"
+  "imageResultsPanel.revisedPrompt": "Revised prompt:",
+  "imageRequestForm.selectedReferences_one": "Selected reference ({{count}})",
+  "imageRequestForm.selectedReferences_other": "Selected references ({{count}})",
+  "imageRequestForm.newest": "Newest",
+  "imageRequestForm.oldest": "Oldest",
+  "imageRequestForm.all": "All",
+  "imageRequestForm.available": "Available",
+  "imageRequestForm.selectedState": "Selected",
+  "imageRequestForm.alreadySelected": "Already selected",
+  "imageRequestForm.useAsReference": "Use as reference",
+  "imageRequestForm.uploadedReferenceAsset": "Uploaded reference asset",
+  "imageRequestForm.gatewayImageAsset": "Gateway image asset",
+  "imageRequestForm.noModelsFound": "No models found"
 }

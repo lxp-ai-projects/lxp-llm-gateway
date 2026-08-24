@@ -145,7 +145,9 @@ export function ProviderCredentialsPanel({
                       color={credential.isActive ? 'moss' : 'gray'}
                       variant="light"
                     >
-                      {credential.isActive ? 'Active' : 'Disabled'}
+                      {credential.isActive
+                        ? t('providerCredentialsPanel.active')
+                        : t('providerCredentialsPanel.disabled')}
                     </Badge>
                   </Group>
                 </Accordion.Control>
@@ -156,14 +158,19 @@ export function ProviderCredentialsPanel({
                         <Text size="xs" tt="uppercase" fw={700} c="dimmed">
                           {t('providerCredentialsPanel.maskedValue')}
                         </Text>
-                        <Text mt={4}>{credential.maskedHint ?? 'Hidden'}</Text>
+                        <Text mt={4}>
+                          {credential.maskedHint ??
+                            t('providerCredentialsPanel.hidden')}
+                        </Text>
                       </div>
                       <div>
                         <Text size="xs" tt="uppercase" fw={700} c="dimmed">
                           {t('providerCredentialsPanel.status')}
                         </Text>
                         <Text mt={4}>
-                          {credential.isActive ? 'Active' : 'Disabled'}
+                          {credential.isActive
+                            ? t('providerCredentialsPanel.active')
+                            : t('providerCredentialsPanel.disabled')}
                         </Text>
                       </div>
                     </SimpleGrid>
@@ -175,14 +182,14 @@ export function ProviderCredentialsPanel({
                         title={t('providerCredentialsPanel.gatewayDefault')}
                       >
                         {currentDefaultProviderId === credential.providerId
-                          ? 'Used by gateway chat defaults.'
+                          ? t('providerCredentialsPanel.usedByChatDefaults')
                           : null}
                         {currentDefaultProviderId === credential.providerId &&
                         currentDefaultImageProviderId === credential.providerId
                           ? ' '
                           : null}
                         {currentDefaultImageProviderId === credential.providerId
-                          ? 'Used by gateway image defaults.'
+                          ? t('providerCredentialsPanel.usedByImageDefaults')
                           : null}
                       </Alert>
                     ) : null}
@@ -231,9 +238,14 @@ export function ProviderCredentialsPanel({
                   </Stack>
                 </Table.Td>
                 <Table.Td>{credential.label}</Table.Td>
-                <Table.Td>{credential.maskedHint ?? 'Hidden'}</Table.Td>
                 <Table.Td>
-                  {credential.isActive ? 'Active' : 'Disabled'}
+                  {credential.maskedHint ??
+                    t('providerCredentialsPanel.hidden')}
+                </Table.Td>
+                <Table.Td>
+                  {credential.isActive
+                    ? t('providerCredentialsPanel.active')
+                    : t('providerCredentialsPanel.disabled')}
                 </Table.Td>
                 <Table.Td>{renderCredentialActions(credential)}</Table.Td>
               </Table.Tr>

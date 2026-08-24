@@ -191,5 +191,22 @@
   "tenantRegistrationPanel.addHostname": "Ajouter un nom d'hôte",
   "tenantRegistrationPanel.enabled": "Activé",
   "tenantRegistrationPanel.primary": "Principal",
-  "tenantRegistrationPanel.remove": "Supprimer"
+  "tenantRegistrationPanel.remove": "Supprimer",
+  "tenantsPage.saveRule": "Enregistrer la règle",
+  "tenantsPage.createRule": "Créer la règle",
+  "tenantsPage.configured": "Configuré",
+  "tenantsPage.notConfigured": "Non configuré",
+  "tenantsPage.hidden": "masquée",
+  "tenantsPage.active": "Actif",
+  "tenantsPage.disabled": "Désactivé",
+  "tenantsPage.replacementApiToken": "Jeton API de remplacement (facultatif)",
+  "tenantsPage.apiToken": "Jeton API",
+  "tenantsPage.keepEncryptedToken": "Laissez vide pour conserver le jeton chiffré existant.",
+  "tenantsPage.encryptedNeverReturned": "Conservé sous forme chiffrée et jamais renvoyé au navigateur.",
+  "tenantsPage.disable": "Désactiver",
+  "tenantsPage.enable": "Activer",
+  "tenantsPage.updateCredential": "Mettre à jour l’identifiant",
+  "tenantsPage.saveCredential": "Enregistrer l’identifiant",
+  "tenantsPage.providerEnabledHelp": "Active ou désactive ce fournisseur pour le tenant sélectionné, indépendamment de sa disponibilité sur la plateforme.",
+  "tenantsPage.credentialModeHelp": "Détermine si ce tenant résout les identifiants depuis les valeurs par défaut de la plateforme, le BYOK du tenant, le BYOK de l’utilisateur ou une chaîne hybride."
 }

@@ -17,6 +17,7 @@ export const en = {
     status: {
       active: 'Active',
       disabled: 'Disabled',
+      live: 'Live',
       unavailable: 'Unavailable',
     },
   },

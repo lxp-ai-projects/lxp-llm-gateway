@@ -17,6 +17,7 @@ import {
   IconShieldCheck,
   IconUserCircle,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 
 import type { AdminUserSummary } from '../../../lib/api-client';
 
@@ -35,14 +36,20 @@ export function UsersDirectoryPanel({
   onStatusChange,
   search,
 }: UsersDirectoryPanelProps) {
+  const { t } = useTranslation('users');
+  const statusLabel = (status: 'active' | 'disabled') =>
+    t(`directory.status.${status}`);
+  const roleLabel = (role: string) =>
+    t(`directory.roles.${role}`, { defaultValue: role });
+
   function renderUserActions(user: AdminUserSummary) {
     return (
       <Group gap="xs" wrap="wrap" className="users-actions">
         <Select
           className="users-status-select"
           data={[
-            { value: 'active', label: 'Active' },
-            { value: 'disabled', label: 'Disabled' },
+            { value: 'active', label: statusLabel('active') },
+            { value: 'disabled', label: statusLabel('disabled') },
           ]}
           onChange={(value) => {
             if (value && value !== user.status) {
@@ -58,10 +65,10 @@ export function UsersDirectoryPanel({
           size="xs"
           variant="light"
         >
-          View credentials
+          {t('directory.viewCredentials')}
         </Button>
         <Button size="xs" variant="subtle">
-          Reset password
+          {t('directory.resetPassword')}
         </Button>
       </Group>
     );
@@ -89,17 +96,17 @@ export function UsersDirectoryPanel({
   return (
     <Card className="section-card">
       <Group justify="space-between" mb="md" className="users-toolbar">
-        <Title order={3}>Directory</Title>
+        <Title order={3}>{t('directory.title')}</Title>
         <TextInput
           className="users-search"
           data-testid="users-search-input"
           leftSection={<IconSearch size={16} />}
           onChange={(event) => onSearchChange(event.currentTarget.value)}
-          placeholder="Search users..."
+          placeholder={t('directory.searchPlaceholder')}
           value={search}
         />
       </Group>
-      <div className="users-cards" aria-label="Mobile user cards">
+      <div className="users-cards" aria-label={t('directory.mobileCards')}>
         <Accordion
           variant="separated"
           radius="lg"
@@ -119,32 +126,32 @@ export function UsersDirectoryPanel({
                   <SimpleGrid cols={2} spacing="sm" verticalSpacing="sm">
                     <div>
                       <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                        Roles
+                        {t('directory.rolesLabel')}
                       </Text>
                       <Group gap="xs" wrap="wrap" mt={6}>
                         {user.roles.map((role) => (
                           <Badge key={role} variant="light">
-                            {role}
+                            {roleLabel(role)}
                           </Badge>
                         ))}
                       </Group>
                     </div>
                     <div>
                       <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                        Status
+                        {t('directory.statusLabel')}
                       </Text>
                       <Badge
                         color={user.status === 'active' ? 'moss' : 'red'}
                         variant="light"
                         mt={6}
                       >
-                        {user.status}
+                        {statusLabel(user.status)}
                       </Badge>
                     </div>
                   </SimpleGrid>
                   <div>
                     <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={6}>
-                      Actions
+                      {t('directory.actions')}
                     </Text>
                     {renderUserActions(user)}
                   </div>
@@ -158,10 +165,10 @@ export function UsersDirectoryPanel({
         <Table highlightOnHover className="users-table">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>User</Table.Th>
-              <Table.Th>Role</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Actions</Table.Th>
+              <Table.Th>{t('directory.user')}</Table.Th>
+              <Table.Th>{t('directory.role')}</Table.Th>
+              <Table.Th>{t('directory.statusLabel')}</Table.Th>
+              <Table.Th>{t('directory.actions')}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -177,7 +184,7 @@ export function UsersDirectoryPanel({
                   <Group gap="xs" wrap="wrap">
                     {user.roles.map((role) => (
                       <Badge key={role} variant="light">
-                        {role}
+                        {roleLabel(role)}
                       </Badge>
                     ))}
                   </Group>
@@ -187,7 +194,7 @@ export function UsersDirectoryPanel({
                     color={user.status === 'active' ? 'moss' : 'red'}
                     variant="light"
                   >
-                    {user.status}
+                    {statusLabel(user.status)}
                   </Badge>
                 </Table.Td>
                 <Table.Td>{renderUserActions(user)}</Table.Td>

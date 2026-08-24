@@ -163,9 +163,9 @@ export function VideoRequestForm({
             />
             <Select
               data={[
-                { value: 'newest', label: 'Newest' },
-                { value: 'oldest', label: 'Oldest' },
-                { value: 'label', label: 'Label' },
+                { value: 'newest', label: t('videoRequestForm.newest') },
+                { value: 'oldest', label: t('videoRequestForm.oldest') },
+                { value: 'label', label: t('videoRequestForm.label') },
               ]}
               data-testid="video-reference-catalog-sort"
               label={t('videoRequestForm.sort')}
@@ -179,9 +179,15 @@ export function VideoRequestForm({
             />
             <Select
               data={[
-                { value: 'all', label: 'All' },
-                { value: 'available', label: 'Available' },
-                { value: 'selected', label: 'Selected' },
+                { value: 'all', label: t('videoRequestForm.all') },
+                {
+                  value: 'available',
+                  label: t('videoRequestForm.available'),
+                },
+                {
+                  value: 'selected',
+                  label: t('videoRequestForm.selectedState'),
+                },
               ]}
               data-testid="video-reference-catalog-filter"
               label={t('videoRequestForm.filter')}
@@ -267,7 +273,7 @@ export function VideoRequestForm({
             data-testid="video-model-select"
             label={t('videoRequestForm.model')}
             limit={100}
-            nothingFoundMessage="No models found"
+            nothingFoundMessage={t('videoRequestForm.noModelsFound')}
             onChange={(value) => videoLab.setModelId(value ?? '')}
             searchable
             selectFirstOptionOnChange
@@ -587,8 +593,8 @@ export function VideoRequestForm({
             onClick={() => videoLab.generateMutation.mutate(undefined)}
           >
             {videoLab.references.length
-              ? 'Generate video from image'
-              : 'Generate video'}
+              ? t('videoRequestForm.generateFromImage')
+              : t('videoRequestForm.generate')}
           </Button>
         </Stack>
       </Card>
@@ -614,13 +620,13 @@ function ReferenceCatalogAssetCard({
     <Card padding="sm" radius="md" withBorder>
       <Stack gap="xs">
         <Image
-          alt={asset.label ?? 'Uploaded image asset'}
+          alt={asset.label ?? t('videoRequestForm.uploadedImageAsset')}
           h={120}
           radius="md"
           src={assetSrc}
         />
         <Text lineClamp={2} size="sm">
-          {asset.label ?? 'Gateway image asset'}
+          {asset.label ?? t('videoRequestForm.gatewayImageAsset')}
         </Text>
         <Text c="dimmed" size="xs">
           {formatDateTime(asset.createdAt)}
@@ -634,7 +640,9 @@ function ReferenceCatalogAssetCard({
             size="sm"
             variant="light"
           >
-            {alreadySelected ? 'Selected' : 'Available'}
+            {alreadySelected
+              ? t('videoRequestForm.selectedState')
+              : t('videoRequestForm.available')}
           </Badge>
         </Group>
         <Button
@@ -644,7 +652,9 @@ function ReferenceCatalogAssetCard({
           size="xs"
           variant="light"
         >
-          {alreadySelected ? 'Selected' : 'Use as reference'}
+          {alreadySelected
+            ? t('videoRequestForm.selectedState')
+            : t('videoRequestForm.useAsReference')}
         </Button>
       </Stack>
     </Card>

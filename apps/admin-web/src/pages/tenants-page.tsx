@@ -2175,7 +2175,9 @@ export function TenantsPage() {
                 type="submit"
                 disabled={!editModelRulePattern.trim()}
               >
-                {selectedModelAccessRule ? 'Save rule' : 'Create rule'}
+                {selectedModelAccessRule
+                  ? t('tenantsPage.saveRule')
+                  : t('tenantsPage.createRule')}
               </Button>
             </Group>
           </Stack>
@@ -2217,18 +2219,19 @@ export function TenantsPage() {
                     variant="light"
                   >
                     {selectedTenantProviderCredential
-                      ? 'Configured'
-                      : 'Not configured'}
+                      ? t('tenantsPage.configured')
+                      : t('tenantsPage.notConfigured')}
                   </Badge>
                 </Group>
                 {selectedTenantProviderCredential ? (
                   <Text size="sm">
                     {t('tenantsPage.scopeTENANTHint')}{' '}
-                    {selectedTenantProviderCredential.maskedHint ?? 'hidden'}{' '}
+                    {selectedTenantProviderCredential.maskedHint ??
+                      t('tenantsPage.hidden')}{' '}
                     {t('tenantsPage.status2')}{' '}
                     {selectedTenantProviderCredential.isActive
-                      ? 'Active'
-                      : 'Disabled'}
+                      ? t('tenantsPage.active')
+                      : t('tenantsPage.disabled')}
                   </Text>
                 ) : null}
                 <TextInput
@@ -2241,13 +2244,13 @@ export function TenantsPage() {
                 <PasswordInput
                   label={
                     selectedTenantProviderCredential
-                      ? 'Replacement API token (optional)'
-                      : 'API token'
+                      ? t('tenantsPage.replacementApiToken')
+                      : t('tenantsPage.apiToken')
                   }
                   description={
                     selectedTenantProviderCredential
-                      ? 'Leave empty to keep the existing encrypted token.'
-                      : 'Stored encrypted and never returned to the browser.'
+                      ? t('tenantsPage.keepEncryptedToken')
+                      : t('tenantsPage.encryptedNeverReturned')
                   }
                   value={tenantCredentialApiToken}
                   onChange={(event) =>
@@ -2272,8 +2275,8 @@ export function TenantsPage() {
                         onClick={handleToggleTenantProviderCredential}
                       >
                         {selectedTenantProviderCredential.isActive
-                          ? 'Disable'
-                          : 'Enable'}
+                          ? t('tenantsPage.disable')
+                          : t('tenantsPage.enable')}
                       </Button>
                       <Button
                         color="red"
@@ -2300,8 +2303,8 @@ export function TenantsPage() {
                     onClick={handleSaveTenantProviderCredential}
                   >
                     {selectedTenantProviderCredential
-                      ? 'Update credential'
-                      : 'Save credential'}
+                      ? t('tenantsPage.updateCredential')
+                      : t('tenantsPage.saveCredential')}
                   </Button>
                 </Group>
               </Stack>
@@ -2311,7 +2314,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.providerEnabledForThisTenant')}
-                  help="Turns this provider on or off for the selected tenant, regardless of platform availability."
+                  help={t('tenantsPage.providerEnabledHelp')}
                 />
               }
               onChange={(event) =>
@@ -2322,7 +2325,7 @@ export function TenantsPage() {
               label={
                 <FieldLabel
                   label={t('tenantsPage.credentialMode')}
-                  help="Defines whether this tenant resolves credentials from platform defaults, tenant BYOK, user BYOK, or a hybrid chain."
+                  help={t('tenantsPage.credentialModeHelp')}
                 />
               }
               value={editProviderCredentialMode}

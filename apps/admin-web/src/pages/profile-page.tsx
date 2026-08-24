@@ -73,7 +73,7 @@ export function ProfilePage() {
       queryClient.setQueryData(['session'], nextSession);
       await queryClient.invalidateQueries({ queryKey: ['session'] });
       setDisplayName(nextSession.displayName);
-      setProfileSuccessMessage('Your profile has been updated.');
+      setProfileSuccessMessage(t('profilePage.profileUpdatedMessage'));
     },
     onError: (error: Error) => {
       setProfileErrorMessage(getErrorMessage(error));
@@ -126,13 +126,15 @@ export function ProfilePage() {
         <Grid.Col span={{ base: 12, md: 6 }}>
           <StatusTile
             label={t('profilePage.displayName')}
-            value={sessionQuery.data?.displayName ?? 'Unavailable'}
+            value={
+              sessionQuery.data?.displayName ?? t('common:status.unavailable')
+            }
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6 }}>
           <StatusTile
             label={t('profilePage.email')}
-            value={sessionQuery.data?.email ?? 'Unavailable'}
+            value={sessionQuery.data?.email ?? t('common:status.unavailable')}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6 }}>

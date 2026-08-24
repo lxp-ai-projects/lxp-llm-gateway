@@ -17,6 +17,7 @@ export const de = {
     status: {
       active: 'Aktiv',
       disabled: 'Deaktiviert',
+      live: 'Live',
       unavailable: 'Nicht verfügbar',
     },
   },

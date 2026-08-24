@@ -191,5 +191,22 @@
   "tenantRegistrationPanel.publicHostname": "Öffentlicher Hostname",
   "tenantRegistrationPanel.appExampleCom": "app.example.com",
   "tenantRegistrationPanel.addHostname": "Hostname hinzufügen",
-  "tenantRegistrationPanel.enabled": "Aktiviert"
+  "tenantRegistrationPanel.enabled": "Aktiviert",
+  "tenantsPage.saveRule": "Regel speichern",
+  "tenantsPage.createRule": "Regel erstellen",
+  "tenantsPage.configured": "Konfiguriert",
+  "tenantsPage.notConfigured": "Nicht konfiguriert",
+  "tenantsPage.hidden": "ausgeblendet",
+  "tenantsPage.active": "Aktiv",
+  "tenantsPage.disabled": "Deaktiviert",
+  "tenantsPage.replacementApiToken": "Ersatz-API-Token (optional)",
+  "tenantsPage.apiToken": "API-Token",
+  "tenantsPage.keepEncryptedToken": "Leer lassen, um das vorhandene verschlüsselte Token beizubehalten.",
+  "tenantsPage.encryptedNeverReturned": "Wird verschlüsselt gespeichert und nie an den Browser zurückgegeben.",
+  "tenantsPage.disable": "Deaktivieren",
+  "tenantsPage.enable": "Aktivieren",
+  "tenantsPage.updateCredential": "Zugangsdaten aktualisieren",
+  "tenantsPage.saveCredential": "Zugangsdaten speichern",
+  "tenantsPage.providerEnabledHelp": "Aktiviert oder deaktiviert diesen Provider für den ausgewählten Tenant, unabhängig von der Plattformverfügbarkeit.",
+  "tenantsPage.credentialModeHelp": "Legt fest, ob dieser Tenant Zugangsdaten aus Plattformstandards, Tenant-BYOK, Benutzer-BYOK oder einer hybriden Kette bezieht."
 }

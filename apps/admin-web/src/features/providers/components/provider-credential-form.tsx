@@ -17,6 +17,7 @@ import { IconHelpCircle, IconKey, IconRestore } from '@tabler/icons-react';
 import { getProviderCredentialResponsibilityNote } from '../lib/provider-utils';
 
 function HelpLabel({ label, help }: { label: string; help: string }) {
+  const { t } = useTranslation('providers');
   return (
     <Group gap={6} wrap="nowrap">
       <Text component="span" inherit>
@@ -24,7 +25,7 @@ function HelpLabel({ label, help }: { label: string; help: string }) {
       </Text>
       <Tooltip label={help} multiline w={280} withArrow>
         <ActionIcon
-          aria-label={`Help for ${label}`}
+          aria-label={t('providerCredentialForm.helpFor', { label })}
           color="gray"
           radius="xl"
           size="sm"
@@ -110,9 +111,9 @@ export function ProviderCredentialForm({
             <Title order={3}>
               {isEditing
                 ? isReplacingExisting
-                  ? 'Replace provider credential'
-                  : 'Edit provider credential'
-                : 'Add provider credential'}
+                  ? t('providerCredentialForm.replaceProviderCredential')
+                  : t('providerCredentialForm.editProviderCredential')
+                : t('providerCredentialForm.addProviderCredential')}
             </Title>
             <IconKey size={18} />
           </Group>
@@ -145,7 +146,9 @@ export function ProviderCredentialForm({
               variant="light"
               title={t('providerCredentialForm.billingAndKeyResponsibility')}
             >
-              {responsibilityNote}
+              {t(`providerCredentialForm.responsibility.${providerId}`, {
+                defaultValue: responsibilityNote,
+              })}
             </Alert>
           ) : null}
           {credentialValidationError ? (
@@ -229,7 +232,7 @@ export function ProviderCredentialForm({
             label={
               <HelpLabel
                 label={t('providerCredentialForm.label')}
-                help="A human-friendly name for the secret, such as primary, staging, or rotated-2026-05."
+                help={t('providerCredentialForm.labelHelp')}
               />
             }
             onChange={(event) => onLabelChange(event.currentTarget.value)}
@@ -239,33 +242,37 @@ export function ProviderCredentialForm({
             data-testid="providers-token-input"
             description={
               isEditing
-                ? 'Leave blank to keep the current token and update only the label.'
+                ? t('providerCredentialForm.keepCurrentToken')
                 : undefined
             }
             label={
               <HelpLabel
-                label={isEditing ? 'Replace API token' : 'API token'}
-                help="Write-only provider secret. After save, only a masked hint is shown back."
+                label={
+                  isEditing
+                    ? t('providerCredentialForm.replaceApiToken')
+                    : t('providerCredentialForm.apiToken')
+                }
+                help={t('providerCredentialForm.apiTokenHelp')}
               />
             }
             onChange={(event) => onApiTokenChange(event.currentTarget.value)}
             placeholder={
               isEditing
-                ? 'Enter a new token only if you want to rotate it'
+                ? t('providerCredentialForm.rotateTokenPlaceholder')
                 : usesEndpointAccess
-                  ? 'Optional for local Ollama; required for protected or cloud endpoints'
+                  ? t('providerCredentialForm.ollamaTokenPlaceholder')
                   : isGoogle
-                    ? 'Required for Google Gemini'
+                    ? t('providerCredentialForm.requiredForGoogle')
                     : providerId === 'xai'
-                      ? 'Required for xAI Grok'
+                      ? t('providerCredentialForm.requiredForXai')
                       : providerId === 'openai'
-                        ? 'Required for OpenAI'
+                        ? t('providerCredentialForm.requiredForOpenai')
                         : providerId === 'anthropic'
-                          ? 'Required for Anthropic'
+                          ? t('providerCredentialForm.requiredForAnthropic')
                           : providerId === 'mistral'
-                            ? 'Required for Mistral'
+                            ? t('providerCredentialForm.requiredForMistral')
                             : providerId === 'deepseek'
-                              ? 'Required for DeepSeek'
+                              ? t('providerCredentialForm.requiredForDeepseek')
                               : undefined
             }
             value={apiToken}
@@ -274,15 +281,19 @@ export function ProviderCredentialForm({
             data-testid="providers-base-url-input"
             description={
               isEditing
-                ? 'Leave blank to keep the current endpoint and update only the other fields.'
+                ? t('providerCredentialForm.keepCurrentEndpoint')
                 : usesEndpointAccess
-                  ? 'Use http://127.0.0.1:11434 for local Ollama, or https://ollama.com for Ollama Cloud.'
-                  : 'Optional override when this credential should use a non-default provider endpoint.'
+                  ? t('providerCredentialForm.ollamaBaseUrlDescription')
+                  : t('providerCredentialForm.baseUrlDescription')
             }
             label={
               <HelpLabel
-                label={isEditing ? 'Replace base URL' : 'Base URL'}
-                help="Optional endpoint override when this credential should target a non-default provider URL."
+                label={
+                  isEditing
+                    ? t('providerCredentialForm.replaceBaseUrl')
+                    : t('providerCredentialForm.baseUrl')
+                }
+                help={t('providerCredentialForm.baseUrlHelp')}
               />
             }
             onChange={(event) => onBaseUrlChange(event.currentTarget.value)}
@@ -315,7 +326,9 @@ export function ProviderCredentialForm({
               loading={isPending}
               type="submit"
             >
-              {isEditing ? 'Update credential' : 'Save credential'}
+              {isEditing
+                ? t('providerCredentialForm.updateCredential')
+                : t('providerCredentialForm.saveCredential')}
             </Button>
           </Group>
         </Stack>

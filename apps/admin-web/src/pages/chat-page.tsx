@@ -970,7 +970,7 @@ export function ChatPage() {
                   data-testid="chat-model-select"
                   label={t('chatPage.model')}
                   limit={100}
-                  nothingFoundMessage="No models found"
+                  nothingFoundMessage={t('chatPage.noModelsFound')}
                   onChange={(value) => {
                     const nextModel = value ?? '';
                     pendingConversationProviderSyncRef.current = false;
@@ -1100,13 +1100,15 @@ export function ChatPage() {
                 {thinkingControlVisible ? (
                   <Select
                     data={[
-                      { value: 'enabled', label: 'Thinking: enabled' },
+                      {
+                        value: 'enabled',
+                        label: t('chatPage.thinkingEnabled'),
+                      },
                       ...(preserveThinkingSupported
                         ? [
                             {
                               value: 'enabled-preserve',
-                              label:
-                                'Thinking: enabled + preserve prior reasoning',
+                              label: t('chatPage.thinkingEnabledPreserve'),
                             },
                           ]
                         : []),
@@ -1115,7 +1117,7 @@ export function ChatPage() {
                         : [
                             {
                               value: 'disabled',
-                              label: 'Thinking: disabled',
+                              label: t('chatPage.thinkingDisabled'),
                             },
                           ]),
                     ]}
@@ -1147,8 +1149,10 @@ export function ChatPage() {
                       {
                         value: 'provider-default',
                         label: reasoningCapability?.defaultEffort
-                          ? `Provider default (${reasoningCapability.defaultEffort})`
-                          : 'Provider default',
+                          ? t('chatPage.providerDefaultWithValue', {
+                              value: reasoningCapability.defaultEffort,
+                            })
+                          : t('chatPage.providerDefault'),
                       },
                       ...(reasoningCapability?.supportedEfforts ?? [])
                         .filter(
@@ -1158,7 +1162,7 @@ export function ChatPage() {
                         )
                         .map((effort) => ({
                           value: effort,
-                          label: `Reasoning effort: ${effort}`,
+                          label: t('chatPage.reasoningEffortValue', { effort }),
                         })),
                     ]}
                     data-testid="chat-reasoning-effort-select"
@@ -1208,27 +1212,41 @@ export function ChatPage() {
               <Alert
                 color="blue"
                 mb="md"
-                title={`${selectedProviderDisplayName} reasoning`}
+                title={t('chatPage.providerReasoning', {
+                  provider: selectedProviderDisplayName,
+                })}
               >
                 {!reasoningCapability
-                  ? `The ${selectedProviderDisplayName} model API does not declare reasoning capabilities for ${selectedModelDisplayName}. Chat Lab will not infer them from the model name.`
+                  ? t('chatPage.reasoningNotDeclared', {
+                      provider: selectedProviderDisplayName,
+                      model: selectedModelDisplayName,
+                    })
                   : !reasoningCapability.supported
-                    ? `The ${selectedProviderDisplayName} model API declares that ${selectedModelDisplayName} does not support reasoning.`
+                    ? t('chatPage.reasoningUnsupported', {
+                        provider: selectedProviderDisplayName,
+                        model: selectedModelDisplayName,
+                      })
                     : reasoningCapability.mandatory
                       ? reasoningEffortControlVisible
-                        ? `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. The toggle is unavailable; select a supported effort or keep the provider default.`
-                        : `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. Chat Lab sends no reasoning configuration and uses the provider default.`
+                        ? t('chatPage.reasoningMandatoryWithControl', {
+                            provider: selectedProviderDisplayName,
+                            model: selectedModelDisplayName,
+                          })
+                        : t('chatPage.reasoningMandatoryDefault', {
+                            provider: selectedProviderDisplayName,
+                            model: selectedModelDisplayName,
+                          })
                       : providerId === 'anthropic'
                         ? anthropicThinkingMode === 'auto'
-                          ? 'Auto uses Anthropic adaptive thinking as declared by the model API.'
+                          ? t('chatPage.anthropicThinkingAuto')
                           : anthropicThinkingMode === 'budget'
-                            ? 'Budget mode sends a fixed Anthropic thinking budget. The gateway keeps max output tokens above the requested budget.'
-                            : 'None explicitly disables Anthropic extended thinking for this conversation.'
+                            ? t('chatPage.anthropicThinkingBudget')
+                            : t('chatPage.anthropicThinkingDisabled')
                         : preserveThinkingEnabled
-                          ? 'Reasoning is enabled and prior reasoning content is preserved when this provider route supports replay.'
+                          ? t('chatPage.reasoningEnabledPreserved')
                           : effectiveThinkingMode === 'disabled'
-                            ? 'Reasoning is disabled for this conversation using the selected provider transport.'
-                            : 'Reasoning is enabled for this conversation using capabilities declared by the provider model API.'}
+                            ? t('chatPage.reasoningDisabledDescription')
+                            : t('chatPage.reasoningEnabledDescription')}
               </Alert>
             ) : null}
             {providerId === 'anthropic' &&

@@ -17,6 +17,7 @@ export const es = {
     status: {
       active: 'Activo',
       disabled: 'Desactivado',
+      live: 'En directo',
       unavailable: 'No disponible',
     },
   },

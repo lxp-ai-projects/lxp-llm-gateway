@@ -119,5 +119,17 @@
   "videoResultsPanel.providerMetadata": "Métadonnées du fournisseur",
   "videoResultsPanel.generationFailed": "Génération échouée",
   "videoResultsPanel.generationCancelled": "Génération annulée",
-  "videoResultsPanel.cancellationIsNormalizedByTheGatewayAnd": "L'annulation est normalisée par la passerelle et peut être au mieux approximative au niveau du fournisseur."
+  "videoResultsPanel.cancellationIsNormalizedByTheGatewayAnd": "L'annulation est normalisée par la passerelle et peut être au mieux approximative au niveau du fournisseur.",
+  "videoRequestForm.newest": "Plus récentes",
+  "videoRequestForm.oldest": "Plus anciennes",
+  "videoRequestForm.label": "Étiquette",
+  "videoRequestForm.all": "Toutes",
+  "videoRequestForm.available": "Disponible",
+  "videoRequestForm.selectedState": "Sélectionnée",
+  "videoRequestForm.noModelsFound": "Aucun modèle trouvé",
+  "videoRequestForm.generate": "Générer une vidéo",
+  "videoRequestForm.generateFromImage": "Générer une vidéo à partir d’une image",
+  "videoRequestForm.uploadedImageAsset": "Ressource image téléversée",
+  "videoRequestForm.gatewayImageAsset": "Ressource image de la passerelle",
+  "videoRequestForm.useAsReference": "Utiliser comme référence"
 }

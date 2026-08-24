@@ -34,6 +34,14 @@ import tenantsEn from './generated/tenants.en.json';
 import tenantsFr from './generated/tenants.fr.json';
 import tenantsEs from './generated/tenants.es.json';
 import tenantsDe from './generated/tenants.de.json';
+import usersEn from './generated/users.en.json';
+import usersFr from './generated/users.fr.json';
+import usersEs from './generated/users.es.json';
+import usersDe from './generated/users.de.json';
+import analyticsEn from './generated/analytics.en.json';
+import analyticsFr from './generated/analytics.fr.json';
+import analyticsEs from './generated/analytics.es.json';
+import analyticsDe from './generated/analytics.de.json';
 
 export const resources = {
   en: {
@@ -45,6 +53,8 @@ export const resources = {
     profile: profileEn,
     evaluation: evaluationEn,
     tenants: tenantsEn,
+    users: usersEn,
+    analytics: analyticsEn,
   },
   fr: {
     ...fr,
@@ -55,6 +65,8 @@ export const resources = {
     profile: profileFr,
     evaluation: evaluationFr,
     tenants: tenantsFr,
+    users: usersFr,
+    analytics: analyticsFr,
   },
   es: {
     ...es,
@@ -65,6 +77,8 @@ export const resources = {
     profile: profileEs,
     evaluation: evaluationEs,
     tenants: tenantsEs,
+    users: usersEs,
+    analytics: analyticsEs,
   },
   de: {
     ...de,
@@ -75,6 +89,8 @@ export const resources = {
     profile: profileDe,
     evaluation: evaluationDe,
     tenants: tenantsDe,
+    users: usersDe,
+    analytics: analyticsDe,
   },
 } as const;
 

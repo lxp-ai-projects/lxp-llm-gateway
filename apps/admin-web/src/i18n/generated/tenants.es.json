@@ -191,5 +191,22 @@
   "tenantRegistrationPanel.addHostname": "Agregar nombre de host",
   "tenantRegistrationPanel.enabled": "Habilitado",
   "tenantRegistrationPanel.primary": "Primario",
-  "tenantRegistrationPanel.remove": "Eliminar"
+  "tenantRegistrationPanel.remove": "Eliminar",
+  "tenantsPage.saveRule": "Guardar regla",
+  "tenantsPage.createRule": "Crear regla",
+  "tenantsPage.configured": "Configurado",
+  "tenantsPage.notConfigured": "No configurado",
+  "tenantsPage.hidden": "oculto",
+  "tenantsPage.active": "Activo",
+  "tenantsPage.disabled": "Desactivado",
+  "tenantsPage.replacementApiToken": "Token de API de reemplazo (opcional)",
+  "tenantsPage.apiToken": "Token de API",
+  "tenantsPage.keepEncryptedToken": "Déjalo vacío para conservar el token cifrado existente.",
+  "tenantsPage.encryptedNeverReturned": "Se almacena cifrado y nunca se devuelve al navegador.",
+  "tenantsPage.disable": "Desactivar",
+  "tenantsPage.enable": "Activar",
+  "tenantsPage.updateCredential": "Actualizar credencial",
+  "tenantsPage.saveCredential": "Guardar credencial",
+  "tenantsPage.providerEnabledHelp": "Activa o desactiva este proveedor para el tenant seleccionado, independientemente de su disponibilidad en la plataforma.",
+  "tenantsPage.credentialModeHelp": "Define si este tenant resuelve credenciales desde los valores de la plataforma, BYOK del tenant, BYOK del usuario o una cadena híbrida."
 }

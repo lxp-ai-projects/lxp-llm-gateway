@@ -98,16 +98,15 @@ export function ImageRequestForm({
     imageLab.selectedProvider?.providerId === 'nanogpt' &&
     isOpenAiAlignedGptImageModel;
   const selectedReferenceCount = imageLab.references.length;
-  const selectedReferencesLabel =
-    selectedReferenceCount === 1
-      ? `Selected reference (${selectedReferenceCount})`
-      : `Selected references (${selectedReferenceCount})`;
+  const selectedReferencesLabel = t('imageRequestForm.selectedReferences', {
+    count: selectedReferenceCount,
+  });
   const filteredReferenceAssets = imageLab.referenceAssets
     .filter((asset) => {
       const normalizedSearch = assetSearch.trim().toLowerCase();
       if (
         normalizedSearch &&
-        !(asset.label ?? 'Gateway image asset')
+        !(asset.label ?? t('imageRequestForm.gatewayImageAsset'))
           .toLowerCase()
           .includes(normalizedSearch)
       ) {
@@ -222,9 +221,9 @@ export function ImageRequestForm({
             />
             <Select
               data={[
-                { value: 'newest', label: 'Newest' },
-                { value: 'oldest', label: 'Oldest' },
-                { value: 'label', label: 'Label' },
+                { value: 'newest', label: t('imageRequestForm.newest') },
+                { value: 'oldest', label: t('imageRequestForm.oldest') },
+                { value: 'label', label: t('imageRequestForm.label') },
               ]}
               data-testid="reference-catalog-sort"
               label={t('imageRequestForm.sort')}
@@ -238,9 +237,15 @@ export function ImageRequestForm({
             />
             <Select
               data={[
-                { value: 'all', label: 'All' },
-                { value: 'available', label: 'Available' },
-                { value: 'selected', label: 'Selected' },
+                { value: 'all', label: t('imageRequestForm.all') },
+                {
+                  value: 'available',
+                  label: t('imageRequestForm.available'),
+                },
+                {
+                  value: 'selected',
+                  label: t('imageRequestForm.selectedState'),
+                },
               ]}
               data-testid="reference-catalog-filter"
               label={t('imageRequestForm.filter')}
@@ -267,13 +272,16 @@ export function ImageRequestForm({
                   <Card key={asset.id} padding="sm" radius="md" withBorder>
                     <Stack gap="xs">
                       <Image
-                        alt={asset.label ?? 'Uploaded reference asset'}
+                        alt={
+                          asset.label ??
+                          t('imageRequestForm.uploadedReferenceAsset')
+                        }
                         h={120}
                         radius="md"
                         src={imageLab.mediaUrl(asset.contentUrl)}
                       />
                       <Text lineClamp={2} size="sm">
-                        {asset.label ?? 'Gateway image asset'}
+                        {asset.label ?? t('imageRequestForm.gatewayImageAsset')}
                       </Text>
                       <Text c="dimmed" size="xs">
                         {formatDateTime(asset.createdAt)}
@@ -294,7 +302,9 @@ export function ImageRequestForm({
                           size="sm"
                           variant="light"
                         >
-                          {alreadySelected ? 'Selected' : 'Available'}
+                          {alreadySelected
+                            ? t('imageRequestForm.selectedState')
+                            : t('imageRequestForm.available')}
                         </Badge>
                       </Group>
                       <TextInput
@@ -313,13 +323,15 @@ export function ImageRequestForm({
                         <Tooltip
                           label={
                             alreadySelected
-                              ? 'Already selected'
-                              : 'Use as reference'
+                              ? t('imageRequestForm.alreadySelected')
+                              : t('imageRequestForm.useAsReference')
                           }
                         >
                           <ActionIcon
                             aria-label={
-                              alreadySelected ? 'Selected' : 'Use as reference'
+                              alreadySelected
+                                ? t('imageRequestForm.selectedState')
+                                : t('imageRequestForm.useAsReference')
                             }
                             data-testid={`reference-catalog-use-${asset.id}`}
                             disabled={alreadySelected || referenceLimitReached}
@@ -476,7 +488,7 @@ export function ImageRequestForm({
                 data-testid="image-model-select"
                 label={t('imageRequestForm.model')}
                 limit={100}
-                nothingFoundMessage="No models found"
+                nothingFoundMessage={t('imageRequestForm.noModelsFound')}
                 onChange={(value) => imageLab.setModelId(value ?? '')}
                 searchable
                 selectFirstOptionOnChange

@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconChartBarPopular, IconHelpCircle } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
@@ -34,15 +35,12 @@ function formatUsd(value: string | null | undefined) {
   });
 }
 
-function HelpTooltip({
-  text,
-}: {
-  text: string;
-}) {
+function HelpTooltip({ text }: { text: string }) {
+  const { t } = useTranslation('analytics');
   return (
     <Tooltip label={text} multiline w={280} withArrow>
       <ActionIcon
-        aria-label="More information"
+        aria-label={t('moreInformation')}
         color="gray"
         radius="xl"
         size="sm"
@@ -54,13 +52,7 @@ function HelpTooltip({
   );
 }
 
-function SectionTitle({
-  title,
-  help,
-}: {
-  title: string;
-  help: string;
-}) {
+function SectionTitle({ title, help }: { title: string; help: string }) {
   return (
     <Group justify="space-between" align="center">
       <Text fw={700}>{title}</Text>
@@ -70,6 +62,7 @@ function SectionTitle({
 }
 
 export function AnalyticsPage() {
+  const { t } = useTranslation('analytics');
   const sessionQuery = useSession();
   const activeTenantId = sessionQuery.data?.activeTenantId ?? null;
 
@@ -101,57 +94,55 @@ export function AnalyticsPage() {
   return (
     <>
       <PageHeader
-        title="Gateway Analytics"
-        description="Tenant analytics now read from the durable usage ledger to show current activity, policy blocks, and provider/model concentration."
+        title={t('title')}
+        description={t('description')}
         context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
-            label="Active users / 30d"
+            label={t('tiles.activeUsers.label')}
             value={formatWholeNumber(usageSummaryQuery.data?.activeUsers30d)}
-            description="Unique users who generated usage in the last 30 days."
+            description={t('tiles.activeUsers.description')}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
-            label="Distinct gateway users / 24h"
+            label={t('tiles.distinctUsers.label')}
             value={formatWholeNumber(usageSummaryQuery.data?.distinctUsers24h)}
-            description="Unique users seen in the last 24 hours."
+            description={t('tiles.distinctUsers.description')}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
-            label="Gateway requests / 7d"
+            label={t('tiles.requests.label')}
             value={formatWholeNumber(usageSummaryQuery.data?.requests7d)}
-            description="Total requests accepted or blocked by the gateway over 7 days."
+            description={t('tiles.requests.description')}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
-            label="Blocked requests / 7d"
+            label={t('tiles.blocked.label')}
             tone={
               (usageSummaryQuery.data?.blockedRequests7d ?? 0) > 0
                 ? 'warning'
                 : 'good'
             }
             value={formatWholeNumber(usageSummaryQuery.data?.blockedRequests7d)}
-            description="Requests refused by policy, quota, or other gateway guardrails."
+            description={t('tiles.blocked.description')}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, xl: 3 }}>
           <StatusTile
-            label="Estimated cost / 30d"
+            label={t('tiles.cost.label')}
             value={formatUsd(usageSummaryQuery.data?.estimatedCostUsd30d)}
-            description="Approximate spend based on recorded usage events and provider cost estimation."
+            description={t('tiles.cost.description')}
           />
         </Grid.Col>
       </Grid>
 
       <Text c="dimmed" size="sm" mt="md">
-        The usage ledger groups requests by tenant, provider, and model. Policy
-        or quota blocks are counted separately so you can see when the gateway
-        intentionally refused a request.
+        {t('ledgerDescription')}
       </Text>
 
       {isLoading ? (
@@ -159,9 +150,9 @@ export function AnalyticsPage() {
           color="blue"
           icon={<Loader size={16} />}
           mt="lg"
-          title="Loading analytics"
+          title={t('loading.title')}
         >
-          The usage ledger is being aggregated for the active tenant.
+          {t('loading.description')}
         </Alert>
       ) : null}
 
@@ -170,10 +161,9 @@ export function AnalyticsPage() {
           color="red"
           icon={<IconChartBarPopular size={18} />}
           mt="lg"
-          title="Analytics unavailable"
+          title={t('error.title')}
         >
-          The control plane could not load tenant analytics from the usage
-          ledger.
+          {t('error.description')}
         </Alert>
       ) : null}
 
@@ -183,27 +173,31 @@ export function AnalyticsPage() {
             <Card>
               <Stack gap="sm">
                 <SectionTitle
-                  title="Usage by provider"
-                  help="Breaks activity down by provider so you can see where traffic, cost, and blocks concentrate."
+                  title={t('provider.title')}
+                  help={t('provider.help')}
                 />
                 <Table striped highlightOnHover withTableBorder>
                   <Table.Thead>
                     <Table.Tr>
-                      <Table.Th>Provider</Table.Th>
-                      <Table.Th>Requests / 30d</Table.Th>
-                      <Table.Th>Blocked / 30d</Table.Th>
-                      <Table.Th>Estimated cost / 30d</Table.Th>
+                      <Table.Th>{t('columns.provider')}</Table.Th>
+                      <Table.Th>{t('columns.requests')}</Table.Th>
+                      <Table.Th>{t('columns.blocked')}</Table.Th>
+                      <Table.Th>{t('columns.cost')}</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
                     {(usageByProviderQuery.data ?? []).map((row) => (
                       <Table.Tr key={row.providerId}>
                         <Table.Td>{row.providerId}</Table.Td>
-                        <Table.Td>{formatWholeNumber(row.requests30d)}</Table.Td>
+                        <Table.Td>
+                          {formatWholeNumber(row.requests30d)}
+                        </Table.Td>
                         <Table.Td>
                           {formatWholeNumber(row.blockedRequests30d)}
                         </Table.Td>
-                        <Table.Td>{formatUsd(row.estimatedCostUsd30d)}</Table.Td>
+                        <Table.Td>
+                          {formatUsd(row.estimatedCostUsd30d)}
+                        </Table.Td>
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
@@ -214,17 +208,14 @@ export function AnalyticsPage() {
           <Grid.Col span={{ base: 12, xl: 6 }}>
             <Card>
               <Stack gap="sm">
-                <SectionTitle
-                  title="Usage by model"
-                  help="Shows which specific models are being used within each provider and how much activity each model receives."
-                />
+                <SectionTitle title={t('model.title')} help={t('model.help')} />
                 <Table striped highlightOnHover withTableBorder>
                   <Table.Thead>
                     <Table.Tr>
-                      <Table.Th>Provider</Table.Th>
-                      <Table.Th>Model</Table.Th>
-                      <Table.Th>Capability</Table.Th>
-                      <Table.Th>Requests / 30d</Table.Th>
+                      <Table.Th>{t('columns.provider')}</Table.Th>
+                      <Table.Th>{t('columns.model')}</Table.Th>
+                      <Table.Th>{t('columns.capability')}</Table.Th>
+                      <Table.Th>{t('columns.requests')}</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -232,8 +223,12 @@ export function AnalyticsPage() {
                       <Table.Tr key={`${row.providerId}:${row.model}`}>
                         <Table.Td>{row.providerId}</Table.Td>
                         <Table.Td>{row.model}</Table.Td>
-                        <Table.Td>{row.capability ?? 'unknown'}</Table.Td>
-                        <Table.Td>{formatWholeNumber(row.requests30d)}</Table.Td>
+                        <Table.Td>
+                          {row.capability ?? t('columns.unknown')}
+                        </Table.Td>
+                        <Table.Td>
+                          {formatWholeNumber(row.requests30d)}
+                        </Table.Td>
                       </Table.Tr>
                     ))}
                   </Table.Tbody>

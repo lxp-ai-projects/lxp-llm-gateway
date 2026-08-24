@@ -105,5 +105,17 @@
   "imageResultsPanel.estimateBasedOn": "Estimation basée sur",
   "imageResultsPanel.previous": "précédent",
   "imageResultsPanel.forThisProviderAndModel": "pour ce fournisseur et ce modèle.",
-  "imageResultsPanel.noImagesYet": "Pas encore d'images"
+  "imageResultsPanel.noImagesYet": "Pas encore d'images",
+  "imageRequestForm.selectedReferences_one": "Référence sélectionnée ({{count}})",
+  "imageRequestForm.selectedReferences_other": "Références sélectionnées ({{count}})",
+  "imageRequestForm.newest": "Plus récentes",
+  "imageRequestForm.oldest": "Plus anciennes",
+  "imageRequestForm.all": "Toutes",
+  "imageRequestForm.available": "Disponible",
+  "imageRequestForm.selectedState": "Sélectionnée",
+  "imageRequestForm.alreadySelected": "Déjà sélectionnée",
+  "imageRequestForm.useAsReference": "Utiliser comme référence",
+  "imageRequestForm.uploadedReferenceAsset": "Ressource de référence téléversée",
+  "imageRequestForm.gatewayImageAsset": "Ressource image de la passerelle",
+  "imageRequestForm.noModelsFound": "Aucun modèle trouvé"
 }

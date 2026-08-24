@@ -11,7 +11,7 @@
   "profilePage.profile": "Profil",
   "profilePage.manageTheAccountDetailsAndPasswordTied": "Gérer les détails du compte et le mot de passe liés à votre session de navigateur actuelle.",
   "profilePage.displayName": "Nom affiché",
-  "profilePage.email": "Email",
+  "profilePage.email": "Adresse courriel",
   "profilePage.profileDetails": "Détails du profil",
   "profilePage.changeTheDisplayNameShownAcrossThe": "Modifier le nom affiché dans tout l’espace administrateur.",
   "profilePage.profileUpdated": "Profil mis à jour",
@@ -22,5 +22,6 @@
   "profilePage.security": "Sécurité",
   "profilePage.changeYourPasswordWithoutLeavingTheCurrent": "Changez votre mot de passe sans quitter la session actuelle.",
   "profilePage.passwordUpdated": "Mot de passe mis à jour",
-  "profilePage.checkYourEntries": "Vérifiez vos saisies"
+  "profilePage.checkYourEntries": "Vérifiez vos saisies",
+  "profilePage.profileUpdatedMessage": "Votre profil a été mis à jour."
 }

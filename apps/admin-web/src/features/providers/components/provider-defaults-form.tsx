@@ -132,7 +132,7 @@ export function ProviderDefaultsForm({
                   <label className="form-native-field">
                     <HelpLabel
                       label={t('providerDefaultsForm.defaultProvider')}
-                      help="Provider used when chat requests do not specify one explicitly."
+                      help={t('providerDefaultsForm.chatProviderHelp')}
                     />
                     <select
                       aria-label={t('providerDefaultsForm.defaultProvider')}
@@ -147,8 +147,8 @@ export function ProviderDefaultsForm({
                     >
                       <option value="">
                         {defaultProviderOptions.length
-                          ? 'Choose a provider with an active credential'
-                          : 'Add a credential first'}
+                          ? t('providerDefaultsForm.chooseActiveProvider')
+                          : t('providerDefaultsForm.addCredentialFirst')}
                       </option>
                       {defaultProviderOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -168,18 +168,20 @@ export function ProviderDefaultsForm({
                     label={
                       <HelpLabel
                         label={t('providerDefaultsForm.defaultModel')}
-                        help="Model used for chat requests when the caller omits an explicit model."
+                        help={t('providerDefaultsForm.chatModelHelp')}
                       />
                     }
                     limit={100}
-                    nothingFoundMessage="No models found"
+                    nothingFoundMessage={t(
+                      'providerDefaultsForm.noModelsFound',
+                    )}
                     onChange={onDefaultModelChange}
                     placeholder={
                       defaultProviderId
                         ? isModelLoading
-                          ? 'Loading provider models...'
-                          : 'Choose a default model'
-                        : 'Choose a default provider first'
+                          ? t('providerDefaultsForm.loadingModels')
+                          : t('providerDefaultsForm.chooseDefaultModel')
+                        : t('providerDefaultsForm.chooseProviderFirst')
                     }
                     searchable
                     selectFirstOptionOnChange
@@ -234,7 +236,7 @@ export function ProviderDefaultsForm({
                   <label className="form-native-field">
                     <HelpLabel
                       label={t('providerDefaultsForm.defaultImageProvider')}
-                      help="Provider used for image generation or editing when the caller does not specify one."
+                      help={t('providerDefaultsForm.imageProviderHelp')}
                     />
                     <select
                       aria-label={t(
@@ -251,8 +253,8 @@ export function ProviderDefaultsForm({
                     >
                       <option value="">
                         {defaultImageProviderOptions.length
-                          ? 'Choose a provider with an active credential'
-                          : 'Add a credential first'}
+                          ? t('providerDefaultsForm.chooseActiveProvider')
+                          : t('providerDefaultsForm.addCredentialFirst')}
                       </option>
                       {defaultImageProviderOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -272,18 +274,20 @@ export function ProviderDefaultsForm({
                     label={
                       <HelpLabel
                         label={t('providerDefaultsForm.defaultImageModel')}
-                        help="Model used for image generation or editing when the caller omits an explicit model."
+                        help={t('providerDefaultsForm.imageModelHelp')}
                       />
                     }
                     limit={100}
-                    nothingFoundMessage="No models found"
+                    nothingFoundMessage={t(
+                      'providerDefaultsForm.noModelsFound',
+                    )}
                     onChange={onDefaultImageModelChange}
                     placeholder={
                       defaultImageProviderId
                         ? isImageModelLoading
-                          ? 'Loading provider models...'
-                          : 'Choose a default model'
-                        : 'Choose a default provider first'
+                          ? t('providerDefaultsForm.loadingModels')
+                          : t('providerDefaultsForm.chooseDefaultModel')
+                        : t('providerDefaultsForm.chooseProviderFirst')
                     }
                     searchable
                     selectFirstOptionOnChange

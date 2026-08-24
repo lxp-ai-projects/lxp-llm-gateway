@@ -191,5 +191,22 @@
   "tenantRegistrationPanel.addHostname": "Add hostname",
   "tenantRegistrationPanel.enabled": "Enabled",
   "tenantRegistrationPanel.primary": "Primary",
-  "tenantRegistrationPanel.remove": "Remove"
+  "tenantRegistrationPanel.remove": "Remove",
+  "tenantsPage.saveRule": "Save rule",
+  "tenantsPage.createRule": "Create rule",
+  "tenantsPage.configured": "Configured",
+  "tenantsPage.notConfigured": "Not configured",
+  "tenantsPage.hidden": "hidden",
+  "tenantsPage.active": "Active",
+  "tenantsPage.disabled": "Disabled",
+  "tenantsPage.replacementApiToken": "Replacement API token (optional)",
+  "tenantsPage.apiToken": "API token",
+  "tenantsPage.keepEncryptedToken": "Leave empty to keep the existing encrypted token.",
+  "tenantsPage.encryptedNeverReturned": "Stored encrypted and never returned to the browser.",
+  "tenantsPage.disable": "Disable",
+  "tenantsPage.enable": "Enable",
+  "tenantsPage.updateCredential": "Update credential",
+  "tenantsPage.saveCredential": "Save credential",
+  "tenantsPage.providerEnabledHelp": "Turns this provider on or off for the selected tenant, regardless of platform availability.",
+  "tenantsPage.credentialModeHelp": "Defines whether this tenant resolves credentials from platform defaults, tenant BYOK, user BYOK, or a hybrid chain."
 }
