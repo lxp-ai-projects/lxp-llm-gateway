@@ -112,7 +112,11 @@ function synchronizeDocumentLanguage(language: string) {
 synchronizeDocumentLanguage(i18n.language);
 i18n.on('languageChanged', (language) => {
   const locale = normalizeLocale(language) ?? 'en';
-  globalThis.localStorage?.setItem(localeStorageKey, locale);
+  try {
+    globalThis.localStorage?.setItem(localeStorageKey, locale);
+  } catch {
+    // Keep language switching usable when Web Storage is unavailable.
+  }
   synchronizeDocumentLanguage(locale);
 });
 

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { resolveMaxReferenceImages } from '@lxp/domain';
 
 import { adminApiUrl, gatewayApiClient } from '../../lib/api-client';
@@ -36,7 +37,14 @@ type ImageLabDraft = {
   showNanoGptPaidModels?: boolean;
 };
 
+class ImageLabValidationError extends Error {
+  constructor(readonly translationKey: string) {
+    super(translationKey);
+  }
+}
+
 export function useImageLab() {
+  const { t } = useTranslation('image');
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const storedDraftRef = useRef<ImageLabDraft>(readStoredImageLabDraft());
@@ -256,11 +264,15 @@ export function useImageLab() {
     mutationFn: async () => {
       const trimmedPrompt = prompt.trim();
       if (!trimmedPrompt) {
-        throw new Error('A prompt is required.');
+        throw new ImageLabValidationError(
+          'imageRequestForm.errors.promptRequired',
+        );
       }
 
       if (references.length > 0 && !supportsImageEditing) {
-        throw new Error('This model does not support image editing.');
+        throw new ImageLabValidationError(
+          'imageRequestForm.errors.editingUnsupported',
+        );
       }
 
       const payload = buildImageRequestPayload({
@@ -296,7 +308,11 @@ export function useImageLab() {
     },
     onError: (error) => {
       setResults([]);
-      setRequestError(getLocalizedErrorMessage(error));
+      setRequestError(
+        error instanceof ImageLabValidationError
+          ? t(error.translationKey)
+          : getLocalizedErrorMessage(error),
+      );
     },
     onSettled: () => {
       setActiveRenderStartedAt(null);

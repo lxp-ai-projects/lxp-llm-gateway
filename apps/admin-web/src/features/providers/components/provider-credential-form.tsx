@@ -156,7 +156,7 @@ export function ProviderCredentialForm({
               color="red"
               title={t('providerCredentialForm.credentialValidationFailed')}
             >
-              {credentialValidationError}
+              {t(credentialValidationError)}
             </Alert>
           ) : null}
           {credentialSubmitError ? (

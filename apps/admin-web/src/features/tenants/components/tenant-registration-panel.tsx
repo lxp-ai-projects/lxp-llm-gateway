@@ -145,9 +145,9 @@ export function TenantRegistrationPanel({
             emailReadiness.data.fromEmail ??
             t('tenantRegistrationPanel.notConfigured'),
         })}
-        {settings.data.enabled && emailReadiness.data.status !== 'ready'
-          ? t('tenantRegistrationPanel.emailVerificationUnavailable')
-          : ''}
+        {settings.data.enabled && emailReadiness.data.status !== 'ready' ? (
+          <> {t('tenantRegistrationPanel.emailVerificationUnavailable')}</>
+        ) : null}
       </Alert>
       <Switch
         label={t('tenantRegistrationPanel.allowPublicRegistration')}

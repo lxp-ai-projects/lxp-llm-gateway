@@ -224,7 +224,9 @@ export function useProvidersController() {
       adminApiClient.deleteOwnProviderCredential(credentialId),
     onSuccess: async () => {
       setDeleteCredentialError(null);
-      setDeleteCredentialSuccessMessage('Credential deleted successfully.');
+      setDeleteCredentialSuccessMessage(
+        'providerCredentialsPanel.credentialDeletedSuccessfully',
+      );
       setCredentialDeleteTarget(null);
       if (
         editingCredentialId &&

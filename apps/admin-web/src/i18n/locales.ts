@@ -20,10 +20,16 @@ export function normalizeLocale(
 }
 
 export function resolveLocale(
-  storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage,
+  storage?: Pick<Storage, 'getItem'>,
   browserLocales: readonly string[] = globalThis.navigator?.languages ?? [],
 ): SupportedLocale {
-  const savedLocale = normalizeLocale(storage?.getItem(localeStorageKey));
+  let savedLocale: SupportedLocale | null = null;
+  try {
+    const availableStorage = storage ?? globalThis.localStorage;
+    savedLocale = normalizeLocale(availableStorage?.getItem(localeStorageKey));
+  } catch {
+    // Web Storage can be denied even when the localStorage property exists.
+  }
   if (savedLocale) return savedLocale;
 
   for (const browserLocale of browserLocales) {

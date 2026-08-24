@@ -34,38 +34,38 @@ export function getProviderCredentialResponsibilityNote(
 export function getProviderCatalogPricingNote(providerId: string | null) {
   if (!providerCatalogHasMixedPricing(providerId)) {
     if (providerId === 'anthropic') {
-      return 'Anthropic Claude support is native to the gateway and certified for the current chat contract. Model catalog certification coverage is still being expanded, so verify pricing and defaults before choosing models or sending prompts. Usage is billed through your Anthropic account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
+      return 'providerDefaultsForm.catalogNotes.anthropic';
     }
 
     if (providerId === 'google') {
-      return "Google Gemini support is validated. The free tier is subject to Google's rate limits. Usage is billed through your Google AI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.";
+      return 'providerDefaultsForm.catalogNotes.google';
     }
 
     if (providerId === 'openai') {
-      return 'OpenAI support is certified. Usage is billed through your OpenAI account. Protect the API key, do not share it, and verify model pricing before choosing defaults or sending prompts. LXP is not responsible for authorized or unauthorized charges made with this key.';
+      return 'providerDefaultsForm.catalogNotes.openai';
     }
 
     if (providerId === 'groq') {
-      return "Groq is Groq's inference platform, not Grok from xAI. Verify the provider before selecting models or credentials.";
+      return 'providerDefaultsForm.catalogNotes.groq';
     }
 
     if (providerId === 'xai') {
-      return 'xAI Grok support is certified. Usage is billed through your xAI account. Protect the API key, do not share it, and verify costs before sending prompts. LXP is not responsible for authorized or unauthorized charges made with that key.';
+      return 'providerDefaultsForm.catalogNotes.xai';
     }
 
     return null;
   }
 
   if (providerId === 'ollama') {
-    return 'Ollama catalogs can mix local/self-hosted models with paid or remotely hosted ones depending on the endpoint you configured. Verify the model source before using it as a default.';
+    return 'providerDefaultsForm.catalogNotes.ollama';
   }
 
-  return 'OpenRouter catalogs can include both free and paid models. Verify pricing and rate limits before choosing a default model or sending prompts.';
+  return 'providerDefaultsForm.catalogNotes.openrouter';
 }
 
 export function getProviderModelLoadingNote(providerId: string | null) {
   if (providerId === 'xai') {
-    return "xAI's models endpoint returns the models available to the authenticating API key. The docs do not describe a credit requirement for model listing. If loading fails, check the API key, team access, or xAI service status.";
+    return 'providerDefaultsForm.modelLoadingNotes.xai';
   }
 
   return null;
@@ -167,21 +167,7 @@ export function validateProviderCredentialInput(input: {
     input.providerId === 'zai';
 
   if (requiresApiToken && !input.apiToken.trim()) {
-    return input.providerId === 'google'
-      ? 'Google Gemini credentials require an API token.'
-      : input.providerId === 'xai'
-        ? 'xAI Grok credentials require an API token.'
-        : input.providerId === 'openai'
-          ? 'OpenAI credentials require an API token.'
-          : input.providerId === 'anthropic'
-            ? 'Anthropic credentials require an API token.'
-            : input.providerId === 'mistral'
-              ? 'Mistral credentials require an API token.'
-              : input.providerId === 'deepseek'
-                ? 'DeepSeek credentials require an API token.'
-                : input.providerId === 'moonshot'
-                  ? 'Moonshot / Kimi credentials require an API token.'
-                  : 'Z.ai credentials require an API token.';
+    return `providerCredentialForm.validation.tokenRequired.${input.providerId}`;
   }
 
   if (input.providerId !== 'ollama' || !input.baseUrl.trim()) {
@@ -192,7 +178,7 @@ export function validateProviderCredentialInput(input: {
   try {
     parsedUrl = new URL(input.baseUrl.trim());
   } catch {
-    return 'Ollama base URL must be a valid absolute URL.';
+    return 'providerCredentialForm.validation.ollamaBaseUrl';
   }
 
   const hostname = parsedUrl.hostname.toLowerCase();
@@ -200,7 +186,7 @@ export function validateProviderCredentialInput(input: {
     (hostname === 'ollama.com' || hostname === 'www.ollama.com') &&
     !input.apiToken.trim()
   ) {
-    return 'Ollama cloud credentials on ollama.com require an API token.';
+    return 'providerCredentialForm.validation.ollamaCloudTokenRequired';
   }
 
   return null;

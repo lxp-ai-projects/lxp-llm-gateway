@@ -133,5 +133,9 @@
   "videoRequestForm.gatewayImageAsset": "Ressource image de la passerelle",
   "videoRequestForm.useAsReference": "Utiliser comme référence",
   "videoResultsPanel.savedAction": "Enregistrée",
-  "videoResultsPanel.saveAction": "Enregistrer"
+  "videoResultsPanel.saveAction": "Enregistrer",
+  "videoRequestForm.errors.promptRequired": "Une invite est requise.",
+  "videoRequestForm.errors.modelRequired": "Un modèle vidéo doit être sélectionné.",
+  "videoRequestForm.errors.referenceImagesUnsupported": "Ce modèle ne prend pas en charge les images de référence.",
+  "videoRequestForm.errors.modelFamilyUnsupported": "Cette requête n’est pas prise en charge par la famille de modèles sélectionnée."
 }

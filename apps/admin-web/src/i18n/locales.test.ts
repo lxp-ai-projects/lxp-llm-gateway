@@ -31,4 +31,17 @@ describe('locale resolution', () => {
   it('falls back to English for unsupported locales', () => {
     expect(resolveLocale({ getItem: () => null }, ['pt-BR'])).toBe('en');
   });
+
+  it('uses the browser locale when Web Storage access is denied', () => {
+    expect(
+      resolveLocale(
+        {
+          getItem: () => {
+            throw new DOMException('Access denied', 'SecurityError');
+          },
+        },
+        ['fr-CA'],
+      ),
+    ).toBe('fr');
+  });
 });

@@ -6,10 +6,10 @@ This PR must be focused on localization only. Do not include PGS changes or unre
 
 Localize the complete LLM Gateway user interface in:
 
-* English (`en`)
-* French (`fr`)
-* Spanish (`es`)
-* German (`de`)
+- English (`en`)
+- French (`fr`)
+- Spanish (`es`)
+- German (`de`)
 
 The localization must cover **all user-facing frontend screens and states**, including authenticated and unauthenticated experiences.
 
@@ -23,40 +23,40 @@ Before implementing translations, inspect the complete frontend and identify eve
 
 Audit at minimum:
 
-* Login
-* Authentication states
-* Main navigation / side menu
-* Header / top navigation
-* Overview
-* Provider Tokens
-* Profile
-* Chat Lab
-* Image Lab
-* Video Lab
-* Tenant-related UI
-* Provider configuration
-* Model configuration
-* Forms
-* Modals
-* Confirmation dialogs
-* Empty states
-* Loading states
-* Error states
-* Success notifications
-* Toasts
-* Tooltips
-* Buttons
-* Table headers
-* Pagination
-* Filters
-* Search placeholders
-* Select/dropdown labels and options
-* Validation messages
-* Security-related messages
-* Logout
-* 401 / 403 / unavailable states
-* Any admin-only or super-admin surfaces
-* Any remaining secondary routes or components reachable through the UI
+- Login
+- Authentication states
+- Main navigation / side menu
+- Header / top navigation
+- Overview
+- Provider Tokens
+- Profile
+- Chat Lab
+- Image Lab
+- Video Lab
+- Tenant-related UI
+- Provider configuration
+- Model configuration
+- Forms
+- Modals
+- Confirmation dialogs
+- Empty states
+- Loading states
+- Error states
+- Success notifications
+- Toasts
+- Tooltips
+- Buttons
+- Table headers
+- Pagination
+- Filters
+- Search placeholders
+- Select/dropdown labels and options
+- Validation messages
+- Security-related messages
+- Logout
+- 401 / 403 / unavailable states
+- Any admin-only or super-admin surfaces
+- Any remaining secondary routes or components reachable through the UI
 
 Search the codebase for hardcoded user-facing strings and migrate them to translation resources.
 
@@ -68,8 +68,8 @@ Do not assume that visible screens in the main navigation are the complete surfa
 
 Use:
 
-* `i18next`
-* `react-i18next`
+- `i18next`
+- `react-i18next`
 
 Create a centralized i18n initialization layer.
 
@@ -100,10 +100,10 @@ src/
 
 The exact namespace split may be adjusted to match the application architecture, but avoid:
 
-* one enormous translation file;
-* one translation file per React component;
-* duplicated translation keys;
-* arbitrary keys such as `text1`, `label2`, etc.
+- one enormous translation file;
+- one translation file per React component;
+- duplicated translation keys;
+- arbitrary keys such as `text1`, `label2`, etc.
 
 Prefer semantic keys such as:
 
@@ -183,11 +183,11 @@ lxp.locale
 
 The implementation must:
 
-* update i18next immediately;
-* persist the locale;
-* apply it without a page reload;
-* restore it on the next application load;
-* preserve it through logout/login.
+- update i18next immediately;
+- persist the locale;
+- apply it without a page reload;
+- restore it on the next application load;
+- preserve it through logout/login.
 
 Do not require authentication to remember language selection.
 
@@ -257,17 +257,17 @@ use:
 
 This applies to:
 
-* visible labels;
-* accessibility labels;
-* placeholders;
-* titles;
-* tooltips;
-* notifications;
-* modal content;
-* validation feedback;
-* empty states;
-* loading text;
-* confirmation messages.
+- visible labels;
+- accessibility labels;
+- placeholders;
+- titles;
+- tooltips;
+- notifications;
+- modal content;
+- validation feedback;
+- empty states;
+- loading text;
+- confirmation messages.
 
 Technical constants that are not user-facing do not need localization.
 
@@ -279,20 +279,20 @@ Provider names, model IDs, tenant IDs, API identifiers and other proper technica
 
 Do not translate product or protocol names such as:
 
-* OpenAI
-* Mistral
-* Anthropic
-* Grok
-* NanoGPT
-* OpenRouter
-* OAuth
-* OIDC
-* JWT
-* API
-* HTTP
-* model IDs
-* provider IDs
-* tenant IDs
+- OpenAI
+- Mistral
+- Anthropic
+- Grok
+- NanoGPT
+- OpenRouter
+- OAuth
+- OIDC
+- JWT
+- API
+- HTTP
+- model IDs
+- provider IDs
+- tenant IDs
 
 Translate the surrounding UI, not technical identifiers themselves.
 
@@ -319,7 +319,7 @@ Never build translated sentences through string concatenation.
 Bad:
 
 ```ts
-t('selectedProvider') + ': ' + provider.name
+t('selectedProvider') + ': ' + provider.name;
 ```
 
 Prefer:
@@ -333,7 +333,7 @@ Prefer:
 and:
 
 ```ts
-t('selectedProvider', { provider: provider.name })
+t('selectedProvider', { provider: provider.name });
 ```
 
 Equivalent translations must preserve natural grammar in each language.
@@ -372,8 +372,8 @@ Prefer browser-native `Intl` APIs or a centralized formatter.
 Examples:
 
 ```ts
-Intl.DateTimeFormat(locale)
-Intl.NumberFormat(locale)
+Intl.DateTimeFormat(locale);
+Intl.NumberFormat(locale);
 ```
 
 Avoid hardcoded formats such as:
@@ -418,8 +418,8 @@ Do not attempt to translate arbitrary unknown backend text.
 
 For unknown errors:
 
-* log/preserve technical details where appropriate;
-* show a localized generic fallback to the user.
+- log/preserve technical details where appropriate;
+- show a localized generic fallback to the user.
 
 Example:
 
@@ -435,11 +435,11 @@ with corresponding French, Spanish and German translations.
 
 Explicitly localize and preserve the semantic distinction between:
 
-* authentication required / `401`;
-* permission denied / `403`;
-* API/network unavailable;
-* server failure;
-* session expired.
+- authentication required / `401`;
+- permission denied / `403`;
+- API/network unavailable;
+- server failure;
+- session expired.
 
 Do not collapse these into a generic "application unavailable" message.
 
@@ -464,7 +464,7 @@ Changing language must update relevant accessibility labels immediately.
 Set the document language dynamically:
 
 ```html
-<html lang="fr">
+<html lang="fr"></html>
 ```
 
 Update `document.documentElement.lang` whenever the selected locale changes.
@@ -477,14 +477,14 @@ German and French strings are often longer than English strings.
 
 Verify that translated content does not break:
 
-* navigation;
-* buttons;
-* cards;
-* tables;
-* badges;
-* selectors;
-* mobile views;
-* modals.
+- navigation;
+- buttons;
+- cards;
+- tables;
+- badges;
+- selectors;
+- mobile views;
+- modals.
 
 Do not solve localization overflow by arbitrarily truncating important labels.
 
@@ -498,11 +498,11 @@ Translations must be natural UI language rather than literal word-for-word trans
 
 Tone should remain consistent with the current LLM Gateway positioning:
 
-* professional;
-* concise;
-* technical where appropriate;
-* clear;
-* enterprise-oriented without sounding bureaucratic.
+- professional;
+- concise;
+- technical where appropriate;
+- clear;
+- enterprise-oriented without sounding bureaucratic.
 
 Avoid machine-translated phrasing that sounds unnatural.
 
@@ -533,12 +533,12 @@ Add tests for the localization infrastructure.
 
 At minimum test:
 
-### Locale resolution
+## Locale resolution
 
-* saved locale is restored;
-* browser locale is detected;
-* regional locales resolve correctly;
-* unsupported locale falls back to English.
+- saved locale is restored;
+- browser locale is detected;
+- regional locales resolve correctly;
+- unsupported locale falls back to English.
 
 ### Language switching
 
@@ -561,10 +561,10 @@ Verify the selected language survives application initialization.
 
 Test:
 
-* all four options appear;
-* current language is selected;
-* selecting another language updates i18next;
-* persistence is updated.
+- all four options appear;
+- current language is selected;
+- selecting another language updates i18next;
+- persistence is updated.
 
 ### Core screens
 
@@ -602,12 +602,12 @@ Keep translation usage straightforward for future contributors.
 
 Document briefly:
 
-* where translations live;
-* how to add a new translation key;
-* supported locales;
-* which locale is canonical;
-* how locale detection works;
-* how to add another language later.
+- where translations live;
+- how to add a new translation key;
+- supported locales;
+- which locale is canonical;
+- how locale detection works;
+- how to add another language later.
 
 Avoid excessive i18n abstraction that makes ordinary React development cumbersome.
 
@@ -630,11 +630,11 @@ files systematically.
 
 Do not blindly extract:
 
-* technical constants;
-* test fixture values;
-* provider/model names;
-* IDs;
-* log messages intended solely for developers.
+- technical constants;
+- test fixture values;
+- provider/model names;
+- IDs;
+- log messages intended solely for developers.
 
 The goal is localization of the **user experience**, not every string literal in the repository.
 
@@ -644,23 +644,23 @@ The goal is localization of the **user experience**, not every string literal in
 
 The PR is complete when:
 
-* the entire accessible LLM Gateway UI is available in English;
-* the entire accessible LLM Gateway UI is available in French;
-* the entire accessible LLM Gateway UI is available in Spanish;
-* the entire accessible LLM Gateway UI is available in German;
-* the login page exposes the language selector in the upper-right area;
-* the authenticated application exposes the language selector in the side menu;
-* switching languages does not reload the page;
-* the choice persists locally;
-* browser locale is used for first-time visitors when supported;
-* English is used as fallback;
-* `document.documentElement.lang` follows the active locale;
-* layouts remain usable with longer translations;
-* known errors are localized;
-* 401, 403, network and server failures remain semantically distinct;
-* no meaningful user-facing hardcoded English strings remain;
-* translation completeness is covered by automated validation;
-* existing functionality and authorization behavior remain unchanged.
+- the entire accessible LLM Gateway UI is available in English;
+- the entire accessible LLM Gateway UI is available in French;
+- the entire accessible LLM Gateway UI is available in Spanish;
+- the entire accessible LLM Gateway UI is available in German;
+- the login page exposes the language selector in the upper-right area;
+- the authenticated application exposes the language selector in the side menu;
+- switching languages does not reload the page;
+- the choice persists locally;
+- browser locale is used for first-time visitors when supported;
+- English is used as fallback;
+- `document.documentElement.lang` follows the active locale;
+- layouts remain usable with longer translations;
+- known errors are localized;
+- 401, 403, network and server failures remain semantically distinct;
+- no meaningful user-facing hardcoded English strings remain;
+- translation completeness is covered by automated validation;
+- existing functionality and authorization behavior remain unchanged.
 
 ---
 

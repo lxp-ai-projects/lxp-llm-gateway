@@ -367,6 +367,7 @@ function buildChatProviderOptions(input: {
 
 export function ChatPage() {
   const { t } = useTranslation('chat');
+  const { t: tProviders } = useTranslation('providers');
   const runtimeConfigQuery = useRuntimeConfig();
   const sessionQuery = useSession();
   const conversationScope = useMemo(
@@ -1209,7 +1210,7 @@ export function ChatPage() {
                 mb="md"
                 title={t('chatPage.modelCatalogNote')}
               >
-                {providerCatalogPricingNote}
+                {tProviders(providerCatalogPricingNote)}
               </Alert>
             ) : null}
             {providerId && model ? (

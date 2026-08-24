@@ -299,7 +299,7 @@ export function ProfilePage() {
                   onClick={() => {
                     if (newPassword !== confirmNewPassword) {
                       setPasswordValidationMessage(
-                        'New password confirmation does not match.',
+                        t('profilePage.passwordConfirmationMismatch'),
                       );
                       setPasswordSuccessMessage(null);
                       setPasswordErrorMessage(null);

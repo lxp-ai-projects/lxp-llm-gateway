@@ -133,5 +133,9 @@
   "videoRequestForm.gatewayImageAsset": "Gateway-Bildressource",
   "videoRequestForm.useAsReference": "Als Referenz verwenden",
   "videoResultsPanel.savedAction": "Gespeichert",
-  "videoResultsPanel.saveAction": "Speichern"
+  "videoResultsPanel.saveAction": "Speichern",
+  "videoRequestForm.errors.promptRequired": "Eine Eingabeaufforderung ist erforderlich.",
+  "videoRequestForm.errors.modelRequired": "Ein Videomodell muss ausgewählt werden.",
+  "videoRequestForm.errors.referenceImagesUnsupported": "Dieses Modell unterstützt keine Referenzbilder.",
+  "videoRequestForm.errors.modelFamilyUnsupported": "Diese Anfrage wird von der ausgewählten Modellfamilie nicht unterstützt."
 }

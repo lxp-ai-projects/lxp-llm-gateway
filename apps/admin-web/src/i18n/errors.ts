@@ -21,8 +21,8 @@ export function getLocalizedErrorMessage(
   if (apiError?.status && apiError.status >= 500)
     return i18n.t('errors:serverFailure');
   if (
-    error instanceof TypeError ||
-    (error instanceof Error && /fetch|network|unavailable/i.test(error.message))
+    error instanceof Error &&
+    /fetch|network|unavailable/i.test(error.message)
   )
     return i18n.t('errors:networkUnavailable');
   return i18n.t(`errors:${fallbackKey}`);

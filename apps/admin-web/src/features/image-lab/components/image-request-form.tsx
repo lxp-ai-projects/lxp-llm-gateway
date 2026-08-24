@@ -550,8 +550,9 @@ export function ImageRequestForm({
                         data={responseFormats.map(
                           (format: 'url' | 'b64_json') => ({
                             value: format,
-                            label:
-                              format === 'b64_json' ? 'Base64' : 'Hosted URL',
+                            label: t(
+                              `imageRequestForm.responseFormats.${format}`,
+                            ),
                           }),
                         )}
                         data-testid="image-response-format-select"
@@ -782,8 +783,10 @@ export function ImageRequestForm({
                               </Text>
                               <Badge size="sm" variant="light">
                                 {reference.kind === 'asset'
-                                  ? reference.sourceType
-                                  : 'url'}
+                                  ? t(
+                                      `imageRequestForm.sourceTypes.${reference.sourceType}`,
+                                    )
+                                  : t('imageRequestForm.sourceTypes.url')}
                               </Badge>
                             </Stack>
                           </Group>

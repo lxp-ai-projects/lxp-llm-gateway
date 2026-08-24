@@ -128,5 +128,15 @@
   "imageResultsPanel.editMode": "Mode modification",
   "imageResultsPanel.generationMode": "Mode génération",
   "imageResultsPanel.savedAction": "Enregistrée",
-  "imageResultsPanel.saveAction": "Enregistrer"
+  "imageResultsPanel.saveAction": "Enregistrer",
+  "imageHistoryPanel.sourceTypes.upload": "Téléversée",
+  "imageHistoryPanel.sourceTypes.generated": "Générée",
+  "imageRequestForm.sourceTypes.upload": "Téléversée",
+  "imageRequestForm.sourceTypes.generated": "Générée",
+  "imageRequestForm.sourceTypes.url": "URL",
+  "imageRequestForm.responseFormats.url": "URL hébergée",
+  "imageRequestForm.responseFormats.b64_json": "Base64",
+  "imageResultsPanel.generatedResult": "Résultat généré {{index}}",
+  "imageRequestForm.errors.promptRequired": "Une invite est requise.",
+  "imageRequestForm.errors.editingUnsupported": "Ce modèle ne prend pas en charge la modification d’images."
 }

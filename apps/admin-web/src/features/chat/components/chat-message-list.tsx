@@ -82,6 +82,8 @@ export function ChatMessageList({
   userDisplayName,
 }: ChatMessageListProps) {
   const { t } = useTranslation('chat');
+  const { t: tProviders } = useTranslation('providers');
+  const modelLoadingNote = getProviderModelLoadingNote(providerId);
   return (
     <Stack gap="md">
       {modelsErrorMessage ? (
@@ -93,12 +95,12 @@ export function ChatMessageList({
           {modelsErrorMessage}
         </Alert>
       ) : null}
-      {modelsErrorMessage && getProviderModelLoadingNote(providerId) ? (
+      {modelsErrorMessage && modelLoadingNote ? (
         <Alert
           color="blue"
           title={t('chatMessageList.providerModelAccessNote')}
         >
-          {getProviderModelLoadingNote(providerId)}
+          {tProviders(modelLoadingNote)}
         </Alert>
       ) : null}
 

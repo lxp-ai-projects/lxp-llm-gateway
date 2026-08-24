@@ -39,8 +39,8 @@ import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 
 export function EvaluationLabPage() {
-  const { t } = useTranslation('evaluation');
-  const labels = getEvaluationLabCopy(navigator.language);
+  const { i18n, t } = useTranslation('evaluation');
+  const labels = getEvaluationLabCopy(i18n.resolvedLanguage ?? i18n.language);
   const session = useSession();
   const [presetId, setPresetId] = useState(EVALUATION_PRESETS[0].id);
   const [input, setInput] = useState<PgsGroundingInput>(() =>

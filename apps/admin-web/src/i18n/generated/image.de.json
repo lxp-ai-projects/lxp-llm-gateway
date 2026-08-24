@@ -128,5 +128,15 @@
   "imageResultsPanel.editMode": "Bearbeitungsmodus",
   "imageResultsPanel.generationMode": "Generierungsmodus",
   "imageResultsPanel.savedAction": "Gespeichert",
-  "imageResultsPanel.saveAction": "Speichern"
+  "imageResultsPanel.saveAction": "Speichern",
+  "imageHistoryPanel.sourceTypes.upload": "Hochgeladen",
+  "imageHistoryPanel.sourceTypes.generated": "Generiert",
+  "imageRequestForm.sourceTypes.upload": "Hochgeladen",
+  "imageRequestForm.sourceTypes.generated": "Generiert",
+  "imageRequestForm.sourceTypes.url": "URL",
+  "imageRequestForm.responseFormats.url": "Gehostete URL",
+  "imageRequestForm.responseFormats.b64_json": "Base64",
+  "imageResultsPanel.generatedResult": "Generiertes Ergebnis {{index}}",
+  "imageRequestForm.errors.promptRequired": "Eine Eingabeaufforderung ist erforderlich.",
+  "imageRequestForm.errors.editingUnsupported": "Dieses Modell unterstützt keine Bildbearbeitung."
 }

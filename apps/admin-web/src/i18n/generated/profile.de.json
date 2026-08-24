@@ -23,5 +23,6 @@
   "profilePage.changeYourPasswordWithoutLeavingTheCurrent": "Ändern Sie Ihr Passwort, ohne die aktuelle Sitzung zu verlassen.",
   "profilePage.passwordUpdated": "Passwort aktualisiert",
   "profilePage.checkYourEntries": "Überprüfen Sie Ihre Eingaben",
-  "profilePage.profileUpdatedMessage": "Ihr Profil wurde aktualisiert."
+  "profilePage.profileUpdatedMessage": "Ihr Profil wurde aktualisiert.",
+  "profilePage.passwordConfirmationMismatch": "Die Bestätigung des neuen Passworts stimmt nicht überein."
 }

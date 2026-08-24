@@ -128,5 +128,15 @@
   "imageResultsPanel.editMode": "Modo de edición",
   "imageResultsPanel.generationMode": "Modo de generación",
   "imageResultsPanel.savedAction": "Guardada",
-  "imageResultsPanel.saveAction": "Guardar"
+  "imageResultsPanel.saveAction": "Guardar",
+  "imageHistoryPanel.sourceTypes.upload": "Cargada",
+  "imageHistoryPanel.sourceTypes.generated": "Generada",
+  "imageRequestForm.sourceTypes.upload": "Cargada",
+  "imageRequestForm.sourceTypes.generated": "Generada",
+  "imageRequestForm.sourceTypes.url": "URL",
+  "imageRequestForm.responseFormats.url": "URL alojada",
+  "imageRequestForm.responseFormats.b64_json": "Base64",
+  "imageResultsPanel.generatedResult": "Resultado generado {{index}}",
+  "imageRequestForm.errors.promptRequired": "Se requiere una instrucción.",
+  "imageRequestForm.errors.editingUnsupported": "Este modelo no admite la edición de imágenes."
 }

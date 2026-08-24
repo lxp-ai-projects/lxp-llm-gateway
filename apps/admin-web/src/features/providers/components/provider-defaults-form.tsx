@@ -202,7 +202,7 @@ export function ProviderDefaultsForm({
                       color="blue"
                       title={t('providerDefaultsForm.providerModelAccessNote')}
                     >
-                      {modelLoadingNote}
+                      {t(modelLoadingNote)}
                     </Alert>
                   ) : null}
                   {pricingNote ? (
@@ -210,7 +210,7 @@ export function ProviderDefaultsForm({
                       color="blue"
                       title={t('providerDefaultsForm.modelCatalogNote')}
                     >
-                      {pricingNote}
+                      {t(pricingNote)}
                     </Alert>
                   ) : null}
                 </Stack>
@@ -308,7 +308,7 @@ export function ProviderDefaultsForm({
                       color="blue"
                       title={t('providerDefaultsForm.providerModelAccessNote')}
                     >
-                      {imageModelLoadingNote}
+                      {t(imageModelLoadingNote)}
                     </Alert>
                   ) : null}
                   {imagePricingNote ? (
@@ -316,7 +316,7 @@ export function ProviderDefaultsForm({
                       color="blue"
                       title={t('providerDefaultsForm.modelCatalogNote')}
                     >
-                      {imagePricingNote}
+                      {t(imagePricingNote)}
                     </Alert>
                   ) : null}
                 </Stack>

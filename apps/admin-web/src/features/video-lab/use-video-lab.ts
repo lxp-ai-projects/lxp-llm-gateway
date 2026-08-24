@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   normalizeVideoGenerationMode,
   validateVideoRequestAgainstFamily,
@@ -34,7 +35,14 @@ type VideoLabDraft = {
   activeJobId?: string;
 };
 
+class VideoLabValidationError extends Error {
+  constructor(readonly translationKey: string) {
+    super(translationKey);
+  }
+}
+
 export function useVideoLab() {
+  const { t } = useTranslation('video');
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const storedDraftRef = useRef<VideoLabDraft>(readStoredVideoLabDraft());
@@ -323,11 +331,15 @@ export function useVideoLab() {
         sanitizeRetryRequest(requestOverride) ?? buildRequestFromForm();
 
       if (!request.prompt.trim()) {
-        throw new Error('A prompt is required.');
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.promptRequired',
+        );
       }
 
       if (!request.model?.trim()) {
-        throw new Error('A video model must be selected.');
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.modelRequired',
+        );
       }
 
       const retryProviderId =
@@ -354,13 +366,14 @@ export function useVideoLab() {
         (request.referenceImages?.length ?? 0) > 0 &&
         !retrySupportsReferenceImages
       ) {
-        throw new Error('This model does not support reference images.');
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.referenceImagesUnsupported',
+        );
       }
 
       if (retryFamily && !retryFamilyValidation.ok) {
-        throw new Error(
-          retryFamilyValidation.issues[0]?.message ??
-            'This request is not supported by the selected model family.',
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.modelFamilyUnsupported',
         );
       }
 
@@ -382,7 +395,11 @@ export function useVideoLab() {
       void queryClient.invalidateQueries({ queryKey: ['video-history'] });
     },
     onError: (error) => {
-      setRequestError(getLocalizedErrorMessage(error));
+      setRequestError(
+        error instanceof VideoLabValidationError
+          ? t(error.translationKey)
+          : getLocalizedErrorMessage(error),
+      );
     },
   });
 

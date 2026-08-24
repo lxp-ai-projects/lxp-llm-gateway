@@ -133,5 +133,9 @@
   "videoRequestForm.gatewayImageAsset": "Recurso de imagen de la pasarela",
   "videoRequestForm.useAsReference": "Usar como referencia",
   "videoResultsPanel.savedAction": "Guardado",
-  "videoResultsPanel.saveAction": "Guardar"
+  "videoResultsPanel.saveAction": "Guardar",
+  "videoRequestForm.errors.promptRequired": "Se requiere una instrucción.",
+  "videoRequestForm.errors.modelRequired": "Se debe seleccionar un modelo de vídeo.",
+  "videoRequestForm.errors.referenceImagesUnsupported": "Este modelo no admite imágenes de referencia.",
+  "videoRequestForm.errors.modelFamilyUnsupported": "Esta solicitud no es compatible con la familia de modelos seleccionada."
 }

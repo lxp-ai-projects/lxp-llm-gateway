@@ -275,7 +275,9 @@ export function ImageHistoryPanel({
                                       </Text>
                                       <Text c="dimmed" size="sm">
                                         {t('imageHistoryPanel.sourceType')}
-                                        {image.sourceType}
+                                        {t(
+                                          `imageHistoryPanel.sourceTypes.${image.sourceType}`,
+                                        )}
                                       </Text>
                                       <Text c="dimmed" size="sm">
                                         {t('imageHistoryPanel.saved')}

@@ -128,5 +128,15 @@
   "imageResultsPanel.editMode": "Edit mode",
   "imageResultsPanel.generationMode": "Generation mode",
   "imageResultsPanel.savedAction": "Saved",
-  "imageResultsPanel.saveAction": "Save"
+  "imageResultsPanel.saveAction": "Save",
+  "imageHistoryPanel.sourceTypes.upload": "Upload",
+  "imageHistoryPanel.sourceTypes.generated": "Generated",
+  "imageRequestForm.sourceTypes.upload": "Upload",
+  "imageRequestForm.sourceTypes.generated": "Generated",
+  "imageRequestForm.sourceTypes.url": "URL",
+  "imageRequestForm.responseFormats.url": "Hosted URL",
+  "imageRequestForm.responseFormats.b64_json": "Base64",
+  "imageResultsPanel.generatedResult": "Generated result {{index}}",
+  "imageRequestForm.errors.promptRequired": "A prompt is required.",
+  "imageRequestForm.errors.editingUnsupported": "This model does not support image editing."
 }

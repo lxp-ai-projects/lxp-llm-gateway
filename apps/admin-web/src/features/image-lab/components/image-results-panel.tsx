@@ -149,7 +149,9 @@ export function ImageResultsPanel({
                     {src ? (
                       <div className="image-result-preview">
                         <Image
-                          alt={`Generated result ${index + 1}`}
+                          alt={t('imageResultsPanel.generatedResult', {
+                            index: index + 1,
+                          })}
                           radius="md"
                           src={src}
                         />

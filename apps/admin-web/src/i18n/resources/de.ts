@@ -196,7 +196,7 @@ export const de = {
     providers: {
       title: 'Provider-Anmeldedaten',
       description:
-        'Verwalten Sie schreibgeschützte Provider-Anmeldedaten und separate Provider-/Modellpaare für Chat und Bilder.',
+        'Verwalten Sie nur schreibbare Provider-Anmeldedaten, die Administratoren setzen, aber nicht zurücklesen können, sowie separate Provider-/Modellpaare für Chat und Bilder.',
       boundaryTitle: 'Hinweis zur Sicherheitsgrenze',
       boundaryDescription:
         'Administratoren können Anmeldedaten anderer Benutzer erstellen oder zurücksetzen, dürfen aber nur die maskierte Fassung und niemals das Roh-Token sehen.',

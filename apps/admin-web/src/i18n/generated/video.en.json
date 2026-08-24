@@ -133,5 +133,9 @@
   "videoRequestForm.gatewayImageAsset": "Gateway image asset",
   "videoRequestForm.useAsReference": "Use as reference",
   "videoResultsPanel.savedAction": "Saved",
-  "videoResultsPanel.saveAction": "Save"
+  "videoResultsPanel.saveAction": "Save",
+  "videoRequestForm.errors.promptRequired": "A prompt is required.",
+  "videoRequestForm.errors.modelRequired": "A video model must be selected.",
+  "videoRequestForm.errors.referenceImagesUnsupported": "This model does not support reference images.",
+  "videoRequestForm.errors.modelFamilyUnsupported": "This request is not supported by the selected model family."
 }

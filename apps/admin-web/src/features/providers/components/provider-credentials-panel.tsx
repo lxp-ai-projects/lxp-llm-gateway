@@ -106,7 +106,7 @@ export function ProviderCredentialsPanel({
             color="teal"
             title={t('providerCredentialsPanel.credentialDeleted')}
           >
-            {deleteCredentialSuccessMessage}
+            {t(deleteCredentialSuccessMessage)}
           </Alert>
         ) : null}
         <div className="provider-credentials-mobile">

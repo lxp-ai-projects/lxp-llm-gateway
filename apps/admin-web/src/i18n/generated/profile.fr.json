@@ -23,5 +23,6 @@
   "profilePage.changeYourPasswordWithoutLeavingTheCurrent": "Changez votre mot de passe sans quitter la session actuelle.",
   "profilePage.passwordUpdated": "Mot de passe mis à jour",
   "profilePage.checkYourEntries": "Vérifiez vos saisies",
-  "profilePage.profileUpdatedMessage": "Votre profil a été mis à jour."
+  "profilePage.profileUpdatedMessage": "Votre profil a été mis à jour.",
+  "profilePage.passwordConfirmationMismatch": "La confirmation du nouveau mot de passe ne correspond pas."
 }
