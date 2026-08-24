@@ -1,10 +1,12 @@
 import { ActionIcon, Button } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { usePwaInstall } from '../lib/use-pwa-install';
 
 export function InstallAppButton() {
+  const { t } = useTranslation('common');
   const { canInstall, promptInstall } = usePwaInstall();
   const [isPrompting, setIsPrompting] = useState(false);
 
@@ -30,10 +32,10 @@ export function InstallAppButton() {
         onClick={() => void handleInstall()}
         variant="light"
       >
-        Install app
+        {t('actions.install')}
       </Button>
       <ActionIcon
-        aria-label="Install app"
+        aria-label={t('actions.install')}
         hiddenFrom="sm"
         loading={isPrompting}
         onClick={() => void handleInstall()}

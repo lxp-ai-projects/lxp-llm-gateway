@@ -9,34 +9,35 @@ import {
   Title,
 } from '@mantine/core';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export function TermsPage() {
+  const { t } = useTranslation('pages');
   return (
     <Center mih="100vh" px="md">
       <Container size={720} w="100%">
         <Card className="hero-card">
           <Stack gap="lg">
             <div>
-              <Text className="page-kicker">Terms</Text>
-              <Title order={1}>Terms of service</Title>
+              <Text className="page-kicker">{t('legal.termsKicker')}</Text>
+              <Title order={1}>{t('legal.termsTitle')}</Title>
             </div>
             <Text c="dimmed">
-              This placeholder page gives the SPA the correct legal navigation
-              surface while the formal legal copy is still being finalized.
+              {t('legal.termsDescription')}
             </Text>
             <List spacing="sm">
               <List.Item>
-                Use of provider credentials remains subject to platform policy.
+                {t('legal.termsCredential')}
               </List.Item>
               <List.Item>
-                Administrative actions are role-bound and auditable by design.
+                {t('legal.termsAdmin')}
               </List.Item>
               <List.Item>
-                Gateway access may be interrupted by a global circuit breaker.
+                {t('legal.termsGateway')}
               </List.Item>
             </List>
             <Button component={Link} to="/login" variant="light">
-              Back to login
+              {t('legal.back')}
             </Button>
           </Stack>
         </Card>

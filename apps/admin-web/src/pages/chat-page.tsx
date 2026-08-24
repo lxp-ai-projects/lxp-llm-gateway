@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Button,
@@ -32,6 +33,7 @@ import { useChatTransfer } from '../features/chat/hooks/use-chat-transfer';
 import { createConversation } from '../features/chat/lib/chat-conversation-utils';
 import { PageHeader } from '../components/page-header';
 import { adminApiClient, gatewayApiClient } from '../lib/api-client';
+import { getLocalizedErrorMessage } from '../i18n/errors';
 import { DEFAULT_SYSTEM_PROMPT } from '../lib/chat-thread';
 import { type StoredConversation } from '../lib/chat-store';
 import type {
@@ -364,6 +366,8 @@ function buildChatProviderOptions(input: {
 }
 
 export function ChatPage() {
+  const { t } = useTranslation('chat');
+  const { t: tProviders } = useTranslation('providers');
   const runtimeConfigQuery = useRuntimeConfig();
   const sessionQuery = useSession();
   const conversationScope = useMemo(
@@ -855,15 +859,16 @@ export function ChatPage() {
         data-testid="chat-delete-conversation-modal"
         opened={conversationPendingDeletion !== null}
         onClose={() => setConversationPendingDeletion(null)}
-        title="Delete conversation?"
+        title={t('chatPage.deleteConversation')}
       >
         <Stack gap="md">
           <Text size="sm">
-            This permanently removes the local conversation{' '}
+            {t('chatPage.thisPermanentlyRemovesTheLocalConversation')}{' '}
             <Text component="span" fw={700} inherit>
-              {conversationPendingDeletion?.title ?? 'Untitled conversation'}
+              {conversationPendingDeletion?.title ??
+                t('chatPage.untitledConversation')}
             </Text>
-            . The operation cannot be undone.
+            {t('chatPage.theOperationCannotBeUndone')}
           </Text>
           <Group justify="flex-end">
             <Button
@@ -871,22 +876,22 @@ export function ChatPage() {
               onClick={() => setConversationPendingDeletion(null)}
               variant="subtle"
             >
-              Cancel
+              {t('chatPage.cancel')}
             </Button>
             <Button
               color="red"
               data-testid="chat-delete-conversation-confirm"
               onClick={() => void confirmConversationDeletion()}
             >
-              Delete permanently
+              {t('chatPage.deletePermanently')}
             </Button>
           </Group>
         </Stack>
       </Modal>
 
       <PageHeader
-        title="Chat Lab"
-        description="A lightweight provider test surface with local IndexedDB persistence and optional reasoning display when thinking models expose it."
+        title={t('chatPage.chatLab')}
+        description={t('chatPage.aLightweightProviderTestSurfaceWithLocal')}
       />
 
       <Grid>
@@ -922,19 +927,19 @@ export function ChatPage() {
               mb="lg"
             >
               <Stack gap={4}>
-                <Title order={3}>Provider test surface</Title>
+                <Title order={3}>{t('chatPage.providerTestSurface')}</Title>
                 <Text c="dimmed" size="sm">
-                  Runtime gateway status:{' '}
+                  {t('chatPage.runtimeGatewayStatus')}{' '}
                   {runtimeConfigQuery.data?.gatewayOnline
-                    ? 'online'
-                    : 'offline'}
+                    ? t('chatPage.online')
+                    : t('chatPage.offline')}
                 </Text>
               </Stack>
               <Stack gap="xs" w={240}>
                 <Select
                   data={providerOptions}
                   data-testid="chat-provider-select"
-                  label="Provider"
+                  label={t('chatPage.provider')}
                   onChange={(value) => {
                     const nextProviderId =
                       value ?? providerOptions[0]?.value ?? 'nanogpt';
@@ -965,9 +970,9 @@ export function ChatPage() {
                 <Select
                   data={sortedModelOptions}
                   data-testid="chat-model-select"
-                  label="Model"
+                  label={t('chatPage.model')}
                   limit={100}
-                  nothingFoundMessage="No models found"
+                  nothingFoundMessage={t('chatPage.noModelsFound')}
                   onChange={(value) => {
                     const nextModel = value ?? '';
                     pendingConversationProviderSyncRef.current = false;
@@ -1008,7 +1013,7 @@ export function ChatPage() {
                 />
                 <NumberInput
                   data-testid="chat-max-output-tokens-input"
-                  label="Max output tokens"
+                  label={t('chatPage.maxOutputTokens')}
                   min={1}
                   onChange={(value) => {
                     const nextMaxOutputTokens =
@@ -1022,19 +1027,22 @@ export function ChatPage() {
                       );
                     }
                   }}
-                  placeholder="Provider default"
+                  placeholder={t('chatPage.providerDefault')}
                   value={maxOutputTokens}
                 />
                 {providerId === 'anthropic' ? (
                   <>
                     <Select
                       data={[
-                        { value: 'none', label: 'Extended thinking: none' },
+                        {
+                          value: 'none',
+                          label: t('chatPage.extendedThinkingNone'),
+                        },
                         ...(reasoningCapability?.controls.includes('adaptive')
                           ? [
                               {
                                 value: 'auto',
-                                label: 'Extended thinking: auto',
+                                label: t('chatPage.extendedThinkingAuto'),
                               },
                             ]
                           : []),
@@ -1042,14 +1050,14 @@ export function ChatPage() {
                           ? [
                               {
                                 value: 'budget',
-                                label: 'Extended thinking: budget',
+                                label: t('chatPage.extendedThinkingBudget'),
                               },
                             ]
                           : []),
                       ]}
                       data-testid="chat-anthropic-thinking-mode-select"
                       disabled={anthropicThinkingDisabledForModel}
-                      label="Thinking"
+                      label={t('chatPage.thinking')}
                       onChange={(value) => {
                         const nextMode =
                           (value as AnthropicExtendedThinkingUiMode | null) ??
@@ -1072,7 +1080,7 @@ export function ChatPage() {
                     {effectiveAnthropicThinkingMode === 'budget' ? (
                       <NumberInput
                         data-testid="chat-anthropic-thinking-budget-input"
-                        label="Thinking budget tokens"
+                        label={t('chatPage.thinkingBudgetTokens')}
                         min={1024}
                         step={256}
                         onChange={(value) => {
@@ -1097,13 +1105,15 @@ export function ChatPage() {
                 {thinkingControlVisible ? (
                   <Select
                     data={[
-                      { value: 'enabled', label: 'Thinking: enabled' },
+                      {
+                        value: 'enabled',
+                        label: t('chatPage.thinkingEnabled'),
+                      },
                       ...(preserveThinkingSupported
                         ? [
                             {
                               value: 'enabled-preserve',
-                              label:
-                                'Thinking: enabled + preserve prior reasoning',
+                              label: t('chatPage.thinkingEnabledPreserve'),
                             },
                           ]
                         : []),
@@ -1112,13 +1122,13 @@ export function ChatPage() {
                         : [
                             {
                               value: 'disabled',
-                              label: 'Thinking: disabled',
+                              label: t('chatPage.thinkingDisabled'),
                             },
                           ]),
                     ]}
                     data-testid="chat-thinking-mode-select"
                     disabled={Boolean(model) && !thinkingSupported}
-                    label="Thinking"
+                    label={t('chatPage.thinking')}
                     onChange={(value) => {
                       const nextMode =
                         (value as ThinkingUiMode | null) ?? 'enabled';
@@ -1144,8 +1154,10 @@ export function ChatPage() {
                       {
                         value: 'provider-default',
                         label: reasoningCapability?.defaultEffort
-                          ? `Provider default (${reasoningCapability.defaultEffort})`
-                          : 'Provider default',
+                          ? t('chatPage.providerDefaultWithValue', {
+                              value: reasoningCapability.defaultEffort,
+                            })
+                          : t('chatPage.providerDefault'),
                       },
                       ...(reasoningCapability?.supportedEfforts ?? [])
                         .filter(
@@ -1155,11 +1167,11 @@ export function ChatPage() {
                         )
                         .map((effort) => ({
                           value: effort,
-                          label: `Reasoning effort: ${effort}`,
+                          label: t('chatPage.reasoningEffortValue', { effort }),
                         })),
                     ]}
                     data-testid="chat-reasoning-effort-select"
-                    label="Reasoning effort"
+                    label={t('chatPage.reasoningEffort')}
                     onChange={(value) => {
                       const nextEffort =
                         (value as ReasoningEffortUiMode | null) ??
@@ -1193,35 +1205,53 @@ export function ChatPage() {
               </Stack>
             </Group>
             {providerCatalogPricingNote ? (
-              <Alert color="blue" mb="md" title="Model catalog note">
-                {providerCatalogPricingNote}
+              <Alert
+                color="blue"
+                mb="md"
+                title={t('chatPage.modelCatalogNote')}
+              >
+                {tProviders(providerCatalogPricingNote)}
               </Alert>
             ) : null}
             {providerId && model ? (
               <Alert
                 color="blue"
                 mb="md"
-                title={`${selectedProviderDisplayName} reasoning`}
+                title={t('chatPage.providerReasoning', {
+                  provider: selectedProviderDisplayName,
+                })}
               >
                 {!reasoningCapability
-                  ? `The ${selectedProviderDisplayName} model API does not declare reasoning capabilities for ${selectedModelDisplayName}. Chat Lab will not infer them from the model name.`
+                  ? t('chatPage.reasoningNotDeclared', {
+                      provider: selectedProviderDisplayName,
+                      model: selectedModelDisplayName,
+                    })
                   : !reasoningCapability.supported
-                    ? `The ${selectedProviderDisplayName} model API declares that ${selectedModelDisplayName} does not support reasoning.`
+                    ? t('chatPage.reasoningUnsupported', {
+                        provider: selectedProviderDisplayName,
+                        model: selectedModelDisplayName,
+                      })
                     : reasoningCapability.mandatory
                       ? reasoningEffortControlVisible
-                        ? `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. The toggle is unavailable; select a supported effort or keep the provider default.`
-                        : `The ${selectedProviderDisplayName} model API declares reasoning mandatory for ${selectedModelDisplayName}. Chat Lab sends no reasoning configuration and uses the provider default.`
+                        ? t('chatPage.reasoningMandatoryWithControl', {
+                            provider: selectedProviderDisplayName,
+                            model: selectedModelDisplayName,
+                          })
+                        : t('chatPage.reasoningMandatoryDefault', {
+                            provider: selectedProviderDisplayName,
+                            model: selectedModelDisplayName,
+                          })
                       : providerId === 'anthropic'
                         ? anthropicThinkingMode === 'auto'
-                          ? 'Auto uses Anthropic adaptive thinking as declared by the model API.'
+                          ? t('chatPage.anthropicThinkingAuto')
                           : anthropicThinkingMode === 'budget'
-                            ? 'Budget mode sends a fixed Anthropic thinking budget. The gateway keeps max output tokens above the requested budget.'
-                            : 'None explicitly disables Anthropic extended thinking for this conversation.'
+                            ? t('chatPage.anthropicThinkingBudget')
+                            : t('chatPage.anthropicThinkingDisabled')
                         : preserveThinkingEnabled
-                          ? 'Reasoning is enabled and prior reasoning content is preserved when this provider route supports replay.'
+                          ? t('chatPage.reasoningEnabledPreserved')
                           : effectiveThinkingMode === 'disabled'
-                            ? 'Reasoning is disabled for this conversation using the selected provider transport.'
-                            : 'Reasoning is enabled for this conversation using capabilities declared by the provider model API.'}
+                            ? t('chatPage.reasoningDisabledDescription')
+                            : t('chatPage.reasoningEnabledDescription')}
               </Alert>
             ) : null}
             {providerId === 'anthropic' &&
@@ -1231,10 +1261,9 @@ export function ChatPage() {
               <Alert
                 color="yellow"
                 mb="md"
-                title="Adaptive thinking compatibility"
+                title={t('chatPage.adaptiveThinkingCompatibility')}
               >
-                This model may reject adaptive thinking. If Anthropic returns a
-                400 error, switch to `budget` for older Claude models.
+                {t('chatPage.thisModelMayRejectAdaptiveThinkingIf')}
               </Alert>
             ) : null}
 
@@ -1251,15 +1280,15 @@ export function ChatPage() {
                   data-testid="chat-tab-conversation"
                   value="conversation"
                 >
-                  Conversation
+                  {t('chatPage.conversation')}
                 </Tabs.Tab>
                 <Tabs.Tab
                   data-testid="chat-tab-system-prompt"
                   value="system-prompt"
                 >
                   {systemPrompt.trim() !== DEFAULT_SYSTEM_PROMPT
-                    ? 'System prompt *'
-                    : 'System prompt'}
+                    ? t('chatPage.systemPromptRequired')
+                    : t('chatPage.systemPrompt')}
                 </Tabs.Tab>
               </Tabs.List>
 
@@ -1280,9 +1309,7 @@ export function ChatPage() {
                       providerId={providerId}
                       modelsErrorMessage={
                         modelsQuery.isError
-                          ? modelsQuery.error instanceof Error
-                            ? modelsQuery.error.message
-                            : 'Unable to load provider models.'
+                          ? getLocalizedErrorMessage(modelsQuery.error)
                           : null
                       }
                       onCancelEdit={() => {

@@ -136,7 +136,7 @@ test('ProfilePage keeps password values when the password change fails', async (
   fireEvent.click(screen.getByTestId('profile-change-password-button'));
 
   expect(
-    await screen.findByText('Current password is invalid.'),
+    await screen.findByText('Something went wrong. Please try again.'),
   ).toBeInTheDocument();
   expect(screen.getByTestId('profile-current-password-input')).toHaveValue(
     'wrong-password',

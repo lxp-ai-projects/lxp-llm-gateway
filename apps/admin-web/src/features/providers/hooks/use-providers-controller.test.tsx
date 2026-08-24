@@ -338,7 +338,7 @@ test('useProvidersController blocks Google Gemini credentials without an API tok
 
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
-    'Google Gemini credentials require an API token.',
+    'providerCredentialForm.validation.tokenRequired.google',
   );
 });
 
@@ -402,7 +402,7 @@ test('useProvidersController surfaces model loading errors and provider fallback
   );
   await waitFor(() =>
     expect(result.current.modelErrorMessage).toBe(
-      'Provider model registry is offline.',
+      'Something went wrong. Please try again.',
     ),
   );
 
@@ -419,7 +419,11 @@ test('useProvidersController surfaces provider credential conflicts clearly', as
   const conflictMessage =
     'A credential already exists for this provider/label. Use Edit to update it, or delete the existing credential first.';
 
-  createOwnProviderCredentialMock.mockRejectedValueOnce(new Error(conflictMessage));
+  createOwnProviderCredentialMock.mockRejectedValueOnce(
+    Object.assign(new Error(conflictMessage), {
+      code: 'credential_already_exists',
+    }),
+  );
   getOwnProviderCredentialsMock.mockResolvedValue([]);
   getOwnProviderSettingsMock.mockResolvedValue({
     userUuid: 'user-1',
@@ -431,7 +435,9 @@ test('useProvidersController surfaces provider credential conflicts clearly', as
 
   const { result } = renderHook(() => useProvidersController(), { wrapper });
 
-  await waitFor(() => expect(result.current.providerOptions).not.toHaveLength(0));
+  await waitFor(() =>
+    expect(result.current.providerOptions).not.toHaveLength(0),
+  );
 
   await act(async () => {
     result.current.onProviderChange('nanogpt');
@@ -446,7 +452,9 @@ test('useProvidersController surfaces provider credential conflicts clearly', as
   });
 
   await waitFor(() =>
-    expect(result.current.credentialSubmitError).toBe(conflictMessage),
+    expect(result.current.credentialConflictPrompt?.message).toBe(
+      'A credential already exists for this provider.',
+    ),
   );
 });
 
@@ -484,7 +492,7 @@ test('useProvidersController blocks Ollama cloud credentials without an API toke
 
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
-    'Ollama cloud credentials on ollama.com require an API token.',
+    'providerCredentialForm.validation.ollamaCloudTokenRequired',
   );
 });
 
@@ -520,7 +528,7 @@ test('useProvidersController blocks xAI Grok credentials without an API token', 
 
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
-    'xAI Grok credentials require an API token.',
+    'providerCredentialForm.validation.tokenRequired.xai',
   );
 });
 
@@ -556,7 +564,7 @@ test('useProvidersController blocks OpenAI credentials without an API token', as
 
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
-    'OpenAI credentials require an API token.',
+    'providerCredentialForm.validation.tokenRequired.openai',
   );
 });
 
@@ -592,7 +600,7 @@ test('useProvidersController blocks Anthropic credentials without an API token',
 
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
-    'Anthropic credentials require an API token.',
+    'providerCredentialForm.validation.tokenRequired.anthropic',
   );
 });
 
@@ -628,7 +636,7 @@ test('useProvidersController blocks Mistral credentials without an API token', a
 
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
-    'Mistral credentials require an API token.',
+    'providerCredentialForm.validation.tokenRequired.mistral',
   );
 });
 
@@ -664,6 +672,6 @@ test('useProvidersController blocks DeepSeek credentials without an API token', 
 
   expect(createOwnProviderCredentialMock).not.toHaveBeenCalled();
   expect(result.current.credentialValidationError).toBe(
-    'DeepSeek credentials require an API token.',
+    'providerCredentialForm.validation.tokenRequired.deepseek',
   );
 });

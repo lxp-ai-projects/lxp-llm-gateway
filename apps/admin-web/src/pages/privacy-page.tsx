@@ -9,34 +9,33 @@ import {
   Title,
 } from '@mantine/core';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export function PrivacyPage() {
+  const { t } = useTranslation('pages');
   return (
     <Center mih="100vh" px="md">
       <Container size={720} w="100%">
         <Card className="hero-card">
           <Stack gap="lg">
             <div>
-              <Text className="page-kicker">Privacy</Text>
-              <Title order={1}>Privacy posture</Title>
+              <Text className="page-kicker">{t('legal.privacyKicker')}</Text>
+              <Title order={1}>{t('legal.privacyTitle')}</Title>
             </div>
             <Text c="dimmed">
-              This placeholder page reflects the initial security direction
-              already baked into the backend: encrypted provider credentials,
-              hashed identity correlation, and cookie-only browser auth.
+              {t('legal.privacyDescription')}
             </Text>
             <List spacing="sm">
-              <List.Item>Provider API secrets are encrypted at rest.</List.Item>
+              <List.Item>{t('legal.privacySecrets')}</List.Item>
               <List.Item>
-                Browser sessions avoid token exposure to JavaScript.
+                {t('legal.privacySessions')}
               </List.Item>
               <List.Item>
-                User identity resolution for gateway traffic relies on
-                `emailHash`.
+                {t('legal.privacyIdentity')}
               </List.Item>
             </List>
             <Button component={Link} to="/login" variant="light">
-              Back to login
+              {t('legal.back')}
             </Button>
           </Stack>
         </Card>

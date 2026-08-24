@@ -1,4 +1,5 @@
 import { Grid } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../components/page-header';
 import { VideoHistoryPanel } from '../features/video-lab/components/video-history-panel';
@@ -7,6 +8,7 @@ import { VideoResultsPanel } from '../features/video-lab/components/video-result
 import { useVideoLab } from '../features/video-lab/use-video-lab';
 
 export function VideoGenerationPage() {
+  const { t } = useTranslation('pages');
   const videoLab = useVideoLab();
 
   return (
@@ -24,8 +26,8 @@ export function VideoGenerationPage() {
         type="file"
       />
       <PageHeader
-        title="Video Generation Lab"
-        description="Create, poll, ingest, preview, and download gateway-managed video jobs from text or image references."
+        title={t('video.title')}
+        description={t('video.description')}
       />
 
       <Grid>

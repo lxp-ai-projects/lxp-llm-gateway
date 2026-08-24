@@ -87,7 +87,7 @@ test('warns when the selected email provider is not ready', async () => {
   expect(
     await screen.findByText(/email delivery: not ready/i),
   ).toBeInTheDocument();
-  expect(screen.getByText(/provider: mailersend/i)).toBeInTheDocument();
+  expect(screen.getByRole('alert', { name: /email delivery: not ready/i })).toHaveTextContent('Provider: mailersend. From: not configured.');
 });
 
 test('shows disabled delivery and the global registration warning', async () => {

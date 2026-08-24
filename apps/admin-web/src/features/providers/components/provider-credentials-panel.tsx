@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Accordion,
   Alert,
@@ -55,6 +56,7 @@ export function ProviderCredentialsPanel({
   onDeleteCredential,
   onEditCredential,
 }: ProviderCredentialsPanelProps) {
+  const { t } = useTranslation('providers');
   function renderCredentialActions(credential: {
     id: string;
     providerId: string;
@@ -74,7 +76,7 @@ export function ProviderCredentialsPanel({
           size="xs"
           variant="light"
         >
-          Edit
+          {t('providerCredentialsPanel.edit')}
         </Button>
         <Button
           color="red"
@@ -89,7 +91,7 @@ export function ProviderCredentialsPanel({
           size="xs"
           variant="subtle"
         >
-          Delete
+          {t('providerCredentialsPanel.delete')}
         </Button>
       </Group>
     );
@@ -98,10 +100,13 @@ export function ProviderCredentialsPanel({
   return (
     <Card className="section-card">
       <Stack gap="sm">
-        <Title order={3}>My credentials</Title>
+        <Title order={3}>{t('providerCredentialsPanel.myCredentials')}</Title>
         {deleteCredentialSuccessMessage ? (
-          <Alert color="teal" title="Credential deleted">
-            {deleteCredentialSuccessMessage}
+          <Alert
+            color="teal"
+            title={t('providerCredentialsPanel.credentialDeleted')}
+          >
+            {t(deleteCredentialSuccessMessage)}
           </Alert>
         ) : null}
         <div className="provider-credentials-mobile">
@@ -128,7 +133,7 @@ export function ProviderCredentialsPanel({
                         <Text fw={700}>{credential.providerDisplayName}</Text>
                         {credential.providerId === 'ollama' ? (
                           <Badge color="blue" variant="light">
-                            Endpoint
+                            {t('providerCredentialsPanel.endpoint')}
                           </Badge>
                         ) : null}
                       </Group>
@@ -140,7 +145,9 @@ export function ProviderCredentialsPanel({
                       color={credential.isActive ? 'moss' : 'gray'}
                       variant="light"
                     >
-                      {credential.isActive ? 'Active' : 'Disabled'}
+                      {credential.isActive
+                        ? t('providerCredentialsPanel.active')
+                        : t('providerCredentialsPanel.disabled')}
                     </Badge>
                   </Group>
                 </Accordion.Control>
@@ -149,16 +156,21 @@ export function ProviderCredentialsPanel({
                     <SimpleGrid cols={2} spacing="sm" verticalSpacing="sm">
                       <div>
                         <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                          Masked value
+                          {t('providerCredentialsPanel.maskedValue')}
                         </Text>
-                        <Text mt={4}>{credential.maskedHint ?? 'Hidden'}</Text>
+                        <Text mt={4}>
+                          {credential.maskedHint ??
+                            t('providerCredentialsPanel.hidden')}
+                        </Text>
                       </div>
                       <div>
                         <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                          Status
+                          {t('providerCredentialsPanel.status')}
                         </Text>
                         <Text mt={4}>
-                          {credential.isActive ? 'Active' : 'Disabled'}
+                          {credential.isActive
+                            ? t('providerCredentialsPanel.active')
+                            : t('providerCredentialsPanel.disabled')}
                         </Text>
                       </div>
                     </SimpleGrid>
@@ -167,17 +179,17 @@ export function ProviderCredentialsPanel({
                       <Alert
                         color="teal"
                         variant="light"
-                        title="Gateway default"
+                        title={t('providerCredentialsPanel.gatewayDefault')}
                       >
                         {currentDefaultProviderId === credential.providerId
-                          ? 'Used by gateway chat defaults.'
+                          ? t('providerCredentialsPanel.usedByChatDefaults')
                           : null}
                         {currentDefaultProviderId === credential.providerId &&
                         currentDefaultImageProviderId === credential.providerId
                           ? ' '
                           : null}
                         {currentDefaultImageProviderId === credential.providerId
-                          ? 'Used by gateway image defaults.'
+                          ? t('providerCredentialsPanel.usedByImageDefaults')
                           : null}
                       </Alert>
                     ) : null}
@@ -193,11 +205,11 @@ export function ProviderCredentialsPanel({
         <Table highlightOnHover className="provider-credentials-desktop-table">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Provider</Table.Th>
-              <Table.Th>Label</Table.Th>
-              <Table.Th>Masked value</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Actions</Table.Th>
+              <Table.Th>{t('providerCredentialsPanel.provider')}</Table.Th>
+              <Table.Th>{t('providerCredentialsPanel.label')}</Table.Th>
+              <Table.Th>{t('providerCredentialsPanel.maskedValue')}</Table.Th>
+              <Table.Th>{t('providerCredentialsPanel.status')}</Table.Th>
+              <Table.Th>{t('providerCredentialsPanel.actions')}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -209,26 +221,31 @@ export function ProviderCredentialsPanel({
                       <Text>{credential.providerDisplayName}</Text>
                       {credential.providerId === 'ollama' ? (
                         <Badge color="blue" variant="light">
-                          Endpoint
+                          {t('providerCredentialsPanel.endpoint')}
                         </Badge>
                       ) : null}
                     </Group>
                     {currentDefaultProviderId === credential.providerId ? (
                       <Text c="dimmed" size="xs">
-                        Chat default provider
+                        {t('providerCredentialsPanel.chatDefaultProvider')}
                       </Text>
                     ) : null}
                     {currentDefaultImageProviderId === credential.providerId ? (
                       <Text c="dimmed" size="xs">
-                        Image default provider
+                        {t('providerCredentialsPanel.imageDefaultProvider')}
                       </Text>
                     ) : null}
                   </Stack>
                 </Table.Td>
                 <Table.Td>{credential.label}</Table.Td>
-                <Table.Td>{credential.maskedHint ?? 'Hidden'}</Table.Td>
                 <Table.Td>
-                  {credential.isActive ? 'Active' : 'Disabled'}
+                  {credential.maskedHint ??
+                    t('providerCredentialsPanel.hidden')}
+                </Table.Td>
+                <Table.Td>
+                  {credential.isActive
+                    ? t('providerCredentialsPanel.active')
+                    : t('providerCredentialsPanel.disabled')}
                 </Table.Td>
                 <Table.Td>{renderCredentialActions(credential)}</Table.Td>
               </Table.Tr>
@@ -238,46 +255,75 @@ export function ProviderCredentialsPanel({
 
         {!credentials.length ? (
           <Text c="dimmed" size="sm">
-            No credentials saved yet. Add one before setting gateway defaults.
+            {t('providerCredentialsPanel.noCredentialsSavedYetAddOneBefore')}
           </Text>
         ) : null}
 
         {currentDefaultProviderId || currentDefaultImageProviderId ? (
-          <Alert color="teal" title="Current gateway defaults">
-            Chat provider: {currentDefaultProviderDisplayName ?? 'None configured'}
+          <Alert
+            color="teal"
+            title={t('providerCredentialsPanel.currentGatewayDefaults')}
+          >
+            {t('providerCredentialsPanel.chatProviderValue', {
+              value:
+                currentDefaultProviderDisplayName ??
+                t('providerCredentialsPanel.noneConfigured'),
+            })}
             <br />
-            Chat model: {currentDefaultModel ?? 'None configured'}
+            {t('providerCredentialsPanel.chatModelValue', {
+              value:
+                currentDefaultModel ??
+                t('providerCredentialsPanel.noneConfigured'),
+            })}
             <br />
-            Image provider: {currentDefaultImageProviderDisplayName ?? 'None configured'}
+            {t('providerCredentialsPanel.imageProviderValue', {
+              value:
+                currentDefaultImageProviderDisplayName ??
+                t('providerCredentialsPanel.noneConfigured'),
+            })}
             <br />
-            Image model: {currentDefaultImageModel ?? 'None configured'}
+            {t('providerCredentialsPanel.imageModelValue', {
+              value:
+                currentDefaultImageModel ??
+                t('providerCredentialsPanel.noneConfigured'),
+            })}
           </Alert>
         ) : null}
       </Stack>
       <Modal
         centered
-        onClose={isDeleteCredentialPending ? () => undefined : onCancelDeleteCredential}
+        onClose={
+          isDeleteCredentialPending ? () => undefined : onCancelDeleteCredential
+        }
         opened={credentialDeleteTarget !== null}
-        title="Delete credential"
+        title={t('providerCredentialsPanel.deleteCredential')}
       >
         <Stack data-testid="providers-delete-credential-modal" gap="sm">
           <Text>
-            Delete the credential for{' '}
+            {t('providerCredentialsPanel.deleteTheCredentialFor')}{' '}
             <Text component="span" fw={700}>
-              {credentialDeleteTarget?.providerDisplayName ?? 'Unknown provider'}
+              {credentialDeleteTarget?.providerDisplayName ??
+                t('providerCredentialsPanel.unknownProvider')}
             </Text>{' '}
-            with label{' '}
+            {t('providerCredentialsPanel.withLabel')}{' '}
             <Text component="span" fw={700}>
-              {credentialDeleteTarget?.label ?? 'Unknown label'}
+              {credentialDeleteTarget?.label ??
+                t('providerCredentialsPanel.unknownLabel')}
             </Text>
             ?
           </Text>
-          <Alert color="red" title="Impact" variant="light">
-            This provider may stop working until a valid credential is configured
-            again.
+          <Alert
+            color="red"
+            title={t('providerCredentialsPanel.impact')}
+            variant="light"
+          >
+            {t('providerCredentialsPanel.thisProviderMayStopWorkingUntilA')}
           </Alert>
           {deleteCredentialError ? (
-            <Alert color="red" title="Unable to delete credential">
+            <Alert
+              color="red"
+              title={t('providerCredentialsPanel.unableToDeleteCredential')}
+            >
               {deleteCredentialError}
             </Alert>
           ) : null}
@@ -288,7 +334,7 @@ export function ProviderCredentialsPanel({
               type="button"
               variant="subtle"
             >
-              Cancel
+              {t('providerCredentialsPanel.cancel')}
             </Button>
             <Button
               color="red"
@@ -297,7 +343,7 @@ export function ProviderCredentialsPanel({
               onClick={onDeleteCredential}
               type="button"
             >
-              Delete credential
+              {t('providerCredentialsPanel.deleteCredential')}
             </Button>
           </Group>
         </Stack>

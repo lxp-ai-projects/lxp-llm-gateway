@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ActionIcon,
   Alert,
@@ -44,13 +45,14 @@ export function ChatSidebar({
   onImportConversations,
   onSelectConversation,
 }: ChatSidebarProps) {
+  const { t } = useTranslation('chat');
   return (
     <Card className="section-card" h="100%">
       <Group justify="space-between" mb="md">
-        <Title order={3}>Local conversations</Title>
+        <Title order={3}>{t('chatSidebar.localConversations')}</Title>
         <Group gap="xs">
           <ActionIcon
-            aria-label="Import conversations"
+            aria-label={t('chatSidebar.importConversations')}
             data-testid="chat-import-conversations"
             disabled={isTransferBusy}
             onClick={onImportConversations}
@@ -59,7 +61,7 @@ export function ChatSidebar({
             <IconUpload size={18} />
           </ActionIcon>
           <ActionIcon
-            aria-label="Export all conversations"
+            aria-label={t('chatSidebar.exportAllConversations')}
             data-testid="chat-export-all-conversations"
             disabled={!conversations.length || isTransferBusy}
             onClick={onExportAllConversations}
@@ -68,7 +70,7 @@ export function ChatSidebar({
             <IconDownload size={18} />
           </ActionIcon>
           <ActionIcon
-            aria-label="Create conversation"
+            aria-label={t('chatSidebar.createConversation')}
             data-testid="chat-create-conversation"
             onClick={onCreateConversation}
             variant="light"
@@ -82,15 +84,14 @@ export function ChatSidebar({
           <Alert
             color="red"
             data-testid="chat-transfer-error"
-            title="Conversation transfer failed"
+            title={t('chatSidebar.conversationTransferFailed')}
           >
             {transferError}
           </Alert>
         ) : null}
         {conversations.length === 0 ? (
           <Text c="dimmed" size="sm">
-            No local chat history yet. Conversations are stored only in this
-            browser via IndexedDB.
+            {t('chatSidebar.noLocalChatHistoryYetConversationsAre')}
           </Text>
         ) : (
           conversations.map((conversation) => (
@@ -107,7 +108,9 @@ export function ChatSidebar({
                 {conversation.title}
               </Button>
               <ActionIcon
-                aria-label={`Export ${conversation.title}`}
+                aria-label={t('chatSidebar.exportConversation', {
+                  title: conversation.title,
+                })}
                 data-testid={`chat-conversation-export-${conversation.id}`}
                 disabled={isTransferBusy}
                 onClick={() => onExportConversation(conversation)}
@@ -116,7 +119,9 @@ export function ChatSidebar({
                 <IconDownload size={16} />
               </ActionIcon>
               <ActionIcon
-                aria-label={`Delete ${conversation.title}`}
+                aria-label={t('chatSidebar.deleteConversation', {
+                  title: conversation.title,
+                })}
                 data-testid={`chat-conversation-delete-${conversation.id}`}
                 color="red"
                 disabled={isStreaming}

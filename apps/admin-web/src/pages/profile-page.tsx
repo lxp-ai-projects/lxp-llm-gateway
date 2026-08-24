@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Anchor,
@@ -27,31 +28,29 @@ import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/page-header';
 import { StatusTile } from '../components/status-tile';
 import { adminApiClient } from '../lib/api-client';
-import type { ParsedApiError } from '../lib/api-base';
+import { getLocalizedErrorMessage } from '../i18n/errors';
 import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 
-function getErrorMessage(error: Error): string {
-  const apiError = error as Error & Partial<ParsedApiError>;
-  return apiError.message || 'Unable to complete the request.';
-}
+const getErrorMessage = getLocalizedErrorMessage;
 
 export function ProfilePage() {
+  const { t } = useTranslation('profile');
   const queryClient = useQueryClient();
   const sessionQuery = useSession();
   const [displayName, setDisplayName] = useState('');
-  const [profileSuccessMessage, setProfileSuccessMessage] = useState<string | null>(
-    null,
-  );
+  const [profileSuccessMessage, setProfileSuccessMessage] = useState<
+    string | null
+  >(null);
   const [profileErrorMessage, setProfileErrorMessage] = useState<string | null>(
     null,
   );
-  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState<string | null>(
-    null,
-  );
-  const [passwordErrorMessage, setPasswordErrorMessage] = useState<string | null>(
-    null,
-  );
+  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState<
+    string | null
+  >(null);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState<
+    string | null
+  >(null);
   const [passwordValidationMessage, setPasswordValidationMessage] = useState<
     string | null
   >(null);
@@ -74,7 +73,7 @@ export function ProfilePage() {
       queryClient.setQueryData(['session'], nextSession);
       await queryClient.invalidateQueries({ queryKey: ['session'] });
       setDisplayName(nextSession.displayName);
-      setProfileSuccessMessage('Your profile has been updated.');
+      setProfileSuccessMessage(t('profilePage.profileUpdatedMessage'));
     },
     onError: (error: Error) => {
       setProfileErrorMessage(getErrorMessage(error));
@@ -119,30 +118,32 @@ export function ProfilePage() {
   return (
     <>
       <PageHeader
-        title="Profile"
-        description="Manage the account details and password tied to your current browser session."
+        title={t('profilePage.profile')}
+        description={t('profilePage.manageTheAccountDetailsAndPasswordTied')}
         context={getActiveTenantLabel(sessionQuery.data)}
       />
       <Grid>
         <Grid.Col span={{ base: 12, md: 6 }}>
           <StatusTile
-            label="Display name"
-            value={sessionQuery.data?.displayName ?? 'Unavailable'}
+            label={t('profilePage.displayName')}
+            value={
+              sessionQuery.data?.displayName ?? t('common:status.unavailable')
+            }
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6 }}>
           <StatusTile
-            label="Email"
-            value={sessionQuery.data?.email ?? 'Unavailable'}
+            label={t('profilePage.email')}
+            value={sessionQuery.data?.email ?? t('common:status.unavailable')}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6 }}>
           <Card className="section-card">
             <Stack gap="md">
               <div>
-                <Text fw={700}>Profile details</Text>
+                <Text fw={700}>{t('profilePage.profileDetails')}</Text>
                 <Text c="dimmed" size="sm">
-                  Change the display name shown across the admin workspace.
+                  {t('profilePage.changeTheDisplayNameShownAcrossThe')}
                 </Text>
               </div>
 
@@ -150,7 +151,7 @@ export function ProfilePage() {
                 <Alert
                   color="teal"
                   icon={<IconCheck size={18} />}
-                  title="Profile updated"
+                  title={t('profilePage.profileUpdated')}
                 >
                   {profileSuccessMessage}
                 </Alert>
@@ -160,7 +161,7 @@ export function ProfilePage() {
                 <Alert
                   color="red"
                   icon={<IconUserCog size={18} />}
-                  title="Update failed"
+                  title={t('profilePage.updateFailed')}
                 >
                   {profileErrorMessage}
                 </Alert>
@@ -168,27 +169,27 @@ export function ProfilePage() {
 
               <TextInput
                 data-testid="profile-display-name-input"
-                label="Display name"
+                label={t('profilePage.displayName')}
                 onChange={(event) => {
                   setDisplayName(event.currentTarget.value);
                   if (profileSuccessMessage) {
                     setProfileSuccessMessage(null);
                   }
                 }}
-                placeholder="Your display name"
+                placeholder={t('profilePage.yourDisplayName')}
                 value={displayName}
               />
 
               <TextInput
                 data-testid="profile-email-input"
-                label="Email"
+                label={t('profilePage.email')}
                 value={sessionQuery.data?.email ?? ''}
                 disabled
               />
 
               <Group justify="space-between" align="end">
                 <Text c="dimmed" size="sm">
-                  Email changes stay server-managed for now.
+                  {t('profilePage.emailChangesStayServerManagedForNow')}
                 </Text>
                 <Button
                   data-testid="profile-save-button"
@@ -201,7 +202,7 @@ export function ProfilePage() {
                     })
                   }
                 >
-                  Save profile
+                  {t('profilePage.saveProfile')}
                 </Button>
               </Group>
             </Stack>
@@ -211,9 +212,9 @@ export function ProfilePage() {
           <Card className="section-card">
             <Stack gap="md">
               <div>
-                <Text fw={700}>Security</Text>
+                <Text fw={700}>{t('profilePage.security')}</Text>
                 <Text c="dimmed" size="sm">
-                  Change your password without leaving the current session.
+                  {t('profilePage.changeYourPasswordWithoutLeavingTheCurrent')}
                 </Text>
               </div>
 
@@ -221,7 +222,7 @@ export function ProfilePage() {
                 <Alert
                   color="teal"
                   icon={<IconCheck size={18} />}
-                  title="Password updated"
+                  title={t('profilePage.passwordUpdated')}
                 >
                   {passwordSuccessMessage}
                 </Alert>
@@ -231,7 +232,7 @@ export function ProfilePage() {
                 <Alert
                   color="yellow"
                   icon={<IconInfoCircle size={18} />}
-                  title="Check your entries"
+                  title={t('profilePage.checkYourEntries')}
                 >
                   {passwordValidationMessage}
                 </Alert>
@@ -241,7 +242,7 @@ export function ProfilePage() {
                 <Alert
                   color="red"
                   icon={<IconLockPassword size={18} />}
-                  title="Password change failed"
+                  title={t('profilePage.passwordChangeFailed')}
                 >
                   {passwordErrorMessage}
                 </Alert>
@@ -249,7 +250,7 @@ export function ProfilePage() {
 
               <PasswordInput
                 data-testid="profile-current-password-input"
-                label="Current password"
+                label={t('profilePage.currentPassword')}
                 autoComplete="current-password"
                 onChange={(event) => {
                   setCurrentPassword(event.currentTarget.value);
@@ -262,7 +263,7 @@ export function ProfilePage() {
 
               <PasswordInput
                 data-testid="profile-new-password-input"
-                label="New password"
+                label={t('profilePage.newPassword')}
                 autoComplete="new-password"
                 onChange={(event) => {
                   setNewPassword(event.currentTarget.value);
@@ -275,7 +276,7 @@ export function ProfilePage() {
 
               <PasswordInput
                 data-testid="profile-confirm-new-password-input"
-                label="Confirm new password"
+                label={t('profilePage.confirmNewPassword')}
                 autoComplete="new-password"
                 onChange={(event) => {
                   setConfirmNewPassword(event.currentTarget.value);
@@ -288,7 +289,7 @@ export function ProfilePage() {
 
               <Group justify="space-between" align="end">
                 <Text c="dimmed" size="sm">
-                  We verify your current password before saving a new one.
+                  {t('profilePage.weVerifyYourCurrentPasswordBeforeSaving')}
                 </Text>
                 <Button
                   data-testid="profile-change-password-button"
@@ -298,7 +299,7 @@ export function ProfilePage() {
                   onClick={() => {
                     if (newPassword !== confirmNewPassword) {
                       setPasswordValidationMessage(
-                        'New password confirmation does not match.',
+                        t('profilePage.passwordConfirmationMismatch'),
                       );
                       setPasswordSuccessMessage(null);
                       setPasswordErrorMessage(null);
@@ -312,7 +313,7 @@ export function ProfilePage() {
                     });
                   }}
                 >
-                  Change password
+                  {t('profilePage.changePassword')}
                 </Button>
               </Group>
             </Stack>
@@ -326,16 +327,17 @@ export function ProfilePage() {
                   <IconPlugConnected size={18} />
                 </ThemeIcon>
                 <Stack gap={4}>
-                  <Text fw={700}>Providers</Text>
+                  <Text fw={700}>{t('profilePage.providers')}</Text>
                   <Text c="dimmed" size="sm">
-                    Provider tokens and endpoint configuration live on the dedicated
-                    provider setup page.
+                    {t(
+                      'profilePage.providerTokensAndEndpointConfigurationLiveOn',
+                    )}
                   </Text>
                 </Stack>
               </Group>
               <Anchor component={Link} to="/app/providers" underline="hover">
                 <Group gap={6} wrap="nowrap">
-                  <Text size="sm">Open provider settings</Text>
+                  <Text size="sm">{t('profilePage.openProviderSettings')}</Text>
                   <IconArrowRight size={16} />
                 </Group>
               </Anchor>

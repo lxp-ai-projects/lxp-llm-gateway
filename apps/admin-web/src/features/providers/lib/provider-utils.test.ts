@@ -14,4 +14,3 @@ test('buildDefaultModelOptions removes duplicate model ids', () => {
     { value: 'mistral-small-2512', label: 'Mistral Small 2512' },
   ]);
 });
-

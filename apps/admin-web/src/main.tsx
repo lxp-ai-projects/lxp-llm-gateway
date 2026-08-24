@@ -6,6 +6,7 @@ import { RouterProvider } from 'react-router-dom';
 import { AppProviders } from './app/providers';
 import { router } from './app/router';
 import { registerServiceWorker } from './lib/register-service-worker';
+import './i18n';
 import './styles.css';
 
 registerServiceWorker();

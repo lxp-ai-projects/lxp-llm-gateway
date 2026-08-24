@@ -1,6 +1,7 @@
 export { adminApiClient } from './admin-api-client';
 export {
   SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
+  SESSION_TIMEOUT_MESSAGE_CODE,
   adminApiUrl,
   gatewayApiUrl,
   refreshBrowserSession,

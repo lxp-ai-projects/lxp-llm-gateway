@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Accordion,
   ActionIcon,
@@ -22,6 +23,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { formatDateTime } from '../../../i18n/format';
 import {
   IconCheck,
   IconChecks,
@@ -44,23 +46,27 @@ import type {
 import type { ReturnTypeUseImageLab } from '../use-image-lab.types';
 
 export function ImageRequestForm({
-                                   imageLab,
-                                 }: {
+  imageLab,
+}: {
   imageLab: ReturnTypeUseImageLab;
 }) {
+  const { t } = useTranslation('image');
   const REFERENCE_CATALOG_PAGE_SIZE = 6;
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
-  const [pendingDeleteAssetId, setPendingDeleteAssetId] = useState<string | null>(
-    null,
-  );
+  const [pendingDeleteAssetId, setPendingDeleteAssetId] = useState<
+    string | null
+  >(null);
   const [referenceCatalogOpened, setReferenceCatalogOpened] = useState(false);
   const [assetSearch, setAssetSearch] = useState('');
-  const [assetSort, setAssetSort] = useState<'newest' | 'oldest' | 'label'>('newest');
-  const [assetFilter, setAssetFilter] = useState<'all' | 'available' | 'selected'>(
-    'all',
+  const [assetSort, setAssetSort] = useState<'newest' | 'oldest' | 'label'>(
+    'newest',
   );
+  const [assetFilter, setAssetFilter] = useState<
+    'all' | 'available' | 'selected'
+  >('all');
   const [referenceCatalogPage, setReferenceCatalogPage] = useState(1);
-  const [showProviderLoadingOverlay, setShowProviderLoadingOverlay] = useState(false);
+  const [showProviderLoadingOverlay, setShowProviderLoadingOverlay] =
+    useState(false);
   const isSmallViewport = useMediaQuery('(max-width: 48em)');
   const capabilities = imageLab.selectedCapabilities;
   const aspectRatios = capabilities?.supportedImageAspectRatios ?? [];
@@ -72,8 +78,10 @@ export function ImageRequestForm({
   const outputFormats = capabilities?.supportedImageOutputFormats ?? [];
   const inputFidelities = capabilities?.supportedImageInputFidelities ?? [];
   const outputCompressionRange = capabilities?.imageOutputCompressionRange;
-  const maxGeneratedImagesPerRequest = capabilities?.maxGeneratedImagesPerRequest ?? 1;
-  const normalizedModelId = imageLab.selectedModel?.id.trim().toLowerCase() ?? '';
+  const maxGeneratedImagesPerRequest =
+    capabilities?.maxGeneratedImagesPerRequest ?? 1;
+  const normalizedModelId =
+    imageLab.selectedModel?.id.trim().toLowerCase() ?? '';
   const isOpenAiAlignedGptImageModel =
     normalizedModelId.startsWith('gpt') ||
     normalizedModelId.startsWith('openai/gpt') ||
@@ -90,22 +98,24 @@ export function ImageRequestForm({
     imageLab.selectedProvider?.providerId === 'nanogpt' &&
     isOpenAiAlignedGptImageModel;
   const selectedReferenceCount = imageLab.references.length;
-  const selectedReferencesLabel =
-    selectedReferenceCount === 1
-      ? `Selected reference (${selectedReferenceCount})`
-      : `Selected references (${selectedReferenceCount})`;
+  const selectedReferencesLabel = t('imageRequestForm.selectedReferences', {
+    count: selectedReferenceCount,
+  });
   const filteredReferenceAssets = imageLab.referenceAssets
     .filter((asset) => {
       const normalizedSearch = assetSearch.trim().toLowerCase();
       if (
         normalizedSearch &&
-        !(asset.label ?? 'Gateway image asset').toLowerCase().includes(normalizedSearch)
+        !(asset.label ?? t('imageRequestForm.gatewayImageAsset'))
+          .toLowerCase()
+          .includes(normalizedSearch)
       ) {
         return false;
       }
 
       const alreadySelected = imageLab.references.some(
-        (reference) => reference.kind === 'asset' && reference.assetId === asset.id,
+        (reference) =>
+          reference.kind === 'asset' && reference.assetId === asset.id,
       );
 
       if (assetFilter === 'available') {
@@ -125,7 +135,9 @@ export function ImageRequestForm({
 
       const leftTime = new Date(left.createdAt).getTime();
       const rightTime = new Date(right.createdAt).getTime();
-      return assetSort === 'oldest' ? leftTime - rightTime : rightTime - leftTime;
+      return assetSort === 'oldest'
+        ? leftTime - rightTime
+        : rightTime - leftTime;
     });
   const referenceCatalogTotalPages = Math.max(
     1,
@@ -167,60 +179,80 @@ export function ImageRequestForm({
         onClose={closeReferenceCatalog}
         opened={referenceCatalogOpened}
         size={isSmallViewport ? '100%' : 'calc(100vw - 10rem)'}
-        title="Uploaded reference catalog"
+        title={t('imageRequestForm.uploadedReferenceCatalog')}
       >
         <Stack gap="md">
           <Group justify="space-between" wrap="wrap">
             <Text c="dimmed" size="sm">
-              Reuse uploaded references without uploading again.
+              {t(
+                'imageRequestForm.reuseUploadedReferencesWithoutUploadingAgain',
+              )}
             </Text>
-            <Badge color={referenceLimitReached ? 'orange' : 'teal'} variant="light">
-              {imageLab.references.length} / {imageLab.maxReferenceImages} selected
+            <Badge
+              color={referenceLimitReached ? 'orange' : 'teal'}
+              variant="light"
+            >
+              {imageLab.references.length} / {imageLab.maxReferenceImages}{' '}
+              {t('imageRequestForm.selected')}
             </Badge>
           </Group>
 
           {referenceLimitReached ? (
-            <Alert color="orange" title="Reference limit reached">
-              This model supports up to {imageLab.maxReferenceImages} reference
-              {imageLab.maxReferenceImages > 1 ? 's' : ''}. Remove one before adding more.
+            <Alert
+              color="orange"
+              title={t('imageRequestForm.referenceLimitReached')}
+            >
+              {t('imageRequestForm.referenceLimitDescription', {
+                count: imageLab.maxReferenceImages,
+              })}
             </Alert>
           ) : null}
 
           <Group grow align="end">
             <TextInput
               data-testid="reference-catalog-search"
-              label="Search"
+              label={t('imageRequestForm.search')}
               onChange={(event) => {
                 setAssetSearch(event.currentTarget.value);
                 setReferenceCatalogPage(1);
               }}
-              placeholder="Search by label"
+              placeholder={t('imageRequestForm.searchByLabel')}
               value={assetSearch}
             />
             <Select
               data={[
-                { value: 'newest', label: 'Newest' },
-                { value: 'oldest', label: 'Oldest' },
-                { value: 'label', label: 'Label' },
+                { value: 'newest', label: t('imageRequestForm.newest') },
+                { value: 'oldest', label: t('imageRequestForm.oldest') },
+                { value: 'label', label: t('imageRequestForm.label') },
               ]}
               data-testid="reference-catalog-sort"
-              label="Sort"
+              label={t('imageRequestForm.sort')}
               onChange={(value) => {
-                setAssetSort((value as 'newest' | 'oldest' | 'label') ?? 'newest');
+                setAssetSort(
+                  (value as 'newest' | 'oldest' | 'label') ?? 'newest',
+                );
                 setReferenceCatalogPage(1);
               }}
               value={assetSort}
             />
             <Select
               data={[
-                { value: 'all', label: 'All' },
-                { value: 'available', label: 'Available' },
-                { value: 'selected', label: 'Selected' },
+                { value: 'all', label: t('imageRequestForm.all') },
+                {
+                  value: 'available',
+                  label: t('imageRequestForm.available'),
+                },
+                {
+                  value: 'selected',
+                  label: t('imageRequestForm.selectedState'),
+                },
               ]}
               data-testid="reference-catalog-filter"
-              label="Filter"
+              label={t('imageRequestForm.filter')}
               onChange={(value) => {
-                setAssetFilter((value as 'all' | 'available' | 'selected') ?? 'all');
+                setAssetFilter(
+                  (value as 'all' | 'available' | 'selected') ?? 'all',
+                );
                 setReferenceCatalogPage(1);
               }}
               value={assetFilter}
@@ -232,42 +264,52 @@ export function ImageRequestForm({
               {paginatedReferenceAssets.map((asset) => {
                 const alreadySelected = imageLab.references.some(
                   (reference) =>
-                    reference.kind === 'asset' && reference.assetId === asset.id,
+                    reference.kind === 'asset' &&
+                    reference.assetId === asset.id,
                 );
 
                 return (
                   <Card key={asset.id} padding="sm" radius="md" withBorder>
                     <Stack gap="xs">
                       <Image
-                        alt={asset.label ?? 'Uploaded reference asset'}
+                        alt={
+                          asset.label ??
+                          t('imageRequestForm.uploadedReferenceAsset')
+                        }
                         h={120}
                         radius="md"
                         src={imageLab.mediaUrl(asset.contentUrl)}
                       />
                       <Text lineClamp={2} size="sm">
-                        {asset.label ?? 'Gateway image asset'}
+                        {asset.label ?? t('imageRequestForm.gatewayImageAsset')}
                       </Text>
                       <Text c="dimmed" size="xs">
-                        {new Date(asset.createdAt).toLocaleString()}
+                        {formatDateTime(asset.createdAt)}
                       </Text>
                       <Group gap="xs">
                         <Badge color="gray" size="sm" variant="light">
-                          upload
+                          {t('imageRequestForm.upload')}
                         </Badge>
                         <Badge
                           color={alreadySelected ? 'teal' : 'blue'}
                           leftSection={
-                            alreadySelected ? <IconChecks size={12} /> : <IconRotateClockwise2 size={12} />
+                            alreadySelected ? (
+                              <IconChecks size={12} />
+                            ) : (
+                              <IconRotateClockwise2 size={12} />
+                            )
                           }
                           size="sm"
                           variant="light"
                         >
-                          {alreadySelected ? 'Selected' : 'Available'}
+                          {alreadySelected
+                            ? t('imageRequestForm.selectedState')
+                            : t('imageRequestForm.available')}
                         </Badge>
                       </Group>
                       <TextInput
                         data-testid={`reference-catalog-label-${asset.id}`}
-                        label="Label"
+                        label={t('imageRequestForm.label')}
                         onChange={(event) => {
                           const nextValue = event.currentTarget.value;
                           setRenameDrafts((current) => ({
@@ -278,9 +320,19 @@ export function ImageRequestForm({
                         value={renameDrafts[asset.id] ?? asset.label ?? ''}
                       />
                       <Group justify="flex-end" wrap="nowrap">
-                        <Tooltip label={alreadySelected ? 'Already selected' : 'Use as reference'}>
+                        <Tooltip
+                          label={
+                            alreadySelected
+                              ? t('imageRequestForm.alreadySelected')
+                              : t('imageRequestForm.useAsReference')
+                          }
+                        >
                           <ActionIcon
-                            aria-label={alreadySelected ? 'Selected' : 'Use as reference'}
+                            aria-label={
+                              alreadySelected
+                                ? t('imageRequestForm.selectedState')
+                                : t('imageRequestForm.useAsReference')
+                            }
                             data-testid={`reference-catalog-use-${asset.id}`}
                             disabled={alreadySelected || referenceLimitReached}
                             onClick={() => imageLab.addReferenceAsset(asset)}
@@ -289,18 +341,26 @@ export function ImageRequestForm({
                             <IconCheck size={16} />
                           </ActionIcon>
                         </Tooltip>
-                        <Tooltip label="Rename reference">
+                        <Tooltip label={t('imageRequestForm.renameReference')}>
                           <ActionIcon
-                            aria-label="Rename reference"
+                            aria-label={t('imageRequestForm.renameReference')}
                             data-testid={`reference-catalog-rename-${asset.id}`}
                             disabled={
-                              (renameDrafts[asset.id] ?? asset.label ?? '').trim().length === 0 ||
-                              (renameDrafts[asset.id] ?? asset.label ?? '').trim() ===
-                              (asset.label ?? '')
+                              (
+                                renameDrafts[asset.id] ??
+                                asset.label ??
+                                ''
+                              ).trim().length === 0 ||
+                              (
+                                renameDrafts[asset.id] ??
+                                asset.label ??
+                                ''
+                              ).trim() === (asset.label ?? '')
                             }
                             loading={
                               imageLab.updateAssetMutation.isPending &&
-                              imageLab.updateAssetMutation.variables?.assetId === asset.id
+                              imageLab.updateAssetMutation.variables
+                                ?.assetId === asset.id
                             }
                             onClick={() =>
                               imageLab.renameReferenceAsset(
@@ -315,14 +375,19 @@ export function ImageRequestForm({
                         </Tooltip>
                         {pendingDeleteAssetId === asset.id ? (
                           <>
-                            <Tooltip label="Confirm delete">
+                            <Tooltip
+                              label={t('imageRequestForm.confirmDelete')}
+                            >
                               <ActionIcon
-                                aria-label="Confirm delete reference"
+                                aria-label={t(
+                                  'imageRequestForm.confirmDeleteReference',
+                                )}
                                 color="red"
                                 data-testid={`reference-catalog-confirm-delete-${asset.id}`}
                                 loading={
                                   imageLab.deleteAssetMutation.isPending &&
-                                  imageLab.deleteAssetMutation.variables === asset.id
+                                  imageLab.deleteAssetMutation.variables ===
+                                    asset.id
                                 }
                                 onClick={async () => {
                                   await imageLab.deleteReferenceAsset(asset.id);
@@ -333,9 +398,11 @@ export function ImageRequestForm({
                                 <IconCheck size={16} />
                               </ActionIcon>
                             </Tooltip>
-                            <Tooltip label="Cancel delete">
+                            <Tooltip label={t('imageRequestForm.cancelDelete')}>
                               <ActionIcon
-                                aria-label="Cancel delete reference"
+                                aria-label={t(
+                                  'imageRequestForm.cancelDeleteReference',
+                                )}
                                 data-testid={`reference-catalog-cancel-delete-${asset.id}`}
                                 onClick={() => setPendingDeleteAssetId(null)}
                                 variant="default"
@@ -345,9 +412,11 @@ export function ImageRequestForm({
                             </Tooltip>
                           </>
                         ) : (
-                          <Tooltip label="Delete reference">
+                          <Tooltip
+                            label={t('imageRequestForm.deleteReference')}
+                          >
                             <ActionIcon
-                              aria-label="Delete reference"
+                              aria-label={t('imageRequestForm.deleteReference')}
                               color="red"
                               data-testid={`reference-catalog-delete-${asset.id}`}
                               onClick={() => setPendingDeleteAssetId(asset.id)}
@@ -365,13 +434,14 @@ export function ImageRequestForm({
             </SimpleGrid>
           ) : (
             <Text c="dimmed" size="sm">
-              No uploaded references match the current filters.
+              {t('imageRequestForm.noUploadedReferencesMatchTheCurrentFilters')}
             </Text>
           )}
 
           <Group justify="space-between" wrap="wrap">
             <Text c="dimmed" size="sm">
-              Page {referenceCatalogPage} / {referenceCatalogTotalPages}
+              {t('imageRequestForm.page')}
+              {referenceCatalogPage} / {referenceCatalogTotalPages}
             </Text>
             <Pagination
               onChange={setReferenceCatalogPage}
@@ -379,7 +449,7 @@ export function ImageRequestForm({
               value={referenceCatalogPage}
             />
             <Button onClick={closeReferenceCatalog} variant="default">
-              Close
+              {t('imageRequestForm.close')}
             </Button>
           </Group>
         </Stack>
@@ -387,16 +457,13 @@ export function ImageRequestForm({
 
       <Card className="section-card image-request-form">
         <Stack gap="md">
-          <Title order={3}>Image request</Title>
+          <Title order={3}>{t('imageRequestForm.imageRequest')}</Title>
 
           <div
             data-testid="image-provider-loading-shell"
             style={{ position: 'relative' }}
           >
-            <LoadingOverlay
-              visible={showProviderLoadingOverlay}
-              zIndex={2}
-            />
+            <LoadingOverlay visible={showProviderLoadingOverlay} zIndex={2} />
             <Stack gap="md">
               <Select
                 data={imageLab.providers.map((provider) => ({
@@ -404,7 +471,7 @@ export function ImageRequestForm({
                   label: provider.displayName,
                 }))}
                 data-testid="image-provider-select"
-                label="Provider"
+                label={t('imageRequestForm.provider')}
                 onChange={(value) => {
                   imageLab.setProviderId(value ?? '');
                   imageLab.setModelId('');
@@ -419,9 +486,9 @@ export function ImageRequestForm({
                   label: model.displayName,
                 }))}
                 data-testid="image-model-select"
-                label="Model"
+                label={t('imageRequestForm.model')}
                 limit={100}
-                nothingFoundMessage="No models found"
+                nothingFoundMessage={t('imageRequestForm.noModelsFound')}
                 onChange={(value) => imageLab.setModelId(value ?? '')}
                 searchable
                 selectFirstOptionOnChange
@@ -434,26 +501,32 @@ export function ImageRequestForm({
             <Checkbox
               checked={imageLab.showNanoGptPaidModels}
               data-testid="nanogpt-paid-models-toggle"
-              label="Show NanoGPT paid-only models"
+              label={t('imageRequestForm.showNanoGPTPaidOnlyModels')}
               onChange={(event) =>
                 imageLab.setShowNanoGptPaidModels(event.currentTarget.checked)
               }
             />
           ) : null}
 
-          <Accordion chevronPosition="right" defaultValue="prompt-and-options" variant="separated">
+          <Accordion
+            chevronPosition="right"
+            defaultValue="prompt-and-options"
+            variant="separated"
+          >
             <Accordion.Item value="prompt-and-options">
               <Accordion.Control data-testid="prompt-options-accordion">
-                Prompt and options
+                {t('imageRequestForm.promptAndOptions')}
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Textarea
                     autosize
                     data-testid="image-prompt-input"
-                    label="Prompt"
+                    label={t('imageRequestForm.prompt')}
                     minRows={5}
-                    onChange={(event) => imageLab.setPrompt(event.currentTarget.value)}
+                    onChange={(event) =>
+                      imageLab.setPrompt(event.currentTarget.value)
+                    }
                     value={imageLab.prompt}
                   />
 
@@ -465,29 +538,39 @@ export function ImageRequestForm({
                           label: (option as ImageAspectRatioOption).label,
                         }))}
                         data-testid="image-aspect-ratio-select"
-                        label="Aspect ratio"
-                        onChange={(value) => imageLab.setAspectRatio(value ?? '')}
+                        label={t('imageRequestForm.aspectRatio')}
+                        onChange={(value) =>
+                          imageLab.setAspectRatio(value ?? '')
+                        }
                         value={imageLab.aspectRatio}
                       />
                     ) : null}
                     {responseFormats.length ? (
                       <Select
-                        data={responseFormats.map((format: 'url' | 'b64_json') => ({
-                          value: format,
-                          label: format === 'b64_json' ? 'Base64' : 'Hosted URL',
-                        }))}
+                        data={responseFormats.map(
+                          (format: 'url' | 'b64_json') => ({
+                            value: format,
+                            label: t(
+                              `imageRequestForm.responseFormats.${format}`,
+                            ),
+                          }),
+                        )}
                         data-testid="image-response-format-select"
-                        label="Response format"
+                        label={t('imageRequestForm.responseFormat')}
                         onChange={(value) =>
-                          imageLab.setResponseFormat((value as 'url' | 'b64_json') ?? 'b64_json')
+                          imageLab.setResponseFormat(
+                            (value as 'url' | 'b64_json') ?? 'b64_json',
+                          )
                         }
                         value={imageLab.responseFormat}
                       />
                     ) : null}
                     <Select
-                      data={buildImageCountOptions(maxGeneratedImagesPerRequest)}
+                      data={buildImageCountOptions(
+                        maxGeneratedImagesPerRequest,
+                      )}
                       data-testid="image-count-select"
-                      label="Count"
+                      label={t('imageRequestForm.count')}
                       onChange={(value) => imageLab.setImageCount(value ?? '1')}
                       value={imageLab.imageCount}
                     />
@@ -498,8 +581,10 @@ export function ImageRequestForm({
                       <Select
                         data={resolutions}
                         data-testid="image-resolution-select"
-                        label="Resolution"
-                        onChange={(value) => imageLab.setResolution(value ?? '')}
+                        label={t('imageRequestForm.resolution')}
+                        onChange={(value) =>
+                          imageLab.setResolution(value ?? '')
+                        }
                         value={imageLab.resolution}
                       />
                     ) : null}
@@ -507,8 +592,10 @@ export function ImageRequestForm({
                       <Select
                         data={backgrounds}
                         data-testid="image-background-select"
-                        label="Background"
-                        onChange={(value) => imageLab.setBackground(value ?? '')}
+                        label={t('imageRequestForm.background')}
+                        onChange={(value) =>
+                          imageLab.setBackground(value ?? '')
+                        }
                         value={imageLab.background}
                       />
                     ) : null}
@@ -516,7 +603,7 @@ export function ImageRequestForm({
                       <Select
                         data={qualities}
                         data-testid="image-quality-select"
-                        label="Quality"
+                        label={t('imageRequestForm.quality')}
                         onChange={(value) => imageLab.setQuality(value ?? '')}
                         value={imageLab.quality}
                       />
@@ -528,8 +615,10 @@ export function ImageRequestForm({
                           label: (option as ImageModerationOption).label,
                         }))}
                         data-testid="image-moderation-select"
-                        label="Moderation"
-                        onChange={(value) => imageLab.setModeration(value ?? '')}
+                        label={t('imageRequestForm.moderation')}
+                        onChange={(value) =>
+                          imageLab.setModeration(value ?? '')
+                        }
                         value={imageLab.moderation}
                       />
                     ) : null}
@@ -540,15 +629,17 @@ export function ImageRequestForm({
                       <Select
                         data={outputFormats}
                         data-testid="image-output-format-select"
-                        label="Output format"
-                        onChange={(value) => imageLab.setOutputFormat(value ?? '')}
+                        label={t('imageRequestForm.outputFormat')}
+                        onChange={(value) =>
+                          imageLab.setOutputFormat(value ?? '')
+                        }
                         value={imageLab.outputFormat}
                       />
                     ) : null}
                     {outputCompressionRange ? (
                       <NumberInput
                         data-testid="image-output-compression-input"
-                        label="Compression"
+                        label={t('imageRequestForm.compression')}
                         min={outputCompressionRange.min}
                         max={outputCompressionRange.max}
                         step={outputCompressionRange.step ?? 1}
@@ -560,15 +651,18 @@ export function ImageRequestForm({
                         value={imageLab.outputCompression}
                       />
                     ) : null}
-                    {imageLab.references.length > 0 && inputFidelities.length ? (
+                    {imageLab.references.length > 0 &&
+                    inputFidelities.length ? (
                       <Select
                         data={inputFidelities.map((option) => ({
                           value: (option as ImageInputFidelityOption).value,
                           label: (option as ImageInputFidelityOption).label,
                         }))}
                         data-testid="image-input-fidelity-select"
-                        label="Input fidelity"
-                        onChange={(value) => imageLab.setInputFidelity(value ?? '')}
+                        label={t('imageRequestForm.inputFidelity')}
+                        onChange={(value) =>
+                          imageLab.setInputFidelity(value ?? '')
+                        }
                         value={imageLab.inputFidelity}
                       />
                     ) : null}
@@ -578,33 +672,33 @@ export function ImageRequestForm({
             </Accordion.Item>
           </Accordion>
 
-          <Alert color="blue" title="Reference assets">
-            Upload through the gateway, paste a public image URL, or reuse images
-            from history. Uploaded references stay reusable in the catalog below,
-            while generated results remain in the history panel. One or more
-            references switches the request into edit mode when the selected model
-            supports editing.
+          <Alert color="blue" title={t('imageRequestForm.referenceAssets')}>
+            {t('imageRequestForm.uploadThroughTheGatewayPasteAPublic')}
           </Alert>
 
           {!imageLab.supportsImageEditing ? (
-            <Alert color="yellow" title="Editing unavailable">
-              This model currently supports generation only.
+            <Alert
+              color="yellow"
+              title={t('imageRequestForm.editingUnavailable')}
+            >
+              {t('imageRequestForm.thisModelCurrentlySupportsGenerationOnly')}
             </Alert>
           ) : null}
 
           {showNanoGptOpenAiAlignedNotice ? (
-            <Alert color="blue" title="OpenAI-aligned GPT Image options">
-              This NanoGPT model follows the OpenAI GPT image option set for
-              resolution, background, quality, moderation, output format, and
-              compression.
+            <Alert
+              color="blue"
+              title={t('imageRequestForm.openaiAlignedGPTImageOptions')}
+            >
+              {t('imageRequestForm.thisNanoGPTModelFollowsTheOpenAIGPT')}
             </Alert>
           ) : null}
 
           {showGptImageModerationControl ? (
-            <Alert color="blue" title="OpenAI moderation">
-              Choosing <strong>Low</strong> makes filtering less restrictive, but it
-              does not disable moderation. OpenAI can still reject prompts or images
-              when safety checks are flagged.
+            <Alert color="blue" title={t('imageRequestForm.openaiModeration')}>
+              {t('imageRequestForm.choosing')}
+              <strong>{t('imageRequestForm.low')}</strong>{' '}
+              {t('imageRequestForm.makesFilteringLessRestrictiveButItDoes')}
             </Alert>
           ) : null}
 
@@ -612,18 +706,22 @@ export function ImageRequestForm({
             <TextInput
               className="image-reference-url"
               data-testid="image-reference-url-input"
-              label="Reference image URL"
-              onChange={(event) => imageLab.setReferenceUrl(event.currentTarget.value)}
-              placeholder="https://example.com/source.png"
+              label={t('imageRequestForm.referenceImageURL')}
+              onChange={(event) =>
+                imageLab.setReferenceUrl(event.currentTarget.value)
+              }
+              placeholder={t('imageRequestForm.httpsExampleComSourcePng')}
               value={imageLab.referenceUrl}
             />
             <Button
               data-testid="image-add-reference-url"
-              disabled={imageLab.references.length >= imageLab.maxReferenceImages}
+              disabled={
+                imageLab.references.length >= imageLab.maxReferenceImages
+              }
               onClick={imageLab.addReferenceUrl}
               variant="light"
             >
-              Add URL
+              {t('imageRequestForm.addURL')}
             </Button>
           </Group>
 
@@ -631,19 +729,27 @@ export function ImageRequestForm({
             <Button
               component="label"
               data-testid="image-upload-reference"
-              disabled={imageLab.references.length >= imageLab.maxReferenceImages}
+              disabled={
+                imageLab.references.length >= imageLab.maxReferenceImages
+              }
               htmlFor="image-reference-upload-input"
               leftSection={<IconUpload size={16} />}
               variant="light"
             >
-              Upload image
+              {t('imageRequestForm.uploadImage')}
             </Button>
             <Text c="dimmed" size="sm">
-              Uploaded files become gateway-managed reference assets.
+              {t(
+                'imageRequestForm.uploadedFilesBecomeGatewayManagedReferenceAssets',
+              )}
             </Text>
           </Group>
 
-          <Accordion chevronPosition="right" defaultValue={null} variant="separated">
+          <Accordion
+            chevronPosition="right"
+            defaultValue={null}
+            variant="separated"
+          >
             <Accordion.Item value="selected-references">
               <Accordion.Control data-testid="selected-references-accordion">
                 {selectedReferencesLabel}
@@ -652,8 +758,17 @@ export function ImageRequestForm({
                 {imageLab.references.length ? (
                   <Stack gap="xs">
                     {imageLab.references.map((reference) => (
-                      <Card key={reference.id} padding="sm" radius="md" withBorder>
-                        <Group align="flex-start" justify="space-between" wrap="nowrap">
+                      <Card
+                        key={reference.id}
+                        padding="sm"
+                        radius="md"
+                        withBorder
+                      >
+                        <Group
+                          align="flex-start"
+                          justify="space-between"
+                          wrap="nowrap"
+                        >
                           <Group align="flex-start" wrap="nowrap">
                             <Image
                               alt={reference.label}
@@ -667,19 +782,27 @@ export function ImageRequestForm({
                                 {reference.label}
                               </Text>
                               <Badge size="sm" variant="light">
-                                {reference.kind === 'asset' ? reference.sourceType : 'url'}
+                                {reference.kind === 'asset'
+                                  ? t(
+                                      `imageRequestForm.sourceTypes.${reference.sourceType}`,
+                                    )
+                                  : t('imageRequestForm.sourceTypes.url')}
                               </Badge>
                             </Stack>
                           </Group>
                           <Button
-                            aria-label={`Remove ${reference.label}`}
+                            aria-label={t('imageRequestForm.removeReference', {
+                              label: reference.label,
+                            })}
                             color="red"
                             leftSection={<IconTrash size={14} />}
-                            onClick={() => imageLab.removeReference(reference.id)}
+                            onClick={() =>
+                              imageLab.removeReference(reference.id)
+                            }
                             size="xs"
                             variant="subtle"
                           >
-                            Remove
+                            {t('imageRequestForm.remove')}
                           </Button>
                         </Group>
                       </Card>
@@ -687,7 +810,7 @@ export function ImageRequestForm({
                   </Stack>
                 ) : (
                   <Text c="dimmed" size="sm">
-                    No references selected yet.
+                    {t('imageRequestForm.noReferencesSelectedYet')}
                   </Text>
                 )}
               </Accordion.Panel>
@@ -698,15 +821,19 @@ export function ImageRequestForm({
             <Group justify="space-between" wrap="wrap">
               <div>
                 <Text fw={600} size="sm">
-                  Uploaded reference catalog
+                  {t('imageRequestForm.uploadedReferenceCatalog')}
                 </Text>
                 <Text c="dimmed" size="xs">
-                  Reuse without uploading again
+                  {t('imageRequestForm.reuseWithoutUploadingAgain')}
                 </Text>
               </div>
               <Group gap="xs">
-                <Badge color={referenceLimitReached ? 'orange' : 'teal'} variant="light">
-                  {imageLab.references.length} / {imageLab.maxReferenceImages} selected
+                <Badge
+                  color={referenceLimitReached ? 'orange' : 'teal'}
+                  variant="light"
+                >
+                  {imageLab.references.length} / {imageLab.maxReferenceImages}{' '}
+                  {t('imageRequestForm.selected')}
                 </Badge>
                 <Button
                   data-testid="reference-catalog-open"
@@ -714,25 +841,29 @@ export function ImageRequestForm({
                   onClick={openReferenceCatalog}
                   variant="light"
                 >
-                  Browse catalog
+                  {t('imageRequestForm.browseCatalog')}
                 </Button>
               </Group>
             </Group>
 
             {referenceLimitReached ? (
-              <Alert color="orange" title="Reference limit reached">
-                This model supports up to {imageLab.maxReferenceImages} reference
-                {imageLab.maxReferenceImages > 1 ? 's' : ''}. Remove one before adding more.
+              <Alert
+                color="orange"
+                title={t('imageRequestForm.referenceLimitReached')}
+              >
+                {t('imageRequestForm.referenceLimitDescription', {
+                  count: imageLab.maxReferenceImages,
+                })}
               </Alert>
             ) : (
               <Text c="dimmed" size="sm">
-                Open the catalog to search, filter, rename, select, and paginate uploaded references.
+                {t('imageRequestForm.openTheCatalogToSearchFilterRename')}
               </Text>
             )}
           </Stack>
 
           {imageLab.requestError ? (
-            <Alert color="red" title="Image request failed">
+            <Alert color="red" title={t('imageRequestForm.imageRequestFailed')}>
               {imageLab.requestError}
             </Alert>
           ) : null}
@@ -743,7 +874,9 @@ export function ImageRequestForm({
             loading={imageLab.generateMutation.isPending}
             onClick={() => imageLab.generateMutation.mutate()}
           >
-            {imageLab.canEdit ? 'Edit image' : 'Generate image'}
+            {imageLab.canEdit
+              ? t('imageRequestForm.editImage')
+              : t('imageRequestForm.generateImage')}
           </Button>
         </Stack>
       </Card>

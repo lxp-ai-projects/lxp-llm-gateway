@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconLockPassword } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 type LoginFormCardProps = {
   acceptedPolicies: boolean;
@@ -43,6 +44,7 @@ export function LoginFormCard({
   registrationEnabled,
   sessionTimeoutMessage,
 }: LoginFormCardProps) {
+  const { t } = useTranslation('auth');
   return (
     <Card
       className="auth-form-card"
@@ -54,10 +56,10 @@ export function LoginFormCard({
     >
       <Stack gap="lg">
         <div>
-          <Text className="auth-form-kicker">Secure sign in</Text>
-          <Title order={2}>Welcome back</Title>
+          <Text className="auth-form-kicker">{t('login.kicker')}</Text>
+          <Title order={2}>{t('login.title')}</Title>
           <Text c="dimmed" mt="xs">
-            Sign in to continue to your LXP workspace.
+            {t('login.description')}
           </Text>
         </div>
 
@@ -65,7 +67,7 @@ export function LoginFormCard({
           <Alert
             color="red"
             icon={<IconAlertCircle size={18} />}
-            title="Login failed"
+            title={t('login.failed')}
           >
             {loginErrorMessage}
           </Alert>
@@ -75,7 +77,7 @@ export function LoginFormCard({
           <Alert
             color="amber"
             icon={<IconAlertCircle size={18} />}
-            title="Session expired"
+            title={t('session.expired')}
           >
             {sessionTimeoutMessage}
           </Alert>
@@ -83,29 +85,29 @@ export function LoginFormCard({
 
         <TextInput
           data-testid="auth-login-email"
-          label="Email"
+          label={t('login.email')}
           onChange={(event) => onEmailChange(event.currentTarget.value)}
-          placeholder="email@domain.com"
+          placeholder={t('login.emailPlaceholder')}
           value={email}
         />
         <PasswordInput
           data-testid="auth-login-password"
-          label="Password"
+          label={t('login.password')}
           onChange={(event) => onPasswordChange(event.currentTarget.value)}
-          placeholder="Your password"
+          placeholder={t('login.passwordPlaceholder')}
           value={password}
         />
         <Checkbox
           checked={acceptedPolicies}
           label={
             <Text size="sm">
-              I accept the{' '}
+              {t('login.acceptPrefix')}{' '}
               <Anchor component={Link} to="/terms">
-                terms
+                {t('login.terms')}
               </Anchor>{' '}
-              and{' '}
+              {t('login.conjunction')}{' '}
               <Anchor component={Link} to="/privacy">
-                privacy policy
+                {t('login.privacy')}
               </Anchor>
               .
             </Text>
@@ -122,26 +124,26 @@ export function LoginFormCard({
           size="md"
           type="submit"
         >
-          Sign in
+          {t('login.submit')}
         </Button>
 
         <Group className="auth-links-row" justify="space-between">
           {registrationEnabled ? (
             <Anchor component={Link} to="/register">
-              Create account
+              {t('login.createAccount')}
             </Anchor>
           ) : (
             <Text c="dimmed" size="sm">
-              Registration disabled
+              {t('login.registrationDisabled')}
             </Text>
           )}
           {forgotPasswordEnabled ? (
             <Anchor component={Link} to="/forgot-password">
-              Forgot password
+              {t('login.forgotPassword')}
             </Anchor>
           ) : (
             <Text c="dimmed" size="sm">
-              Recovery disabled
+              {t('login.recoveryDisabled')}
             </Text>
           )}
         </Group>

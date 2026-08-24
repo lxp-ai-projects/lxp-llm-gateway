@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ActionIcon,
   Alert,
@@ -29,12 +30,14 @@ import { INTEGRATION_CLIENT_SCOPES } from '@lxp/domain';
 import { PageHeader } from '../components/page-header';
 import { useTenantsController } from '../features/tenants/hooks/use-tenants-controller';
 import { TenantRegistrationPanel } from '../features/tenants/components/tenant-registration-panel';
+import { formatDateTime } from '../i18n/format';
 
 function HelpTooltip({ text }: { text: string }) {
+  const { t } = useTranslation('tenants');
   return (
     <Tooltip label={text} multiline w={280} withArrow>
       <ActionIcon
-        aria-label="More information"
+        aria-label={t('helpTooltip.moreInformation')}
         color="gray"
         radius="xl"
         size="sm"
@@ -67,6 +70,7 @@ function FieldLabel({ label, help }: { label: string; help: string }) {
 }
 
 export function TenantsPage() {
+  const { t } = useTranslation('tenants');
   const {
     createAllowOverride,
     createDisplayName,
@@ -285,18 +289,26 @@ export function TenantsPage() {
   return (
     <>
       <PageHeader
-        title="Tenant Control"
-        description="Global super-admin surface for isolated workspace provisioning, tenant policy tuning, and cross-tenant visibility."
+        title={t('tenantsPage.tenantControl')}
+        description={t(
+          'tenantsPage.globalSuperAdminSurfaceForIsolatedWorkspace',
+        )}
         context={activeTenantLabel}
-        aside={<Button onClick={onOpenCreate}>Create tenant</Button>}
+        aside={
+          <Button onClick={onOpenCreate}>
+            {t('tenantsPage.createTenant')}
+          </Button>
+        }
       />
 
       <Grid gap="lg">
         <Grid.Col span={{ base: 12, xl: 5 }}>
           <Card className="section-card">
             <Group justify="space-between" mb="md">
-              <Title order={3}>Tenants</Title>
-              <Badge variant="light">{tenantCards.length} total</Badge>
+              <Title order={3}>{t('tenantsPage.tenants')}</Title>
+              <Badge variant="light">
+                {tenantCards.length} {t('tenantsPage.total')}
+              </Badge>
             </Group>
             <Stack gap="sm">
               {tenantCards.map((tenant) => (
@@ -325,24 +337,26 @@ export function TenantsPage() {
                       color={tenant.status === 'active' ? 'moss' : 'red'}
                       variant="light"
                     >
-                      {tenant.status}
+                      {tenant.status === 'active'
+                        ? t('tenantsPage.active')
+                        : t('tenantsPage.disabled')}
                     </Badge>
                   </Group>
                   <SimpleGrid cols={2} mt="md" spacing="sm">
                     <div>
                       <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                        Memberships
+                        {t('tenantsPage.memberships')}
                       </Text>
                       <Text fw={600}>{tenant.membershipCount}</Text>
                     </div>
                     <div>
                       <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                        User override
+                        {t('tenantsPage.userOverride')}
                       </Text>
                       <Text fw={600}>
                         {tenant.allowUserCredentialOverride
-                          ? 'Allowed'
-                          : 'Disabled'}
+                          ? t('tenantsPage.allowed')
+                          : t('tenantsPage.disabled')}
                       </Text>
                     </div>
                   </SimpleGrid>
@@ -350,7 +364,7 @@ export function TenantsPage() {
               ))}
               {!tenantCards.length && !tenantsQuery.isPending ? (
                 <Text c="dimmed" size="sm">
-                  No tenants found yet.
+                  {t('tenantsPage.noTenantsFoundYet')}
                 </Text>
               ) : null}
             </Stack>
@@ -365,23 +379,35 @@ export function TenantsPage() {
             onChange={(value) => setActiveTab(value ?? 'settings')}
           >
             <Tabs.List mb="md" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-              <Tabs.Tab value="settings">Tenant Settings</Tabs.Tab>
-              <Tabs.Tab value="registration">Registration</Tabs.Tab>
-              <Tabs.Tab value="memberships">Memberships</Tabs.Tab>
-              <Tabs.Tab value="policies">Policies &amp; Limits</Tabs.Tab>
-              <Tabs.Tab value="providers">Provider Configurations</Tabs.Tab>
-              <Tabs.Tab value="integration-clients">
-                Integration Clients
+              <Tabs.Tab value="settings">
+                {t('tenantsPage.tenantSettings')}
               </Tabs.Tab>
-              <Tabs.Tab value="model-rules">Model Access Rules</Tabs.Tab>
+              <Tabs.Tab value="registration">
+                {t('tenantsPage.registration')}
+              </Tabs.Tab>
+              <Tabs.Tab value="memberships">
+                {t('tenantsPage.memberships')}
+              </Tabs.Tab>
+              <Tabs.Tab value="policies">
+                {t('tenantsPage.policiesAmpLimits')}
+              </Tabs.Tab>
+              <Tabs.Tab value="providers">
+                {t('tenantsPage.providerConfigurations')}
+              </Tabs.Tab>
+              <Tabs.Tab value="integration-clients">
+                {t('tenantsPage.integrationClients')}
+              </Tabs.Tab>
+              <Tabs.Tab value="model-rules">
+                {t('tenantsPage.modelAccessRules')}
+              </Tabs.Tab>
             </Tabs.List>
 
             <Tabs.Panel value="registration">
               <Card className="section-card">
                 <Group justify="space-between" mb="md">
                   <SectionTitle
-                    title="Public Registration"
-                    help="Controls the tenant registration switch and exact public hostname mappings. The global kill switch remains authoritative."
+                    title={t('tenantsPage.publicRegistration')}
+                    help={t('tenantsPage.help.publicRegistration')}
                   />
                   {selectedTenant ? (
                     <Badge variant="outline">{selectedTenant.slug}</Badge>
@@ -398,7 +424,9 @@ export function TenantsPage() {
                   />
                 ) : (
                   <Text c="dimmed" size="sm">
-                    Select a tenant to configure public registration.
+                    {t(
+                      'tenantsPage.selectATenantToConfigurePublicRegistration',
+                    )}
                   </Text>
                 )}
               </Card>
@@ -408,8 +436,8 @@ export function TenantsPage() {
               <Card className="section-card">
                 <Group justify="space-between" mb="md">
                   <SectionTitle
-                    title="Tenant Settings"
-                    help="Basic tenant operating posture: friendly name, active or disabled state, and whether members may override tenant-level BYOK credentials with their own."
+                    title={t('tenantsPage.tenantSettings')}
+                    help={t('tenantsPage.help.tenantSettings')}
                   />
                   {selectedTenant ? (
                     <Badge variant="outline">{selectedTenant.slug}</Badge>
@@ -421,8 +449,8 @@ export function TenantsPage() {
                       <TextInput
                         label={
                           <FieldLabel
-                            label="Display name"
-                            help="Human-friendly tenant name shown in the admin UI."
+                            label={t('tenantsPage.displayName')}
+                            help={t('tenantsPage.help.displayName')}
                           />
                         }
                         value={editDisplayName}
@@ -433,13 +461,19 @@ export function TenantsPage() {
                       <Select
                         label={
                           <FieldLabel
-                            label="Status"
-                            help="Active tenants can operate normally. Disabled tenants stay in the system but should no longer be used operationally."
+                            label={t('tenantsPage.status')}
+                            help={t('tenantsPage.help.tenantStatus')}
                           />
                         }
                         data={[
-                          { value: 'active', label: 'Active' },
-                          { value: 'disabled', label: 'Disabled' },
+                          {
+                            value: 'active',
+                            label: t('tenantsPage.active'),
+                          },
+                          {
+                            value: 'disabled',
+                            label: t('tenantsPage.disabled'),
+                          },
                         ]}
                         value={editStatus}
                         onChange={onEditStatusChange}
@@ -448,26 +482,27 @@ export function TenantsPage() {
                         checked={editAllowOverride}
                         label={
                           <FieldLabel
-                            label="Allow user credential override"
-                            help="If enabled, a member's own BYOK credential can override the tenant default when the provider configuration also permits it."
+                            label={t('tenantsPage.allowUserCredentialOverride')}
+                            help={t('tenantsPage.help.userCredentialOverride')}
                           />
                         }
-                        description="When enabled, user-scoped BYOK credentials can override the tenant default."
+                        description={t(
+                          'tenantsPage.whenEnabledUserScopedBYOKCredentialsCan',
+                        )}
                         onChange={(event) =>
                           onEditAllowOverrideChange(event.currentTarget.checked)
                         }
                       />
                       <Group justify="flex-end">
                         <Button loading={isUpdatePending} type="submit">
-                          Save tenant
+                          {t('tenantsPage.saveTenant')}
                         </Button>
                       </Group>
                     </Stack>
                   </form>
                 ) : (
                   <Text c="dimmed" size="sm">
-                    Select a tenant to inspect or update its control-plane
-                    settings.
+                    {t('tenantsPage.selectATenantToInspectOrUpdate')}
                   </Text>
                 )}
               </Card>
@@ -477,13 +512,13 @@ export function TenantsPage() {
               <Card className="section-card">
                 <Group justify="space-between" mb="md">
                   <SectionTitle
-                    title="Memberships"
-                    help="Defines which global users belong to this tenant and which tenant-scoped roles they hold here. A user may appear in multiple tenants with different roles."
+                    title={t('tenantsPage.memberships')}
+                    help={t('tenantsPage.help.memberships')}
                   />
                   <Group gap="sm">
                     {selectedTenant ? (
                       <Badge variant="light">
-                        {memberships.length} members
+                        {memberships.length} {t('tenantsPage.members')}
                       </Badge>
                     ) : null}
                     <Button
@@ -491,7 +526,7 @@ export function TenantsPage() {
                       onClick={onOpenCreateMember}
                       disabled={!selectedTenant}
                     >
-                      Add member
+                      {t('tenantsPage.addMember')}
                     </Button>
                   </Group>
                 </Group>
@@ -500,11 +535,11 @@ export function TenantsPage() {
                     <Table highlightOnHover>
                       <Table.Thead>
                         <Table.Tr>
-                          <Table.Th>User</Table.Th>
-                          <Table.Th>Tenant roles</Table.Th>
-                          <Table.Th>Global roles</Table.Th>
-                          <Table.Th>Status</Table.Th>
-                          <Table.Th>Actions</Table.Th>
+                          <Table.Th>{t('tenantsPage.user')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.tenantRoles')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.globalRoles')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.status')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.actions')}</Table.Th>
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
@@ -541,7 +576,7 @@ export function TenantsPage() {
                                   ))
                                 ) : (
                                   <Text size="sm" c="dimmed">
-                                    None
+                                    {t('tenantsPage.none')}
                                   </Text>
                                 )}
                               </Group>
@@ -555,7 +590,9 @@ export function TenantsPage() {
                                 }
                                 variant="light"
                               >
-                                {membership.status}
+                                {membership.status === 'active'
+                                  ? t('tenantsPage.active')
+                                  : t('tenantsPage.disabled')}
                               </Badge>
                             </Table.Td>
                             <Table.Td>
@@ -568,8 +605,8 @@ export function TenantsPage() {
                                   {membership.globalRoles.includes(
                                     'super_admin',
                                   )
-                                    ? 'Protected'
-                                    : 'Edit member'}
+                                    ? t('tenantsPage.protected')
+                                    : t('tenantsPage.editMember')}
                                 </Button>
                                 <Button
                                   size="xs"
@@ -578,7 +615,7 @@ export function TenantsPage() {
                                     onOpenEditGlobalRoles(membership)
                                   }
                                 >
-                                  Global access
+                                  {t('tenantsPage.globalAccess')}
                                 </Button>
                               </Group>
                             </Table.Td>
@@ -589,14 +626,14 @@ export function TenantsPage() {
                   </Table.ScrollContainer>
                 ) : (
                   <Text c="dimmed" size="sm">
-                    Select a tenant to inspect its membership boundary.
+                    {t('tenantsPage.selectATenantToInspectItsMembership')}
                   </Text>
                 )}
                 {selectedTenant &&
                 !memberships.length &&
                 !membershipsQuery.isPending ? (
                   <Text c="dimmed" size="sm" mt="md">
-                    This tenant has no memberships yet.
+                    {t('tenantsPage.thisTenantHasNoMembershipsYet')}
                   </Text>
                 ) : null}
               </Card>
@@ -606,29 +643,29 @@ export function TenantsPage() {
               <Card className="section-card">
                 <Group justify="space-between" mb="md">
                   <SectionTitle
-                    title="Policies & Limits"
-                    help="Operational guardrails like request rates, budget ceilings, token ceilings, logging posture, and retention defaults. Some fields are enforced now, while others are persisted for future hardening."
+                    title={t('tenantsPage.policiesLimits')}
+                    help={t('tenantsPage.help.policies')}
                   />
                   {selectedTenant ? (
-                    <Badge variant="light">App-enforced</Badge>
+                    <Badge variant="light">
+                      {t('tenantsPage.appEnforced')}
+                    </Badge>
                   ) : null}
                 </Group>
                 {selectedTenant ? (
                   <form onSubmit={handleUpdateTenantPolicySubmit}>
                     <Stack gap="md">
                       <Text size="sm" c="dimmed">
-                        The gateway currently enforces request windows, monthly
-                        budget, monthly token totals, and monthly image request
-                        counts from the usage ledger. Logging and retention
-                        fields are persisted now so we can harden the next layer
-                        without redesigning the contract.
+                        {t(
+                          'tenantsPage.theGatewayCurrentlyEnforcesRequestWindowsMonthly',
+                        )}
                       </Text>
                       <Group grow>
                         <TextInput
                           label={
                             <FieldLabel
-                              label="Monthly budget (USD)"
-                              help="Soft budget ceiling for this tenant's monthly usage. Once reached, the gateway blocks further requests with a quota event."
+                              label={t('tenantsPage.monthlyBudgetUSD')}
+                              help={t('tenantsPage.help.monthlyBudget')}
                             />
                           }
                           placeholder="250.00"
@@ -642,8 +679,8 @@ export function TenantsPage() {
                         <TextInput
                           label={
                             <FieldLabel
-                              label="Retention days"
-                              help="Planned retention posture for tenant-owned telemetry and operational records."
+                              label={t('tenantsPage.retentionDays')}
+                              help={t('tenantsPage.help.retention')}
                             />
                           }
                           value={editPolicyRetentionDays}
@@ -658,8 +695,8 @@ export function TenantsPage() {
                         <TextInput
                           label={
                             <FieldLabel
-                              label="Requests per minute"
-                              help="Per-tenant request rate ceiling across gateway calls."
+                              label={t('tenantsPage.requestsPerMinute')}
+                              help={t('tenantsPage.help.requestRate')}
                             />
                           }
                           value={editPolicyRequestsPerMinute}
@@ -672,8 +709,8 @@ export function TenantsPage() {
                         <TextInput
                           label={
                             <FieldLabel
-                              label="Tokens per minute"
-                              help="Per-tenant rolling token ceiling across compatible requests."
+                              label={t('tenantsPage.tokensPerMinute')}
+                              help={t('tenantsPage.help.tokenRate')}
                             />
                           }
                           value={editPolicyTokensPerMinute}
@@ -686,7 +723,7 @@ export function TenantsPage() {
                       </Group>
                       <Group grow>
                         <TextInput
-                          label="Daily request limit"
+                          label={t('tenantsPage.dailyRequestLimit')}
                           value={editPolicyDailyRequestLimit}
                           onChange={(event) =>
                             onEditPolicyDailyRequestLimitChange(
@@ -695,7 +732,7 @@ export function TenantsPage() {
                           }
                         />
                         <TextInput
-                          label="Monthly request limit"
+                          label={t('tenantsPage.monthlyRequestLimit')}
                           value={editPolicyMonthlyRequestLimit}
                           onChange={(event) =>
                             onEditPolicyMonthlyRequestLimitChange(
@@ -706,7 +743,7 @@ export function TenantsPage() {
                       </Group>
                       <Group grow>
                         <TextInput
-                          label="Monthly token limit"
+                          label={t('tenantsPage.monthlyTokenLimit')}
                           value={editPolicyMonthlyTokenLimit}
                           onChange={(event) =>
                             onEditPolicyMonthlyTokenLimitChange(
@@ -715,7 +752,7 @@ export function TenantsPage() {
                           }
                         />
                         <TextInput
-                          label="Image requests per month"
+                          label={t('tenantsPage.imageRequestsPerMonth')}
                           value={editPolicyImageRequestsPerMonth}
                           onChange={(event) =>
                             onEditPolicyImageRequestsPerMonthChange(
@@ -726,7 +763,7 @@ export function TenantsPage() {
                       </Group>
                       <Group grow>
                         <TextInput
-                          label="Max input tokens"
+                          label={t('tenantsPage.maxInputTokens')}
                           value={editPolicyMaxInputTokens}
                           onChange={(event) =>
                             onEditPolicyMaxInputTokensChange(
@@ -735,7 +772,7 @@ export function TenantsPage() {
                           }
                         />
                         <TextInput
-                          label="Max output tokens"
+                          label={t('tenantsPage.maxOutputTokens')}
                           value={editPolicyMaxOutputTokens}
                           onChange={(event) =>
                             onEditPolicyMaxOutputTokensChange(
@@ -747,7 +784,7 @@ export function TenantsPage() {
                       <Group grow>
                         <Switch
                           checked={editPolicyAllowPromptLogging}
-                          label="Allow prompt logging"
+                          label={t('tenantsPage.allowPromptLogging')}
                           onChange={(event) =>
                             onEditPolicyAllowPromptLoggingChange(
                               event.currentTarget.checked,
@@ -756,7 +793,7 @@ export function TenantsPage() {
                         />
                         <Switch
                           checked={editPolicyAllowResponseLogging}
-                          label="Allow response logging"
+                          label={t('tenantsPage.allowResponseLogging')}
                           onChange={(event) =>
                             onEditPolicyAllowResponseLoggingChange(
                               event.currentTarget.checked,
@@ -766,33 +803,36 @@ export function TenantsPage() {
                       </Group>
                       <Text size="xs" c="dimmed">
                         {tenantPolicy?.createdAt
-                          ? `Policy row persisted and last updated ${new Date(
-                              tenantPolicy.updatedAt ?? tenantPolicy.createdAt,
-                            ).toLocaleString()}.`
-                          : 'No policy row has been persisted yet. Saving here will materialize the tenant defaults.'}
+                          ? t('tenantsPage.policyPersisted', {
+                              date: formatDateTime(
+                                tenantPolicy.updatedAt ??
+                                  tenantPolicy.createdAt,
+                              ),
+                            })
+                          : t('tenantsPage.noPolicyPersisted')}
                       </Text>
                       <Group justify="flex-end">
                         <Button
                           loading={isUpdateTenantPolicyPending}
                           type="submit"
                         >
-                          Save policy
+                          {t('tenantsPage.savePolicy')}
                         </Button>
                       </Group>
                     </Stack>
                   </form>
                 ) : (
                   <Text c="dimmed" size="sm">
-                    Select a tenant to configure its cost guardrails, quota
-                    thresholds, and logging posture.
+                    {t('tenantsPage.selectATenantToConfigureItsCost')}
                   </Text>
                 )}
                 {selectedTenant &&
                 !tenantPolicy &&
                 !tenantPolicyQuery.isPending ? (
                   <Text c="dimmed" size="sm" mt="md">
-                    The gateway is currently using implicit defaults for this
-                    tenant.
+                    {t(
+                      'tenantsPage.theGatewayIsCurrentlyUsingImplicitDefaults',
+                    )}
                   </Text>
                 ) : null}
               </Card>
@@ -802,12 +842,13 @@ export function TenantsPage() {
               <Card className="section-card">
                 <Group justify="space-between" mb="md">
                   <SectionTitle
-                    title="Provider Configurations"
-                    help="Controls whether a provider is available to this tenant, which default models it uses, and how credentials are resolved between platform, tenant, and user scopes."
+                    title={t('tenantsPage.providerConfigurations')}
+                    help={t('tenantsPage.help.providers')}
                   />
                   {selectedTenant ? (
                     <Badge variant="light">
-                      {providerConfigurations.length} providers
+                      {providerConfigurations.length}{' '}
+                      {t('tenantsPage.providers')}
                     </Badge>
                   ) : null}
                 </Group>
@@ -816,11 +857,11 @@ export function TenantsPage() {
                     <Table highlightOnHover>
                       <Table.Thead>
                         <Table.Tr>
-                          <Table.Th>Provider</Table.Th>
-                          <Table.Th>Status</Table.Th>
-                          <Table.Th>Credential path</Table.Th>
-                          <Table.Th>Defaults</Table.Th>
-                          <Table.Th>Actions</Table.Th>
+                          <Table.Th>{t('tenantsPage.provider')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.status')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.credentialPath')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.defaults')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.actions')}</Table.Th>
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
@@ -841,8 +882,8 @@ export function TenantsPage() {
                                   variant="light"
                                 >
                                   {configuration.enabled
-                                    ? 'enabled'
-                                    : 'disabled'}
+                                    ? t('tenantsPage.enabled')
+                                    : t('tenantsPage.disabled')}
                                 </Badge>
                                 <Badge
                                   color={
@@ -852,7 +893,10 @@ export function TenantsPage() {
                                   }
                                   variant="outline"
                                 >
-                                  platform {configuration.providerStatus}
+                                  {t('tenantsPage.platform')}
+                                  {configuration.providerStatus === 'active'
+                                    ? t('tenantsPage.active')
+                                    : t('tenantsPage.disabled')}
                                 </Badge>
                               </Group>
                             </Table.Td>
@@ -862,28 +906,28 @@ export function TenantsPage() {
                               </Text>
                               <Text size="sm" c="dimmed">
                                 {configuration.preferUserCredentials
-                                  ? 'User-first'
-                                  : 'Tenant-first'}
+                                  ? t('tenantsPage.userFirst')
+                                  : t('tenantsPage.tenantFirst')}
                                 {' / '}
                                 {configuration.allowTenantFallback
-                                  ? 'tenant fallback'
-                                  : 'no tenant fallback'}
+                                  ? t('tenantsPage.tenantFallback')
+                                  : t('tenantsPage.noTenantFallback')}
                                 {' / '}
                                 {configuration.allowPlatformFallback
-                                  ? 'platform fallback'
-                                  : 'no platform fallback'}
+                                  ? t('tenantsPage.platformFallback')
+                                  : t('tenantsPage.noPlatformFallback')}
                               </Text>
                             </Table.Td>
                             <Table.Td>
                               <Text size="sm">
-                                Text:{' '}
+                                {t('tenantsPage.text')}{' '}
                                 {configuration.defaultTextModel ??
-                                  'No tenant default'}
+                                  t('tenantsPage.noTenantDefault')}
                               </Text>
                               <Text size="sm">
-                                Image:{' '}
+                                {t('tenantsPage.image')}{' '}
                                 {configuration.defaultImageModel ??
-                                  'No tenant default'}
+                                  t('tenantsPage.noTenantDefault')}
                               </Text>
                             </Table.Td>
                             <Table.Td>
@@ -894,7 +938,7 @@ export function TenantsPage() {
                                   onOpenEditProviderConfiguration(configuration)
                                 }
                               >
-                                Edit config
+                                {t('tenantsPage.editConfig')}
                               </Button>
                             </Table.Td>
                           </Table.Tr>
@@ -904,15 +948,14 @@ export function TenantsPage() {
                   </Table.ScrollContainer>
                 ) : (
                   <Text c="dimmed" size="sm">
-                    Select a tenant to manage provider enablement, defaults, and
-                    credential routing.
+                    {t('tenantsPage.selectATenantToManageProviderEnablement')}
                   </Text>
                 )}
                 {selectedTenant &&
                 !providerConfigurations.length &&
                 !providerConfigurationsQuery.isPending ? (
                   <Text c="dimmed" size="sm" mt="md">
-                    This tenant has no provider configurations yet.
+                    {t('tenantsPage.thisTenantHasNoProviderConfigurationsYet')}
                   </Text>
                 ) : null}
               </Card>
@@ -922,13 +965,13 @@ export function TenantsPage() {
               <Card className="section-card">
                 <Group justify="space-between" mb="md">
                   <SectionTitle
-                    title="Integration Clients"
-                    help="Technical identities for apps like Open WebUI. They are tenant-bound, scoped, and own one or more rotatable API keys."
+                    title={t('tenantsPage.integrationClients')}
+                    help={t('tenantsPage.help.integrationClients')}
                   />
                   <Group gap="sm">
                     {selectedTenant ? (
                       <Badge variant="light">
-                        {integrationClients.length} clients
+                        {integrationClients.length} {t('tenantsPage.clients')}
                       </Badge>
                     ) : null}
                     <Button
@@ -936,7 +979,7 @@ export function TenantsPage() {
                       onClick={onOpenCreateIntegrationClient}
                       disabled={!selectedTenant}
                     >
-                      Add client
+                      {t('tenantsPage.addClient')}
                     </Button>
                   </Group>
                 </Group>
@@ -946,11 +989,11 @@ export function TenantsPage() {
                       <Alert
                         color="yellow"
                         variant="light"
-                        title="Copy this API key now"
+                        title={t('tenantsPage.copyThisAPIKeyNow')}
                       >
                         <Stack gap="xs">
                           <Text size="sm">
-                            This secret for{' '}
+                            {t('tenantsPage.thisSecretFor')}{' '}
                             <Text span fw={700}>
                               {revealedIntegrationApiKey.clientDisplayName}
                             </Text>{' '}
@@ -958,7 +1001,7 @@ export function TenantsPage() {
                             <Text span fw={700}>
                               {revealedIntegrationApiKey.label}
                             </Text>{' '}
-                            is shown only once.
+                            {t('tenantsPage.isShownOnlyOnce')}
                           </Text>
                           <Code block>{revealedIntegrationApiKey.apiKey}</Code>
                           <Group justify="flex-end">
@@ -967,7 +1010,7 @@ export function TenantsPage() {
                               variant="light"
                               onClick={onDismissRevealedIntegrationApiKey}
                             >
-                              Dismiss
+                              {t('tenantsPage.dismiss')}
                             </Button>
                           </Group>
                         </Stack>
@@ -983,8 +1026,8 @@ export function TenantsPage() {
                         variant="light"
                         title={
                           testTenantIntegrationClientResult.ready
-                            ? 'Integration client authentication succeeded'
-                            : 'Integration client authentication failed'
+                            ? t('tenantsPage.clientAuthSucceeded')
+                            : t('tenantsPage.clientAuthFailed')
                         }
                       >
                         <Stack gap={4}>
@@ -992,23 +1035,25 @@ export function TenantsPage() {
                             {testTenantIntegrationClientResult.message}
                           </Text>
                           <Text size="sm" c="dimmed">
-                            Client: {testTenantIntegrationClientResult.clientId}
-                            {' · '}Identity:{' '}
+                            {t('tenantsPage.client')}
+                            {testTenantIntegrationClientResult.clientId}
+                            {' · '}
+                            {t('tenantsPage.identity')}{' '}
                             {testTenantIntegrationClientResult.principalKind ??
                               testTenantIntegrationClientResult.identityMode}
-                            {' · '}Scopes:{' '}
+                            {' · '}
+                            {t('tenantsPage.scopes')}{' '}
                             {testTenantIntegrationClientResult.scopes.join(
                               ', ',
-                            ) || 'none'}
+                            ) || t('tenantsPage.none')}
                           </Text>
                           {testTenantIntegrationClientResult.scopes.includes(
                             'evaluation:invoke',
                           ) ? (
                             <Text size="sm" c="dimmed">
-                              Evaluation readiness also requires an enabled
-                              profile provider, an allowed model, and a tenant
-                              credential or explicitly permitted platform
-                              fallback.
+                              {t(
+                                'tenantsPage.evaluationReadinessAlsoRequiresAnEnabledProfile',
+                              )}
                             </Text>
                           ) : null}
                         </Stack>
@@ -1018,11 +1063,11 @@ export function TenantsPage() {
                       <Table highlightOnHover>
                         <Table.Thead>
                           <Table.Tr>
-                            <Table.Th>Client</Table.Th>
-                            <Table.Th>Identity</Table.Th>
-                            <Table.Th>Scopes</Table.Th>
-                            <Table.Th>Status</Table.Th>
-                            <Table.Th>Actions</Table.Th>
+                            <Table.Th>{t('tenantsPage.client2')}</Table.Th>
+                            <Table.Th>{t('tenantsPage.identity2')}</Table.Th>
+                            <Table.Th>{t('tenantsPage.scopes2')}</Table.Th>
+                            <Table.Th>{t('tenantsPage.status')}</Table.Th>
+                            <Table.Th>{t('tenantsPage.actions')}</Table.Th>
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
@@ -1042,7 +1087,8 @@ export function TenantsPage() {
                                   {client.clientId}
                                 </Text>
                                 <Text size="sm" c="dimmed">
-                                  App: {client.applicationId}
+                                  {t('tenantsPage.app')}
+                                  {client.applicationId}
                                 </Text>
                               </Table.Td>
                               <Table.Td>
@@ -1052,17 +1098,19 @@ export function TenantsPage() {
                                     .replaceAll('_', ' ')}
                                 </Badge>
                                 <Text size="sm">
-                                  Service principal: {client.clientId}
+                                  {t('tenantsPage.servicePrincipal')}
+                                  {client.clientId}
                                 </Text>
                                 <Text size="sm">
-                                  Default user fallback:{' '}
-                                  {client.defaultUserDisplayName ?? 'None'}
+                                  {t('tenantsPage.defaultUserFallback')}{' '}
+                                  {client.defaultUserDisplayName ??
+                                    t('tenantsPage.none')}
                                 </Text>
                                 <Text size="sm" c="dimmed">
-                                  Forwarded identity:{' '}
+                                  {t('tenantsPage.forwardedIdentity')}{' '}
                                   {client.trustedForwardedIdentityEnabled
-                                    ? 'trusted'
-                                    : 'disabled'}
+                                    ? t('tenantsPage.trusted')
+                                    : t('tenantsPage.disabled')}
                                 </Text>
                               </Table.Td>
                               <Table.Td>
@@ -1084,21 +1132,22 @@ export function TenantsPage() {
                                     }
                                     variant="light"
                                   >
-                                    {client.status}
+                                    {client.status === 'active'
+                                      ? t('tenantsPage.active')
+                                      : t('tenantsPage.disabled')}
                                   </Badge>
                                   <Badge variant="outline">
-                                    {client.apiKeyCount} keys
+                                    {client.apiKeyCount} {t('tenantsPage.keys')}
                                   </Badge>
                                 </Group>
                               </Table.Td>
                               <Table.Td>
-                                <Menu
-                                  position="bottom-end"
-                                  withinPortal
-                                >
+                                <Menu position="bottom-end" withinPortal>
                                   <Menu.Target>
                                     <Button
-                                      aria-label={`Actions for ${client.displayName}`}
+                                      aria-label={t('tenantsPage.actionsFor', {
+                                        name: client.displayName,
+                                      })}
                                       disabled={
                                         isDeleteTenantIntegrationClientPending
                                       }
@@ -1106,11 +1155,13 @@ export function TenantsPage() {
                                         isTestTenantIntegrationClientPending &&
                                         testingIntegrationClientId === client.id
                                       }
-                                      rightSection={<IconChevronDown size={14} />}
+                                      rightSection={
+                                        <IconChevronDown size={14} />
+                                      }
                                       size="xs"
                                       variant="light"
                                     >
-                                      Actions
+                                      {t('tenantsPage.actions')}
                                     </Button>
                                   </Menu.Target>
                                   <Menu.Dropdown>
@@ -1119,28 +1170,28 @@ export function TenantsPage() {
                                         onSelectIntegrationClient(client)
                                       }
                                     >
-                                      View keys
+                                      {t('tenantsPage.viewKeys')}
                                     </Menu.Item>
                                     <Menu.Item
                                       onClick={() =>
                                         onTestIntegrationClient(client)
                                       }
                                     >
-                                      Test client
+                                      {t('tenantsPage.testClient')}
                                     </Menu.Item>
                                     <Menu.Item
                                       onClick={() =>
                                         onOpenEditIntegrationClient(client)
                                       }
                                     >
-                                      Edit client
+                                      {t('tenantsPage.editClient')}
                                     </Menu.Item>
                                     <Menu.Item
                                       onClick={() =>
                                         onOpenCreateIntegrationApiKey(client)
                                       }
                                     >
-                                      Create key
+                                      {t('tenantsPage.createKey')}
                                     </Menu.Item>
                                     <Menu.Divider />
                                     <Menu.Item
@@ -1151,7 +1202,7 @@ export function TenantsPage() {
                                         )
                                       }
                                     >
-                                      Delete client
+                                      {t('tenantsPage.deleteClient')}
                                     </Menu.Item>
                                   </Menu.Dropdown>
                                 </Menu>
@@ -1166,7 +1217,7 @@ export function TenantsPage() {
                         <Group justify="space-between" mb="md">
                           <div>
                             <Text fw={700}>
-                              API keys for{' '}
+                              {t('tenantsPage.apiKeysFor')}{' '}
                               {selectedIntegrationClient.displayName}
                             </Text>
                             <Text size="sm" c="dimmed">
@@ -1181,19 +1232,19 @@ export function TenantsPage() {
                               )
                             }
                           >
-                            Create key
+                            {t('tenantsPage.createKey')}
                           </Button>
                         </Group>
                         <Table.ScrollContainer minWidth={760}>
                           <Table highlightOnHover>
                             <Table.Thead>
                               <Table.Tr>
-                                <Table.Th>Label</Table.Th>
-                                <Table.Th>Hint</Table.Th>
-                                <Table.Th>Scopes</Table.Th>
-                                <Table.Th>Status</Table.Th>
-                                <Table.Th>Last used</Table.Th>
-                                <Table.Th>Actions</Table.Th>
+                                <Table.Th>{t('tenantsPage.label')}</Table.Th>
+                                <Table.Th>{t('tenantsPage.hint')}</Table.Th>
+                                <Table.Th>{t('tenantsPage.scopes2')}</Table.Th>
+                                <Table.Th>{t('tenantsPage.status')}</Table.Th>
+                                <Table.Th>{t('tenantsPage.lastUsed')}</Table.Th>
+                                <Table.Th>{t('tenantsPage.actions')}</Table.Th>
                               </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
@@ -1203,12 +1254,19 @@ export function TenantsPage() {
                                     <Text fw={600}>{apiKey.label}</Text>
                                     <Text size="sm" c="dimmed">
                                       {apiKey.expiresAt
-                                        ? `Expires ${new Date(apiKey.expiresAt).toLocaleString()}`
-                                        : 'No expiry'}
+                                        ? t('tenantsPage.expiresDate', {
+                                            date: formatDateTime(
+                                              apiKey.expiresAt,
+                                            ),
+                                          })
+                                        : t('tenantsPage.noExpiry')}
                                     </Text>
                                   </Table.Td>
                                   <Table.Td>
-                                    <Code>{apiKey.keyHint ?? 'hidden'}</Code>
+                                    <Code>
+                                      {apiKey.keyHint ??
+                                        t('tenantsPage.hidden')}
+                                    </Code>
                                   </Table.Td>
                                   <Table.Td>
                                     <Group gap="xs" wrap="wrap">
@@ -1228,26 +1286,26 @@ export function TenantsPage() {
                                       }
                                       variant="light"
                                     >
-                                      {apiKey.status}
+                                      {apiKey.status === 'active'
+                                        ? t('tenantsPage.active')
+                                        : t('tenantsPage.disabled')}
                                     </Badge>
                                   </Table.Td>
                                   <Table.Td>
                                     <Text size="sm">
                                       {apiKey.lastUsedAt
-                                        ? new Date(
-                                            apiKey.lastUsedAt,
-                                          ).toLocaleString()
-                                        : 'Never'}
+                                        ? formatDateTime(apiKey.lastUsedAt)
+                                        : t('tenantsPage.never')}
                                     </Text>
                                   </Table.Td>
                                   <Table.Td>
-                                    <Menu
-                                      position="bottom-end"
-                                      withinPortal
-                                    >
+                                    <Menu position="bottom-end" withinPortal>
                                       <Menu.Target>
                                         <Button
-                                          aria-label={`Actions for ${apiKey.label}`}
+                                          aria-label={t(
+                                            'tenantsPage.actionsFor',
+                                            { name: apiKey.label },
+                                          )}
                                           disabled={
                                             isDeleteTenantIntegrationApiKeyPending
                                           }
@@ -1257,7 +1315,7 @@ export function TenantsPage() {
                                           size="xs"
                                           variant="light"
                                         >
-                                          Actions
+                                          {t('tenantsPage.actions')}
                                         </Button>
                                       </Menu.Target>
                                       <Menu.Dropdown>
@@ -1269,7 +1327,7 @@ export function TenantsPage() {
                                             )
                                           }
                                         >
-                                          Edit key
+                                          {t('tenantsPage.editKey')}
                                         </Menu.Item>
                                         <Menu.Divider />
                                         <Menu.Item
@@ -1281,7 +1339,7 @@ export function TenantsPage() {
                                             )
                                           }
                                         >
-                                          Delete key
+                                          {t('tenantsPage.deleteKey')}
                                         </Menu.Item>
                                       </Menu.Dropdown>
                                     </Menu>
@@ -1294,28 +1352,26 @@ export function TenantsPage() {
                         {!integrationApiKeys.length &&
                         !integrationApiKeysQuery.isPending ? (
                           <Text c="dimmed" size="sm" mt="md">
-                            This integration client has no API keys yet.
+                            {t('tenantsPage.thisIntegrationClientHasNoAPIKeys')}
                           </Text>
                         ) : null}
                       </Card>
                     ) : (
                       <Text c="dimmed" size="sm">
-                        Select an integration client to inspect and rotate its
-                        API keys.
+                        {t('tenantsPage.selectAnIntegrationClientToInspectAnd')}
                       </Text>
                     )}
                   </Stack>
                 ) : (
                   <Text c="dimmed" size="sm">
-                    Select a tenant to manage tenant-scoped technical clients
-                    and their API keys.
+                    {t('tenantsPage.selectATenantToManageTenantScoped')}
                   </Text>
                 )}
                 {selectedTenant &&
                 !integrationClients.length &&
                 !integrationClientsQuery.isPending ? (
                   <Text c="dimmed" size="sm" mt="md">
-                    This tenant has no integration clients yet.
+                    {t('tenantsPage.thisTenantHasNoIntegrationClientsYet')}
                   </Text>
                 ) : null}
               </Card>
@@ -1325,13 +1381,13 @@ export function TenantsPage() {
               <Card className="section-card">
                 <Group justify="space-between" mb="md">
                   <SectionTitle
-                    title="Model Access Rules"
-                    help="Allow or deny rules for provider models, evaluated by priority. At equal priority, deny wins over allow."
+                    title={t('tenantsPage.modelAccessRules')}
+                    help={t('tenantsPage.help.modelRules')}
                   />
                   <Group gap="sm">
                     {selectedTenant ? (
                       <Badge variant="light">
-                        {modelAccessRules.length} rules
+                        {modelAccessRules.length} {t('tenantsPage.rules')}
                       </Badge>
                     ) : null}
                     <Button
@@ -1339,7 +1395,7 @@ export function TenantsPage() {
                       onClick={onOpenCreateModelAccessRule}
                       disabled={!selectedTenant}
                     >
-                      Add rule
+                      {t('tenantsPage.addRule')}
                     </Button>
                   </Group>
                 </Group>
@@ -1348,13 +1404,13 @@ export function TenantsPage() {
                     <Table highlightOnHover>
                       <Table.Thead>
                         <Table.Tr>
-                          <Table.Th>Provider</Table.Th>
-                          <Table.Th>Pattern</Table.Th>
-                          <Table.Th>Capability</Table.Th>
-                          <Table.Th>Effect</Table.Th>
-                          <Table.Th>Limits</Table.Th>
-                          <Table.Th>Priority</Table.Th>
-                          <Table.Th>Actions</Table.Th>
+                          <Table.Th>{t('tenantsPage.provider')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.pattern')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.capability')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.effect')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.limits')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.priority')}</Table.Th>
+                          <Table.Th>{t('tenantsPage.actions')}</Table.Th>
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
@@ -1379,12 +1435,16 @@ export function TenantsPage() {
                             </Table.Td>
                             <Table.Td>
                               <Text size="sm">
-                                In: {rule.maxInputTokens ?? 'n/a'} / Out:{' '}
+                                {t('tenantsPage.in')}
+                                {rule.maxInputTokens ?? 'n/a'}{' '}
+                                {t('tenantsPage.out')}{' '}
                                 {rule.maxOutputTokens ?? 'n/a'}
                               </Text>
                               <Text size="sm">
-                                Images: {rule.maxImagesPerRequest ?? 'n/a'} /
-                                Res: {rule.maxResolution ?? 'n/a'}
+                                {t('tenantsPage.images')}
+                                {rule.maxImagesPerRequest ?? 'n/a'}{' '}
+                                {t('tenantsPage.res')}
+                                {rule.maxResolution ?? 'n/a'}
                               </Text>
                             </Table.Td>
                             <Table.Td>{rule.priority}</Table.Td>
@@ -1394,7 +1454,7 @@ export function TenantsPage() {
                                 variant="light"
                                 onClick={() => onOpenEditModelAccessRule(rule)}
                               >
-                                Edit rule
+                                {t('tenantsPage.editRule')}
                               </Button>
                             </Table.Td>
                           </Table.Tr>
@@ -1404,16 +1464,14 @@ export function TenantsPage() {
                   </Table.ScrollContainer>
                 ) : (
                   <Text c="dimmed" size="sm">
-                    Select a tenant to control which models and capabilities are
-                    exposed.
+                    {t('tenantsPage.selectATenantToControlWhichModels')}
                   </Text>
                 )}
                 {selectedTenant &&
                 !modelAccessRules.length &&
                 !modelAccessRulesQuery.isPending ? (
                   <Text c="dimmed" size="sm" mt="md">
-                    No model access rules are defined yet. The current behavior
-                    is allow-by-default unless a matching rule denies access.
+                    {t('tenantsPage.noModelAccessRulesAreDefinedYet')}
                   </Text>
                 ) : null}
               </Card>
@@ -1425,22 +1483,21 @@ export function TenantsPage() {
       <Modal
         opened={createOpened}
         onClose={onCloseCreate}
-        title="Create tenant"
+        title={t('tenantsPage.createTenant')}
       >
         <form onSubmit={handleCreateTenantSubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Provision a new tenant isolation boundary with a stable slug and
-              an explicit BYOK override policy.
+              {t('tenantsPage.provisionANewTenantIsolationBoundaryWith')}
             </Text>
             <TextInput
               label={
                 <FieldLabel
-                  label="Slug"
-                  help="Stable human-readable identifier used in URLs, ops, and tenant references. It should remain stable after creation."
+                  label={t('tenantsPage.slug')}
+                  help={t('tenantsPage.help.slug')}
                 />
               }
-              placeholder="customer-acme"
+              placeholder={t('tenantsPage.customerAcme')}
               value={createSlug}
               onChange={(event) =>
                 onCreateSlugChange(event.currentTarget.value)
@@ -1449,11 +1506,11 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Display name"
-                  help="Friendly tenant name shown to operators throughout the control plane."
+                  label={t('tenantsPage.displayName')}
+                  help={t('tenantsPage.help.operatorDisplayName')}
                 />
               }
-              placeholder="Customer Acme"
+              placeholder={t('tenantsPage.customerAcme2')}
               value={createDisplayName}
               onChange={(event) =>
                 onCreateDisplayNameChange(event.currentTarget.value)
@@ -1463,8 +1520,8 @@ export function TenantsPage() {
               checked={createAllowOverride}
               label={
                 <FieldLabel
-                  label="Allow user credential override"
-                  help="Sets the tenant default for whether members may use their own BYOK credential instead of the tenant default."
+                  label={t('tenantsPage.allowUserCredentialOverride')}
+                  help={t('tenantsPage.help.defaultUserOverride')}
                 />
               }
               onChange={(event) =>
@@ -1473,14 +1530,14 @@ export function TenantsPage() {
             />
             <Group justify="space-between">
               <Button onClick={onCloseCreate} type="button" variant="light">
-                Cancel
+                {t('tenantsPage.cancel')}
               </Button>
               <Button
                 loading={isCreatePending}
                 type="submit"
                 disabled={!createSlug.trim() || !createDisplayName.trim()}
               >
-                Create tenant
+                {t('tenantsPage.createTenant')}
               </Button>
             </Group>
           </Stack>
@@ -1490,22 +1547,23 @@ export function TenantsPage() {
       <Modal
         opened={createMemberOpened}
         onClose={onCloseCreateMember}
-        title="Add tenant member"
+        title={t('tenantsPage.addTenantMember')}
       >
         <form onSubmit={handleCreateTenantUserSubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Attach an existing global user by email, or provision a new global
-              user and add it to this tenant with roles such as `tenant_admin`.
+              {t('tenantsPage.attachAnExistingGlobalUserByEmail')}
             </Text>
             <TextInput
               label={
                 <FieldLabel
-                  label="Display name"
-                  help="Friendly name for the member when provisioning a brand-new global account."
+                  label={t('tenantsPage.displayName')}
+                  help={t('tenantsPage.help.memberDisplayName')}
                 />
               }
-              description="Optional when attaching an existing global user. Required only when provisioning a brand-new account."
+              description={t(
+                'tenantsPage.optionalWhenAttachingAnExistingGlobalUser',
+              )}
               value={createMemberDisplayName}
               onChange={(event) =>
                 onCreateMemberDisplayNameChange(event.currentTarget.value)
@@ -1514,8 +1572,8 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Email"
-                  help="Global user identity. If this email already exists, the user is attached to this tenant instead of being recreated."
+                  label={t('tenantsPage.email')}
+                  help={t('tenantsPage.help.memberEmail')}
                 />
               }
               type="email"
@@ -1527,11 +1585,13 @@ export function TenantsPage() {
             <PasswordInput
               label={
                 <FieldLabel
-                  label="Temporary password"
-                  help="Only needed when creating a brand-new global account. Existing users keep their current password."
+                  label={t('tenantsPage.temporaryPassword')}
+                  help={t('tenantsPage.help.memberPassword')}
                 />
               }
-              description="Optional when attaching an existing global user. Required only when provisioning a brand-new account."
+              description={t(
+                'tenantsPage.optionalWhenAttachingAnExistingGlobalUser',
+              )}
               value={createMemberPassword}
               onChange={(event) =>
                 onCreateMemberPasswordChange(event.currentTarget.value)
@@ -1540,18 +1600,21 @@ export function TenantsPage() {
             <MultiSelect
               label={
                 <FieldLabel
-                  label="Tenant roles"
-                  help="Tenant-scoped permissions granted inside this tenant only, such as tenant_admin or operator."
+                  label={t('tenantsPage.tenantRoles')}
+                  help={t('tenantsPage.help.memberRoles')}
                 />
               }
               value={createMemberRoles}
               onChange={onCreateMemberRolesChange}
               searchable={false}
               data={[
-                { value: 'viewer', label: 'Viewer' },
-                { value: 'user', label: 'User' },
-                { value: 'operator', label: 'Operator' },
-                { value: 'tenant_admin', label: 'Tenant admin' },
+                { value: 'viewer', label: t('tenantsPage.viewer') },
+                { value: 'user', label: t('tenantsPage.user') },
+                { value: 'operator', label: t('tenantsPage.operator') },
+                {
+                  value: 'tenant_admin',
+                  label: t('tenantsPage.tenantAdmin'),
+                },
               ]}
             />
             <Group justify="space-between">
@@ -1560,14 +1623,14 @@ export function TenantsPage() {
                 type="button"
                 variant="light"
               >
-                Cancel
+                {t('tenantsPage.cancel')}
               </Button>
               <Button
                 loading={isCreateTenantUserPending}
                 type="submit"
                 disabled={!createMemberEmail.trim()}
               >
-                Add member
+                {t('tenantsPage.addMember')}
               </Button>
             </Group>
           </Stack>
@@ -1577,14 +1640,14 @@ export function TenantsPage() {
       <Modal
         opened={editMemberOpened}
         onClose={onCloseEditMember}
-        title="Edit tenant member"
+        title={t('tenantsPage.editTenantMember')}
       >
         <form onSubmit={handleUpdateTenantUserSubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
               {selectedMembershipIsProtected
-                ? 'This account has the global super_admin role. Tenant workflows can inspect it, but cannot downgrade or disable it.'
-                : 'Update tenant-scoped roles or disable the selected user account for this tenant workflow.'}
+                ? t('tenantsPage.protectedMemberDescription')
+                : t('tenantsPage.editMemberDescription')}
             </Text>
             {selectedMembership ? (
               <div>
@@ -1598,45 +1661,50 @@ export function TenantsPage() {
               disabled={selectedMembershipIsProtected}
               label={
                 <FieldLabel
-                  label="Tenant roles"
-                  help="Tenant-scoped permissions for this user inside the selected tenant only."
+                  label={t('tenantsPage.tenantRoles')}
+                  help={t('tenantsPage.help.editMemberRoles')}
                 />
               }
               value={editMemberRoles}
               onChange={onEditMemberRolesChange}
               searchable={false}
               data={[
-                { value: 'viewer', label: 'Viewer' },
-                { value: 'user', label: 'User' },
-                { value: 'operator', label: 'Operator' },
-                { value: 'tenant_admin', label: 'Tenant admin' },
+                { value: 'viewer', label: t('tenantsPage.viewer') },
+                { value: 'user', label: t('tenantsPage.user') },
+                { value: 'operator', label: t('tenantsPage.operator') },
+                {
+                  value: 'tenant_admin',
+                  label: t('tenantsPage.tenantAdmin'),
+                },
               ]}
             />
             <Select
               disabled={selectedMembershipIsProtected}
               label={
                 <FieldLabel
-                  label="Status"
-                  help="Disabled members remain in the tenant history but should no longer operate through this tenant workflow."
+                  label={t('tenantsPage.status')}
+                  help={t('tenantsPage.help.memberStatus')}
                 />
               }
               value={editMemberStatus}
               onChange={onEditMemberStatusChange}
               data={[
-                { value: 'active', label: 'Active' },
-                { value: 'disabled', label: 'Disabled' },
+                { value: 'active', label: t('tenantsPage.active') },
+                { value: 'disabled', label: t('tenantsPage.disabled') },
               ]}
             />
             <Group justify="space-between">
               <Button onClick={onCloseEditMember} type="button" variant="light">
-                Cancel
+                {t('tenantsPage.cancel')}
               </Button>
               <Button
                 loading={isUpdateTenantUserPending}
                 type="submit"
                 disabled={selectedMembershipIsProtected}
               >
-                {selectedMembershipIsProtected ? 'Protected' : 'Save member'}
+                {selectedMembershipIsProtected
+                  ? t('tenantsPage.protected')
+                  : t('tenantsPage.saveMember')}
               </Button>
             </Group>
           </Stack>
@@ -1646,13 +1714,12 @@ export function TenantsPage() {
       <Modal
         opened={editGlobalRolesOpened}
         onClose={onCloseEditGlobalRoles}
-        title="Global access"
+        title={t('tenantsPage.globalAccess')}
       >
         <form onSubmit={handleUpdateGlobalRolesSubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Global roles are control-plane privileges and are managed
-              separately from tenant memberships.
+              {t('tenantsPage.globalRolesAreControlPlanePrivilegesAnd')}
             </Text>
             {selectedMembership ? (
               <div>
@@ -1664,27 +1731,39 @@ export function TenantsPage() {
             ) : null}
             {selectedMembershipIsSelf &&
             selectedMembership?.globalRoles.includes('super_admin') ? (
-              <Alert color="grape" variant="light" title="Protected account">
-                Your current session is using this `super_admin` account. You
-                cannot remove your own global access from this screen.
+              <Alert
+                color="grape"
+                variant="light"
+                title={t('tenantsPage.protectedAccount')}
+              >
+                {t('tenantsPage.yourCurrentSessionIsUsingThisSuper')}
               </Alert>
             ) : null}
             {updateGlobalRolesError ? (
-              <Alert color="red" variant="light" title="Update failed">
+              <Alert
+                color="red"
+                variant="light"
+                title={t('tenantsPage.updateFailed')}
+              >
                 {updateGlobalRolesError}
               </Alert>
             ) : null}
             <MultiSelect
               label={
                 <FieldLabel
-                  label="Global roles"
-                  help="Global control-plane privileges that apply across tenants. This is separate from tenant membership."
+                  label={t('tenantsPage.globalRoles')}
+                  help={t('tenantsPage.help.globalRoles')}
                 />
               }
               value={editGlobalRoles}
               onChange={onEditGlobalRolesChange}
               searchable={false}
-              data={[{ value: 'super_admin', label: 'Super admin' }]}
+              data={[
+                {
+                  value: 'super_admin',
+                  label: t('tenantsPage.superAdmin'),
+                },
+              ]}
             />
             <Group justify="space-between">
               <Button
@@ -1692,10 +1771,10 @@ export function TenantsPage() {
                 type="button"
                 variant="light"
               >
-                Cancel
+                {t('tenantsPage.cancel')}
               </Button>
               <Button loading={isUpdateGlobalRolesPending} type="submit">
-                Save global access
+                {t('tenantsPage.saveGlobalAccess')}
               </Button>
             </Group>
           </Stack>
@@ -1707,32 +1786,30 @@ export function TenantsPage() {
         onClose={onCloseEditIntegrationClient}
         title={
           selectedIntegrationClient
-            ? 'Edit integration client'
-            : 'Add integration client'
+            ? t('tenantsPage.editIntegrationClient')
+            : t('tenantsPage.addIntegrationClient')
         }
       >
         <form onSubmit={handleUpsertTenantIntegrationClientSubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Technical clients are tenant-bound roots of trust for Open WebUI
-              and similar integrations. Scopes stay narrow by default.
+              {t('tenantsPage.technicalClientsAreTenantBoundRootsOf')}
             </Text>
             {!editIntegrationClientTrustedForwardedIdentityEnabled &&
             !editIntegrationClientDefaultUserUuid ? (
-              <Alert color="teal" title="Service identity only">
-                The integration client itself is the authenticated service
-                principal. No human user is associated with its requests.
+              <Alert color="teal" title={t('tenantsPage.serviceIdentityOnly')}>
+                {t('tenantsPage.theIntegrationClientItselfIsTheAuthenticated')}
               </Alert>
             ) : null}
             <TextInput
               disabled={Boolean(selectedIntegrationClient)}
               label={
                 <FieldLabel
-                  label="Client ID"
-                  help="Stable technical identifier for this integration client. It is part of the trust boundary and should not be changed casually."
+                  label={t('tenantsPage.clientID')}
+                  help={t('tenantsPage.help.clientId')}
                 />
               }
-              placeholder="open-webui-demo"
+              placeholder={t('tenantsPage.openWebuiDemo')}
               value={editIntegrationClientId}
               onChange={(event) =>
                 onEditIntegrationClientIdChange(event.currentTarget.value)
@@ -1741,11 +1818,11 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Display name"
-                  help="Friendly name shown to operators for this technical client."
+                  label={t('tenantsPage.displayName')}
+                  help={t('tenantsPage.help.clientDisplayName')}
                 />
               }
-              placeholder="Open WebUI Demo"
+              placeholder={t('tenantsPage.openWebUIDemo')}
               value={editIntegrationClientDisplayName}
               onChange={(event) =>
                 onEditIntegrationClientDisplayNameChange(
@@ -1756,11 +1833,11 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Application ID"
-                  help="Human-readable application grouping such as open-webui or creative-studio."
+                  label={t('tenantsPage.applicationID')}
+                  help={t('tenantsPage.help.applicationId')}
                 />
               }
-              placeholder="open-webui"
+              placeholder={t('tenantsPage.openWebui')}
               value={editIntegrationClientApplicationId}
               onChange={(event) =>
                 onEditIntegrationClientApplicationIdChange(
@@ -1773,11 +1850,11 @@ export function TenantsPage() {
               searchable
               label={
                 <FieldLabel
-                  label="Default user"
-                  help="Optional fallback used only when no validated delegated user is supplied. Leave empty for a service-only client."
+                  label={t('tenantsPage.defaultUser')}
+                  help={t('tenantsPage.help.defaultUser')}
                 />
               }
-              placeholder="None - use service identity"
+              placeholder={t('tenantsPage.noneUseServiceIdentity')}
               data={integrationClientMemberOptions}
               value={editIntegrationClientDefaultUserUuid || null}
               onChange={(value) =>
@@ -1787,8 +1864,8 @@ export function TenantsPage() {
             <MultiSelect
               label={
                 <FieldLabel
-                  label="Scopes"
-                  help="Capabilities this technical client may call through the gateway. Keep this as narrow as practical."
+                  label={t('tenantsPage.scopes2')}
+                  help={t('tenantsPage.help.clientScopes')}
                 />
               }
               searchable={false}
@@ -1803,11 +1880,11 @@ export function TenantsPage() {
               checked={editIntegrationClientTrustedForwardedIdentityEnabled}
               label={
                 <FieldLabel
-                  label="Trust forwarded human identity"
-                  help="Allows a validated delegated user to supplement the service caller. The integration client remains attributable as the technical caller."
+                  label={t('tenantsPage.trustForwardedHumanIdentity')}
+                  help={t('tenantsPage.help.forwardedIdentity')}
                 />
               }
-              description="Only enable this behind a trusted proxy boundary."
+              description={t('tenantsPage.onlyEnableThisBehindATrustedProxy')}
               onChange={(event) =>
                 onEditIntegrationClientTrustedForwardedIdentityEnabledChange(
                   event.currentTarget.checked,
@@ -1818,15 +1895,15 @@ export function TenantsPage() {
               <Select
                 label={
                   <FieldLabel
-                    label="Status"
-                    help="Disabled technical clients can remain defined without being able to authenticate."
+                    label={t('tenantsPage.status')}
+                    help={t('tenantsPage.help.clientStatus')}
                   />
                 }
                 value={editIntegrationClientStatus}
                 onChange={onEditIntegrationClientStatusChange}
                 data={[
-                  { value: 'active', label: 'Active' },
-                  { value: 'disabled', label: 'Disabled' },
+                  { value: 'active', label: t('tenantsPage.active') },
+                  { value: 'disabled', label: t('tenantsPage.disabled') },
                 ]}
               />
             ) : null}
@@ -1836,7 +1913,7 @@ export function TenantsPage() {
                 type="button"
                 variant="light"
               >
-                Cancel
+                {t('tenantsPage.cancel')}
               </Button>
               <Button
                 loading={
@@ -1851,7 +1928,9 @@ export function TenantsPage() {
                     !editIntegrationClientId.trim())
                 }
               >
-                {selectedIntegrationClient ? 'Save client' : 'Create client'}
+                {selectedIntegrationClient
+                  ? t('tenantsPage.saveClient')
+                  : t('tenantsPage.createClient')}
               </Button>
             </Group>
           </Stack>
@@ -1861,13 +1940,16 @@ export function TenantsPage() {
       <Modal
         opened={editIntegrationApiKeyOpened}
         onClose={onCloseEditIntegrationApiKey}
-        title={selectedIntegrationApiKey ? 'Edit API key' : 'Create API key'}
+        title={
+          selectedIntegrationApiKey
+            ? t('tenantsPage.editApiKey')
+            : t('tenantsPage.createApiKey')
+        }
       >
         <form onSubmit={handleUpsertTenantIntegrationApiKeySubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              API keys inherit tenant isolation from their integration client
-              and can be narrowed further with their own scope set.
+              {t('tenantsPage.apiKeysInheritTenantIsolationFromTheir')}
             </Text>
             {selectedIntegrationClient ? (
               <div>
@@ -1880,11 +1962,11 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Label"
-                  help="Operator-friendly name for this secret, such as primary, staging, or rotated-2026-05."
+                  label={t('tenantsPage.label')}
+                  help={t('tenantsPage.help.keyLabel')}
                 />
               }
-              placeholder="Primary key"
+              placeholder={t('tenantsPage.primaryKey')}
               value={editIntegrationApiKeyLabel}
               onChange={(event) =>
                 onEditIntegrationApiKeyLabelChange(event.currentTarget.value)
@@ -1893,11 +1975,13 @@ export function TenantsPage() {
             <MultiSelect
               label={
                 <FieldLabel
-                  label="Scopes"
-                  help="Delegated subset for this key. The API copies the client ceiling only when scopes are omitted; an explicit empty selection grants no capability."
+                  label={t('tenantsPage.scopes2')}
+                  help={t('tenantsPage.help.keyScopes')}
                 />
               }
-              description="Select the delegated subset. New keys default to the client ceiling when scopes are omitted by the API."
+              description={t(
+                'tenantsPage.selectTheDelegatedSubsetNewKeysDefault',
+              )}
               searchable={false}
               value={editIntegrationApiKeyScopes}
               onChange={onEditIntegrationApiKeyScopesChange}
@@ -1909,8 +1993,8 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Expires at"
-                  help="Optional expiry date and time after which this API key should no longer authenticate."
+                  label={t('tenantsPage.expiresAt')}
+                  help={t('tenantsPage.help.keyExpiry')}
                 />
               }
               type="datetime-local"
@@ -1925,22 +2009,27 @@ export function TenantsPage() {
               <Select
                 label={
                   <FieldLabel
-                    label="Status"
-                    help="Disabled keys remain auditable but can no longer be used."
+                    label={t('tenantsPage.status')}
+                    help={t('tenantsPage.help.keyStatus')}
                   />
                 }
                 value={editIntegrationApiKeyStatus}
                 onChange={onEditIntegrationApiKeyStatusChange}
                 data={[
-                  { value: 'active', label: 'Active' },
-                  { value: 'disabled', label: 'Disabled' },
+                  { value: 'active', label: t('tenantsPage.active') },
+                  { value: 'disabled', label: t('tenantsPage.disabled') },
                 ]}
               />
             ) : null}
             {selectedIntegrationApiKey ? (
-              <Alert color="blue" variant="light" title="Rotation">
-                Rotation invalidates the previous secret and reveals a new one
-                once.
+              <Alert
+                color="blue"
+                variant="light"
+                title={t('tenantsPage.rotation')}
+              >
+                {t(
+                  'tenantsPage.rotationInvalidatesThePreviousSecretAndReveals',
+                )}
               </Alert>
             ) : null}
             <Group justify="space-between">
@@ -1950,7 +2039,7 @@ export function TenantsPage() {
                   type="button"
                   variant="light"
                 >
-                  Cancel
+                  {t('tenantsPage.cancel')}
                 </Button>
                 {selectedIntegrationApiKey ? (
                   <Button
@@ -1959,7 +2048,7 @@ export function TenantsPage() {
                     loading={isRotateTenantIntegrationApiKeyPending}
                     onClick={handleRotateTenantIntegrationApiKey}
                   >
-                    Rotate key
+                    {t('tenantsPage.rotateKey')}
                   </Button>
                 ) : null}
               </Group>
@@ -1971,7 +2060,9 @@ export function TenantsPage() {
                 type="submit"
                 disabled={!editIntegrationApiKeyLabel.trim()}
               >
-                {selectedIntegrationApiKey ? 'Save key' : 'Create key'}
+                {selectedIntegrationApiKey
+                  ? t('tenantsPage.saveKey')
+                  : t('tenantsPage.createKey')}
               </Button>
             </Group>
           </Stack>
@@ -1983,21 +2074,20 @@ export function TenantsPage() {
         onClose={onCloseEditModelAccessRule}
         title={
           selectedModelAccessRule
-            ? 'Edit model access rule'
-            : 'Add model access rule'
+            ? t('tenantsPage.editModelAccessRule')
+            : t('tenantsPage.addModelAccessRule')
         }
       >
         <form onSubmit={handleUpsertTenantModelAccessRuleSubmit}>
           <Stack gap="md">
             <Text size="sm" c="dimmed">
-              Rules are evaluated by descending priority. At equal priority,
-              `deny` wins over `allow`.
+              {t('tenantsPage.rulesAreEvaluatedByDescendingPriorityAt')}
             </Text>
             <Select
               label={
                 <FieldLabel
-                  label="Provider"
-                  help="The provider family this rule applies to, such as OpenAI or OpenRouter."
+                  label={t('tenantsPage.provider')}
+                  help={t('tenantsPage.help.ruleProvider')}
                 />
               }
               value={editModelRuleProviderId}
@@ -2016,11 +2106,11 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Model pattern"
-                  help="Pattern matched against provider model IDs, for example meta-llama/* or gpt-4.1."
+                  label={t('tenantsPage.modelPattern')}
+                  help={t('tenantsPage.help.modelPattern')}
                 />
               }
-              placeholder="meta-llama/*"
+              placeholder={t('tenantsPage.metaLlama')}
               value={editModelRulePattern}
               onChange={(event) =>
                 onEditModelRulePatternChange(event.currentTarget.value)
@@ -2030,40 +2120,43 @@ export function TenantsPage() {
               <Select
                 label={
                   <FieldLabel
-                    label="Capability"
-                    help="The capability surface this rule governs, such as text or image."
+                    label={t('tenantsPage.capability')}
+                    help={t('tenantsPage.help.ruleCapability')}
                   />
                 }
                 value={editModelRuleCapability}
                 onChange={onEditModelRuleCapabilityChange}
                 data={[
-                  { value: 'text', label: 'Text' },
-                  { value: 'image', label: 'Image' },
+                  { value: 'text', label: t('tenantsPage.textCapability') },
+                  { value: 'image', label: t('tenantsPage.imageCapability') },
                   { value: 'stt', label: 'STT' },
                   { value: 'tts', label: 'TTS' },
-                  { value: 'embedding', label: 'Embedding' },
+                  {
+                    value: 'embedding',
+                    label: t('tenantsPage.embedding'),
+                  },
                 ]}
               />
               <Select
                 label={
                   <FieldLabel
-                    label="Effect"
-                    help="Allow grants access when matched. Deny blocks access and wins ties at the same priority."
+                    label={t('tenantsPage.effect')}
+                    help={t('tenantsPage.help.ruleEffect')}
                   />
                 }
                 value={editModelRuleEffect}
                 onChange={onEditModelRuleEffectChange}
                 data={[
-                  { value: 'allow', label: 'Allow' },
-                  { value: 'deny', label: 'Deny' },
+                  { value: 'allow', label: t('tenantsPage.allow') },
+                  { value: 'deny', label: t('tenantsPage.deny') },
                 ]}
               />
             </Group>
             <TextInput
               label={
                 <FieldLabel
-                  label="Priority"
-                  help="Rules are evaluated by descending priority. Higher numbers win first."
+                  label={t('tenantsPage.priority')}
+                  help={t('tenantsPage.help.rulePriority')}
                 />
               }
               value={editModelRulePriority}
@@ -2073,14 +2166,14 @@ export function TenantsPage() {
             />
             <Group grow>
               <TextInput
-                label="Max input tokens"
+                label={t('tenantsPage.maxInputTokens')}
                 value={editModelRuleMaxInputTokens}
                 onChange={(event) =>
                   onEditModelRuleMaxInputTokensChange(event.currentTarget.value)
                 }
               />
               <TextInput
-                label="Max output tokens"
+                label={t('tenantsPage.maxOutputTokens')}
                 value={editModelRuleMaxOutputTokens}
                 onChange={(event) =>
                   onEditModelRuleMaxOutputTokensChange(
@@ -2091,7 +2184,7 @@ export function TenantsPage() {
             </Group>
             <Group grow>
               <TextInput
-                label="Max images / request"
+                label={t('tenantsPage.maxImagesRequest')}
                 value={editModelRuleMaxImagesPerRequest}
                 onChange={(event) =>
                   onEditModelRuleMaxImagesPerRequestChange(
@@ -2100,7 +2193,7 @@ export function TenantsPage() {
                 }
               />
               <TextInput
-                label="Max resolution"
+                label={t('tenantsPage.maxResolution')}
                 placeholder="1024x1024"
                 value={editModelRuleMaxResolution}
                 onChange={(event) =>
@@ -2115,7 +2208,7 @@ export function TenantsPage() {
                   type="button"
                   variant="light"
                 >
-                  Cancel
+                  {t('tenantsPage.cancel')}
                 </Button>
                 {selectedModelAccessRule ? (
                   <Button
@@ -2125,7 +2218,7 @@ export function TenantsPage() {
                     loading={isDeleteTenantModelAccessRulePending}
                     onClick={handleDeleteTenantModelAccessRule}
                   >
-                    Delete
+                    {t('tenantsPage.delete')}
                   </Button>
                 ) : null}
               </Group>
@@ -2137,7 +2230,9 @@ export function TenantsPage() {
                 type="submit"
                 disabled={!editModelRulePattern.trim()}
               >
-                {selectedModelAccessRule ? 'Save rule' : 'Create rule'}
+                {selectedModelAccessRule
+                  ? t('tenantsPage.saveRule')
+                  : t('tenantsPage.createRule')}
               </Button>
             </Group>
           </Stack>
@@ -2147,7 +2242,7 @@ export function TenantsPage() {
       <Modal
         opened={editProviderConfigurationOpened}
         onClose={onCloseEditProviderConfiguration}
-        title="Provider configuration"
+        title={t('tenantsPage.providerConfiguration')}
       >
         <form onSubmit={handleUpdateTenantProviderConfigurationSubmit}>
           <Stack gap="md">
@@ -2165,10 +2260,13 @@ export function TenantsPage() {
               <Stack gap="sm">
                 <Group justify="space-between" align="flex-start">
                   <div>
-                    <Text fw={700}>Tenant provider credential</Text>
+                    <Text fw={700}>
+                      {t('tenantsPage.tenantProviderCredential')}
+                    </Text>
                     <Text size="sm" c="dimmed">
-                      Encrypted credential used by service-only workloads for
-                      this tenant and provider.
+                      {t(
+                        'tenantsPage.encryptedCredentialUsedByServiceOnlyWorkloads',
+                      )}
                     </Text>
                   </div>
                   <Badge
@@ -2176,22 +2274,23 @@ export function TenantsPage() {
                     variant="light"
                   >
                     {selectedTenantProviderCredential
-                      ? 'Configured'
-                      : 'Not configured'}
+                      ? t('tenantsPage.configured')
+                      : t('tenantsPage.notConfigured')}
                   </Badge>
                 </Group>
                 {selectedTenantProviderCredential ? (
                   <Text size="sm">
-                    Scope: TENANT · Hint:{' '}
-                    {selectedTenantProviderCredential.maskedHint ?? 'hidden'} ·
-                    Status:{' '}
+                    {t('tenantsPage.scopeTENANTHint')}{' '}
+                    {selectedTenantProviderCredential.maskedHint ??
+                      t('tenantsPage.hidden')}{' '}
+                    {t('tenantsPage.status2')}{' '}
                     {selectedTenantProviderCredential.isActive
-                      ? 'Active'
-                      : 'Disabled'}
+                      ? t('tenantsPage.active')
+                      : t('tenantsPage.disabled')}
                   </Text>
                 ) : null}
                 <TextInput
-                  label="Credential label"
+                  label={t('tenantsPage.credentialLabel')}
                   value={tenantCredentialLabel}
                   onChange={(event) =>
                     onTenantCredentialLabelChange(event.currentTarget.value)
@@ -2200,13 +2299,13 @@ export function TenantsPage() {
                 <PasswordInput
                   label={
                     selectedTenantProviderCredential
-                      ? 'Replacement API token (optional)'
-                      : 'API token'
+                      ? t('tenantsPage.replacementApiToken')
+                      : t('tenantsPage.apiToken')
                   }
                   description={
                     selectedTenantProviderCredential
-                      ? 'Leave empty to keep the existing encrypted token.'
-                      : 'Stored encrypted and never returned to the browser.'
+                      ? t('tenantsPage.keepEncryptedToken')
+                      : t('tenantsPage.encryptedNeverReturned')
                   }
                   value={tenantCredentialApiToken}
                   onChange={(event) =>
@@ -2214,8 +2313,8 @@ export function TenantsPage() {
                   }
                 />
                 <TextInput
-                  label="Provider base URL (optional)"
-                  description="Use for a custom or local provider endpoint. Runtime secrets do not belong in environment variables."
+                  label={t('tenantsPage.providerBaseURLOptional')}
+                  description={t('tenantsPage.useForACustomOrLocalProvider')}
                   value={tenantCredentialBaseUrl}
                   onChange={(event) =>
                     onTenantCredentialBaseUrlChange(event.currentTarget.value)
@@ -2231,8 +2330,8 @@ export function TenantsPage() {
                         onClick={handleToggleTenantProviderCredential}
                       >
                         {selectedTenantProviderCredential.isActive
-                          ? 'Disable'
-                          : 'Enable'}
+                          ? t('tenantsPage.disable')
+                          : t('tenantsPage.enable')}
                       </Button>
                       <Button
                         color="red"
@@ -2241,7 +2340,7 @@ export function TenantsPage() {
                         loading={isDeleteTenantProviderCredentialPending}
                         onClick={handleDeleteTenantProviderCredential}
                       >
-                        Delete credential
+                        {t('tenantsPage.deleteCredential')}
                       </Button>
                     </Group>
                   ) : (
@@ -2259,8 +2358,8 @@ export function TenantsPage() {
                     onClick={handleSaveTenantProviderCredential}
                   >
                     {selectedTenantProviderCredential
-                      ? 'Update credential'
-                      : 'Save credential'}
+                      ? t('tenantsPage.updateCredential')
+                      : t('tenantsPage.saveCredential')}
                   </Button>
                 </Group>
               </Stack>
@@ -2269,8 +2368,8 @@ export function TenantsPage() {
               checked={editProviderEnabled}
               label={
                 <FieldLabel
-                  label="Provider enabled for this tenant"
-                  help="Turns this provider on or off for the selected tenant, regardless of platform availability."
+                  label={t('tenantsPage.providerEnabledForThisTenant')}
+                  help={t('tenantsPage.providerEnabledHelp')}
                 />
               }
               onChange={(event) =>
@@ -2280,25 +2379,28 @@ export function TenantsPage() {
             <Select
               label={
                 <FieldLabel
-                  label="Credential mode"
-                  help="Defines whether this tenant resolves credentials from platform defaults, tenant BYOK, user BYOK, or a hybrid chain."
+                  label={t('tenantsPage.credentialMode')}
+                  help={t('tenantsPage.credentialModeHelp')}
                 />
               }
               value={editProviderCredentialMode}
               onChange={onEditProviderCredentialModeChange}
               data={[
-                { value: 'hybrid', label: 'Hybrid' },
-                { value: 'tenant_byok', label: 'Tenant BYOK' },
-                { value: 'user_byok', label: 'User BYOK' },
-                { value: 'platform_default', label: 'Platform default' },
+                { value: 'hybrid', label: t('tenantsPage.hybrid') },
+                { value: 'tenant_byok', label: t('tenantsPage.tenantByok') },
+                { value: 'user_byok', label: t('tenantsPage.userByok') },
+                {
+                  value: 'platform_default',
+                  label: t('tenantsPage.platformDefault'),
+                },
               ]}
             />
             <Switch
               checked={editProviderPreferUserCredentials}
               label={
                 <FieldLabel
-                  label="Prefer user credentials"
-                  help="When hybrid resolution is active, try user BYOK credentials before tenant defaults."
+                  label={t('tenantsPage.preferUserCredentials')}
+                  help={t('tenantsPage.preferUserCredentialsHelp')}
                 />
               }
               disabled={
@@ -2316,8 +2418,8 @@ export function TenantsPage() {
               checked={editProviderAllowTenantFallback}
               label={
                 <FieldLabel
-                  label="Allow tenant fallback"
-                  help="If user credentials are missing or not allowed, fall back to a tenant-scoped credential when possible."
+                  label={t('tenantsPage.allowTenantFallback')}
+                  help={t('tenantsPage.allowTenantFallbackHelp')}
                 />
               }
               disabled={
@@ -2334,8 +2436,8 @@ export function TenantsPage() {
               checked={editProviderAllowPlatformFallback}
               label={
                 <FieldLabel
-                  label="Allow platform fallback"
-                  help="Legacy interactive-request policy. Structured Evaluation service identities ignore this setting and require a tenant credential."
+                  label={t('tenantsPage.allowPlatformFallback')}
+                  help={t('tenantsPage.allowPlatformFallbackHelp')}
                 />
               }
               disabled={editProviderCredentialMode === 'platform_default'}
@@ -2348,11 +2450,11 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Default text model"
-                  help="Tenant default model used for text generation when the caller does not specify one."
+                  label={t('tenantsPage.defaultTextModel')}
+                  help={t('tenantsPage.defaultTextModelHelp')}
                 />
               }
-              placeholder="openai/gpt-4.1"
+              placeholder={t('tenantsPage.openaiGpt41')}
               value={editProviderDefaultTextModel}
               onChange={(event) =>
                 onEditProviderDefaultTextModelChange(event.currentTarget.value)
@@ -2361,11 +2463,11 @@ export function TenantsPage() {
             <TextInput
               label={
                 <FieldLabel
-                  label="Default image model"
-                  help="Tenant default model used for image generation or edits when the caller does not specify one."
+                  label={t('tenantsPage.defaultImageModel')}
+                  help={t('tenantsPage.defaultImageModelHelp')}
                 />
               }
-              placeholder="gpt-image-1"
+              placeholder={t('tenantsPage.gptImage1')}
               value={editProviderDefaultImageModel}
               onChange={(event) =>
                 onEditProviderDefaultImageModelChange(event.currentTarget.value)
@@ -2379,7 +2481,7 @@ export function TenantsPage() {
                     : 'yellow'
                 }
                 variant="light"
-                title="Resolution preview"
+                title={t('tenantsPage.resolutionPreview')}
               >
                 {testTenantProviderConfigurationResult.message}
               </Alert>
@@ -2391,7 +2493,7 @@ export function TenantsPage() {
                 loading={isTestTenantProviderConfigurationPending}
                 onClick={handleTestTenantProviderConfiguration}
               >
-                Test configuration
+                {t('tenantsPage.testConfiguration')}
               </Button>
               <Group gap="sm">
                 <Button
@@ -2399,13 +2501,13 @@ export function TenantsPage() {
                   type="button"
                   variant="light"
                 >
-                  Cancel
+                  {t('tenantsPage.cancel')}
                 </Button>
                 <Button
                   loading={isUpdateTenantProviderConfigurationPending}
                   type="submit"
                 >
-                  Save configuration
+                  {t('tenantsPage.saveConfiguration')}
                 </Button>
               </Group>
             </Group>

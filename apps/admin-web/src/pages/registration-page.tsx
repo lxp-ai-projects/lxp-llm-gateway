@@ -10,10 +10,12 @@ import {
 } from '@mantine/core';
 import { IconUserOff } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 
 export function RegistrationPage() {
+  const { t } = useTranslation('pages');
   const runtimeConfigQuery = useRuntimeConfig();
 
   return (
@@ -22,25 +24,24 @@ export function RegistrationPage() {
         <Card className="hero-card">
           <Stack gap="lg">
             <div>
-              <Text className="page-kicker">Registration</Text>
-              <Title order={1}>Create account</Title>
+              <Text className="page-kicker">{t('pending.registrationKicker')}</Text>
+              <Title order={1}>{t('pending.registrationTitle')}</Title>
             </div>
             {runtimeConfigQuery.data?.registrationEnabled ? (
-              <Alert color="blue" title="Backend flow pending">
-                Self-registration is enabled by runtime config, but the backend
-                registration workflow still needs to be implemented.
+              <Alert color="blue" title={t('pending.backendFlow')}>
+                {t('pending.registrationPending')}
               </Alert>
             ) : (
               <Alert
                 color="red"
                 icon={<IconUserOff size={18} />}
-                title="Disabled by configuration"
+                title={t('pending.disabledTitle')}
               >
-                Registration is currently disabled for this deployment.
+                {t('pending.registrationDisabled')}
               </Alert>
             )}
             <Button component={Link} to="/login" variant="light">
-              Back to login
+              {t('legal.back')}
             </Button>
           </Stack>
         </Card>

@@ -1,5 +1,6 @@
 import { Alert, Button } from '@mantine/core';
 import { IconUsersGroup } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 
 import { CreateUserModal } from '../features/users/components/create-user-modal';
 import { ProviderCredentialsModal } from '../features/users/components/provider-credentials-modal';
@@ -10,6 +11,7 @@ import { getActiveTenantLabel } from '../lib/tenant-context';
 import { useSession } from '../lib/use-session';
 
 export function UsersPage() {
+  const { t } = useTranslation('pages');
   const sessionQuery = useSession();
   const {
     createDisplayName,
@@ -39,12 +41,12 @@ export function UsersPage() {
   return (
     <>
       <PageHeader
-        title="User Management"
-        description="Administrative user controls for search, lifecycle management, role assignment, and password reset workflows."
+        title={t('users.title')}
+        description={t('users.description')}
         context={getActiveTenantLabel(sessionQuery.data)}
         aside={
           <Button data-testid="users-create-open" onClick={onOpenCreateUser}>
-            Create user
+            {t('users.create')}
           </Button>
         }
       />
@@ -59,11 +61,9 @@ export function UsersPage() {
         color="blue"
         icon={<IconUsersGroup size={18} />}
         mt="lg"
-        title="Backend dependency"
+        title={t('users.dependencyTitle')}
       >
-        User listing and basic lifecycle editing are now connected. Role
-        reassignment, pagination, primary-admin transfer, and password reset
-        flow still need deeper backend support.
+        {t('users.dependencyDescription')}
       </Alert>
       <CreateUserModal
         createDisplayName={createDisplayName}

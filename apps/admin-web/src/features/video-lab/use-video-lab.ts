@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   normalizeVideoGenerationMode,
   validateVideoRequestAgainstFamily,
 } from '@lxp/model-family-capabilities';
 
 import { adminApiUrl, gatewayApiClient } from '../../lib/api-client';
+import { getLocalizedErrorMessage } from '../../i18n/errors';
 import type {
   GatewayImageAssetSummary,
   GatewayVideoGenerationJob,
@@ -33,7 +35,14 @@ type VideoLabDraft = {
   activeJobId?: string;
 };
 
+class VideoLabValidationError extends Error {
+  constructor(readonly translationKey: string) {
+    super(translationKey);
+  }
+}
+
 export function useVideoLab() {
+  const { t } = useTranslation('video');
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const storedDraftRef = useRef<VideoLabDraft>(readStoredVideoLabDraft());
@@ -70,9 +79,8 @@ export function useVideoLab() {
   const [activeJobId, setActiveJobId] = useState<string | null>(
     () => storedDraftRef.current.activeJobId ?? null,
   );
-  const [submittedJob, setSubmittedJob] = useState<GatewayVideoGenerationJob | null>(
-    null,
-  );
+  const [submittedJob, setSubmittedJob] =
+    useState<GatewayVideoGenerationJob | null>(null);
   const [renderNowMs, setRenderNowMs] = useState(() => Date.now());
 
   const catalogQuery = useQuery({
@@ -124,7 +132,9 @@ export function useVideoLab() {
   const models: VideoModelSummary[] = (selectedProvider?.models ?? [])
     .slice()
     .sort((left, right) =>
-      (left.displayName || left.id).localeCompare(right.displayName || right.id),
+      (left.displayName || left.id).localeCompare(
+        right.displayName || right.id,
+      ),
     );
   const selectedModel = models.find((model) => model.id === modelId);
   const capabilities = selectedModel?.capabilities;
@@ -184,11 +194,19 @@ export function useVideoLab() {
   );
   const activeRenderStartedAtMs = resolveActiveRenderStartedAtMs(activeJob);
   const currentRenderElapsedMs =
-    activeRenderStartedAtMs === null ? 0 : Math.max(0, renderNowMs - activeRenderStartedAtMs);
+    activeRenderStartedAtMs === null
+      ? 0
+      : Math.max(0, renderNowMs - activeRenderStartedAtMs);
   const currentRenderProgressPercent =
     activeRenderStartedAtMs === null || !renderStats.estimatedDurationMs
       ? null
-      : Math.min(99, Math.max(0, (currentRenderElapsedMs / renderStats.estimatedDurationMs) * 100));
+      : Math.min(
+          99,
+          Math.max(
+            0,
+            (currentRenderElapsedMs / renderStats.estimatedDurationMs) * 100,
+          ),
+        );
 
   function buildRequestFromForm(): GatewayVideoRetryRequest {
     return {
@@ -313,11 +331,15 @@ export function useVideoLab() {
         sanitizeRetryRequest(requestOverride) ?? buildRequestFromForm();
 
       if (!request.prompt.trim()) {
-        throw new Error('A prompt is required.');
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.promptRequired',
+        );
       }
 
       if (!request.model?.trim()) {
-        throw new Error('A video model must be selected.');
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.modelRequired',
+        );
       }
 
       const retryProviderId =
@@ -340,14 +362,18 @@ export function useVideoLab() {
         retryFamily,
       );
 
-      if ((request.referenceImages?.length ?? 0) > 0 && !retrySupportsReferenceImages) {
-        throw new Error('This model does not support reference images.');
+      if (
+        (request.referenceImages?.length ?? 0) > 0 &&
+        !retrySupportsReferenceImages
+      ) {
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.referenceImagesUnsupported',
+        );
       }
 
       if (retryFamily && !retryFamilyValidation.ok) {
-        throw new Error(
-          retryFamilyValidation.issues[0]?.message ??
-            'This request is not supported by the selected model family.',
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.modelFamilyUnsupported',
         );
       }
 
@@ -370,7 +396,9 @@ export function useVideoLab() {
     },
     onError: (error) => {
       setRequestError(
-        error instanceof Error ? error.message : 'The video request failed.',
+        error instanceof VideoLabValidationError
+          ? t(error.translationKey)
+          : getLocalizedErrorMessage(error),
       );
     },
   });
@@ -382,9 +410,7 @@ export function useVideoLab() {
       void queryClient.invalidateQueries({ queryKey: ['video-history'] });
     },
     onError: (error) => {
-      setRequestError(
-        error instanceof Error ? error.message : 'The cancellation request failed.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     },
   });
 
@@ -406,17 +432,19 @@ export function useVideoLab() {
         return {
           ...current,
           outputs: current.outputs.map((output) =>
-            output.assetId === response.asset.assetId ? { ...output, ...response.asset } : output,
+            output.assetId === response.asset.assetId
+              ? { ...output, ...response.asset }
+              : output,
           ),
         };
       });
-      void queryClient.invalidateQueries({ queryKey: ['video-job', activeJobId] });
+      void queryClient.invalidateQueries({
+        queryKey: ['video-job', activeJobId],
+      });
       void queryClient.invalidateQueries({ queryKey: ['video-history'] });
     },
     onError: (error) => {
-      setRequestError(
-        error instanceof Error ? error.message : 'The video save request failed.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     },
   });
 
@@ -430,9 +458,7 @@ export function useVideoLab() {
       void queryClient.invalidateQueries({ queryKey: ['video-job', jobId] });
     },
     onError: (error) => {
-      setRequestError(
-        error instanceof Error ? error.message : 'The delete request failed.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     },
   });
 
@@ -458,9 +484,7 @@ export function useVideoLab() {
         [...current, ...nextReferences].slice(0, maxReferenceImages),
       );
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : 'Image upload failed.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     }
   }
 
@@ -516,9 +540,7 @@ export function useVideoLab() {
 
       setReferenceUrl('');
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : 'Image reference could not be added.',
-      );
+      setRequestError(getLocalizedErrorMessage(error));
     }
   }
 
@@ -527,13 +549,17 @@ export function useVideoLab() {
     setReferences((current) => {
       if (
         current.some(
-          (reference) => reference.kind === 'asset' && reference.assetId === asset.id,
+          (reference) =>
+            reference.kind === 'asset' && reference.assetId === asset.id,
         )
       ) {
         return current;
       }
 
-      return [...current, mapAssetReference(asset)].slice(0, maxReferenceImages);
+      return [...current, mapAssetReference(asset)].slice(
+        0,
+        maxReferenceImages,
+      );
     });
   }
 
@@ -549,7 +575,9 @@ export function useVideoLab() {
     setActiveJobId(job.id);
   }
 
-  function applyRetryRequestToForm(request: GatewayVideoRetryRequest | undefined) {
+  function applyRetryRequestToForm(
+    request: GatewayVideoRetryRequest | undefined,
+  ) {
     if (!request) {
       return;
     }
@@ -569,7 +597,10 @@ export function useVideoLab() {
     setGenerateAudio(request.generateAudio ?? false);
     setReferenceUrl('');
     setReferences(
-      mapRetryReferences(request.referenceImages, assetsQuery.data?.items ?? []),
+      mapRetryReferences(
+        request.referenceImages,
+        assetsQuery.data?.items ?? [],
+      ),
     );
   }
 
@@ -687,8 +718,8 @@ function resolveVideoRenderStats(
     sortedDurations.length % 2 === 1
       ? sortedDurations[middleIndex]
       : Math.round(
-        (sortedDurations[middleIndex - 1] + sortedDurations[middleIndex]) / 2,
-      );
+          (sortedDurations[middleIndex - 1] + sortedDurations[middleIndex]) / 2,
+        );
 
   return {
     estimatedDurationMs,
@@ -711,7 +742,9 @@ function parseNumericValue(value: string) {
   return Number.isFinite(parsedValue) ? parsedValue : undefined;
 }
 
-function mapAssetReference(asset: GatewayImageAssetSummary): VideoReferenceDraft {
+function mapAssetReference(
+  asset: GatewayImageAssetSummary,
+): VideoReferenceDraft {
   return {
     id: createClientId(),
     kind: 'asset',
@@ -816,9 +849,7 @@ function resolveGatewayMediaUrl(value: string) {
 
 function isTerminalStatus(status: GatewayVideoGenerationJob['status']) {
   return (
-    status === 'succeeded' ||
-    status === 'failed' ||
-    status === 'cancelled'
+    status === 'succeeded' || status === 'failed' || status === 'cancelled'
   );
 }
 
@@ -834,7 +865,10 @@ function resolveActiveJob(
     return submittedJob;
   }
 
-  if (isTerminalStatus(submittedJob.status) && !isTerminalStatus(polledJob.status)) {
+  if (
+    isTerminalStatus(submittedJob.status) &&
+    !isTerminalStatus(polledJob.status)
+  ) {
     return submittedJob;
   }
 
@@ -877,9 +911,3 @@ function writeStoredVideoLabDraft(draft: VideoLabDraft) {
     // Ignore storage failures so the lab remains usable in restricted browsers.
   }
 }
-
-
-
-
-
-

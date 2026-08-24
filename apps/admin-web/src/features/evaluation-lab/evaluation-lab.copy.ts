@@ -33,8 +33,45 @@ const copy = {
     unauthorized:
       "Vous n'êtes pas autorisé à exécuter des sondes d'évaluation.",
   },
+  es: {
+    title: 'Laboratorio de evaluación',
+    profile: 'Perfil',
+    preset: 'Ejemplo / preajuste',
+    input: 'Solicitud de evaluación',
+    run: 'Ejecutar evaluación',
+    result: 'Resultado de la evaluación',
+    evidence: 'Evidencia',
+    latency: 'Latencia',
+    evaluationId: 'ID de evaluación',
+    unavailable:
+      'El proveedor de evaluación configurado no está disponible temporalmente.',
+    timeout: 'La evaluación agotó el tiempo de espera.',
+    invalidOutput: 'El proveedor devolvió evidencia estructurada no válida.',
+    unauthorized: 'No tienes autorización para ejecutar pruebas de evaluación.',
+  },
+  de: {
+    title: 'Evaluierungslabor',
+    profile: 'Profil',
+    preset: 'Beispiel / Voreinstellung',
+    input: 'Evaluierungsanfrage',
+    run: 'Evaluierung ausführen',
+    result: 'Evaluierungsergebnis',
+    evidence: 'Nachweise',
+    latency: 'Latenz',
+    evaluationId: 'Evaluierungs-ID',
+    unavailable:
+      'Der konfigurierte Evaluierungsanbieter ist vorübergehend nicht verfügbar.',
+    timeout: 'Zeitüberschreitung bei der Evaluierung.',
+    invalidOutput:
+      'Der Anbieter hat ungültige strukturierte Nachweise zurückgegeben.',
+    unauthorized:
+      'Sie sind nicht berechtigt, Evaluierungsprüfungen auszuführen.',
+  },
 } as const;
 
 export function getEvaluationLabCopy(language?: string) {
-  return copy[language?.toLowerCase().startsWith('fr') ? 'fr' : 'en'];
+  const locale = language?.toLowerCase().split(/[-_]/)[0];
+  return copy[
+    locale === 'fr' || locale === 'es' || locale === 'de' ? locale : 'en'
+  ];
 }

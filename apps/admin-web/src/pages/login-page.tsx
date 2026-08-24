@@ -1,12 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getLocalizedErrorMessage } from '../i18n/errors';
 
 import { AuthBrandPanel } from '../features/auth/components/auth-brand-panel';
 import { AuthShell } from '../features/auth/components/auth-shell';
 import { LoginFormCard } from '../features/auth/components/login-form-card';
 import {
   adminApiClient,
+  SESSION_TIMEOUT_MESSAGE_CODE,
   SESSION_TIMEOUT_MESSAGE_STORAGE_KEY,
 } from '../lib/api-client';
 import { useRuntimeConfig } from '../lib/use-runtime-config';
@@ -31,7 +33,12 @@ export function LoginPage() {
       return;
     }
 
-    setSessionTimeoutMessage(message);
+    setSessionTimeoutMessage(
+      message === SESSION_TIMEOUT_MESSAGE_CODE ||
+        message === 'Session is timed out, you have to login again.'
+        ? getLocalizedErrorMessage({ code: SESSION_TIMEOUT_MESSAGE_CODE })
+        : message,
+    );
     window.sessionStorage.removeItem(SESSION_TIMEOUT_MESSAGE_STORAGE_KEY);
   }, []);
 
@@ -76,9 +83,7 @@ export function LoginPage() {
           isPending={loginMutation.isPending}
           loginErrorMessage={
             loginMutation.isError
-              ? loginMutation.error instanceof Error
-                ? loginMutation.error.message
-                : 'Unable to authenticate with the current credentials.'
+              ? getLocalizedErrorMessage(loginMutation.error)
               : null
           }
           onAcceptedPoliciesChange={handleAcceptedPoliciesChange}

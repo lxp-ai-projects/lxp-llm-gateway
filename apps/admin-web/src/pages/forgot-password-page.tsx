@@ -10,10 +10,12 @@ import {
 } from '@mantine/core';
 import { IconMailOff } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { useRuntimeConfig } from '../lib/use-runtime-config';
 
 export function ForgotPasswordPage() {
+  const { t } = useTranslation('pages');
   const runtimeConfigQuery = useRuntimeConfig();
 
   return (
@@ -22,28 +24,27 @@ export function ForgotPasswordPage() {
         <Card className="hero-card">
           <Stack gap="lg">
             <div>
-              <Text className="page-kicker">Account recovery</Text>
-              <Title order={1}>Forgot password</Title>
+              <Text className="page-kicker">{t('pending.recoveryKicker')}</Text>
+              <Title order={1}>{t('pending.recoveryTitle')}</Title>
               <Text c="dimmed" mt="sm">
-                This route is controlled by backend runtime configuration.
+                {t('pending.recoveryDescription')}
               </Text>
             </div>
             {runtimeConfigQuery.data?.forgotPasswordEnabled ? (
-              <Alert color="blue" title="Backend endpoint pending">
-                The UI surface is ready, but the password recovery backend flow
-                has not been implemented yet.
+              <Alert color="blue" title={t('pending.backendEndpoint')}>
+                {t('pending.recoveryPending')}
               </Alert>
             ) : (
               <Alert
                 color="red"
                 icon={<IconMailOff size={18} />}
-                title="Disabled by configuration"
+                title={t('pending.disabledTitle')}
               >
-                Forgot-password is currently disabled for this deployment.
+                {t('pending.recoveryDisabled')}
               </Alert>
             )}
             <Button component={Link} to="/login" variant="light">
-              Back to login
+              {t('legal.back')}
             </Button>
           </Stack>
         </Card>

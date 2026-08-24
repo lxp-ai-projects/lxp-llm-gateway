@@ -11,14 +11,10 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 
-function HelpLabel({
-  label,
-  help,
-}: {
-  label: string;
-  help: string;
-}) {
+function HelpLabel({ label, help }: { label: string; help: string }) {
+  const { t } = useTranslation('users');
   return (
     <Group gap={6} wrap="nowrap">
       <Text component="span" inherit>
@@ -26,7 +22,7 @@ function HelpLabel({
       </Text>
       <Tooltip label={help} multiline w={260} withArrow>
         <ActionIcon
-          aria-label={`Help for ${label}`}
+          aria-label={t('create.helpFor', { label })}
           color="gray"
           radius="xl"
           size="sm"
@@ -68,25 +64,25 @@ export function CreateUserModal({
   onRolesChange,
   onSubmit,
 }: CreateUserModalProps) {
+  const { t } = useTranslation('users');
   const isSubmitDisabled =
     !createDisplayName.trim() ||
     !createEmail.trim() ||
     createPassword.length < 8;
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Create user">
+    <Modal opened={opened} onClose={onClose} title={t('create.title')}>
       <form onSubmit={onSubmit}>
         <Stack gap="sm">
           <Text c="dimmed" size="sm">
-            Create a new platform account with the minimum credentials required
-            to sign in.
+            {t('create.description')}
           </Text>
           <TextInput
             data-testid="users-create-display-name"
             label={
               <HelpLabel
-                label="Display name"
-                help="Shown in the admin UI and used to identify the person behind this global account."
+                label={t('create.displayName')}
+                help={t('create.displayNameHelp')}
               />
             }
             onChange={(event) => onDisplayNameChange(event.currentTarget.value)}
@@ -97,8 +93,8 @@ export function CreateUserModal({
             data-testid="users-create-email"
             label={
               <HelpLabel
-                label="Email"
-                help="The global login identity. If this email already exists, the user will be attached to the tenant instead of recreated."
+                label={t('create.email')}
+                help={t('create.emailHelp')}
               />
             }
             onChange={(event) => onEmailChange(event.currentTarget.value)}
@@ -108,11 +104,11 @@ export function CreateUserModal({
           />
           <PasswordInput
             data-testid="users-create-password"
-            description="Minimum 8 characters."
+            description={t('create.passwordDescription')}
             label={
               <HelpLabel
-                label="Temporary password"
-                help="Only required when provisioning a brand-new global account. Existing users keep their current password."
+                label={t('create.temporaryPassword')}
+                help={t('create.temporaryPasswordHelp')}
               />
             }
             onChange={(event) => onPasswordChange(event.currentTarget.value)}
@@ -120,16 +116,19 @@ export function CreateUserModal({
           />
           <MultiSelect
             data={[
-              { value: 'user', label: 'User' },
-              { value: 'viewer', label: 'Viewer' },
-              { value: 'operator', label: 'Operator' },
-              { value: 'tenant_admin', label: 'Tenant admin' },
+              { value: 'user', label: t('directory.roles.user') },
+              { value: 'viewer', label: t('directory.roles.viewer') },
+              { value: 'operator', label: t('directory.roles.operator') },
+              {
+                value: 'tenant_admin',
+                label: t('directory.roles.tenant_admin'),
+              },
             ]}
             data-testid="users-create-roles"
             label={
               <HelpLabel
-                label="Roles"
-                help="Global or tenant-scoped starting roles assigned when the account is created."
+                label={t('create.roles')}
+                help={t('create.rolesHelp')}
               />
             }
             onChange={onRolesChange}
@@ -143,7 +142,7 @@ export function CreateUserModal({
               type="button"
               variant="light"
             >
-              Cancel
+              {t('create.cancel')}
             </Button>
             <Button
               data-testid="users-create-submit"
@@ -151,7 +150,7 @@ export function CreateUserModal({
               loading={isPending}
               type="submit"
             >
-              Create user
+              {t('create.submit')}
             </Button>
           </Group>
         </Stack>

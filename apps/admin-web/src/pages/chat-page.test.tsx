@@ -1340,7 +1340,7 @@ test('ChatPage imports conversations and surfaces transfer failures', async () =
   );
 
   await user.click(screen.getByLabelText('Export all conversations'));
-  expect(await screen.findByText('Archive export failed.')).toBeInTheDocument();
+  expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
 });
 
 test('ChatPage surfaces missing assistant content and interrupted reasoning streams', async () => {
@@ -1376,7 +1376,7 @@ test('ChatPage surfaces missing assistant content and interrupted reasoning stre
     'Partial{enter}',
   );
 
-  expect(await screen.findByText('Stream interrupted.')).toBeInTheDocument();
+  expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
   expect(
     await screen.findByText(
       'Assistant response was interrupted before content generation completed.',

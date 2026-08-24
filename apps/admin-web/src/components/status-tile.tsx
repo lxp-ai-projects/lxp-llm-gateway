@@ -1,5 +1,6 @@
 import { Badge, Card, Group, Stack, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type StatusTileProps = {
   label: string;
@@ -16,6 +17,7 @@ export function StatusTile({
   icon,
   description,
 }: StatusTileProps) {
+  const { t } = useTranslation('common');
   const badgeColor =
     tone === 'good' ? 'moss' : tone === 'warning' ? 'yellow' : 'ink';
 
@@ -36,7 +38,7 @@ export function StatusTile({
           ) : null}
         </Stack>
         <Badge color={badgeColor} variant="light">
-          {icon ?? 'live'}
+          {icon ?? t('status.live')}
         </Badge>
       </Group>
     </Card>

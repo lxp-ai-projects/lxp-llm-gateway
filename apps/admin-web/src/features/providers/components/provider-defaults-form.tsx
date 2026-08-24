@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ActionIcon,
   Accordion,
@@ -11,20 +12,19 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconAlertCircle, IconHelpCircle, IconSettings } from '@tabler/icons-react';
+import {
+  IconAlertCircle,
+  IconHelpCircle,
+  IconSettings,
+} from '@tabler/icons-react';
 
 import {
   getProviderCatalogPricingNote,
   getProviderModelLoadingNote,
 } from '../lib/provider-utils';
 
-function HelpLabel({
-  label,
-  help,
-}: {
-  label: string;
-  help: string;
-}) {
+function HelpLabel({ label, help }: { label: string; help: string }) {
+  const { t } = useTranslation('providers');
   return (
     <Group gap={6} wrap="nowrap">
       <Text component="span" inherit>
@@ -32,7 +32,7 @@ function HelpLabel({
       </Text>
       <Tooltip label={help} multiline w={280} withArrow>
         <ActionIcon
-          aria-label={`Help for ${label}`}
+          aria-label={t('providerDefaultsForm.helpFor', { label })}
           color="gray"
           radius="xl"
           size="sm"
@@ -93,48 +93,63 @@ export function ProviderDefaultsForm({
   onDefaultImageProviderChange,
   onSubmit,
 }: ProviderDefaultsFormProps) {
+  const { t } = useTranslation('providers');
   const pricingNote = getProviderCatalogPricingNote(defaultProviderId);
   const modelLoadingNote = getProviderModelLoadingNote(defaultProviderId);
-  const imagePricingNote = getProviderCatalogPricingNote(defaultImageProviderId);
-  const imageModelLoadingNote = getProviderModelLoadingNote(defaultImageProviderId);
+  const imagePricingNote = getProviderCatalogPricingNote(
+    defaultImageProviderId,
+  );
+  const imageModelLoadingNote = getProviderModelLoadingNote(
+    defaultImageProviderId,
+  );
 
   return (
     <Card className="section-card">
       <form onSubmit={onSubmit}>
         <Stack gap="sm">
           <Group justify="space-between">
-            <Title order={3}>Gateway defaults</Title>
+            <Title order={3}>{t('providerDefaultsForm.gatewayDefaults')}</Title>
             <IconSettings size={18} />
           </Group>
           <Text c="dimmed" size="sm">
-            Choose separate fallback provider/model pairs for gateway chat and image generation/editing.
+            {t(
+              'providerDefaultsForm.chooseSeparateFallbackProviderModelPairsFor',
+            )}
           </Text>
-          <Accordion defaultValue={['chat-defaults', 'image-defaults']} multiple variant="separated">
+          <Accordion
+            defaultValue={['chat-defaults', 'image-defaults']}
+            multiple
+            variant="separated"
+          >
             <Accordion.Item value="chat-defaults">
-              <Accordion.Control>Chat</Accordion.Control>
+              <Accordion.Control>
+                {t('providerDefaultsForm.chat')}
+              </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="sm">
                   <Text c="dimmed" size="sm">
-                    These values are used when `/api/v1/chat` is called without an explicit `providerId` and `model`.
+                    {t('providerDefaultsForm.theseValuesAreUsedWhenApiV1')}
                   </Text>
                   <label className="form-native-field">
                     <HelpLabel
-                      label="Default provider"
-                      help="Provider used when chat requests do not specify one explicitly."
+                      label={t('providerDefaultsForm.defaultProvider')}
+                      help={t('providerDefaultsForm.chatProviderHelp')}
                     />
                     <select
-                      aria-label="Default provider"
+                      aria-label={t('providerDefaultsForm.defaultProvider')}
                       className="form-native-select"
                       data-testid="providers-default-provider"
                       onChange={(event) =>
-                        onDefaultProviderChange(event.currentTarget.value || null)
+                        onDefaultProviderChange(
+                          event.currentTarget.value || null,
+                        )
                       }
                       value={defaultProviderId ?? ''}
                     >
                       <option value="">
                         {defaultProviderOptions.length
-                          ? 'Choose a provider with an active credential'
-                          : 'Add a credential first'}
+                          ? t('providerDefaultsForm.chooseActiveProvider')
+                          : t('providerDefaultsForm.addCredentialFirst')}
                       </option>
                       {defaultProviderOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -147,23 +162,27 @@ export function ProviderDefaultsForm({
                     data={defaultModelOptions}
                     data-testid="providers-default-model"
                     disabled={
-                      !defaultProviderId || isModelLoading || Boolean(modelErrorMessage)
+                      !defaultProviderId ||
+                      isModelLoading ||
+                      Boolean(modelErrorMessage)
                     }
                     label={
                       <HelpLabel
-                        label="Default model"
-                        help="Model used for chat requests when the caller omits an explicit model."
+                        label={t('providerDefaultsForm.defaultModel')}
+                        help={t('providerDefaultsForm.chatModelHelp')}
                       />
                     }
                     limit={100}
-                    nothingFoundMessage="No models found"
+                    nothingFoundMessage={t(
+                      'providerDefaultsForm.noModelsFound',
+                    )}
                     onChange={onDefaultModelChange}
                     placeholder={
                       defaultProviderId
                         ? isModelLoading
-                          ? 'Loading provider models...'
-                          : 'Choose a default model'
-                        : 'Choose a default provider first'
+                          ? t('providerDefaultsForm.loadingModels')
+                          : t('providerDefaultsForm.chooseDefaultModel')
+                        : t('providerDefaultsForm.chooseProviderFirst')
                     }
                     searchable
                     selectFirstOptionOnChange
@@ -173,19 +192,25 @@ export function ProviderDefaultsForm({
                     <Alert
                       color="red"
                       icon={<IconAlertCircle size={18} />}
-                      title="Model loading failed"
+                      title={t('providerDefaultsForm.modelLoadingFailed')}
                     >
                       {modelErrorMessage}
                     </Alert>
                   ) : null}
                   {modelLoadingNote ? (
-                    <Alert color="blue" title="Provider model access note">
-                      {modelLoadingNote}
+                    <Alert
+                      color="blue"
+                      title={t('providerDefaultsForm.providerModelAccessNote')}
+                    >
+                      {t(modelLoadingNote)}
                     </Alert>
                   ) : null}
                   {pricingNote ? (
-                    <Alert color="blue" title="Model catalog note">
-                      {pricingNote}
+                    <Alert
+                      color="blue"
+                      title={t('providerDefaultsForm.modelCatalogNote')}
+                    >
+                      {t(pricingNote)}
                     </Alert>
                   ) : null}
                 </Stack>
@@ -193,33 +218,44 @@ export function ProviderDefaultsForm({
             </Accordion.Item>
 
             <Accordion.Item value="image-defaults">
-              <Accordion.Control>Images gen/edit</Accordion.Control>
+              <Accordion.Control>
+                {t('providerDefaultsForm.imagesGenEdit')}
+              </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="sm">
                   <Text c="dimmed" size="sm">
-                    These values are used when `/api/v1/images/generations` or `/api/v1/images/edits` is called without an explicit `providerId` and `model`.
+                    {t('providerDefaultsForm.theseValuesAreUsedWhenApiV12')}
                   </Text>
-                  <Alert color="blue" title="Image-capable providers only">
-                    Anthropic, Groq, and Ollama do not currently expose image generation or image editing through the gateway, so they are intentionally excluded from image defaults.
+                  <Alert
+                    color="blue"
+                    title={t('providerDefaultsForm.imageCapableProvidersOnly')}
+                  >
+                    {t(
+                      'providerDefaultsForm.anthropicGroqAndOllamaDoNotCurrently',
+                    )}
                   </Alert>
                   <label className="form-native-field">
                     <HelpLabel
-                      label="Default image provider"
-                      help="Provider used for image generation or editing when the caller does not specify one."
+                      label={t('providerDefaultsForm.defaultImageProvider')}
+                      help={t('providerDefaultsForm.imageProviderHelp')}
                     />
                     <select
-                      aria-label="Default image provider"
+                      aria-label={t(
+                        'providerDefaultsForm.defaultImageProvider',
+                      )}
                       className="form-native-select"
                       data-testid="providers-default-image-provider"
                       onChange={(event) =>
-                        onDefaultImageProviderChange(event.currentTarget.value || null)
+                        onDefaultImageProviderChange(
+                          event.currentTarget.value || null,
+                        )
                       }
                       value={defaultImageProviderId ?? ''}
                     >
                       <option value="">
                         {defaultImageProviderOptions.length
-                          ? 'Choose a provider with an active credential'
-                          : 'Add a credential first'}
+                          ? t('providerDefaultsForm.chooseActiveProvider')
+                          : t('providerDefaultsForm.addCredentialFirst')}
                       </option>
                       {defaultImageProviderOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -238,19 +274,21 @@ export function ProviderDefaultsForm({
                     }
                     label={
                       <HelpLabel
-                        label="Default image model"
-                        help="Model used for image generation or editing when the caller omits an explicit model."
+                        label={t('providerDefaultsForm.defaultImageModel')}
+                        help={t('providerDefaultsForm.imageModelHelp')}
                       />
                     }
                     limit={100}
-                    nothingFoundMessage="No models found"
+                    nothingFoundMessage={t(
+                      'providerDefaultsForm.noModelsFound',
+                    )}
                     onChange={onDefaultImageModelChange}
                     placeholder={
                       defaultImageProviderId
                         ? isImageModelLoading
-                          ? 'Loading provider models...'
-                          : 'Choose a default model'
-                        : 'Choose a default provider first'
+                          ? t('providerDefaultsForm.loadingModels')
+                          : t('providerDefaultsForm.chooseDefaultModel')
+                        : t('providerDefaultsForm.chooseProviderFirst')
                     }
                     searchable
                     selectFirstOptionOnChange
@@ -260,19 +298,25 @@ export function ProviderDefaultsForm({
                     <Alert
                       color="red"
                       icon={<IconAlertCircle size={18} />}
-                      title="Model loading failed"
+                      title={t('providerDefaultsForm.modelLoadingFailed')}
                     >
                       {imageModelErrorMessage}
                     </Alert>
                   ) : null}
                   {imageModelLoadingNote ? (
-                    <Alert color="blue" title="Provider model access note">
-                      {imageModelLoadingNote}
+                    <Alert
+                      color="blue"
+                      title={t('providerDefaultsForm.providerModelAccessNote')}
+                    >
+                      {t(imageModelLoadingNote)}
                     </Alert>
                   ) : null}
                   {imagePricingNote ? (
-                    <Alert color="blue" title="Model catalog note">
-                      {imagePricingNote}
+                    <Alert
+                      color="blue"
+                      title={t('providerDefaultsForm.modelCatalogNote')}
+                    >
+                      {t(imagePricingNote)}
                     </Alert>
                   ) : null}
                 </Stack>
@@ -285,7 +329,7 @@ export function ProviderDefaultsForm({
             loading={isPending}
             type="submit"
           >
-            Save defaults
+            {t('providerDefaultsForm.saveDefaults')}
           </Button>
         </Stack>
       </form>
