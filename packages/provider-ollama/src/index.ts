@@ -8,7 +8,13 @@ import type {
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
-import { isGlmThinkingModel, type ModelReasoningCapability } from '@lxp/domain';
+import type { ModelReasoningCapability } from '@lxp/domain';
+
+const OLLAMA_GPT_OSS_THINKING_MODELS = new Set([
+  'gpt-oss',
+  'gpt-oss:20b',
+  'gpt-oss:120b',
+]);
 
 export class OllamaProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -112,9 +118,23 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
       }
 
       const supported = payload.capabilities.includes('thinking');
+      const usesThinkingLevels = OLLAMA_GPT_OSS_THINKING_MODELS.has(modelId);
       return {
         supported,
-        controls: supported ? ['toggle'] : [],
+        controls: supported
+          ? usesThinkingLevels
+            ? ['effort']
+            : ['toggle']
+          : [],
+        ...(supported && usesThinkingLevels
+          ? {
+              supportedEfforts: ['low', 'medium', 'high'] as const,
+              defaultEnabled: true,
+              mandatory: true,
+              semantic: 'reasoning-depth' as const,
+            }
+          : {}),
+        ...(supported && !usesThinkingLevels ? { supportsToggle: true } : {}),
         source: {
           kind: 'provider-api' as const,
           providerId: this.providerId,
@@ -280,7 +300,7 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
     }
 
     return (
-      supportsOllamaGlmThinking(request.model) &&
+      request.reasoning !== undefined ||
       typeof request.providerOptions?.ollama?.thinking?.enabled === 'boolean'
     );
   }
@@ -367,11 +387,15 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           model: request.model,
           messages: normalizedMessages,
           stream: false,
-          ...(supportsOllamaGlmThinking(request.model) &&
+          ...(request.reasoning?.effort ||
+          typeof request.reasoning?.enabled === 'boolean' ||
           typeof request.providerOptions?.ollama?.thinking?.enabled ===
             'boolean'
             ? {
-                think: request.providerOptions.ollama.thinking.enabled,
+                think:
+                  request.reasoning?.effort ??
+                  request.reasoning?.enabled ??
+                  request.providerOptions?.ollama?.thinking?.enabled,
               }
             : {}),
         }),
@@ -447,11 +471,15 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
           model: request.model,
           messages: normalizedMessages,
           stream: true,
-          ...(supportsOllamaGlmThinking(request.model) &&
+          ...(request.reasoning?.effort ||
+          typeof request.reasoning?.enabled === 'boolean' ||
           typeof request.providerOptions?.ollama?.thinking?.enabled ===
             'boolean'
             ? {
-                think: request.providerOptions.ollama.thinking.enabled,
+                think:
+                  request.reasoning?.effort ??
+                  request.reasoning?.enabled ??
+                  request.providerOptions?.ollama?.thinking?.enabled,
               }
             : {}),
         }),
@@ -626,8 +654,4 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
 
     return textParts.join('\n');
   }
-}
-
-function supportsOllamaGlmThinking(model: string | undefined): boolean {
-  return isGlmThinkingModel(model);
 }

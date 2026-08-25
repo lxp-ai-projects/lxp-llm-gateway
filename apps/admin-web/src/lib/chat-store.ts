@@ -5,6 +5,7 @@ export type StoredConversationMessage = {
   role: 'user' | 'assistant';
   content: string;
   reasoning?: string;
+  reasoningDetails?: unknown;
   finishReason?: string | null;
   createdAt: string;
 };
@@ -64,9 +65,7 @@ export async function loadConversations(
             conversation.ownerUserUuid === scope.userUuid &&
             conversation.tenantId === scope.tenantId,
         )
-        .sort(
-        (left, right) => right.updatedAt.localeCompare(left.updatedAt),
-      );
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
       resolve(result);
     };
     request.onerror = () => reject(request.error);

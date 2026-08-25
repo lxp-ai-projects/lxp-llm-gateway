@@ -160,6 +160,12 @@ export class GroqProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
+          ...(request.reasoning?.effort
+            ? { reasoning_effort: request.reasoning.effort }
+            : {}),
+          ...(typeof request.reasoning?.includeOutput === 'boolean'
+            ? { include_reasoning: request.reasoning.includeOutput }
+            : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,

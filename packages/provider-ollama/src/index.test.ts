@@ -154,6 +154,7 @@ test('OllamaProviderAdapter maps native /api/tags responses into provider models
           reasoning: {
             supported: true,
             controls: ['toggle'],
+            supportsToggle: true,
             source: {
               kind: 'provider-api',
               providerId: 'ollama',
@@ -365,6 +366,38 @@ test('OllamaProviderAdapter routes local GLM thinking requests through the nativ
     };
     assert.equal(body.think, true);
     assert.equal(response.message.reasoning, 'reasoning trace');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OllamaProviderAdapter sends GPT-OSS thinking effort as a level', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: { think?: unknown } = {};
+  globalThis.fetch = (async (_url, init) => {
+    requestBody = JSON.parse(String(init?.body ?? '{}')) as { think?: unknown };
+    return new Response(
+      JSON.stringify({ message: { role: 'assistant', content: 'answer' } }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new OllamaProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'gpt-oss:20b',
+        reasoning: { effort: 'high' },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'req-ollama-gpt-oss',
+        userId: 'user-1',
+        providerAccess: { baseUrl: 'http://127.0.0.1:11434/v1' },
+      },
+    );
+
+    assert.equal(requestBody.think, 'high');
   } finally {
     globalThis.fetch = originalFetch;
   }

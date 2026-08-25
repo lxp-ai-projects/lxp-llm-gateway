@@ -85,6 +85,26 @@ class GatewayOllamaProviderOptionsDto {
   thinking?: GatewayOllamaThinkingDto;
 }
 
+class GatewayChatReasoningDto {
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @IsOptional()
+  @IsIn(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+  effort?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  budgetTokens?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  includeOutput?: boolean;
+}
+
 class GatewayChatProviderOptionsDto {
   @IsOptional()
   @IsObject()
@@ -126,6 +146,11 @@ export class GatewayChatRequestDto implements GatewayChatRequest {
   @IsInt()
   @IsPositive()
   maxOutputTokens?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GatewayChatReasoningDto)
+  reasoning?: GatewayChatRequest['reasoning'];
 
   @IsOptional()
   @ValidateNested()

@@ -22,3 +22,8 @@ export type {
   AggregatorReasoningRequestOptions,
   ReasoningTransportProviderId,
 } from './reasoning-options.js';
+export {
+  lookupNativeChatReasoningCapability,
+  toLegacyReasoningEffort,
+  validateChatReasoningRequest,
+} from './chat-reasoning.js';

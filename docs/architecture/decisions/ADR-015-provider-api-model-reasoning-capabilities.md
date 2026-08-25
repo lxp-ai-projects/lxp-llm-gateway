@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by ADR-016
 
 ## Context
 
@@ -34,8 +34,8 @@ only basic model identity and ownership information.
 - When an aggregator declares reasoning mandatory, do not render a toggle or
   send an enable/disable override. A declared effort control remains
   configurable; otherwise use the provider-declared default.
-- Treat OpenRouter `supported_efforts: null` as support for every standard
-  effort value, while an omitted field does not declare an effort control.
+- Treat OpenRouter `supported_efforts: null` or an omitted field as unknown;
+  neither declares an effort control.
 - Allow OpenRouter's generic `reasoning` transport for catalog-declared models
   whose native family is not yet known to LXP. Family-owned options still
   require a known, compatible family.

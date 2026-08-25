@@ -7,14 +7,9 @@ import type {
   ProviderExecutionContext,
   ProviderModel,
 } from '@lxp/provider-sdk';
-import {
-  OpenAiCompatibleTextProviderAdapter,
-} from '@lxp/provider-sdk';
+import { OpenAiCompatibleTextProviderAdapter } from '@lxp/provider-sdk';
 
-import {
-  buildZaiImageCatalog,
-  buildZaiModelCatalog,
-} from './image/catalog.js';
+import { buildZaiImageCatalog, buildZaiModelCatalog } from './image/catalog.js';
 import { ZaiImageApiClient } from './image/api-client.js';
 import { ZaiImageGenerationService } from './image/generation-service.js';
 
@@ -45,8 +40,7 @@ export class ZaiProviderAdapter implements LlmProviderAdapter {
       buildRequestBody: (request, context, stream) =>
         buildZaiChatRequestBody(request, context, stream),
       mapModels: (payload) => buildZaiModelCatalog(extractModelIds(payload)),
-      mapProviderMetadata: (payload) =>
-        buildZaiChatProviderMetadata(payload),
+      mapProviderMetadata: (payload) => buildZaiChatProviderMetadata(payload),
     });
     this.imageApiClient = new ZaiImageApiClient(baseUrl, imageRequestTimeoutMs);
     this.imageGenerationService = new ZaiImageGenerationService(
@@ -100,7 +94,15 @@ function buildZaiChatRequestBody(
   context: ProviderExecutionContext,
   stream: boolean,
 ): Record<string, unknown> {
-  const zaiThinking = request.providerOptions?.zai?.thinking;
+  const legacyThinking = request.providerOptions?.zai?.thinking;
+  const zaiThinking =
+    request.reasoning?.enabled !== undefined
+      ? {
+          type: request.reasoning.enabled
+            ? ('enabled' as const)
+            : ('disabled' as const),
+        }
+      : legacyThinking;
 
   return {
     model: request.model,
@@ -124,7 +126,8 @@ function buildZaiChatRequestBody(
       ? {
           thinking: {
             type: zaiThinking.type,
-            ...(typeof zaiThinking.clearThinking === 'boolean'
+            ...('clearThinking' in zaiThinking &&
+            typeof zaiThinking.clearThinking === 'boolean'
               ? { clear_thinking: zaiThinking.clearThinking }
               : {}),
           },
@@ -138,7 +141,7 @@ function extractModelIds(
     | { data?: Array<{ id: string; name?: string; owned_by?: string }> }
     | Array<{ id: string; name?: string; owned_by?: string }>,
 ) {
-  const data = Array.isArray(payload) ? payload : payload.data ?? [];
+  const data = Array.isArray(payload) ? payload : (payload.data ?? []);
   return data.map((model) => model.id);
 }
 

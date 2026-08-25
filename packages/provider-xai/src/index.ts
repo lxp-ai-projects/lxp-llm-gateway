@@ -214,7 +214,9 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
         ? context.metadata.requestedModel
         : 'unknown-model';
     const prompt =
-      typeof context.metadata?.prompt === 'string' ? context.metadata.prompt : '';
+      typeof context.metadata?.prompt === 'string'
+        ? context.metadata.prompt
+        : '';
 
     return this.videoGenerationService.getJob(
       requestedModel,
@@ -261,6 +263,9 @@ export class XaiProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
+          ...(request.reasoning?.effort
+            ? { reasoning_effort: request.reasoning.effort }
+            : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,

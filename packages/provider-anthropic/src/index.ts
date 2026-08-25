@@ -150,6 +150,8 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
         type?: string;
         text?: string;
         thinking?: string;
+        signature?: string;
+        data?: string;
       }>;
       usage?: {
         input_tokens?: number;
@@ -165,6 +167,10 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       .filter((entry) => entry.type === 'thinking')
       .map((entry) => entry.thinking ?? '')
       .join('');
+    const reasoningDetails = (payload.content ?? []).filter(
+      (entry) =>
+        entry.type === 'thinking' || entry.type === 'redacted_thinking',
+    );
     const promptTokens = payload.usage?.input_tokens;
     const completionTokens = payload.usage?.output_tokens;
 
@@ -176,6 +182,9 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
         role: payload.role ?? 'assistant',
         content: textContent,
         reasoning: reasoning || undefined,
+        reasoningDetails: reasoningDetails.length
+          ? reasoningDetails
+          : undefined,
       },
       finishReason: payload.stop_reason ?? null,
       usage: {

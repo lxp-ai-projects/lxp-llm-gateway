@@ -1,6 +1,8 @@
 import { DEFAULT_STREAM_IDLE_TIMEOUT_MS } from './chat-stream';
 import { shouldAttemptSessionRefresh } from './http-auth';
 import type {
+  GatewayChatProviderOptions,
+  GatewayChatReasoningRequest,
   GatewayChatStreamChunk,
   GatewayChatStreamResult,
 } from './api-client.types';
@@ -416,11 +418,15 @@ export async function chatStreamWithSessionRefresh(
   payload: {
     providerId?: string;
     model?: string;
+    maxOutputTokens?: number;
+    reasoning?: GatewayChatReasoningRequest;
+    providerOptions?: GatewayChatProviderOptions;
     stream: true;
     messages: Array<{
       role: 'user' | 'assistant' | 'system';
       content: string;
       reasoningContent?: string;
+      reasoningDetails?: unknown;
     }>;
   },
   handlers: {

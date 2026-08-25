@@ -579,6 +579,13 @@ test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtim
             name: 'Claude Sonnet 5',
             capabilities: { reasoning: true },
           },
+          {
+            id: 'future/reasoning-sounding-model',
+            capabilities: { reasoning: false },
+          },
+          {
+            id: 'future-reasoner-without-metadata',
+          },
         ],
       }),
       {
@@ -611,6 +618,8 @@ test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtim
       models?.[0]?.capabilities?.reasoning?.source.providerId,
       'nanogpt',
     );
+    assert.equal(models?.[1]?.capabilities?.reasoning?.supported, false);
+    assert.equal(models?.[2]?.capabilities?.reasoning, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }

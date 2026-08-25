@@ -66,6 +66,7 @@ const {
           reasoning: {
             supported: true,
             controls: ['toggle'],
+            replayRequirement: 'reasoning-content',
             source: {
               kind: 'provider-api',
               providerId: 'nanogpt',
@@ -171,6 +172,7 @@ beforeEach(() => {
               reasoning: {
                 supported: true,
                 controls: ['toggle'],
+                replayRequirement: 'reasoning-content',
                 source: {
                   kind: 'provider-api',
                   providerId: 'openrouter',
@@ -195,6 +197,7 @@ beforeEach(() => {
               reasoning: {
                 supported: true,
                 controls: ['toggle'],
+                replayRequirement: 'reasoning-content',
                 source: {
                   kind: 'provider-api',
                   providerId: 'ollama',
@@ -290,6 +293,7 @@ beforeEach(() => {
               reasoning: {
                 supported: true,
                 controls: ['toggle'],
+                replayRequirement: 'reasoning-content',
                 source: {
                   kind: 'provider-api',
                   providerId: 'zai',
@@ -327,6 +331,7 @@ beforeEach(() => {
             reasoning: {
               supported: true,
               controls: ['toggle'],
+              replayRequirement: 'reasoning-content',
               source: {
                 kind: 'provider-api',
                 providerId: 'nanogpt',
@@ -483,14 +488,8 @@ test('ChatPage exposes GLM thinking controls for NanoGPT Z.ai routes', async () 
     expect.objectContaining({
       providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
-      providerOptions: {
-        zai: {
-          thinking: {
-            type: 'enabled',
-            clearThinking: false,
-          },
-        },
-      },
+      reasoning: { enabled: true },
+      providerOptions: undefined,
     }),
     expect.any(Object),
   );
@@ -523,11 +522,8 @@ test('ChatPage uses NanoGPT API capabilities for a Claude route without GLM mess
     expect.objectContaining({
       providerId: 'nanogpt',
       model: 'anthropic/claude-sonnet-5:thinking',
-      providerOptions: {
-        nanogpt: {
-          reasoning: { effort: 'medium' },
-        },
-      },
+      reasoning: { enabled: true },
+      providerOptions: undefined,
     }),
     expect.any(Object),
   );
@@ -619,13 +615,8 @@ test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async (
     expect.objectContaining({
       providerId: 'openrouter',
       model: 'z-ai/glm-4.5',
-      providerOptions: {
-        openrouter: {
-          reasoning: {
-            enabled: true,
-          },
-        },
-      },
+      reasoning: { enabled: true },
+      providerOptions: undefined,
     }),
     expect.any(Object),
   );
@@ -676,11 +667,8 @@ test('ChatPage exposes only catalog-declared effort for mandatory OpenRouter rea
     expect.objectContaining({
       providerId: 'openrouter',
       model: 'stealth/ox-alpha',
-      providerOptions: {
-        openrouter: {
-          reasoning: { effort: 'high' },
-        },
-      },
+      reasoning: { effort: 'high' },
+      providerOptions: undefined,
     }),
     expect.any(Object),
   );
@@ -719,13 +707,8 @@ test('ChatPage exposes GLM thinking controls for Ollama GLM routes', async () =>
     expect.objectContaining({
       providerId: 'ollama',
       model: 'glm-4.5',
-      providerOptions: {
-        ollama: {
-          thinking: {
-            enabled: true,
-          },
-        },
-      },
+      reasoning: { enabled: true },
+      providerOptions: undefined,
     }),
     expect.any(Object),
   );
@@ -1340,7 +1323,9 @@ test('ChatPage imports conversations and surfaces transfer failures', async () =
   );
 
   await user.click(screen.getByLabelText('Export all conversations'));
-  expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+  expect(
+    await screen.findByText('Something went wrong. Please try again.'),
+  ).toBeInTheDocument();
 });
 
 test('ChatPage surfaces missing assistant content and interrupted reasoning streams', async () => {
@@ -1376,7 +1361,9 @@ test('ChatPage surfaces missing assistant content and interrupted reasoning stre
     'Partial{enter}',
   );
 
-  expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+  expect(
+    await screen.findByText('Something went wrong. Please try again.'),
+  ).toBeInTheDocument();
   expect(
     await screen.findByText(
       'Assistant response was interrupted before content generation completed.',

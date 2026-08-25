@@ -5,11 +5,13 @@ import type {
 } from '@lxp/domain';
 export type {
   GatewayChatProviderOptions,
+  GatewayChatReasoningRequest,
   GatewayReasoningEffort,
   GatewayVideoRetryRequest,
 } from '@lxp/contracts';
 import type {
   GatewayChatProviderOptions,
+  GatewayChatReasoningRequest,
   GatewayVideoRetryRequest,
 } from '@lxp/contracts';
 
@@ -81,6 +83,7 @@ export type GatewayChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
   reasoningContent?: string;
+  reasoningDetails?: unknown;
 };
 
 export type GatewayChatResponse = {
@@ -390,10 +393,26 @@ export type ProviderModelSummary = {
         | 'max';
       defaultEnabled?: boolean;
       mandatory?: boolean;
+      supportsToggle?: boolean;
+      supportsBudgetTokens?: boolean;
+      supportsOutputExclusion?: boolean;
+      outputKind?: 'reasoning-text' | 'summary' | 'opaque-signed' | 'none';
+      replayRequirement?:
+        | 'none'
+        | 'reasoning-content'
+        | 'reasoning-details'
+        | 'opaque-signature'
+        | 'full-assistant-message';
+      semantic?:
+        | 'reasoning-depth'
+        | 'agent-count'
+        | 'other-provider-specific-semantic';
       source: {
-        kind: 'provider-api';
+        kind: 'provider-api' | 'reviewed-registry' | 'route-intersection';
         providerId: string;
         modelId: string;
+        url?: string;
+        reviewedAt?: string;
       };
     };
   };

@@ -199,7 +199,7 @@ test('AnthropicProviderAdapter maps adaptive extended thinking for Anthropic req
       model: 'claude-sonnet-4-6',
       stop_reason: 'end_turn',
       content: [
-        { type: 'thinking', thinking: 'Plan' },
+        { type: 'thinking', thinking: 'Plan', signature: 'opaque-signature' },
         { type: 'text', text: 'Done' },
       ],
       usage: {
@@ -211,7 +211,7 @@ test('AnthropicProviderAdapter maps adaptive extended thinking for Anthropic req
 
   try {
     const adapter = new AnthropicProviderAdapter();
-    await adapter.chat(
+    const response = await adapter.chat(
       {
         model: 'claude-sonnet-4-6',
         providerOptions: {
@@ -239,6 +239,13 @@ test('AnthropicProviderAdapter maps adaptive extended thinking for Anthropic req
       type: 'adaptive',
       display: 'summarized',
     });
+    assert.deepEqual(response.message.reasoningDetails, [
+      {
+        type: 'thinking',
+        thinking: 'Plan',
+        signature: 'opaque-signature',
+      },
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }

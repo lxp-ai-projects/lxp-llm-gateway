@@ -192,13 +192,11 @@ resolved from the key. Evaluation Lab and PGS are provisioned as distinct
 clients with distinct keys, and the Gateway deadline actively cancels provider
 transport rather than only abandoning the local wait.
 
-## Model-family reasoning
+## Chat reasoning
 
-Claude, OpenAI reasoning, xAI Grok, and GLM controls are modeled as properties of
-the underlying model family. Verified NanoGPT and OpenRouter mappings translate
-those controls inside their adapters; unsupported or lossy combinations are
-rejected instead of silently ignored. Aggregator token-count fidelity and safe
-structured provider error metadata are explicit in normalized responses.
+Reasoning controls are properties of an exact model on an exact route. The
+Gateway validates a canonical request and rejects unknown, mandatory-disable,
+or unsupported-effort combinations instead of silently changing them.
 
 Chat Lab reasoning controls are projected from live model catalog metadata.
 Native provider capability fields are authoritative when present; aggregator

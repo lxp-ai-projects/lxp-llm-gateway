@@ -15,10 +15,6 @@ import {
 } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import {
-  getThinkingTransportCompatibility,
-  supportsPreservedThinking,
-} from '@lxp/domain';
 
 import { ChatComposer } from '../features/chat/components/chat-composer';
 import { ChatMessageList } from '../features/chat/components/chat-message-list';
@@ -38,6 +34,7 @@ import { DEFAULT_SYSTEM_PROMPT } from '../lib/chat-thread';
 import { type StoredConversation } from '../lib/chat-store';
 import type {
   GatewayChatProviderOptions,
+  GatewayChatReasoningRequest,
   GatewayReasoningEffort,
   ProviderModelSummary,
 } from '../lib/api-client.types';
@@ -144,21 +141,8 @@ function buildThinkingProviderOptions(
   modelId: string,
   mode: ThinkingUiMode,
 ): GatewayChatProviderOptions | undefined {
+  void modelId;
   if (providerId === 'nanogpt') {
-    if (
-      getThinkingTransportCompatibility(providerId, modelId)?.requestMapping ===
-      'nanogpt-zai-thinking'
-    ) {
-      return {
-        zai: {
-          thinking: {
-            type: mode === 'disabled' ? 'disabled' : 'enabled',
-            clearThinking: mode !== 'enabled-preserve',
-          },
-        },
-      };
-    }
-
     return {
       nanogpt: {
         reasoning: {
@@ -278,11 +262,9 @@ function buildReasoningEffortProviderOptions(
     return { nanogpt: { reasoning: { effort } } };
   }
 
-  if (providerId === 'openai' || providerId === 'xai') {
-    return { [providerId]: { reasoning: { effort } } };
-  }
-
-  return undefined;
+  return {
+    [providerId]: { reasoning: { effort } },
+  } as GatewayChatProviderOptions;
 }
 
 function readReasoningEffortSelection(
@@ -303,14 +285,40 @@ function readReasoningEffortSelection(
     );
   }
 
-  if (providerId === 'openai' || providerId === 'xai') {
-    return (
-      conversation?.providerOptions?.[providerId]?.reasoning?.effort ??
-      'provider-default'
-    );
+  const genericOptions = conversation?.providerOptions as
+    | Record<string, { reasoning?: { effort?: GatewayReasoningEffort } }>
+    | undefined;
+  return genericOptions?.[providerId]?.reasoning?.effort ?? 'provider-default';
+}
+
+function buildCanonicalReasoningRequest(input: {
+  providerId: string;
+  capability: ReturnType<typeof getModelReasoningCapability>;
+  thinkingMode: ThinkingUiMode;
+  effort: ReasoningEffortUiMode;
+}): GatewayChatReasoningRequest | undefined {
+  if (
+    !input.capability?.supported ||
+    input.providerId === 'anthropic' ||
+    input.providerId === 'zai'
+  ) {
+    return undefined;
   }
 
-  return 'provider-default';
+  if (input.effort !== 'provider-default') {
+    return input.effort === 'none'
+      ? { enabled: false }
+      : { effort: input.effort };
+  }
+
+  if (
+    input.capability.supportsToggle === true ||
+    input.capability.controls.includes('toggle')
+  ) {
+    return { enabled: input.thinkingMode !== 'disabled' };
+  }
+
+  return undefined;
 }
 
 function getModelReasoningCapability(
@@ -469,6 +477,11 @@ export function ChatPage() {
     activeConversation,
     isStreaming: streamingSignal,
   });
+  const modelsQuery = useQuery({
+    queryKey: ['gateway-models', providerId],
+    queryFn: () => gatewayApiClient.getModels(providerId || undefined),
+    enabled: Boolean(providerId),
+  });
   const {
     isStreaming,
     resendEditedMessage,
@@ -488,11 +501,33 @@ export function ChatPage() {
     onSetChatError: setChatError,
     onSetChatWarning: setChatWarning,
     onStreamingChange: setStreamingSignal,
-  });
-  const modelsQuery = useQuery({
-    queryKey: ['gateway-models', providerId],
-    queryFn: () => gatewayApiClient.getModels(providerId || undefined),
-    enabled: Boolean(providerId),
+    shouldReplayReasoning: (conversation) => {
+      const capability = getModelReasoningCapability(
+        modelsQuery.data?.models,
+        conversation.model,
+      );
+      if (
+        !capability?.replayRequirement ||
+        capability.replayRequirement === 'none'
+      ) {
+        return false;
+      }
+
+      const zaiThinking = conversation.providerOptions?.zai?.thinking;
+      return zaiThinking
+        ? zaiThinking.type === 'enabled' && zaiThinking.clearThinking === false
+        : true;
+    },
+    resolveReasoning: (conversation) =>
+      buildCanonicalReasoningRequest({
+        providerId: conversation.providerId,
+        capability: getModelReasoningCapability(
+          modelsQuery.data?.models,
+          conversation.model,
+        ),
+        thinkingMode,
+        effort: reasoningEffort,
+      }),
   });
   const sortedModelOptions = buildDefaultModelOptions(
     modelsQuery.data?.models ?? [],
@@ -586,11 +621,7 @@ export function ChatPage() {
   const reasoningEffortControlVisible =
     reasoningCapability?.supported === true &&
     reasoningCapability.controls.includes('effort') &&
-    Boolean(reasoningCapability.supportedEfforts?.length) &&
-    (providerId === 'nanogpt' ||
-      providerId === 'openrouter' ||
-      providerId === 'openai' ||
-      providerId === 'xai');
+    Boolean(reasoningCapability.supportedEfforts?.length);
   const thinkingSupported =
     thinkingControlVisible &&
     model.length > 0 &&
@@ -598,7 +629,8 @@ export function ChatPage() {
   const preserveThinkingSupported =
     thinkingControlVisible &&
     model.length > 0 &&
-    supportsPreservedThinking(providerId, model);
+    reasoningCapability?.replayRequirement !== undefined &&
+    reasoningCapability.replayRequirement !== 'none';
   const effectiveThinkingMode = reasoningCapability?.mandatory
     ? 'enabled'
     : thinkingControlVisible && model.length > 0 && !thinkingSupported
@@ -679,13 +711,7 @@ export function ChatPage() {
       providerSettingsQuery.data?.defaultProviderId === providerId
         ? providerSettingsQuery.data.defaultModel
         : null;
-    const preferredThinkingModel = availableModels.find((entry) =>
-      entry.id.includes('thinking'),
-    );
-    const nextModelCandidate =
-      configuredDefaultModel ??
-      preferredThinkingModel?.id ??
-      availableModels[0]!.id;
+    const nextModelCandidate = configuredDefaultModel ?? availableModels[0]!.id;
     const modelExists = model
       ? availableModels.some((entry) => entry.id === model)
       : false;

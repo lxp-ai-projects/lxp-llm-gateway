@@ -10,7 +10,12 @@ import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
 import {
   ProviderHttpError,
   type ProviderExecutionContext,
+  type ProviderModel,
 } from '@lxp/provider-sdk';
+import {
+  lookupNativeChatReasoningCapability,
+  validateChatReasoningRequest,
+} from '@lxp/model-family-capabilities';
 
 import type {
   GatewayAuthContext,
@@ -91,11 +96,15 @@ export class GatewayService {
           provider.providerId,
         );
 
-      const models = await provider.listModels({
+      const listedModels = await provider.listModels({
         requestId,
         userId: authContext.userId,
         providerAccess,
       });
+      const models = this.projectReasoningCapabilities(
+        provider.providerId,
+        listedModels,
+      );
       const filteredModels =
         await this.tenantModelAccessRuleService.filterTextModels(
           authContext.activeTenantId,
@@ -220,6 +229,39 @@ export class GatewayService {
           authContext,
           provider.providerId,
         );
+      if (request.reasoning) {
+        const nativeCapability = lookupNativeChatReasoningCapability(
+          providerId,
+          model,
+        );
+        let effectiveCapability = nativeCapability;
+        if (!effectiveCapability && provider.listModels) {
+          const models = this.projectReasoningCapabilities(
+            providerId,
+            await provider.listModels({
+              requestId,
+              userId: this.providerPrincipalId(authContext),
+              providerAccess,
+              signal,
+            }),
+          );
+          effectiveCapability = models.find((entry) => entry.id === model)
+            ?.capabilities?.reasoning;
+        }
+        try {
+          validateChatReasoningRequest(
+            request.reasoning,
+            effectiveCapability,
+            `${providerId}/${model}`,
+          );
+        } catch (error) {
+          throw new BadRequestException(
+            error instanceof Error
+              ? error.message
+              : 'Invalid reasoning request.',
+          );
+        }
+      }
       await this.assertMaxInputTokensIfSupported({
         request: {
           ...request,
@@ -361,6 +403,23 @@ export class GatewayService {
     }
   }
 
+  private projectReasoningCapabilities(
+    providerId: ProviderId,
+    models: ProviderModel[],
+  ): ProviderModel[] {
+    return models.map((model) => {
+      const reviewed = lookupNativeChatReasoningCapability(
+        providerId,
+        model.id,
+      );
+      if (!reviewed) return model;
+      return {
+        ...model,
+        capabilities: { ...model.capabilities, reasoning: reviewed },
+      };
+    });
+  }
+
   async chatStream(
     request: GatewayChatRequestDto,
     authContext: GatewayAuthContext,
@@ -446,6 +505,37 @@ export class GatewayService {
           authContext,
           provider.providerId,
         );
+      if (request.reasoning) {
+        let effectiveCapability = lookupNativeChatReasoningCapability(
+          providerId,
+          model,
+        );
+        if (!effectiveCapability && provider.listModels) {
+          const models = this.projectReasoningCapabilities(
+            providerId,
+            await provider.listModels({
+              requestId,
+              userId: this.providerPrincipalId(authContext),
+              providerAccess,
+            }),
+          );
+          effectiveCapability = models.find((entry) => entry.id === model)
+            ?.capabilities?.reasoning;
+        }
+        try {
+          validateChatReasoningRequest(
+            request.reasoning,
+            effectiveCapability,
+            `${providerId}/${model}`,
+          );
+        } catch (error) {
+          throw new BadRequestException(
+            error instanceof Error
+              ? error.message
+              : 'Invalid reasoning request.',
+          );
+        }
+      }
       await this.assertMaxInputTokensIfSupported({
         request: {
           ...request,
