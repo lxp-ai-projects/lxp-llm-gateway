@@ -177,6 +177,12 @@ export class OpenAiCompatibleService {
         return {
           role: message.role,
           content: normalizedContent,
+          ...(message.reasoning_content
+            ? { reasoningContent: message.reasoning_content }
+            : {}),
+          ...(message.reasoning_details !== undefined
+            ? { reasoningDetails: message.reasoning_details }
+            : {}),
         };
       }
 

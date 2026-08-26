@@ -202,9 +202,13 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
-          ...(request.reasoning?.effort
-            ? { reasoning_effort: request.reasoning.effort }
-            : {}),
+          ...(request.reasoning?.enabled === false &&
+          request.model !== undefined &&
+          ['gemini-2.5-flash', 'gemini-2.5-flash-lite'].includes(request.model)
+            ? { reasoning_effort: 'none' }
+            : request.reasoning?.effort
+              ? { reasoning_effort: request.reasoning.effort }
+              : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,

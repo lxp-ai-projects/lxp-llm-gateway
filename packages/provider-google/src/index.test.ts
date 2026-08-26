@@ -6,7 +6,10 @@ import { GoogleProviderAdapter } from './index';
 
 class GoogleProviderAdapterTestDouble extends GoogleProviderAdapter {
   constructor(
-    private readonly resolvedAddresses: Array<{ address: string; family: number }>,
+    private readonly resolvedAddresses: Array<{
+      address: string;
+      family: number;
+    }>,
   ) {
     super();
   }
@@ -64,10 +67,9 @@ test('GoogleProviderAdapter lists chat and image models with provider-owned imag
     assert.equal(flashImage.displayName, 'Nano Banana');
     assert.equal(flashImage.capabilities?.supportsImageGeneration, true);
     assert.equal(flashImage.capabilities?.supportsImageEditing, true);
-    assert.deepEqual(
-      flashImage.capabilities?.supportedImageResponseFormats,
-      ['b64_json'],
-    );
+    assert.deepEqual(flashImage.capabilities?.supportedImageResponseFormats, [
+      'b64_json',
+    ]);
     assert.deepEqual(flashImage.capabilities?.supportedImageResolutions, [
       { value: '1K', label: '1K' },
     ]);
@@ -75,26 +77,20 @@ test('GoogleProviderAdapter lists chat and image models with provider-owned imag
     assert.ok(proImage);
     assert.equal(proImage.displayName, 'Nano Banana Pro');
     assert.equal(proImage.capabilities?.maxReferenceImagesPerRequest, 14);
-    assert.deepEqual(
-      proImage.capabilities?.supportedImageResolutions,
-      [
-        { value: '1K', label: '1K' },
-        { value: '2K', label: '2K' },
-        { value: '4K', label: '4K' },
-      ],
-    );
+    assert.deepEqual(proImage.capabilities?.supportedImageResolutions, [
+      { value: '1K', label: '1K' },
+      { value: '2K', label: '2K' },
+      { value: '4K', label: '4K' },
+    ]);
 
     assert.ok(nanoBanana2);
     assert.equal(nanoBanana2.displayName, 'Nano Banana 2');
-    assert.deepEqual(
-      nanoBanana2.capabilities?.supportedImageResolutions,
-      [
-        { value: '512', label: '512' },
-        { value: '1K', label: '1K' },
-        { value: '2K', label: '2K' },
-        { value: '4K', label: '4K' },
-      ],
-    );
+    assert.deepEqual(nanoBanana2.capabilities?.supportedImageResolutions, [
+      { value: '512', label: '512' },
+      { value: '1K', label: '1K' },
+      { value: '2K', label: '2K' },
+      { value: '4K', label: '4K' },
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -188,6 +184,23 @@ test('GoogleProviderAdapter sends chat requests to the Gemini OpenAI-compatible 
     assert.equal(response.providerId, 'google');
     assert.equal(response.model, 'gemini-2.5-pro');
     assert.equal(response.message.content, 'hello from gemini');
+
+    await adapter.chat(
+      {
+        model: 'gemini-2.5-flash',
+        reasoning: { enabled: false },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'request-2',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'google-token' },
+      },
+    );
+    assert.equal(
+      JSON.parse(String(calls[1]?.init?.body)).reasoning_effort,
+      'none',
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -513,7 +526,10 @@ test('GoogleProviderAdapter fetches a remote HTTPS image reference before callin
     );
 
     assert.equal(calls[0]?.url, 'https://example.com/reference.png');
-    assert.equal(calls[1]?.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent');
+    assert.equal(
+      calls[1]?.url,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    );
     assert.deepEqual(JSON.parse(String(calls[1]?.init?.body)), {
       contents: [
         {

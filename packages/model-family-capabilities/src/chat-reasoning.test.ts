@@ -64,6 +64,27 @@ test('DeepSeek exposes proven toggle semantics but no effort controls', () => {
   );
 });
 
+test('only Gemini 2.5 Flash routes accept disabling reasoning', () => {
+  for (const modelId of ['gemini-2.5-flash', 'gemini-2.5-flash-lite']) {
+    const capability = lookupNativeChatReasoningCapability('google', modelId);
+    assert.doesNotThrow(() =>
+      validateChatReasoningRequest(
+        { enabled: false },
+        capability,
+        `google/${modelId}`,
+      ),
+    );
+  }
+
+  assert.throws(() =>
+    validateChatReasoningRequest(
+      { enabled: false },
+      lookupNativeChatReasoningCapability('google', 'gemini-2.5-pro'),
+      'google/gemini-2.5-pro',
+    ),
+  );
+});
+
 test('OpenAI capability is exact-model-specific despite sparse discovery', () => {
   assert.deepEqual(
     lookupNativeChatReasoningCapability('openai', 'gpt-5.4')?.supportedEfforts,
@@ -196,5 +217,47 @@ test('preserved reasoning is accepted only for documented replay-capable identit
         'zai/glm-4.6',
       ),
     /replay is not supported/,
+  );
+});
+
+test('Z.AI thinking is toggleable for exact reviewed models except GLM-5.3', () => {
+  for (const modelId of [
+    'glm-5.2',
+    'glm-5.1',
+    'glm-5',
+    'glm-5-turbo',
+    'glm-4.7',
+    'glm-4.6',
+    'glm-4.5',
+    'glm-4.5-air',
+    'glm-4.5-x',
+    'glm-4.5-airx',
+    'glm-4.5-flash',
+  ]) {
+    const capability = lookupNativeChatReasoningCapability('zai', modelId);
+    assert.equal(capability?.supportsToggle, true, modelId);
+    assert.doesNotThrow(() =>
+      validateChatReasoningRequest(
+        { enabled: false },
+        capability,
+        `zai/${modelId}`,
+      ),
+    );
+  }
+
+  const forcedCapability = lookupNativeChatReasoningCapability(
+    'zai',
+    'glm-5.3',
+  );
+  assert.equal(forcedCapability?.supportsToggle, undefined);
+  assert.equal(forcedCapability?.mandatory, true);
+  assert.throws(
+    () =>
+      validateChatReasoningRequest(
+        { enabled: false },
+        forcedCapability,
+        'zai/glm-5.3',
+      ),
+    /mandatory/,
   );
 });

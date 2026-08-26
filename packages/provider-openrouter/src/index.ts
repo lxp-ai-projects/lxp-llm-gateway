@@ -15,15 +15,6 @@ import { buildProviderChatHttpError } from '@lxp/provider-sdk';
 import { resolveAggregatorReasoningOptions } from '@lxp/model-family-capabilities';
 import type { ModelReasoningEffort } from '@lxp/domain';
 
-const OPENROUTER_REASONING_EFFORTS: ModelReasoningEffort[] = [
-  'max',
-  'xhigh',
-  'high',
-  'medium',
-  'low',
-  'minimal',
-  'none',
-];
 import {
   buildOpenRouterImageCatalog,
   buildKnownOpenRouterImageCatalog,
@@ -115,15 +106,10 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
 
     return buildOpenRouterModelCatalog(
       (payload.data ?? []).map((model) => {
-        const hasSupportedEfforts = Boolean(
-          model.reasoning &&
-          Object.prototype.hasOwnProperty.call(
-            model.reasoning,
-            'supported_efforts',
-          ),
-        );
-        const supportedEfforts = hasSupportedEfforts
-          ? (model.reasoning?.supported_efforts ?? OPENROUTER_REASONING_EFFORTS)
+        const supportedEfforts = Array.isArray(
+          model.reasoning?.supported_efforts,
+        )
+          ? model.reasoning.supported_efforts
           : undefined;
         const supportsToggle =
           model.reasoning?.mandatory !== true &&

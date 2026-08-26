@@ -37,6 +37,7 @@ reasoning?: {
   effort?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   budgetTokens?: number;
   includeOutput?: boolean;
+  preserveReasoning?: boolean;
 }
 ```
 
@@ -44,6 +45,10 @@ Disabling compute differs from excluding output. Validation occurs before
 dispatch. Mandatory reasoning cannot be disabled, unsupported efforts are not
 downgraded, and unknown models reject controls. Legacy `providerOptions` remain
 readable migration inputs, not capability truth.
+
+`preserveReasoning` requests replay of provider reasoning state from assistant
+messages. It is accepted only when the model route declares a replay requirement;
+it does not enable reasoning compute or make unknown replay formats valid.
 
 Normalized capability fields are included only when proven: support, toggle,
 budget and output-exclusion controls, efforts/defaults, mandatory state, output

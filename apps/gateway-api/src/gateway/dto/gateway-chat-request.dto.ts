@@ -103,6 +103,10 @@ class GatewayChatReasoningDto {
   @IsOptional()
   @IsBoolean()
   includeOutput?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  preserveReasoning?: boolean;
 }
 
 class GatewayChatProviderOptionsDto {

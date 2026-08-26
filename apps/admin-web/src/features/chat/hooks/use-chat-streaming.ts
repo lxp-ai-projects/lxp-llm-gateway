@@ -201,7 +201,9 @@ export function useChatStreaming({
         }
 
         const hasPartialAssistantOutput = Boolean(
-          streamedReasoning.trim() || streamedContent.trim(),
+          streamedReasoning.trim() ||
+          streamedReasoningDetails.length ||
+          streamedContent.trim(),
         );
         const nextMessages = hasPartialAssistantOutput
           ? updatedConversation.messages

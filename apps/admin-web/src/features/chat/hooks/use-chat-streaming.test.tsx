@@ -399,6 +399,24 @@ test('useChatStreaming preserves partial assistant output when the stream fails 
   });
 });
 
+test('useChatStreaming preserves opaque reasoning details when the stream fails', async () => {
+  const details = [{ type: 'reasoning.encrypted', data: 'opaque' }];
+  chatStreamMock.mockImplementation(async (_payload, handlers) => {
+    handlers.onChunk?.({ reasoningDetailsDelta: details });
+    throw new Error('socket reset');
+  });
+
+  const { hook, currentConversations } = setup();
+  await act(async () => {
+    await hook.result.current.sendMessage(createConversation, 'Hello');
+  });
+
+  expect(currentConversations()[0]?.messages.at(-1)).toMatchObject({
+    role: 'assistant',
+    reasoningDetails: details,
+  });
+});
+
 test('useChatStreaming removes the draft assistant message when the stream fails before any output', async () => {
   chatStreamMock.mockRejectedValue('fatal stream failure');
 

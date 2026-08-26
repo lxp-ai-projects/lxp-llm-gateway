@@ -325,6 +325,12 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     if (request.reasoning?.enabled === false) {
       return { type: 'disabled' };
     }
+    if (request.reasoning?.budgetTokens !== undefined) {
+      return {
+        type: 'enabled',
+        budget_tokens: request.reasoning.budgetTokens,
+      };
+    }
     if (
       request.reasoning?.enabled === true ||
       request.reasoning?.effort !== undefined
@@ -333,12 +339,6 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
         type: 'adaptive',
         display:
           request.reasoning.includeOutput === false ? 'omitted' : 'summarized',
-      };
-    }
-    if (request.reasoning?.budgetTokens !== undefined) {
-      return {
-        type: 'enabled',
-        budget_tokens: request.reasoning.budgetTokens,
       };
     }
 

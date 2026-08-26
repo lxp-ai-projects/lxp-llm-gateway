@@ -298,6 +298,14 @@ test('OpenAiCompatibleService preserves assistant reasoning replay fields', asyn
             { type: 'reasoning.text', text: 'Earlier reasoning' },
           ],
         },
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Earlier answer in blocks' }],
+          reasoning_content: 'Reasoning in blocks',
+          reasoning_details: [
+            { type: 'reasoning.text', text: 'Reasoning in blocks' },
+          ],
+        },
         { role: 'user', content: 'Continue' },
       ],
     },
@@ -310,6 +318,14 @@ test('OpenAiCompatibleService preserves assistant reasoning replay fields', asyn
       content: 'Earlier answer',
       reasoningContent: 'Earlier reasoning',
       reasoningDetails: [{ type: 'reasoning.text', text: 'Earlier reasoning' }],
+    },
+    {
+      role: 'assistant',
+      content: [{ type: 'text', text: 'Earlier answer in blocks' }],
+      reasoningContent: 'Reasoning in blocks',
+      reasoningDetails: [
+        { type: 'reasoning.text', text: 'Reasoning in blocks' },
+      ],
     },
     { role: 'user', content: 'Continue' },
   ]);
