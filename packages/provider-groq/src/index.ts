@@ -160,9 +160,16 @@ export class GroqProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
-          ...(request.reasoning?.effort
-            ? { reasoning_effort: request.reasoning.effort }
-            : {}),
+          ...(request.model === 'qwen/qwen3.6-27b' &&
+          request.reasoning?.enabled !== undefined
+            ? {
+                reasoning_effort: request.reasoning.enabled
+                  ? 'default'
+                  : 'none',
+              }
+            : request.reasoning?.effort
+              ? { reasoning_effort: request.reasoning.effort }
+              : {}),
           ...(typeof request.reasoning?.includeOutput === 'boolean'
             ? { include_reasoning: request.reasoning.includeOutput }
             : {}),

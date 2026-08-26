@@ -46,8 +46,16 @@ import {
   getProviderCatalogPricingNote,
 } from '../features/providers/lib/provider-utils';
 
-type AnthropicExtendedThinkingUiMode = 'none' | 'auto' | 'budget';
-type ThinkingUiMode = 'enabled' | 'enabled-preserve' | 'disabled';
+type AnthropicExtendedThinkingUiMode =
+  | 'provider-default'
+  | 'none'
+  | 'auto'
+  | 'budget';
+type ThinkingUiMode =
+  | 'provider-default'
+  | 'enabled'
+  | 'enabled-preserve'
+  | 'disabled';
 type ReasoningEffortUiMode = GatewayReasoningEffort | 'provider-default';
 type ReasoningControl = 'adaptive' | 'budget' | 'effort' | 'toggle';
 
@@ -57,6 +65,10 @@ function buildAnthropicProviderOptions(
   budgetTokens: number | '',
 ): GatewayChatProviderOptions | undefined {
   if (providerId !== 'anthropic') {
+    return undefined;
+  }
+
+  if (mode === 'provider-default') {
     return undefined;
   }
 
@@ -111,7 +123,7 @@ function readAnthropicThinkingSelection(
 
   if (!extendedThinking) {
     return {
-      mode: 'none',
+      mode: 'provider-default',
       budgetTokens: 4096,
     };
   }
@@ -142,6 +154,9 @@ function buildThinkingProviderOptions(
   mode: ThinkingUiMode,
 ): GatewayChatProviderOptions | undefined {
   void modelId;
+  if (mode === 'provider-default') {
+    return undefined;
+  }
   if (providerId === 'nanogpt') {
     return {
       nanogpt: {
@@ -214,7 +229,10 @@ function readThinkingSelection(
     }
 
     const thinking = conversation?.providerOptions?.zai?.thinking;
-    if (!thinking || thinking.type === 'enabled') {
+    if (!thinking) {
+      return 'provider-default';
+    }
+    if (thinking.type === 'enabled') {
       return thinking?.clearThinking === false ? 'enabled-preserve' : 'enabled';
     }
 
@@ -223,7 +241,10 @@ function readThinkingSelection(
 
   if (providerId === 'zai') {
     const thinking = conversation?.providerOptions?.zai?.thinking;
-    if (!thinking || thinking.type === 'enabled') {
+    if (!thinking) {
+      return 'provider-default';
+    }
+    if (thinking.type === 'enabled') {
       return thinking?.clearThinking === false ? 'enabled-preserve' : 'enabled';
     }
 
@@ -231,19 +252,25 @@ function readThinkingSelection(
   }
 
   if (providerId === 'openrouter') {
-    return conversation?.providerOptions?.openrouter?.reasoning?.enabled ===
-      false
-      ? 'disabled'
-      : 'enabled';
+    const enabled =
+      conversation?.providerOptions?.openrouter?.reasoning?.enabled;
+    return enabled === undefined
+      ? 'provider-default'
+      : enabled
+        ? 'enabled'
+        : 'disabled';
   }
 
   if (providerId === 'ollama') {
-    return conversation?.providerOptions?.ollama?.thinking?.enabled === false
-      ? 'disabled'
-      : 'enabled';
+    const enabled = conversation?.providerOptions?.ollama?.thinking?.enabled;
+    return enabled === undefined
+      ? 'provider-default'
+      : enabled
+        ? 'enabled'
+        : 'disabled';
   }
 
-  return 'enabled';
+  return 'provider-default';
 }
 
 function buildReasoningEffortProviderOptions(
@@ -296,26 +323,61 @@ function buildCanonicalReasoningRequest(input: {
   capability: ReturnType<typeof getModelReasoningCapability>;
   thinkingMode: ThinkingUiMode;
   effort: ReasoningEffortUiMode;
+  anthropicMode: AnthropicExtendedThinkingUiMode;
+  anthropicBudgetTokens: number | '';
 }): GatewayChatReasoningRequest | undefined {
-  if (
-    !input.capability?.supported ||
-    input.providerId === 'anthropic' ||
-    input.providerId === 'zai'
-  ) {
+  if (!input.capability?.supported) {
     return undefined;
+  }
+
+  const effort =
+    input.effort !== 'provider-default' && input.effort !== 'none'
+      ? input.effort
+      : undefined;
+
+  if (input.providerId === 'anthropic') {
+    if (input.anthropicMode === 'provider-default') {
+      return effort ? { effort } : undefined;
+    }
+    if (input.anthropicMode === 'budget') {
+      return typeof input.anthropicBudgetTokens === 'number'
+        ? {
+            budgetTokens: input.anthropicBudgetTokens,
+            ...(effort ? { effort } : {}),
+          }
+        : undefined;
+    }
+
+    return {
+      enabled: input.anthropicMode === 'auto',
+      ...(effort ? { effort } : {}),
+    };
   }
 
   if (input.effort !== 'provider-default') {
     return input.effort === 'none'
       ? { enabled: false }
-      : { effort: input.effort };
+      : {
+          effort: input.effort,
+          ...(input.capability.supportsToggle === true &&
+          input.thinkingMode === 'disabled'
+            ? { enabled: false }
+            : {}),
+        };
   }
 
   if (
     input.capability.supportsToggle === true ||
     input.capability.controls.includes('toggle')
   ) {
-    return { enabled: input.thinkingMode !== 'disabled' };
+    return input.thinkingMode === 'provider-default'
+      ? undefined
+      : {
+          enabled: input.thinkingMode !== 'disabled',
+          ...(input.thinkingMode === 'enabled-preserve'
+            ? { preserveReasoning: true }
+            : {}),
+        };
   }
 
   return undefined;
@@ -388,12 +450,12 @@ export function ChatPage() {
   const [prompt, setPrompt] = useState('');
   const [providerId, setProviderId] = useState('');
   const [model, setModel] = useState('');
-  const [maxOutputTokens, setMaxOutputTokens] = useState<number | ''>('');
   const [anthropicThinkingMode, setAnthropicThinkingMode] =
-    useState<AnthropicExtendedThinkingUiMode>('none');
+    useState<AnthropicExtendedThinkingUiMode>('provider-default');
   const [anthropicThinkingBudgetTokens, setAnthropicThinkingBudgetTokens] =
     useState<number | ''>(4096);
-  const [thinkingMode, setThinkingMode] = useState<ThinkingUiMode>('enabled');
+  const [thinkingMode, setThinkingMode] =
+    useState<ThinkingUiMode>('provider-default');
   const [reasoningEffort, setReasoningEffort] =
     useState<ReasoningEffortUiMode>('provider-default');
   const [chatError, setChatError] = useState<string | null>(null);
@@ -427,7 +489,6 @@ export function ChatPage() {
     conversationPendingDeletion,
     conversations,
     createConversation: createStoredConversation,
-    persistConversationMaxOutputTokens,
     persistConversationModel,
     persistConversationProvider,
     persistConversationProviderOptions,
@@ -440,8 +501,7 @@ export function ChatPage() {
   } = useChatConversations({
     providerId,
     model,
-    maxOutputTokens:
-      typeof maxOutputTokens === 'number' ? maxOutputTokens : undefined,
+    maxOutputTokens: undefined,
     scope: conversationScope,
     onResetComposerState: () => {
       setPrompt('');
@@ -518,16 +578,38 @@ export function ChatPage() {
         ? zaiThinking.type === 'enabled' && zaiThinking.clearThinking === false
         : true;
     },
-    resolveReasoning: (conversation) =>
-      buildCanonicalReasoningRequest({
+    resolveReasoning: (conversation) => {
+      const storedThinkingMode = readThinkingSelection(
+        conversation.providerId,
+        conversation,
+      );
+      const storedEffort = readReasoningEffortSelection(
+        conversation.providerId,
+        conversation,
+      );
+      const storedAnthropic = readAnthropicThinkingSelection(conversation);
+
+      return buildCanonicalReasoningRequest({
         providerId: conversation.providerId,
         capability: getModelReasoningCapability(
           modelsQuery.data?.models,
           conversation.model,
         ),
-        thinkingMode,
-        effort: reasoningEffort,
-      }),
+        thinkingMode:
+          thinkingMode === 'provider-default'
+            ? storedThinkingMode
+            : thinkingMode,
+        effort:
+          reasoningEffort === 'provider-default'
+            ? storedEffort
+            : reasoningEffort,
+        anthropicMode:
+          anthropicThinkingMode === 'provider-default'
+            ? storedAnthropic.mode
+            : anthropicThinkingMode,
+        anthropicBudgetTokens: anthropicThinkingBudgetTokens,
+      });
+    },
   });
   const sortedModelOptions = buildDefaultModelOptions(
     modelsQuery.data?.models ?? [],
@@ -585,19 +667,11 @@ export function ChatPage() {
     forcedThinkingDisabledRef.current = false;
   }, [activeConversation?.id, activeConversation?.providerOptions, providerId]);
 
-  useEffect(() => {
-    setMaxOutputTokens(activeConversation?.maxOutputTokens ?? '');
-  }, [activeConversation?.id, activeConversation?.maxOutputTokens]);
-
   const userDisplayName = sessionQuery.data?.displayName?.trim() || 'User';
   const persistedSystemPrompt =
     activeConversation?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
   const systemPromptDirty =
     systemPrompt.trim() !== persistedSystemPrompt.trim();
-  const normalizedMaxOutputTokens =
-    typeof maxOutputTokens === 'number' && Number.isInteger(maxOutputTokens)
-      ? maxOutputTokens
-      : undefined;
   const selectedModel = modelsQuery.data?.models.find(
     (entry) => entry.id === model,
   );
@@ -607,17 +681,13 @@ export function ChatPage() {
     model.length > 0 &&
     reasoningCapability?.supported !== true;
   const effectiveAnthropicThinkingMode = anthropicThinkingDisabledForModel
-    ? 'none'
+    ? 'provider-default'
     : anthropicThinkingMode;
   const thinkingControlVisible =
     providerId !== 'anthropic' &&
     reasoningCapability?.supported === true &&
     reasoningCapability.mandatory !== true &&
-    reasoningCapability.controls.includes('toggle') &&
-    (providerId === 'zai' ||
-      providerId === 'nanogpt' ||
-      providerId === 'openrouter' ||
-      providerId === 'ollama');
+    reasoningCapability.controls.includes('toggle');
   const reasoningEffortControlVisible =
     reasoningCapability?.supported === true &&
     reasoningCapability.controls.includes('effort') &&
@@ -632,7 +702,7 @@ export function ChatPage() {
     reasoningCapability?.replayRequirement !== undefined &&
     reasoningCapability.replayRequirement !== 'none';
   const effectiveThinkingMode = reasoningCapability?.mandatory
-    ? 'enabled'
+    ? 'provider-default'
     : thinkingControlVisible && model.length > 0 && !thinkingSupported
       ? 'disabled'
       : preserveThinkingSupported || thinkingMode !== 'enabled-preserve'
@@ -677,17 +747,20 @@ export function ChatPage() {
       void persistConversationProvider(
         nextProviderId,
         nextModel,
-        buildChatProviderOptions({
-          providerId: nextProviderId,
-          model: nextModel,
-          anthropicThinkingMode,
-          anthropicThinkingBudgetTokens,
-          thinkingMode,
-          reasoningSupported: nextReasoningCapability?.supported === true,
-          reasoningMandatory: nextReasoningCapability?.mandatory === true,
-          reasoningControls: nextReasoningCapability?.controls ?? [],
-          reasoningEffort,
-        }),
+        nextProviderId === activeConversation.providerId &&
+          nextModel === activeConversation.model
+          ? activeConversation.providerOptions
+          : buildChatProviderOptions({
+              providerId: nextProviderId,
+              model: nextModel,
+              anthropicThinkingMode,
+              anthropicThinkingBudgetTokens,
+              thinkingMode,
+              reasoningSupported: nextReasoningCapability?.supported === true,
+              reasoningMandatory: nextReasoningCapability?.mandatory === true,
+              reasoningControls: nextReasoningCapability?.controls ?? [],
+              reasoningEffort,
+            }),
       );
     },
   );
@@ -823,7 +896,7 @@ export function ChatPage() {
       ...conversation,
       providerId,
       model,
-      maxOutputTokens: normalizedMaxOutputTokens,
+      maxOutputTokens: undefined,
       providerOptions: buildChatProviderOptions({
         providerId,
         model,
@@ -1037,29 +1110,18 @@ export function ChatPage() {
                     !providerId || modelsQuery.isPending || modelsQuery.isError
                   }
                 />
-                <NumberInput
-                  data-testid="chat-max-output-tokens-input"
-                  label={t('chatPage.maxOutputTokens')}
-                  min={1}
-                  onChange={(value) => {
-                    const nextMaxOutputTokens =
-                      typeof value === 'number' ? value : '';
-                    setMaxOutputTokens(nextMaxOutputTokens);
-                    if (activeConversation) {
-                      void persistConversationMaxOutputTokens(
-                        typeof nextMaxOutputTokens === 'number'
-                          ? nextMaxOutputTokens
-                          : undefined,
-                      );
-                    }
-                  }}
-                  placeholder={t('chatPage.providerDefault')}
-                  value={maxOutputTokens}
-                />
                 {providerId === 'anthropic' ? (
                   <>
                     <Select
                       data={[
+                        {
+                          value: 'provider-default',
+                          label: reasoningCapability?.defaultEnabled
+                            ? t('chatPage.providerDefaultWithValue', {
+                                value: t('chatPage.thinkingEnabled'),
+                              })
+                            : t('chatPage.providerDefault'),
+                        },
                         {
                           value: 'none',
                           label: t('chatPage.extendedThinkingNone'),
@@ -1107,7 +1169,7 @@ export function ChatPage() {
                       <NumberInput
                         data-testid="chat-anthropic-thinking-budget-input"
                         label={t('chatPage.thinkingBudgetTokens')}
-                        min={1024}
+                        min={reasoningCapability?.minimumBudgetTokens ?? 1}
                         step={256}
                         onChange={(value) => {
                           const nextBudget =
@@ -1131,6 +1193,14 @@ export function ChatPage() {
                 {thinkingControlVisible ? (
                   <Select
                     data={[
+                      {
+                        value: 'provider-default',
+                        label: reasoningCapability?.defaultEnabled
+                          ? t('chatPage.providerDefaultWithValue', {
+                              value: t('chatPage.thinkingEnabled'),
+                            })
+                          : t('chatPage.providerDefault'),
+                      },
                       {
                         value: 'enabled',
                         label: t('chatPage.thinkingEnabled'),
@@ -1272,12 +1342,16 @@ export function ChatPage() {
                           ? t('chatPage.anthropicThinkingAuto')
                           : anthropicThinkingMode === 'budget'
                             ? t('chatPage.anthropicThinkingBudget')
-                            : t('chatPage.anthropicThinkingDisabled')
+                            : anthropicThinkingMode === 'none'
+                              ? t('chatPage.anthropicThinkingDisabled')
+                              : t('chatPage.providerDefault')
                         : preserveThinkingEnabled
                           ? t('chatPage.reasoningEnabledPreserved')
                           : effectiveThinkingMode === 'disabled'
                             ? t('chatPage.reasoningDisabledDescription')
-                            : t('chatPage.reasoningEnabledDescription')}
+                            : effectiveThinkingMode === 'provider-default'
+                              ? t('chatPage.providerDefault')
+                              : t('chatPage.reasoningEnabledDescription')}
               </Alert>
             ) : null}
             {providerId === 'anthropic' &&
@@ -1395,7 +1469,7 @@ export function ChatPage() {
                                 conversationScope,
                                 providerId,
                                 model,
-                                normalizedMaxOutputTokens,
+                                undefined,
                                 chatProviderOptions,
                                 systemPrompt.trim(),
                               );

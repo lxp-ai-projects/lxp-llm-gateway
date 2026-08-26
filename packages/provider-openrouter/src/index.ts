@@ -14,6 +14,16 @@ import type {
 import { buildProviderChatHttpError } from '@lxp/provider-sdk';
 import { resolveAggregatorReasoningOptions } from '@lxp/model-family-capabilities';
 import type { ModelReasoningEffort } from '@lxp/domain';
+
+const OPENROUTER_REASONING_EFFORTS: ModelReasoningEffort[] = [
+  'max',
+  'xhigh',
+  'high',
+  'medium',
+  'low',
+  'minimal',
+  'none',
+];
 import {
   buildOpenRouterImageCatalog,
   buildKnownOpenRouterImageCatalog,
@@ -105,28 +115,30 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
 
     return buildOpenRouterModelCatalog(
       (payload.data ?? []).map((model) => {
-        const supportedEfforts =
+        const hasSupportedEfforts = Boolean(
           model.reasoning &&
           Object.prototype.hasOwnProperty.call(
             model.reasoning,
             'supported_efforts',
-          )
-            ? (model.reasoning.supported_efforts ?? undefined)
-            : undefined;
+          ),
+        );
+        const supportedEfforts = hasSupportedEfforts
+          ? (model.reasoning?.supported_efforts ?? OPENROUTER_REASONING_EFFORTS)
+          : undefined;
+        const supportsToggle =
+          model.reasoning?.mandatory !== true &&
+          supportedEfforts?.includes('none') === true;
 
         return {
           id: model.id,
           displayName: model.name ?? model.id,
-          ...(model.reasoning ||
-          model.supported_parameters?.includes('reasoning')
+          ...(model.reasoning
             ? {
                 capabilities: {
                   reasoning: {
                     supported: true,
                     controls: [
-                      ...(model.reasoning?.mandatory === false
-                        ? (['toggle'] as const)
-                        : []),
+                      ...(supportsToggle ? (['toggle'] as const) : []),
                       ...(supportedEfforts ? (['effort'] as const) : []),
                       ...(model.reasoning?.supports_max_tokens
                         ? (['budget'] as const)
@@ -142,9 +154,7 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
                     ...(typeof model.reasoning?.mandatory === 'boolean'
                       ? { mandatory: model.reasoning.mandatory }
                       : {}),
-                    ...(model.reasoning?.mandatory === false
-                      ? { supportsToggle: true }
-                      : {}),
+                    ...(supportsToggle ? { supportsToggle: true } : {}),
                     supportsOutputExclusion: true,
                     semantic: 'reasoning-depth' as const,
                     source: {

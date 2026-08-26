@@ -10,12 +10,6 @@ import type {
 } from '@lxp/provider-sdk';
 import type { ModelReasoningCapability } from '@lxp/domain';
 
-const OLLAMA_GPT_OSS_THINKING_MODELS = new Set([
-  'gpt-oss',
-  'gpt-oss:20b',
-  'gpt-oss:120b',
-]);
-
 export class OllamaProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
     chat: true,
@@ -118,23 +112,9 @@ export class OllamaProviderAdapter implements LlmProviderAdapter {
       }
 
       const supported = payload.capabilities.includes('thinking');
-      const usesThinkingLevels = OLLAMA_GPT_OSS_THINKING_MODELS.has(modelId);
       return {
         supported,
-        controls: supported
-          ? usesThinkingLevels
-            ? ['effort']
-            : ['toggle']
-          : [],
-        ...(supported && usesThinkingLevels
-          ? {
-              supportedEfforts: ['low', 'medium', 'high'] as const,
-              defaultEnabled: true,
-              mandatory: true,
-              semantic: 'reasoning-depth' as const,
-            }
-          : {}),
-        ...(supported && !usesThinkingLevels ? { supportsToggle: true } : {}),
+        controls: [],
         source: {
           kind: 'provider-api' as const,
           providerId: this.providerId,

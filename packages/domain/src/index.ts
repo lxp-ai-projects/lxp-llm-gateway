@@ -215,7 +215,9 @@ export interface ModelReasoningCapability {
   defaultEnabled?: boolean;
   mandatory?: boolean;
   supportsToggle?: boolean;
+  disableForbiddenEfforts?: ModelReasoningEffort[];
   supportsBudgetTokens?: boolean;
+  minimumBudgetTokens?: number;
   supportsOutputExclusion?: boolean;
   outputKind?: 'reasoning-text' | 'summary' | 'opaque-signed' | 'none';
   replayRequirement?:

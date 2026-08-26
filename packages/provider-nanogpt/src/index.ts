@@ -117,23 +117,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
             capabilities: {
               reasoning: {
                 supported: model.capabilities.reasoning,
-                controls: model.capabilities.reasoning
-                  ? (['toggle', 'effort'] as const)
-                  : [],
-                ...(model.capabilities.reasoning
-                  ? {
-                      supportsToggle: true,
-                      supportsOutputExclusion: true,
-                      supportedEfforts: [
-                        'minimal' as const,
-                        'low' as const,
-                        'medium' as const,
-                        'high' as const,
-                        'xhigh' as const,
-                      ],
-                      semantic: 'reasoning-depth' as const,
-                    }
-                  : {}),
+                controls: [],
                 source: {
                   kind: 'provider-api' as const,
                   providerId: this.providerId,

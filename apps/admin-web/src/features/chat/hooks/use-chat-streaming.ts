@@ -73,6 +73,7 @@ export function useChatStreaming({
     };
 
     let streamedReasoning = '';
+    const streamedReasoningDetails: unknown[] = [];
     let streamedContent = '';
 
     onSetChatError(null);
@@ -95,7 +96,6 @@ export function useChatStreaming({
         {
           providerId: baseConversation.providerId,
           model: baseConversation.model,
-          maxOutputTokens: baseConversation.maxOutputTokens,
           reasoning,
           providerOptions: reasoning
             ? undefined
@@ -107,8 +107,17 @@ export function useChatStreaming({
           }),
         },
         {
-          onChunk: ({ reasoningDelta, contentDelta }) => {
+          onChunk: ({
+            reasoningDelta,
+            reasoningDetailsDelta,
+            contentDelta,
+          }) => {
             streamedReasoning += reasoningDelta ?? '';
+            if (Array.isArray(reasoningDetailsDelta)) {
+              streamedReasoningDetails.push(...reasoningDetailsDelta);
+            } else if (reasoningDetailsDelta !== undefined) {
+              streamedReasoningDetails.push(reasoningDetailsDelta);
+            }
             streamedContent += contentDelta ?? '';
             onConversationUpdated((current) =>
               current.map((conversation) => {
@@ -127,6 +136,9 @@ export function useChatStreaming({
                     return {
                       ...message,
                       reasoning: `${message.reasoning ?? ''}${reasoningDelta ?? ''}`,
+                      ...(streamedReasoningDetails.length
+                        ? { reasoningDetails: [...streamedReasoningDetails] }
+                        : {}),
                       content: `${message.content}${contentDelta ?? ''}`,
                     };
                   }),
@@ -145,6 +157,9 @@ export function useChatStreaming({
             ? {
                 ...message,
                 reasoning: streamedReasoning,
+                ...(streamedReasoningDetails.length
+                  ? { reasoningDetails: streamedReasoningDetails }
+                  : {}),
                 content: streamedContent,
                 finishReason: streamResult.finishReason ?? null,
               }

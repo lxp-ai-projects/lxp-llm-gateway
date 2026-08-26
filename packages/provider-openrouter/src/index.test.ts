@@ -440,12 +440,11 @@ test('OpenRouterProviderAdapter respects a credential-level baseUrl override', a
     assert.equal(calls[0]?.url, 'https://custom-openrouter.example/v1/models');
     assert.deepEqual(models?.[0]?.capabilities?.reasoning, {
       supported: true,
-      controls: ['toggle', 'effort'],
+      controls: ['effort'],
       supportedEfforts: ['high', 'medium', 'low'],
       defaultEffort: 'medium',
       defaultEnabled: true,
       mandatory: false,
-      supportsToggle: true,
       supportsOutputExclusion: true,
       semantic: 'reasoning-depth',
       source: {
@@ -486,12 +485,21 @@ test('OpenRouterProviderAdapter does not invent controls from absent reasoning m
       providerAccess: { apiKey: 'secret' },
     });
 
-    assert.deepEqual(models?.[0]?.capabilities?.reasoning?.controls, []);
-    assert.equal(
-      models?.[0]?.capabilities?.reasoning?.supportedEfforts,
-      undefined,
-    );
-    assert.deepEqual(models?.[1]?.capabilities?.reasoning?.controls, []);
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning?.controls, [
+      'toggle',
+      'effort',
+    ]);
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning?.supportedEfforts, [
+      'max',
+      'xhigh',
+      'high',
+      'medium',
+      'low',
+      'minimal',
+      'none',
+    ]);
+    assert.equal(models?.[0]?.capabilities?.reasoning?.supportsToggle, true);
+    assert.equal(models?.[1]?.capabilities?.reasoning, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }

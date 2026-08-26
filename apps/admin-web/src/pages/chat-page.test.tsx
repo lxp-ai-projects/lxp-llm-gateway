@@ -172,7 +172,7 @@ beforeEach(() => {
               reasoning: {
                 supported: true,
                 controls: ['toggle'],
-                replayRequirement: 'reasoning-content',
+                supportsToggle: true,
                 source: {
                   kind: 'provider-api',
                   providerId: 'openrouter',
@@ -196,7 +196,7 @@ beforeEach(() => {
             capabilities: {
               reasoning: {
                 supported: true,
-                controls: ['toggle'],
+                controls: [],
                 replayRequirement: 'reasoning-content',
                 source: {
                   kind: 'provider-api',
@@ -224,8 +224,50 @@ beforeEach(() => {
       return {
         providerId: 'openai',
         models: [
-          { id: 'gpt-4o', displayName: 'GPT-4o' },
+          {
+            id: 'gpt-4o',
+            displayName: 'GPT-4o',
+            capabilities: {
+              reasoning: {
+                supported: false,
+                controls: [],
+                source: {
+                  kind: 'reviewed-documentation',
+                  providerId: 'openai',
+                  modelId: 'gpt-4o',
+                  reviewedAt: '2026-08-25',
+                },
+              },
+            },
+          },
           { id: 'gpt-4.1-mini', displayName: 'GPT-4.1 Mini' },
+        ],
+      };
+    }
+
+    if (providerId === 'deepseek') {
+      return {
+        providerId: 'deepseek',
+        models: [
+          {
+            id: 'deepseek-v4-pro',
+            displayName: 'DeepSeek V4 Pro',
+            capabilities: {
+              reasoning: {
+                supported: true,
+                controls: ['toggle'],
+                supportsToggle: true,
+                defaultEnabled: true,
+                replayRequirement: 'reasoning-content',
+                source: {
+                  kind: 'reviewed-documentation',
+                  providerId: 'deepseek',
+                  modelId: 'deepseek-v4-pro',
+                  reviewedAt: '2026-08-25',
+                },
+              },
+            },
+          },
         ],
       };
     }
@@ -249,12 +291,18 @@ beforeEach(() => {
             displayName: 'Claude Haiku 4.5',
             capabilities: {
               reasoning: {
-                supported: false,
-                controls: [],
+                supported: true,
+                controls: ['budget', 'toggle'],
+                supportsToggle: true,
+                supportsBudgetTokens: true,
+                minimumBudgetTokens: 1024,
+                defaultEnabled: false,
+                replayRequirement: 'opaque-provider-blocks',
                 source: {
-                  kind: 'provider-api',
+                  kind: 'reviewed-documentation',
                   providerId: 'anthropic',
                   modelId: 'claude-haiku-4-5-20251001',
+                  reviewedAt: '2026-08-25',
                 },
               },
             },
@@ -287,17 +335,29 @@ beforeEach(() => {
         providerId: 'zai',
         models: [
           {
-            id: 'glm-4.5',
-            displayName: 'GLM-4.5',
+            id: 'glm-5.2',
+            displayName: 'GLM-5.2',
             capabilities: {
               reasoning: {
                 supported: true,
-                controls: ['toggle'],
+                controls: ['toggle', 'effort'],
+                supportedEfforts: [
+                  'minimal',
+                  'low',
+                  'medium',
+                  'high',
+                  'xhigh',
+                  'max',
+                ],
+                defaultEffort: 'max',
+                defaultEnabled: true,
+                supportsToggle: true,
                 replayRequirement: 'reasoning-content',
                 source: {
-                  kind: 'provider-api',
+                  kind: 'reviewed-documentation',
                   providerId: 'zai',
-                  modelId: 'glm-4.5',
+                  modelId: 'glm-5.2',
+                  reviewedAt: '2026-08-25',
                 },
               },
             },
@@ -330,8 +390,7 @@ beforeEach(() => {
           capabilities: {
             reasoning: {
               supported: true,
-              controls: ['toggle'],
-              replayRequirement: 'reasoning-content',
+              controls: [],
               source: {
                 kind: 'provider-api',
                 providerId: 'nanogpt',
@@ -346,7 +405,7 @@ beforeEach(() => {
           capabilities: {
             reasoning: {
               supported: true,
-              controls: ['toggle'],
+              controls: [],
               source: {
                 kind: 'provider-api',
                 providerId: 'nanogpt',
@@ -400,15 +459,12 @@ test('ChatPage sends Z.ai thinking settings and prior reasoning with the chat re
     {
       id: 'conversation-zai-1',
       title: 'Z.ai thread',
-      model: 'glm-4.5',
+      model: 'glm-5.2',
       providerId: 'zai',
       systemPrompt: 'You are a helpful assistant.',
       providerOptions: {
         zai: {
-          thinking: {
-            type: 'enabled',
-            clearThinking: false,
-          },
+          thinking: { type: 'enabled', clearThinking: false },
         },
       },
       updatedAt: '2026-04-16T00:00:00.000Z',
@@ -427,9 +483,6 @@ test('ChatPage sends Z.ai thinking settings and prior reasoning with the chat re
   renderWithProviders(<ChatPage />);
 
   await screen.findByRole('heading', { name: 'Chat Lab' });
-  expect(
-    await screen.findByText(/prior reasoning content is preserved/i),
-  ).toBeInTheDocument();
 
   const composer = screen.getByPlaceholderText(
     'Ask the provider something meaningful...',
@@ -440,15 +493,9 @@ test('ChatPage sends Z.ai thinking settings and prior reasoning with the chat re
   expect(chatStreamMock).toHaveBeenCalledWith(
     expect.objectContaining({
       providerId: 'zai',
-      model: 'glm-4.5',
-      providerOptions: {
-        zai: {
-          thinking: {
-            type: 'enabled',
-            clearThinking: false,
-          },
-        },
-      },
+      model: 'glm-5.2',
+      reasoning: { enabled: true, preserveReasoning: true },
+      providerOptions: undefined,
       messages: [
         { role: 'system', content: 'You are a helpful assistant.' },
         {
@@ -463,7 +510,7 @@ test('ChatPage sends Z.ai thinking settings and prior reasoning with the chat re
   );
 }, 10_000);
 
-test('ChatPage exposes GLM thinking controls for NanoGPT Z.ai routes', async () => {
+test('ChatPage does not invent GLM controls from NanoGPT reasoning support', async () => {
   const user = userEvent.setup();
 
   renderWithProviders(<ChatPage />);
@@ -471,12 +518,9 @@ test('ChatPage exposes GLM thinking controls for NanoGPT Z.ai routes', async () 
   await screen.findByRole('heading', { name: 'Chat Lab' });
   expect(await screen.findByText('NanoGPT reasoning')).toBeInTheDocument();
 
-  await user.click(screen.getByTestId('chat-thinking-mode-select'));
-  const preserveOption = document.querySelector(
-    '[role="option"][value="enabled-preserve"]',
-  ) as HTMLElement | null;
-  expect(preserveOption).not.toBeNull();
-  await user.click(preserveOption!);
+  expect(
+    screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
 
   const composer = screen.getByPlaceholderText(
     'Ask the provider something meaningful...',
@@ -488,14 +532,14 @@ test('ChatPage exposes GLM thinking controls for NanoGPT Z.ai routes', async () 
     expect.objectContaining({
       providerId: 'nanogpt',
       model: 'z-ai/glm-4.6:thinking',
-      reasoning: { enabled: true },
+      reasoning: undefined,
       providerOptions: undefined,
     }),
     expect.any(Object),
   );
 });
 
-test('ChatPage uses NanoGPT API capabilities for a Claude route without GLM messaging', async () => {
+test('ChatPage treats NanoGPT Claude route support as support-only metadata', async () => {
   const user = userEvent.setup();
 
   renderWithProviders(<ChatPage />);
@@ -510,7 +554,9 @@ test('ChatPage uses NanoGPT API capabilities for a Claude route without GLM mess
 
   expect(await screen.findByText('NanoGPT reasoning')).toBeInTheDocument();
   expect(screen.queryByText(/GLM 4\.5\+/i)).not.toBeInTheDocument();
-  expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
+  expect(
+    screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
 
   const composer = screen.getByPlaceholderText(
     'Ask the provider something meaningful...',
@@ -522,14 +568,14 @@ test('ChatPage uses NanoGPT API capabilities for a Claude route without GLM mess
     expect.objectContaining({
       providerId: 'nanogpt',
       model: 'anthropic/claude-sonnet-5:thinking',
-      reasoning: { enabled: true },
+      reasoning: undefined,
       providerOptions: undefined,
     }),
     expect.any(Object),
   );
 });
 
-test('ChatPage does not infer native OpenAI reasoning when the model API omits it', async () => {
+test('ChatPage honors exact documented non-reasoning OpenAI models', async () => {
   const user = userEvent.setup();
 
   renderWithProviders(<ChatPage />);
@@ -544,11 +590,31 @@ test('ChatPage does not infer native OpenAI reasoning when the model API omits i
 
   expect(
     await screen.findByText(
-      /OpenAI model API does not declare reasoning capabilities/i,
+      /model API declares that .+ does not support reasoning/i,
     ),
   ).toBeInTheDocument();
   expect(
     screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
+});
+
+test('ChatPage exposes DeepSeek toggle but no effort control while mappings are ambiguous', async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(<ChatPage />);
+
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  await user.click(screen.getByTestId('chat-provider-select'));
+  const deepSeekOption = document.querySelector(
+    '[role="option"][value="deepseek"]',
+  ) as HTMLElement | null;
+  expect(deepSeekOption).not.toBeNull();
+  await user.click(deepSeekOption!);
+
+  expect(await screen.findByText('DeepSeek reasoning')).toBeInTheDocument();
+  expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
+  expect(
+    screen.queryByTestId('chat-reasoning-effort-select'),
   ).not.toBeInTheDocument();
 });
 
@@ -604,6 +670,12 @@ test('ChatPage exposes GLM thinking controls for OpenRouter GLM routes', async (
 
   expect(await screen.findByText('OpenRouter reasoning')).toBeInTheDocument();
   expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
+  await user.click(screen.getByTestId('chat-thinking-mode-select'));
+  const enabledOption = document.querySelector(
+    '[role="option"][value="enabled"]',
+  ) as HTMLElement | null;
+  expect(enabledOption).not.toBeNull();
+  await user.click(enabledOption!);
 
   const composer = screen.getByPlaceholderText(
     'Ask the provider something meaningful...',
@@ -674,7 +746,7 @@ test('ChatPage exposes only catalog-declared effort for mandatory OpenRouter rea
   );
 });
 
-test('ChatPage exposes GLM thinking controls for Ollama GLM routes', async () => {
+test('ChatPage does not infer Ollama GLM control semantics from thinking support', async () => {
   const user = userEvent.setup();
 
   renderWithProviders(<ChatPage />);
@@ -695,7 +767,9 @@ test('ChatPage exposes GLM thinking controls for Ollama GLM routes', async () =>
   await user.click(glmOption!);
 
   expect(await screen.findByText('Ollama reasoning')).toBeInTheDocument();
-  expect(screen.getByTestId('chat-thinking-mode-select')).toBeEnabled();
+  expect(
+    screen.queryByTestId('chat-thinking-mode-select'),
+  ).not.toBeInTheDocument();
 
   const composer = screen.getByPlaceholderText(
     'Ask the provider something meaningful...',
@@ -707,7 +781,7 @@ test('ChatPage exposes GLM thinking controls for Ollama GLM routes', async () =>
     expect.objectContaining({
       providerId: 'ollama',
       model: 'glm-4.5',
-      reasoning: { enabled: true },
+      reasoning: undefined,
       providerOptions: undefined,
     }),
     expect.any(Object),
@@ -845,20 +919,14 @@ test('ChatPage sends Anthropic extended thinking settings with the chat request'
     expect.objectContaining({
       providerId: 'anthropic',
       model: 'claude-sonnet-4-20250514',
-      providerOptions: {
-        anthropic: {
-          extendedThinking: {
-            mode: 'budget',
-            budgetTokens: 8192,
-          },
-        },
-      },
+      reasoning: { budgetTokens: 8192 },
+      providerOptions: undefined,
     }),
     expect.any(Object),
   );
 }, 10_000);
 
-test('ChatPage disables Anthropic thinking for Haiku models and forces none', async () => {
+test('ChatPage exposes documented budget thinking for exact Claude Haiku snapshots', async () => {
   const user = userEvent.setup();
 
   renderWithProviders(<ChatPage />);
@@ -879,16 +947,17 @@ test('ChatPage disables Anthropic thinking for Haiku models and forces none', as
   await user.click(haikuOption!);
 
   expect(
-    await screen.findByText(
-      /model API declares that .+ does not support reasoning/i,
-    ),
-  ).toBeInTheDocument();
-  expect(
-    screen.queryByLabelText('Thinking budget tokens'),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.getByTestId('chat-anthropic-thinking-mode-select'),
-  ).toBeDisabled();
+    await screen.findByTestId('chat-anthropic-thinking-mode-select'),
+  ).toBeEnabled();
+  await user.click(screen.getByTestId('chat-anthropic-thinking-mode-select'));
+  const budgetOption = document.querySelector(
+    '[role="option"][value="budget"]',
+  ) as HTMLElement | null;
+  expect(budgetOption).not.toBeNull();
+  await user.click(budgetOption!);
+  expect(await screen.findByLabelText('Thinking budget tokens')).toHaveValue(
+    '4096',
+  );
 
   const composer = screen.getByPlaceholderText(
     'Ask the provider something meaningful...',
@@ -900,37 +969,21 @@ test('ChatPage disables Anthropic thinking for Haiku models and forces none', as
     expect.objectContaining({
       providerId: 'anthropic',
       model: 'claude-haiku-4-5-20251001',
+      reasoning: { budgetTokens: 4096 },
       providerOptions: undefined,
     }),
     expect.any(Object),
   );
 }, 10_000);
 
-test('ChatPage sends max output tokens with the chat request when configured', async () => {
-  const user = userEvent.setup();
-
+test('ChatPage leaves output length to the provider', async () => {
   renderWithProviders(<ChatPage />);
-
-  const maxOutputTokensInput =
-    await screen.findByLabelText('Max output tokens');
-  await user.clear(maxOutputTokensInput);
-  await user.type(maxOutputTokensInput, '2048');
-
-  const composer = screen.getByPlaceholderText(
-    'Ask the provider something meaningful...',
-  );
-  await user.type(composer, 'Limit the output{enter}');
-
-  await waitFor(() => expect(chatStreamMock).toHaveBeenCalledTimes(1));
-  expect(chatStreamMock).toHaveBeenCalledWith(
-    expect.objectContaining({
-      providerId: 'nanogpt',
-      model: 'z-ai/glm-4.6:thinking',
-      maxOutputTokens: 2048,
-    }),
-    expect.any(Object),
-  );
-}, 10_000);
+  await screen.findByRole('heading', { name: 'Chat Lab' });
+  expect(
+    screen.queryByTestId('chat-max-output-tokens-input'),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Max output tokens')).not.toBeInTheDocument();
+});
 
 test('ChatPage keeps Shift+Enter for multiline drafting', async () => {
   renderWithProviders(<ChatPage />);

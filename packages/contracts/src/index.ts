@@ -45,6 +45,8 @@ export interface GatewayChatReasoningRequest {
   effort?: Exclude<GatewayReasoningEffort, 'none'>;
   budgetTokens?: number;
   includeOutput?: boolean;
+  /** Preserve provider reasoning state when replaying assistant messages. */
+  preserveReasoning?: boolean;
 }
 
 export interface GatewayModelReasoning {

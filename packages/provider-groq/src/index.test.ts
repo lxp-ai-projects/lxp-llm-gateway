@@ -76,7 +76,8 @@ test('GroqProviderAdapter sends chat requests through /chat/completions', async 
     const adapter = new GroqProviderAdapter();
     const response = await adapter.chat(
       {
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.6-27b',
+        reasoning: { enabled: false, includeOutput: false },
         messages: [{ role: 'user', content: 'hello' }],
       },
       {
@@ -90,6 +91,12 @@ test('GroqProviderAdapter sends chat requests through /chat/completions', async 
       calls[0]?.url,
       'https://api.groq.com/openai/v1/chat/completions',
     );
+    const body = JSON.parse(String(calls[0]?.init?.body)) as {
+      reasoning_effort?: string;
+      include_reasoning?: boolean;
+    };
+    assert.equal(body.reasoning_effort, 'none');
+    assert.equal(body.include_reasoning, false);
     assert.equal(response.message.content, 'hello from groq');
     assert.equal(response.usage?.totalTokens, 15);
   } finally {

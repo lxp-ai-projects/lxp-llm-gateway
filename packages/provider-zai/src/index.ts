@@ -130,8 +130,16 @@ function buildZaiChatRequestBody(
             typeof zaiThinking.clearThinking === 'boolean'
               ? { clear_thinking: zaiThinking.clearThinking }
               : {}),
+            ...(typeof request.reasoning?.preserveReasoning === 'boolean'
+              ? {
+                  clear_thinking: !request.reasoning.preserveReasoning,
+                }
+              : {}),
           },
         }
+      : {}),
+    ...(request.reasoning?.effort
+      ? { reasoning_effort: request.reasoning.effort }
       : {}),
   };
 }

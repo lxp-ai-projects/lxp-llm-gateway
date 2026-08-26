@@ -32,9 +32,6 @@ export class DeepSeekProviderAdapter extends OpenAiCompatibleTextProviderAdapter
               },
             }
           : {}),
-        ...(request.reasoning?.effort
-          ? { reasoning_effort: request.reasoning.effort }
-          : {}),
       }),
     });
   }

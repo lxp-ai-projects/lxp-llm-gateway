@@ -27,7 +27,10 @@ test('ZaiProviderAdapter uses the live /models list as the source of truth', asy
     });
 
     assert.equal(calls[0]?.url, 'https://api.z.ai/api/paas/v4/models');
-    assert.deepEqual(models.map((model) => model.id), ['glm-5.1']);
+    assert.deepEqual(
+      models.map((model) => model.id),
+      ['glm-5.1'],
+    );
     assert.ok(!models.some((model) => model.id === 'glm-image'));
     assert.equal(models[0]?.displayName, 'GLM-5.1');
   } finally {
@@ -68,13 +71,10 @@ test('ZaiProviderAdapter sends chat requests through the Z.ai chat completions e
       {
         model: 'glm-5.1',
         maxOutputTokens: 2048,
-        providerOptions: {
-          zai: {
-            thinking: {
-              type: 'enabled',
-              clearThinking: false,
-            },
-          },
+        reasoning: {
+          enabled: true,
+          effort: 'high',
+          preserveReasoning: true,
         },
         messages: [
           { role: 'user', content: 'hello' },
@@ -104,6 +104,7 @@ test('ZaiProviderAdapter sends chat requests through the Z.ai chat completions e
         type?: string;
         clear_thinking?: boolean;
       };
+      reasoning_effort?: string;
       messages?: Array<{
         role?: string;
         content?: string;
@@ -117,6 +118,7 @@ test('ZaiProviderAdapter sends chat requests through the Z.ai chat completions e
       type: 'enabled',
       clear_thinking: false,
     });
+    assert.equal(body.reasoning_effort, 'high');
     assert.deepEqual(body.messages, [
       {
         role: 'user',

@@ -126,6 +126,34 @@ class FailingListModelsRegistryService {
   }
 }
 
+class ZaiListModelsProvider implements LlmProviderAdapter {
+  readonly providerId = 'zai' as const;
+  readonly capabilities = {
+    chat: true,
+    modelCatalog: true,
+    imageGeneration: false,
+    imageEditing: false,
+  } as const;
+
+  supportsStreaming(): boolean {
+    return true;
+  }
+
+  async chat(): Promise<never> {
+    throw new Error('not used in this test');
+  }
+
+  async listModels() {
+    return [{ id: 'glm-5.3', displayName: 'GLM-5.3' }];
+  }
+}
+
+class ZaiListModelsRegistryService {
+  getProvider(): LlmProviderAdapter {
+    return new ZaiListModelsProvider();
+  }
+}
+
 class FailingProvider extends FakeProvider {
   override async chat(): Promise<GatewayChatResponse> {
     throw new Error(
@@ -832,6 +860,44 @@ test('GatewayService wraps listModels provider failures in a BadGatewayException
       return true;
     },
   );
+});
+
+test('GatewayService projects exact documented Z.AI reasoning capabilities', async () => {
+  const service = new GatewayService(
+    new FakeGatewayAuditService() as unknown as GatewayAuditService,
+    new FakeGatewayTelemetryService() as never,
+    new ZaiListModelsRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+    new FakeTenantProviderConfigurationService() as never,
+    new FakeTenantRlsService() as never,
+  );
+
+  const response = await service.listModels(
+    { providerId: 'zai' } as never,
+    buildAuthContext(),
+  );
+
+  assert.deepEqual(response.models[0]?.capabilities?.reasoning, {
+    supported: true,
+    controls: ['effort'],
+    supportedEfforts: ['low', 'high', 'max'],
+    defaultEffort: 'max',
+    defaultEnabled: true,
+    mandatory: true,
+    outputKind: 'reasoning-text',
+    replayRequirement: 'reasoning-content',
+    semantic: 'reasoning-depth',
+    disableForbiddenEfforts: undefined,
+    source: {
+      kind: 'reviewed-registry',
+      providerId: 'zai',
+      modelId: 'glm-5.3',
+      url: 'https://docs.z.ai/guides/capabilities/thinking-mode',
+      reviewedAt: '2026-08-25',
+    },
+  });
 });
 
 test('GatewayService returns a provider stream when streaming is requested', async () => {

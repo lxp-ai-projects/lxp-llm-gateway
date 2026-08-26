@@ -37,6 +37,8 @@ type OpenAiCompatibleChatCompletionResponse = {
     message: {
       role: 'assistant';
       content: string;
+      reasoning?: string;
+      reasoning_details?: unknown;
     };
     finish_reason: string | null;
   }>;
@@ -44,6 +46,7 @@ type OpenAiCompatibleChatCompletionResponse = {
     prompt_tokens?: number;
     completion_tokens?: number;
     total_tokens?: number;
+    reasoning_tokens?: number;
   };
 };
 
@@ -154,6 +157,12 @@ export class OpenAiCompatibleService {
         return {
           role: message.role,
           content: message.content,
+          ...(message.reasoning_content
+            ? { reasoningContent: message.reasoning_content }
+            : {}),
+          ...(message.reasoning_details !== undefined
+            ? { reasoningDetails: message.reasoning_details }
+            : {}),
         };
       }
 
@@ -311,6 +320,12 @@ export class OpenAiCompatibleService {
           message: {
             role: 'assistant',
             content: response.message.content,
+            ...(response.message.reasoning
+              ? { reasoning: response.message.reasoning }
+              : {}),
+            ...(response.message.reasoningDetails !== undefined
+              ? { reasoning_details: response.message.reasoningDetails }
+              : {}),
           },
           finish_reason: response.finishReason ?? null,
         },
@@ -320,6 +335,7 @@ export class OpenAiCompatibleService {
             prompt_tokens: response.usage.promptTokens,
             completion_tokens: response.usage.completionTokens,
             total_tokens: response.usage.totalTokens,
+            reasoning_tokens: response.usage.reasoningTokens,
           }
         : undefined,
     };

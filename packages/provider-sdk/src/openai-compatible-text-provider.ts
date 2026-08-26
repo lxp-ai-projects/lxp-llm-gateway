@@ -303,7 +303,7 @@ export class OpenAiCompatibleTextProviderAdapter implements LlmProviderAdapter {
               capabilities: {
                 reasoning: {
                   supported: reasoningSupported,
-                  controls: reasoningSupported ? ['toggle' as const] : [],
+                  controls: [],
                   source: {
                     kind: 'provider-api' as const,
                     providerId: this.providerId,

@@ -24,6 +24,7 @@ export type {
 } from './reasoning-options.js';
 export {
   lookupNativeChatReasoningCapability,
+  resolveChatReasoningCapability,
   toLegacyReasoningEffort,
   validateChatReasoningRequest,
 } from './chat-reasoning.js';

@@ -614,6 +614,11 @@ test('NanoGptProviderAdapter tolerates a missing providerAccess object at runtim
       | undefined;
     assert.equal(headers?.authorization, undefined);
     assert.equal(models?.[0]?.capabilities?.reasoning?.supported, true);
+    assert.deepEqual(models?.[0]?.capabilities?.reasoning?.controls, []);
+    assert.equal(
+      models?.[0]?.capabilities?.reasoning?.supportedEfforts,
+      undefined,
+    );
     assert.equal(
       models?.[0]?.capabilities?.reasoning?.source.providerId,
       'nanogpt',

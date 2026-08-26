@@ -14,24 +14,16 @@ type RegistryEntry = Omit<ModelReasoningCapability, 'source'> & {
   sourceUrl: string;
 };
 
-const REVIEWED_AT = '2026-08-24';
+const REVIEWED_AT = '2026-08-25';
 
 const toggle: Pick<
   ModelReasoningCapability,
-  | 'supported'
-  | 'controls'
-  | 'supportsToggle'
-  | 'defaultEnabled'
-  | 'outputKind'
-  | 'replayRequirement'
-  | 'semantic'
+  'supported' | 'controls' | 'supportsToggle' | 'defaultEnabled' | 'semantic'
 > = {
   supported: true,
   controls: ['toggle'],
   supportsToggle: true,
   defaultEnabled: true,
-  outputKind: 'reasoning-text' as const,
-  replayRequirement: 'reasoning-content' as const,
   semantic: 'reasoning-depth' as const,
 };
 
@@ -50,11 +42,110 @@ const effort = (
 /** Exact, reviewed native-route facts. Runtime-only routes are deliberately absent. */
 const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
   {
+    providerId: 'anthropic',
+    modelIds: ['claude-opus-5'],
+    supported: true,
+    controls: ['adaptive', 'effort', 'toggle'],
+    supportsToggle: true,
+    disableForbiddenEfforts: ['xhigh', 'max'],
+    supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    defaultEffort: 'high',
+    defaultEnabled: true,
+    supportsOutputExclusion: true,
+    outputKind: 'opaque-signed',
+    replayRequirement: 'opaque-signature',
+    semantic: 'reasoning-depth',
+    sourceUrl: 'https://platform.claude.com/docs/en/build-with-claude/effort',
+  },
+  {
+    providerId: 'anthropic',
+    modelIds: ['claude-sonnet-5'],
+    supported: true,
+    controls: ['adaptive', 'effort', 'toggle'],
+    supportsToggle: true,
+    supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    defaultEffort: 'high',
+    defaultEnabled: true,
+    supportsOutputExclusion: true,
+    outputKind: 'opaque-signed',
+    replayRequirement: 'opaque-signature',
+    semantic: 'reasoning-depth',
+    sourceUrl: 'https://platform.claude.com/docs/en/build-with-claude/effort',
+  },
+  {
+    providerId: 'anthropic',
+    modelIds: ['claude-opus-4-8', 'claude-opus-4-7'],
+    supported: true,
+    controls: ['adaptive', 'effort', 'toggle'],
+    supportsToggle: true,
+    supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    defaultEffort: 'high',
+    defaultEnabled: false,
+    supportsOutputExclusion: true,
+    outputKind: 'opaque-signed',
+    replayRequirement: 'opaque-signature',
+    semantic: 'reasoning-depth',
+    sourceUrl: 'https://platform.claude.com/docs/en/build-with-claude/effort',
+  },
+  {
+    providerId: 'anthropic',
+    modelIds: ['claude-opus-4-6', 'claude-sonnet-4-6'],
+    supported: true,
+    controls: ['adaptive', 'effort', 'toggle'],
+    supportsToggle: true,
+    supportedEfforts: ['low', 'medium', 'high', 'max'],
+    defaultEffort: 'high',
+    defaultEnabled: false,
+    supportsOutputExclusion: true,
+    outputKind: 'opaque-signed',
+    replayRequirement: 'opaque-signature',
+    semantic: 'reasoning-depth',
+    sourceUrl: 'https://platform.claude.com/docs/en/build-with-claude/effort',
+  },
+  {
+    providerId: 'anthropic',
+    modelIds: ['claude-opus-4-5-20251101'],
+    supported: true,
+    controls: ['budget', 'effort', 'toggle'],
+    supportsToggle: true,
+    supportsBudgetTokens: true,
+    minimumBudgetTokens: 1024,
+    supportedEfforts: ['low', 'medium', 'high'],
+    defaultEffort: 'high',
+    defaultEnabled: false,
+    outputKind: 'opaque-signed',
+    replayRequirement: 'opaque-signature',
+    semantic: 'reasoning-depth',
+    sourceUrl:
+      'https://platform.claude.com/docs/en/build-with-claude/extended-thinking',
+  },
+  {
+    providerId: 'anthropic',
+    modelIds: [
+      'claude-sonnet-4-5-20250929',
+      'claude-haiku-4-5-20251001',
+      'claude-opus-4-1-20250805',
+      'claude-opus-4-20250514',
+      'claude-sonnet-4-20250514',
+    ],
+    supported: true,
+    controls: ['budget', 'toggle'],
+    supportsToggle: true,
+    supportsBudgetTokens: true,
+    minimumBudgetTokens: 1024,
+    defaultEnabled: false,
+    outputKind: 'opaque-signed',
+    replayRequirement: 'opaque-signature',
+    semantic: 'reasoning-depth',
+    sourceUrl:
+      'https://platform.claude.com/docs/en/build-with-claude/extended-thinking',
+  },
+  {
     providerId: 'deepseek',
     modelIds: ['deepseek-v4-flash', 'deepseek-v4-pro'],
     ...toggle,
-    controls: ['toggle', 'effort'],
-    supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    outputKind: 'reasoning-text',
+    replayRequirement: 'reasoning-content',
     sourceUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
   },
   {
@@ -75,7 +166,7 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
   },
   {
     providerId: 'google',
-    modelIds: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite-image'],
+    modelIds: ['gemini-3.5-flash-lite'],
     ...effort(['minimal', 'low', 'medium', 'high']),
     defaultEffort: 'minimal',
     defaultEnabled: true,
@@ -123,6 +214,16 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
     providerId: 'groq',
     modelIds: ['qwen/qwen3.6-27b'],
     ...toggle,
+    supportsOutputExclusion: true,
+    outputKind: 'reasoning-text',
+    sourceUrl: 'https://console.groq.com/docs/reasoning',
+  },
+  {
+    providerId: 'groq',
+    modelIds: ['openai/gpt-oss-safeguard-20b', 'minimaxai/minimax-m2.7'],
+    supported: true,
+    controls: [],
+    semantic: 'reasoning-depth',
     sourceUrl: 'https://console.groq.com/docs/reasoning',
   },
   {
@@ -144,7 +245,7 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
     defaultEnabled: true,
     mandatory: true,
     outputKind: 'reasoning-text',
-    replayRequirement: 'reasoning-content',
+    replayRequirement: 'full-assistant-message',
     semantic: 'reasoning-depth',
     sourceUrl: 'https://platform.kimi.ai/docs/guide/use-thinking-models',
   },
@@ -159,7 +260,7 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
     providerId: 'moonshot',
     modelIds: ['kimi-k2.5'],
     ...toggle,
-    replayRequirement: 'none',
+    outputKind: 'reasoning-text',
     sourceUrl: 'https://platform.kimi.ai/docs/guide/use-thinking-models',
   },
   {
@@ -169,6 +270,62 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
     outputKind: 'reasoning-text',
     replayRequirement: 'full-assistant-message',
     sourceUrl: 'https://docs.mistral.ai/studio/conversations/reasoning',
+  },
+  {
+    providerId: 'openai',
+    modelIds: ['gpt-5.6', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'],
+    ...effort(['none', 'low', 'medium', 'high', 'xhigh', 'max']),
+    supportsToggle: true,
+    defaultEffort: 'medium',
+    defaultEnabled: true,
+    outputKind: 'none',
+    sourceUrl: 'https://developers.openai.com/api/docs/guides/reasoning',
+  },
+  {
+    providerId: 'openai',
+    modelIds: ['gpt-5.5'],
+    ...effort(['none', 'low', 'medium', 'high', 'xhigh']),
+    supportsToggle: true,
+    defaultEffort: 'medium',
+    defaultEnabled: true,
+    outputKind: 'none',
+    sourceUrl: 'https://developers.openai.com/api/docs/guides/reasoning',
+  },
+  {
+    providerId: 'openai',
+    modelIds: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.2'],
+    ...effort(['none', 'low', 'medium', 'high', 'xhigh']),
+    supportsToggle: true,
+    defaultEffort: 'none',
+    defaultEnabled: false,
+    outputKind: 'none',
+    sourceUrl: 'https://developers.openai.com/api/docs/guides/reasoning',
+  },
+  {
+    providerId: 'openai',
+    modelIds: ['gpt-5.1'],
+    ...effort(['none', 'low', 'medium', 'high']),
+    supportsToggle: true,
+    defaultEffort: 'none',
+    defaultEnabled: false,
+    outputKind: 'none',
+    sourceUrl: 'https://developers.openai.com/api/docs/guides/reasoning',
+  },
+  {
+    providerId: 'openai',
+    modelIds: ['gpt-5'],
+    ...effort(['minimal', 'low', 'medium', 'high']),
+    defaultEffort: 'medium',
+    defaultEnabled: true,
+    outputKind: 'none',
+    sourceUrl: 'https://developers.openai.com/api/docs/guides/reasoning',
+  },
+  {
+    providerId: 'openai',
+    modelIds: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini'],
+    supported: false,
+    controls: [],
+    sourceUrl: 'https://developers.openai.com/api/docs/models/all',
   },
   {
     providerId: 'xai',
@@ -192,8 +349,8 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
   {
     providerId: 'zai',
     modelIds: ['glm-5.3'],
-    supported: true,
-    controls: [],
+    ...effort(['low', 'high', 'max']),
+    defaultEffort: 'max',
     defaultEnabled: true,
     mandatory: true,
     outputKind: 'reasoning-text',
@@ -203,9 +360,29 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
   },
   {
     providerId: 'zai',
-    modelIds: ['glm-5.2', 'glm-5.1', 'glm-5', 'glm-4.7', 'glm-4.6'],
+    modelIds: ['glm-5.2'],
     ...toggle,
+    controls: ['toggle', 'effort'],
+    supportedEfforts: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+    defaultEffort: 'max',
+    outputKind: 'reasoning-text',
+    replayRequirement: 'reasoning-content',
     sourceUrl: 'https://docs.z.ai/guides/capabilities/thinking-mode',
+  },
+  {
+    providerId: 'zai',
+    modelIds: ['glm-5.1', 'glm-5', 'glm-5-turbo', 'glm-4.7', 'glm-4.6'],
+    ...toggle,
+    outputKind: 'reasoning-text',
+    sourceUrl: 'https://docs.z.ai/guides/capabilities/thinking-mode',
+  },
+  {
+    providerId: 'ollama',
+    modelIds: ['gpt-oss', 'gpt-oss:20b', 'gpt-oss:120b'],
+    ...effort(['low', 'medium', 'high']),
+    mandatory: true,
+    outputKind: 'reasoning-text',
+    sourceUrl: 'https://docs.ollama.com/capabilities/thinking',
   },
 ];
 
@@ -220,12 +397,18 @@ export function lookupNativeChatReasoningCapability(
   );
   if (!entry) return undefined;
 
-  const { modelIds: _modelIds, sourceUrl, ...capability } = entry;
+  const { modelIds, providerId: entryProviderId, sourceUrl, ...capability } =
+    entry;
+  void modelIds;
+  void entryProviderId;
   return {
     ...capability,
     controls: [...capability.controls],
     supportedEfforts: capability.supportedEfforts
       ? [...capability.supportedEfforts]
+      : undefined,
+    disableForbiddenEfforts: capability.disableForbiddenEfforts
+      ? [...capability.disableForbiddenEfforts]
       : undefined,
     source: {
       kind: 'reviewed-registry',
@@ -234,6 +417,40 @@ export function lookupNativeChatReasoningCapability(
       url: sourceUrl,
       reviewedAt: REVIEWED_AT,
     },
+  };
+}
+
+export function resolveChatReasoningCapability(
+  providerId: ProviderId,
+  modelId: string,
+  runtimeCapability: ModelReasoningCapability | undefined,
+): ModelReasoningCapability | undefined {
+  if (providerId === 'openrouter' || providerId === 'nanogpt') {
+    return runtimeCapability;
+  }
+
+  const reviewed = lookupNativeChatReasoningCapability(providerId, modelId);
+  if (providerId === 'ollama') {
+    if (!runtimeCapability?.supported) return runtimeCapability;
+    if (!reviewed?.supported) return runtimeCapability;
+    return {
+      ...reviewed,
+      source: {
+        kind: 'route-intersection',
+        providerId,
+        modelId,
+        url: reviewed.source.url,
+        reviewedAt: reviewed.source.reviewedAt,
+      },
+    };
+  }
+
+  if (reviewed) return reviewed;
+  if (!runtimeCapability) return undefined;
+  return {
+    supported: runtimeCapability.supported,
+    controls: [],
+    source: runtimeCapability.source,
   };
 }
 
@@ -249,6 +466,17 @@ export function validateChatReasoningRequest(
   if (request.enabled === false && capability.mandatory) {
     throw new Error(
       `Reasoning is mandatory for ${route} and cannot be disabled.`,
+    );
+  }
+  if (
+    request.enabled === false &&
+    request.effort &&
+    capability.disableForbiddenEfforts?.includes(
+      request.effort as ModelReasoningEffort,
+    )
+  ) {
+    throw new Error(
+      `Reasoning cannot be disabled at effort ${request.effort} for ${route}.`,
     );
   }
   if (request.enabled !== undefined && capability.supportsToggle !== true) {
@@ -273,6 +501,14 @@ export function validateChatReasoningRequest(
     if (!Number.isInteger(request.budgetTokens) || request.budgetTokens < 1) {
       throw new Error('reasoning.budgetTokens must be a positive integer.');
     }
+    if (
+      capability.minimumBudgetTokens !== undefined &&
+      request.budgetTokens < capability.minimumBudgetTokens
+    ) {
+      throw new Error(
+        `reasoning.budgetTokens must be at least ${capability.minimumBudgetTokens} for ${route}.`,
+      );
+    }
   }
   if (
     request.includeOutput !== undefined &&
@@ -281,6 +517,12 @@ export function validateChatReasoningRequest(
     throw new Error(
       `Reasoning output visibility is not configurable for ${route}.`,
     );
+  }
+  if (
+    request.preserveReasoning === true &&
+    (!capability.replayRequirement || capability.replayRequirement === 'none')
+  ) {
+    throw new Error(`Reasoning replay is not supported for ${route}.`);
   }
 }
 

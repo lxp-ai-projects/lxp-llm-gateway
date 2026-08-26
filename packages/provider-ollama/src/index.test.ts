@@ -153,8 +153,7 @@ test('OllamaProviderAdapter maps native /api/tags responses into provider models
         capabilities: {
           reasoning: {
             supported: true,
-            controls: ['toggle'],
-            supportsToggle: true,
+            controls: [],
             source: {
               kind: 'provider-api',
               providerId: 'ollama',

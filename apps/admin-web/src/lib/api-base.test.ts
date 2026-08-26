@@ -107,7 +107,9 @@ test('adminApiUrl resolves to localhost admin-api for IPv6 loopback', () => {
 
 test('request refreshes the browser session against the failed gateway hostname for loopback polling', async () => {
   vi.mocked(fetch)
-    .mockResolvedValueOnce(textResponse('{"message":"Access token is required."}', { status: 401 }))
+    .mockResolvedValueOnce(
+      textResponse('{"message":"Access token is required."}', { status: 401 }),
+    )
     .mockResolvedValueOnce(textResponse('', { status: 200 }))
     .mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'video-job-1', status: 'queued' }), {
@@ -283,7 +285,7 @@ test('chatStreamWithSessionRefresh maps reasoning_content deltas from SSE provid
     start(controller) {
       controller.enqueue(
         new TextEncoder().encode(
-          'data: {"choices":[{"delta":{"reasoning_content":"Thought trace","content":"Answer"},"finish_reason":"stop"}]}\n\n',
+          'data: {"choices":[{"delta":{"reasoning_content":"Thought trace","reasoning_details":[{"type":"reasoning.text","text":"Thought trace"}],"content":"Answer"},"finish_reason":"stop"}]}\n\n',
         ),
       );
       controller.close();
@@ -313,6 +315,9 @@ test('chatStreamWithSessionRefresh maps reasoning_content deltas from SSE provid
     expect.objectContaining({
       requestId: 'request-reasoning-content',
       reasoningDelta: 'Thought trace',
+      reasoningDetailsDelta: [
+        { type: 'reasoning.text', text: 'Thought trace' },
+      ],
       contentDelta: 'Answer',
       finishReason: 'stop',
     }),

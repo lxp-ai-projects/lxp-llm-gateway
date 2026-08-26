@@ -501,6 +501,7 @@ export async function chatStreamWithSessionRefresh(
               delta?: {
                 reasoning?: string;
                 reasoning_content?: string;
+                reasoning_details?: unknown;
                 content?: string;
               };
               finish_reason?: string | null;
@@ -517,6 +518,7 @@ export async function chatStreamWithSessionRefresh(
           handlers.onChunk({
             requestId,
             reasoningDelta,
+            reasoningDetailsDelta: delta?.reasoning_details,
             contentDelta: delta?.content,
             finishReason: choice?.finish_reason,
           });
@@ -540,6 +542,7 @@ export async function chatStreamWithSessionRefresh(
             delta?: {
               reasoning?: string;
               reasoning_content?: string;
+              reasoning_details?: unknown;
               content?: string;
             };
             finish_reason?: string | null;
@@ -556,6 +559,7 @@ export async function chatStreamWithSessionRefresh(
         handlers.onChunk({
           requestId,
           reasoningDelta,
+          reasoningDetailsDelta: delta?.reasoning_details,
           contentDelta: delta?.content,
           finishReason: choice?.finish_reason,
         });

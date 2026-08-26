@@ -6,7 +6,11 @@ import {
   NotImplementedException,
 } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatReasoningRequest,
+  GatewayChatRequest,
+  GatewayChatResponse,
+} from '@lxp/contracts';
 import {
   ProviderHttpError,
   type ProviderExecutionContext,
@@ -14,6 +18,7 @@ import {
 } from '@lxp/provider-sdk';
 import {
   lookupNativeChatReasoningCapability,
+  resolveChatReasoningCapability,
   validateChatReasoningRequest,
 } from '@lxp/model-family-capabilities';
 
@@ -167,6 +172,7 @@ export class GatewayService {
       authContext,
       configuration,
     );
+    this.canonicalizeLegacyReasoning(request, providerId);
     const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
@@ -235,7 +241,13 @@ export class GatewayService {
           model,
         );
         let effectiveCapability = nativeCapability;
-        if (!effectiveCapability && provider.listModels) {
+        if (
+          provider.listModels &&
+          (!effectiveCapability ||
+            providerId === 'openrouter' ||
+            providerId === 'nanogpt' ||
+            providerId === 'ollama')
+        ) {
           const models = this.projectReasoningCapabilities(
             providerId,
             await provider.listModels({
@@ -408,14 +420,15 @@ export class GatewayService {
     models: ProviderModel[],
   ): ProviderModel[] {
     return models.map((model) => {
-      const reviewed = lookupNativeChatReasoningCapability(
+      const reasoning = resolveChatReasoningCapability(
         providerId,
         model.id,
+        model.capabilities?.reasoning,
       );
-      if (!reviewed) return model;
+      if (!reasoning) return model;
       return {
         ...model,
-        capabilities: { ...model.capabilities, reasoning: reviewed },
+        capabilities: { ...model.capabilities, reasoning },
       };
     });
   }
@@ -440,6 +453,7 @@ export class GatewayService {
       authContext,
       configuration,
     );
+    this.canonicalizeLegacyReasoning(request, providerId);
     const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
@@ -510,7 +524,13 @@ export class GatewayService {
           providerId,
           model,
         );
-        if (!effectiveCapability && provider.listModels) {
+        if (
+          provider.listModels &&
+          (!effectiveCapability ||
+            providerId === 'openrouter' ||
+            providerId === 'nanogpt' ||
+            providerId === 'ollama')
+        ) {
           const models = this.projectReasoningCapabilities(
             providerId,
             await provider.listModels({
@@ -772,6 +792,75 @@ export class GatewayService {
     throw new BadRequestException(
       'No provider was supplied and no default provider is configured for the authenticated user.',
     );
+  }
+
+  private canonicalizeLegacyReasoning(
+    request: GatewayChatRequest,
+    providerId: ProviderId,
+  ): void {
+    if (request.reasoning) {
+      request.providerOptions = undefined;
+      return;
+    }
+
+    const options = request.providerOptions;
+    let reasoning: GatewayChatReasoningRequest | undefined;
+    if (providerId === 'anthropic' && options?.anthropic?.extendedThinking) {
+      const thinking = options.anthropic.extendedThinking;
+      reasoning =
+        thinking.mode === 'disabled'
+          ? { enabled: false }
+          : thinking.mode === 'adaptive'
+            ? { enabled: true }
+            : { budgetTokens: thinking.budgetTokens };
+    } else if (providerId === 'zai' && options?.zai?.thinking) {
+      reasoning = {
+        enabled: options.zai.thinking.type === 'enabled',
+        ...(options.zai.thinking.clearThinking === false
+          ? { preserveReasoning: true }
+          : {}),
+      };
+    } else if (providerId === 'ollama' && options?.ollama?.thinking) {
+      reasoning = { enabled: options.ollama.thinking.enabled };
+    } else if (providerId === 'openrouter' && options?.openrouter?.reasoning) {
+      const routeReasoning = options.openrouter.reasoning;
+      reasoning = {
+        ...(routeReasoning.effort === 'none'
+          ? { enabled: false }
+          : routeReasoning.effort
+            ? { effort: routeReasoning.effort }
+            : {}),
+        ...(typeof routeReasoning.enabled === 'boolean'
+          ? { enabled: routeReasoning.enabled }
+          : {}),
+        ...(routeReasoning.maxTokens !== undefined
+          ? { budgetTokens: routeReasoning.maxTokens }
+          : {}),
+        ...(typeof routeReasoning.exclude === 'boolean'
+          ? { includeOutput: !routeReasoning.exclude }
+          : {}),
+      };
+    } else if (providerId === 'nanogpt' && options?.nanogpt?.reasoning) {
+      reasoning =
+        options.nanogpt.reasoning.effort === 'none'
+          ? { enabled: false }
+          : { effort: options.nanogpt.reasoning.effort };
+    } else if (providerId === 'openai' && options?.openai?.reasoning) {
+      reasoning =
+        options.openai.reasoning.effort === 'none'
+          ? { enabled: false }
+          : { effort: options.openai.reasoning.effort };
+    } else if (providerId === 'xai' && options?.xai?.reasoning) {
+      reasoning =
+        options.xai.reasoning.effort === 'none'
+          ? { enabled: false }
+          : { effort: options.xai.reasoning.effort };
+    }
+
+    if (reasoning) {
+      request.reasoning = reasoning;
+      request.providerOptions = undefined;
+    }
   }
 
   private async assertMaxInputTokensIfSupported(params: {

@@ -11,7 +11,6 @@ export type {
 } from '@lxp/contracts';
 import type {
   GatewayChatProviderOptions,
-  GatewayChatReasoningRequest,
   GatewayVideoRetryRequest,
 } from '@lxp/contracts';
 
@@ -108,6 +107,7 @@ export type GatewayChatResponse = {
 export type GatewayChatStreamChunk = {
   requestId?: string;
   reasoningDelta?: string;
+  reasoningDetailsDelta?: unknown;
   contentDelta?: string;
   finishReason?: string | null;
 };
@@ -394,7 +394,11 @@ export type ProviderModelSummary = {
       defaultEnabled?: boolean;
       mandatory?: boolean;
       supportsToggle?: boolean;
+      disableForbiddenEfforts?: Array<
+        'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      >;
       supportsBudgetTokens?: boolean;
+      minimumBudgetTokens?: number;
       supportsOutputExclusion?: boolean;
       outputKind?: 'reasoning-text' | 'summary' | 'opaque-signed' | 'none';
       replayRequirement?:
