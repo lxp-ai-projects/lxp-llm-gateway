@@ -371,7 +371,18 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
   },
   {
     providerId: 'zai',
-    modelIds: ['glm-5.1', 'glm-5', 'glm-5-turbo', 'glm-4.7', 'glm-4.6'],
+    modelIds: [
+      'glm-5.1',
+      'glm-5',
+      'glm-5-turbo',
+      'glm-4.7',
+      'glm-4.6',
+      'glm-4.5',
+      'glm-4.5-air',
+      'glm-4.5-x',
+      'glm-4.5-airx',
+      'glm-4.5-flash',
+    ],
     ...toggle,
     outputKind: 'reasoning-text',
     sourceUrl: 'https://docs.z.ai/guides/capabilities/thinking-mode',
@@ -397,8 +408,12 @@ export function lookupNativeChatReasoningCapability(
   );
   if (!entry) return undefined;
 
-  const { modelIds, providerId: entryProviderId, sourceUrl, ...capability } =
-    entry;
+  const {
+    modelIds,
+    providerId: entryProviderId,
+    sourceUrl,
+    ...capability
+  } = entry;
   void modelIds;
   void entryProviderId;
   return {

@@ -198,3 +198,45 @@ test('preserved reasoning is accepted only for documented replay-capable identit
     /replay is not supported/,
   );
 });
+
+test('Z.AI thinking is toggleable for exact reviewed models except GLM-5.3', () => {
+  for (const modelId of [
+    'glm-5.2',
+    'glm-5.1',
+    'glm-5',
+    'glm-5-turbo',
+    'glm-4.7',
+    'glm-4.6',
+    'glm-4.5',
+    'glm-4.5-air',
+    'glm-4.5-x',
+    'glm-4.5-airx',
+    'glm-4.5-flash',
+  ]) {
+    const capability = lookupNativeChatReasoningCapability('zai', modelId);
+    assert.equal(capability?.supportsToggle, true, modelId);
+    assert.doesNotThrow(() =>
+      validateChatReasoningRequest(
+        { enabled: false },
+        capability,
+        `zai/${modelId}`,
+      ),
+    );
+  }
+
+  const forcedCapability = lookupNativeChatReasoningCapability(
+    'zai',
+    'glm-5.3',
+  );
+  assert.equal(forcedCapability?.supportsToggle, undefined);
+  assert.equal(forcedCapability?.mandatory, true);
+  assert.throws(
+    () =>
+      validateChatReasoningRequest(
+        { enabled: false },
+        forcedCapability,
+        'zai/glm-5.3',
+      ),
+    /mandatory/,
+  );
+});

@@ -149,6 +149,44 @@ test('ZaiProviderAdapter sends chat requests through the Z.ai chat completions e
   }
 });
 
+test('ZaiProviderAdapter maps the canonical thinking toggle to disabled', async () => {
+  let requestBody: unknown;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: string | URL, init?: RequestInit) => {
+    requestBody = JSON.parse(String(init?.body));
+    return createJsonResponse({
+      choices: [
+        {
+          finish_reason: 'stop',
+          message: { role: 'assistant', content: 'direct answer' },
+        },
+      ],
+    });
+  }) as typeof fetch;
+
+  try {
+    const adapter = new ZaiProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'glm-4.5',
+        reasoning: { enabled: false },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'gateway-request-disabled',
+        userId: 'user-123456',
+        providerAccess: { apiKey: 'zai-token' },
+      },
+    );
+
+    assert.deepEqual((requestBody as { thinking?: unknown }).thinking, {
+      type: 'disabled',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('ZaiProviderAdapter exposes a static image catalog fallback when /models is unavailable', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () =>
