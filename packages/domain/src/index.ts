@@ -214,10 +214,28 @@ export interface ModelReasoningCapability {
   defaultEffort?: ModelReasoningEffort;
   defaultEnabled?: boolean;
   mandatory?: boolean;
+  supportsToggle?: boolean;
+  disableForbiddenEfforts?: ModelReasoningEffort[];
+  supportsBudgetTokens?: boolean;
+  minimumBudgetTokens?: number;
+  supportsOutputExclusion?: boolean;
+  outputKind?: 'reasoning-text' | 'summary' | 'opaque-signed' | 'none';
+  replayRequirement?:
+    | 'none'
+    | 'reasoning-content'
+    | 'reasoning-details'
+    | 'opaque-signature'
+    | 'full-assistant-message';
+  semantic?:
+    | 'reasoning-depth'
+    | 'agent-count'
+    | 'other-provider-specific-semantic';
   source: {
-    kind: 'provider-api';
+    kind: 'provider-api' | 'reviewed-registry' | 'route-intersection';
     providerId: ProviderId;
     modelId: string;
+    url?: string;
+    reviewedAt?: string;
   };
 }
 
@@ -352,59 +370,55 @@ export const THINKING_TRANSPORT_COMPATIBILITY = {
   Partial<Record<ProviderId, ThinkingTransportCompatibility>>
 >;
 
-export const ANTHROPIC_CLAUDE_REASONING_MODEL_PATTERN =
-  /(^|[/:])claude-(?:(?:3[.-]7)|(?:(?:opus|sonnet|haiku)-)?4(?:[.\-/_]\d+)*)(?:[.:\-/_]|$)/i;
-
-export const OPENAI_REASONING_MODEL_PATTERN =
-  /(^|[/:])(?:o[134](?:[.:\-/_]|$)|gpt-5(?:\.\d+)?(?!-image)(?:[.:\-/_]|$))/i;
-
-export const XAI_GROK_REASONING_MODEL_PATTERN =
-  /(^|[/:])grok-(?:3[.\-/_]mini|4(?:\.\d+)?)(?![.:\-/_](?:image|video))(?:[.:\-/_]|$)/i;
-
-export const GLM_THINKING_MODEL_PATTERN =
-  /(^|[/:])glm-(5(?:[.:\-/_]|$)|4\.(?:7|6|5)(?:[.:\-/_]|$))/i;
+const REASONING_MODEL_FAMILY_BY_ID = new Map<string, ReasoningModelFamily>([
+  ['claude-3-7-sonnet-latest', 'anthropic-claude'],
+  ['claude-sonnet-4-5-20250929', 'anthropic-claude'],
+  ['anthropic/claude-opus-4.6', 'anthropic-claude'],
+  ['nanogpt/anthropic/claude-haiku-4-5-20251001', 'anthropic-claude'],
+  ['o1-preview', 'openai-reasoning'],
+  ['openai/o3-mini', 'openai-reasoning'],
+  ['openai/o4-mini-high', 'openai-reasoning'],
+  ['gpt-5', 'openai-reasoning'],
+  ['openai/gpt-5.2', 'openai-reasoning'],
+  ['nanogpt/openai/gpt-5.6-sol', 'openai-reasoning'],
+  ['grok-3-mini', 'xai-grok'],
+  ['x-ai/grok-4', 'xai-grok'],
+  ['x-ai/grok-4.1-fast', 'xai-grok'],
+  ['nanogpt/x-ai/grok-4.5', 'xai-grok'],
+  ['glm-4.5', 'zai-glm'],
+  ['z-ai/glm-4.5', 'zai-glm'],
+  ['z-ai/glm-4.6:thinking', 'zai-glm'],
+  ['z-ai/glm-5', 'zai-glm'],
+  ['zai-org/glm-5', 'zai-glm'],
+  ['ollama/glm-5:cloud', 'zai-glm'],
+]);
 
 export function isGlmThinkingModel(modelId: string | undefined): boolean {
   if (!modelId) {
     return false;
   }
 
-  return GLM_THINKING_MODEL_PATTERN.test(modelId);
+  return REASONING_MODEL_FAMILY_BY_ID.get(modelId) === 'zai-glm';
 }
 
 export function isAnthropicClaudeReasoningModel(
   modelId: string | undefined,
 ): boolean {
-  return Boolean(
-    modelId && ANTHROPIC_CLAUDE_REASONING_MODEL_PATTERN.test(modelId),
-  );
+  return REASONING_MODEL_FAMILY_BY_ID.get(modelId ?? '') === 'anthropic-claude';
 }
 
 export function isOpenAiReasoningModel(modelId: string | undefined): boolean {
-  return Boolean(modelId && OPENAI_REASONING_MODEL_PATTERN.test(modelId));
+  return REASONING_MODEL_FAMILY_BY_ID.get(modelId ?? '') === 'openai-reasoning';
 }
 
 export function isXAiGrokReasoningModel(modelId: string | undefined): boolean {
-  return Boolean(modelId && XAI_GROK_REASONING_MODEL_PATTERN.test(modelId));
+  return REASONING_MODEL_FAMILY_BY_ID.get(modelId ?? '') === 'xai-grok';
 }
 
 export function detectReasoningModelFamily(
   modelId: string | undefined,
 ): ReasoningModelFamily | null {
-  // Model ownership is derived from the model id, never from the transport.
-  if (isAnthropicClaudeReasoningModel(modelId)) {
-    return 'anthropic-claude';
-  }
-
-  if (isOpenAiReasoningModel(modelId)) {
-    return 'openai-reasoning';
-  }
-
-  if (isXAiGrokReasoningModel(modelId)) {
-    return 'xai-grok';
-  }
-
-  return isGlmThinkingModel(modelId) ? 'zai-glm' : null;
+  return REASONING_MODEL_FAMILY_BY_ID.get(modelId ?? '') ?? null;
 }
 
 export function supportsThinkingModelFamily(

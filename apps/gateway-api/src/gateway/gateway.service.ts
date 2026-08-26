@@ -6,11 +6,21 @@ import {
   NotImplementedException,
 } from '@nestjs/common';
 import type { ProviderId } from '@lxp/domain';
-import type { GatewayChatRequest, GatewayChatResponse } from '@lxp/contracts';
+import type {
+  GatewayChatReasoningRequest,
+  GatewayChatRequest,
+  GatewayChatResponse,
+} from '@lxp/contracts';
 import {
   ProviderHttpError,
   type ProviderExecutionContext,
+  type ProviderModel,
 } from '@lxp/provider-sdk';
+import {
+  lookupNativeChatReasoningCapability,
+  resolveChatReasoningCapability,
+  validateChatReasoningRequest,
+} from '@lxp/model-family-capabilities';
 
 import type {
   GatewayAuthContext,
@@ -91,11 +101,15 @@ export class GatewayService {
           provider.providerId,
         );
 
-      const models = await provider.listModels({
+      const listedModels = await provider.listModels({
         requestId,
         userId: authContext.userId,
         providerAccess,
       });
+      const models = this.projectReasoningCapabilities(
+        provider.providerId,
+        listedModels,
+      );
       const filteredModels =
         await this.tenantModelAccessRuleService.filterTextModels(
           authContext.activeTenantId,
@@ -158,6 +172,7 @@ export class GatewayService {
       authContext,
       configuration,
     );
+    this.canonicalizeLegacyReasoning(request, providerId);
     const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
@@ -220,6 +235,45 @@ export class GatewayService {
           authContext,
           provider.providerId,
         );
+      if (request.reasoning) {
+        const nativeCapability = lookupNativeChatReasoningCapability(
+          providerId,
+          model,
+        );
+        let effectiveCapability = nativeCapability;
+        if (
+          provider.listModels &&
+          (!effectiveCapability ||
+            providerId === 'openrouter' ||
+            providerId === 'nanogpt' ||
+            providerId === 'ollama')
+        ) {
+          const models = this.projectReasoningCapabilities(
+            providerId,
+            await provider.listModels({
+              requestId,
+              userId: this.providerPrincipalId(authContext),
+              providerAccess,
+              signal,
+            }),
+          );
+          effectiveCapability = models.find((entry) => entry.id === model)
+            ?.capabilities?.reasoning;
+        }
+        try {
+          validateChatReasoningRequest(
+            request.reasoning,
+            effectiveCapability,
+            `${providerId}/${model}`,
+          );
+        } catch (error) {
+          throw new BadRequestException(
+            error instanceof Error
+              ? error.message
+              : 'Invalid reasoning request.',
+          );
+        }
+      }
       await this.assertMaxInputTokensIfSupported({
         request: {
           ...request,
@@ -361,6 +415,24 @@ export class GatewayService {
     }
   }
 
+  private projectReasoningCapabilities(
+    providerId: ProviderId,
+    models: ProviderModel[],
+  ): ProviderModel[] {
+    return models.map((model) => {
+      const reasoning = resolveChatReasoningCapability(
+        providerId,
+        model.id,
+        model.capabilities?.reasoning,
+      );
+      if (!reasoning) return model;
+      return {
+        ...model,
+        capabilities: { ...model.capabilities, reasoning },
+      };
+    });
+  }
+
   async chatStream(
     request: GatewayChatRequestDto,
     authContext: GatewayAuthContext,
@@ -381,6 +453,7 @@ export class GatewayService {
       authContext,
       configuration,
     );
+    this.canonicalizeLegacyReasoning(request, providerId);
     const provider = this.providerRegistry.getProvider(providerId);
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
@@ -446,6 +519,43 @@ export class GatewayService {
           authContext,
           provider.providerId,
         );
+      if (request.reasoning) {
+        let effectiveCapability = lookupNativeChatReasoningCapability(
+          providerId,
+          model,
+        );
+        if (
+          provider.listModels &&
+          (!effectiveCapability ||
+            providerId === 'openrouter' ||
+            providerId === 'nanogpt' ||
+            providerId === 'ollama')
+        ) {
+          const models = this.projectReasoningCapabilities(
+            providerId,
+            await provider.listModels({
+              requestId,
+              userId: this.providerPrincipalId(authContext),
+              providerAccess,
+            }),
+          );
+          effectiveCapability = models.find((entry) => entry.id === model)
+            ?.capabilities?.reasoning;
+        }
+        try {
+          validateChatReasoningRequest(
+            request.reasoning,
+            effectiveCapability,
+            `${providerId}/${model}`,
+          );
+        } catch (error) {
+          throw new BadRequestException(
+            error instanceof Error
+              ? error.message
+              : 'Invalid reasoning request.',
+          );
+        }
+      }
       await this.assertMaxInputTokensIfSupported({
         request: {
           ...request,
@@ -682,6 +792,75 @@ export class GatewayService {
     throw new BadRequestException(
       'No provider was supplied and no default provider is configured for the authenticated user.',
     );
+  }
+
+  private canonicalizeLegacyReasoning(
+    request: GatewayChatRequest,
+    providerId: ProviderId,
+  ): void {
+    if (request.reasoning) {
+      request.providerOptions = undefined;
+      return;
+    }
+
+    const options = request.providerOptions;
+    let reasoning: GatewayChatReasoningRequest | undefined;
+    if (providerId === 'anthropic' && options?.anthropic?.extendedThinking) {
+      const thinking = options.anthropic.extendedThinking;
+      reasoning =
+        thinking.mode === 'disabled'
+          ? { enabled: false }
+          : thinking.mode === 'adaptive'
+            ? { enabled: true }
+            : { budgetTokens: thinking.budgetTokens };
+    } else if (providerId === 'zai' && options?.zai?.thinking) {
+      reasoning = {
+        enabled: options.zai.thinking.type === 'enabled',
+        ...(options.zai.thinking.clearThinking === false
+          ? { preserveReasoning: true }
+          : {}),
+      };
+    } else if (providerId === 'ollama' && options?.ollama?.thinking) {
+      reasoning = { enabled: options.ollama.thinking.enabled };
+    } else if (providerId === 'openrouter' && options?.openrouter?.reasoning) {
+      const routeReasoning = options.openrouter.reasoning;
+      reasoning = {
+        ...(routeReasoning.effort === 'none'
+          ? { enabled: false }
+          : routeReasoning.effort
+            ? { effort: routeReasoning.effort }
+            : {}),
+        ...(typeof routeReasoning.enabled === 'boolean'
+          ? { enabled: routeReasoning.enabled }
+          : {}),
+        ...(routeReasoning.maxTokens !== undefined
+          ? { budgetTokens: routeReasoning.maxTokens }
+          : {}),
+        ...(typeof routeReasoning.exclude === 'boolean'
+          ? { includeOutput: !routeReasoning.exclude }
+          : {}),
+      };
+    } else if (providerId === 'nanogpt' && options?.nanogpt?.reasoning) {
+      reasoning =
+        options.nanogpt.reasoning.effort === 'none'
+          ? { enabled: false }
+          : { effort: options.nanogpt.reasoning.effort };
+    } else if (providerId === 'openai' && options?.openai?.reasoning) {
+      reasoning =
+        options.openai.reasoning.effort === 'none'
+          ? { enabled: false }
+          : { effort: options.openai.reasoning.effort };
+    } else if (providerId === 'xai' && options?.xai?.reasoning) {
+      reasoning =
+        options.xai.reasoning.effort === 'none'
+          ? { enabled: false }
+          : { effort: options.xai.reasoning.effort };
+    }
+
+    if (reasoning) {
+      request.reasoning = reasoning;
+      request.providerOptions = undefined;
+    }
   }
 
   private async assertMaxInputTokensIfSupported(params: {

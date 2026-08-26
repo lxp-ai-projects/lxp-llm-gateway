@@ -98,7 +98,11 @@ beforeEach(() => {
 
 test('useChatStreaming sends a prompt and persists the completed assistant response', async () => {
   chatStreamMock.mockImplementation(async (_payload, handlers) => {
-    handlers.onChunk?.({ reasoningDelta: 'Thinking...', contentDelta: '' });
+    handlers.onChunk?.({
+      reasoningDelta: 'Thinking...',
+      reasoningDetailsDelta: [{ type: 'reasoning.text', text: 'Thinking...' }],
+      contentDelta: '',
+    });
     handlers.onChunk?.({ reasoningDelta: '', contentDelta: 'Hello back' });
 
     return {
@@ -145,15 +149,16 @@ test('useChatStreaming sends a prompt and persists the completed assistant respo
     role: 'assistant',
     content: 'Hello back',
     reasoning: 'Thinking...',
+    reasoningDetails: [{ type: 'reasoning.text', text: 'Thinking...' }],
   });
 });
 
-test('useChatStreaming forwards provider-specific chat options and max output tokens from the conversation', async () => {
+test('useChatStreaming forwards provider options but ignores legacy output limits', async () => {
   const anthropicConversation: StoredConversation = {
     ...createConversation(),
     providerId: 'anthropic',
     model: 'claude-opus-4-1-20250805',
-    maxOutputTokens: 12000,
+    maxOutputTokens: 1,
     providerOptions: {
       anthropic: {
         extendedThinking: {
@@ -181,7 +186,6 @@ test('useChatStreaming forwards provider-specific chat options and max output to
     expect.objectContaining({
       providerId: 'anthropic',
       model: 'claude-opus-4-1-20250805',
-      maxOutputTokens: 12000,
       providerOptions: {
         anthropic: {
           extendedThinking: {
@@ -192,6 +196,9 @@ test('useChatStreaming forwards provider-specific chat options and max output to
       },
     }),
     expect.any(Object),
+  );
+  expect(chatStreamMock.mock.calls[0]?.[0]).not.toHaveProperty(
+    'maxOutputTokens',
   );
 });
 
@@ -381,7 +388,9 @@ test('useChatStreaming preserves partial assistant output when the stream fails 
     await hook.result.current.sendMessage(createConversation, 'Hello');
   });
 
-  expect(onSetChatError).toHaveBeenLastCalledWith('Something went wrong. Please try again.');
+  expect(onSetChatError).toHaveBeenLastCalledWith(
+    'Something went wrong. Please try again.',
+  );
   expect(saveConversationMock).toHaveBeenCalled();
   expect(currentConversations()[0]?.messages.at(-1)).toMatchObject({
     role: 'assistant',

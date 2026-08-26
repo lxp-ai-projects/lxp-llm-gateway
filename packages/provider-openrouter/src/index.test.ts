@@ -440,11 +440,13 @@ test('OpenRouterProviderAdapter respects a credential-level baseUrl override', a
     assert.equal(calls[0]?.url, 'https://custom-openrouter.example/v1/models');
     assert.deepEqual(models?.[0]?.capabilities?.reasoning, {
       supported: true,
-      controls: ['toggle', 'effort'],
+      controls: ['effort'],
       supportedEfforts: ['high', 'medium', 'low'],
       defaultEffort: 'medium',
       defaultEnabled: true,
       mandatory: false,
+      supportsOutputExclusion: true,
+      semantic: 'reasoning-depth',
       source: {
         kind: 'provider-api',
         providerId: 'openrouter',
@@ -456,7 +458,7 @@ test('OpenRouterProviderAdapter respects a credential-level baseUrl override', a
   }
 });
 
-test('OpenRouterProviderAdapter treats null supported efforts as all standard efforts', async () => {
+test('OpenRouterProviderAdapter does not invent controls from absent reasoning metadata', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () =>
     new Response(
@@ -488,17 +490,16 @@ test('OpenRouterProviderAdapter treats null supported efforts as all standard ef
       'effort',
     ]);
     assert.deepEqual(models?.[0]?.capabilities?.reasoning?.supportedEfforts, [
-      'none',
-      'minimal',
-      'low',
-      'medium',
-      'high',
-      'xhigh',
       'max',
+      'xhigh',
+      'high',
+      'medium',
+      'low',
+      'minimal',
+      'none',
     ]);
-    assert.deepEqual(models?.[1]?.capabilities?.reasoning?.controls, [
-      'toggle',
-    ]);
+    assert.equal(models?.[0]?.capabilities?.reasoning?.supportsToggle, true);
+    assert.equal(models?.[1]?.capabilities?.reasoning, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }

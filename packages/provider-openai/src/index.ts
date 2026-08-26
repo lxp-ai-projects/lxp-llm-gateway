@@ -178,6 +178,11 @@ export class OpenAiProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
+          ...(request.reasoning?.enabled === false
+            ? { reasoning_effort: 'none' }
+            : request.reasoning?.effort
+              ? { reasoning_effort: request.reasoning.effort }
+              : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,

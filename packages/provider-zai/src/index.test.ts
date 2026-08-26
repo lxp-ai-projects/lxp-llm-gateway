@@ -27,7 +27,10 @@ test('ZaiProviderAdapter uses the live /models list as the source of truth', asy
     });
 
     assert.equal(calls[0]?.url, 'https://api.z.ai/api/paas/v4/models');
-    assert.deepEqual(models.map((model) => model.id), ['glm-5.1']);
+    assert.deepEqual(
+      models.map((model) => model.id),
+      ['glm-5.1'],
+    );
     assert.ok(!models.some((model) => model.id === 'glm-image'));
     assert.equal(models[0]?.displayName, 'GLM-5.1');
   } finally {
@@ -68,13 +71,10 @@ test('ZaiProviderAdapter sends chat requests through the Z.ai chat completions e
       {
         model: 'glm-5.1',
         maxOutputTokens: 2048,
-        providerOptions: {
-          zai: {
-            thinking: {
-              type: 'enabled',
-              clearThinking: false,
-            },
-          },
+        reasoning: {
+          enabled: true,
+          effort: 'high',
+          preserveReasoning: true,
         },
         messages: [
           { role: 'user', content: 'hello' },
@@ -104,6 +104,7 @@ test('ZaiProviderAdapter sends chat requests through the Z.ai chat completions e
         type?: string;
         clear_thinking?: boolean;
       };
+      reasoning_effort?: string;
       messages?: Array<{
         role?: string;
         content?: string;
@@ -117,6 +118,7 @@ test('ZaiProviderAdapter sends chat requests through the Z.ai chat completions e
       type: 'enabled',
       clear_thinking: false,
     });
+    assert.equal(body.reasoning_effort, 'high');
     assert.deepEqual(body.messages, [
       {
         role: 'user',
@@ -141,6 +143,44 @@ test('ZaiProviderAdapter sends chat requests through the Z.ai chat completions e
     assert.equal(response.message.reasoning, 'short reasoning summary');
     assert.deepEqual(response.providerMetadata, {
       request_id: 'provider-request-1',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('ZaiProviderAdapter maps the canonical thinking toggle to disabled', async () => {
+  let requestBody: unknown;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: string | URL, init?: RequestInit) => {
+    requestBody = JSON.parse(String(init?.body));
+    return createJsonResponse({
+      choices: [
+        {
+          finish_reason: 'stop',
+          message: { role: 'assistant', content: 'direct answer' },
+        },
+      ],
+    });
+  }) as typeof fetch;
+
+  try {
+    const adapter = new ZaiProviderAdapter();
+    await adapter.chat(
+      {
+        model: 'glm-4.5',
+        reasoning: { enabled: false },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'gateway-request-disabled',
+        userId: 'user-123456',
+        providerAccess: { apiKey: 'zai-token' },
+      },
+    );
+
+    assert.deepEqual((requestBody as { thinking?: unknown }).thinking, {
+      type: 'disabled',
     });
   } finally {
     globalThis.fetch = originalFetch;

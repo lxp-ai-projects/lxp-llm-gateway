@@ -39,6 +39,16 @@ export type GatewayReasoningEffort =
   | 'xhigh'
   | 'max';
 
+export interface GatewayChatReasoningRequest {
+  /** Whether reasoning compute is enabled. This is independent of output visibility. */
+  enabled?: boolean;
+  effort?: Exclude<GatewayReasoningEffort, 'none'>;
+  budgetTokens?: number;
+  includeOutput?: boolean;
+  /** Preserve provider reasoning state when replaying assistant messages. */
+  preserveReasoning?: boolean;
+}
+
 export interface GatewayModelReasoning {
   effort: GatewayReasoningEffort;
 }
@@ -98,11 +108,15 @@ export interface GatewayChatRequest {
   maxOutputTokens?: number;
   /** Server-controlled canonical output constraint mapped by provider adapters. */
   outputFormat?: 'json';
+  reasoning?: GatewayChatReasoningRequest;
+  /** @deprecated Prefer the canonical top-level reasoning request. */
   providerOptions?: GatewayChatProviderOptions;
   messages: Array<{
     role: 'system' | 'user' | 'assistant';
     content: string | GatewayChatContentPart[];
     reasoningContent?: string;
+    /** Provider-required opaque continuation state; never render as reasoning text. */
+    reasoningDetails?: unknown;
   }>;
   stream?: boolean;
 }

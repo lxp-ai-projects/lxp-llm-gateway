@@ -117,9 +117,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
             capabilities: {
               reasoning: {
                 supported: model.capabilities.reasoning,
-                controls: model.capabilities.reasoning
-                  ? ['toggle' as const]
-                  : [],
+                controls: [],
                 source: {
                   kind: 'provider-api' as const,
                   providerId: this.providerId,
@@ -385,6 +383,22 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
       request.model,
       request.providerOptions,
     );
+    const canonicalReasoning = request.reasoning
+      ? {
+          ...(typeof request.reasoning.enabled === 'boolean'
+            ? { enabled: request.reasoning.enabled }
+            : {}),
+          ...(request.reasoning.effort
+            ? { effort: request.reasoning.effort }
+            : {}),
+          ...(request.reasoning.budgetTokens !== undefined
+            ? { max_tokens: request.reasoning.budgetTokens }
+            : {}),
+          ...(request.reasoning.includeOutput === false
+            ? { exclude: true }
+            : {}),
+        }
+      : reasoningOptions.reasoning;
 
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}/chat/completions`,
@@ -406,6 +420,9 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
                   reasoning_content: message.reasoningContent,
                 }
               : {}),
+            ...(message.reasoningDetails !== undefined
+              ? { reasoning_details: message.reasoningDetails }
+              : {}),
           })),
           stream,
           user: context.userId,
@@ -415,9 +432,7 @@ export class NanoGptProviderAdapter implements LlmProviderAdapter {
           ...(request.outputFormat === 'json'
             ? { response_format: { type: 'json_object' } }
             : {}),
-          ...(reasoningOptions.reasoning
-            ? { reasoning: reasoningOptions.reasoning }
-            : {}),
+          ...(canonicalReasoning ? { reasoning: canonicalReasoning } : {}),
           ...(reasoningOptions.thinking
             ? { thinking: reasoningOptions.thinking }
             : {}),

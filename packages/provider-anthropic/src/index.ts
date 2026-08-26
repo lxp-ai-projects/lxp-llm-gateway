@@ -12,7 +12,7 @@ import type {
 
 type AnthropicMessage = {
   role: 'user' | 'assistant';
-  content: string;
+  content: string | unknown[];
 };
 
 type AnthropicThinkingConfig =
@@ -21,7 +21,7 @@ type AnthropicThinkingConfig =
     }
   | {
       type: 'adaptive';
-      display: 'summarized';
+      display: 'summarized' | 'omitted';
     }
   | {
       type: 'enabled';
@@ -150,6 +150,8 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
         type?: string;
         text?: string;
         thinking?: string;
+        signature?: string;
+        data?: string;
       }>;
       usage?: {
         input_tokens?: number;
@@ -165,6 +167,10 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       .filter((entry) => entry.type === 'thinking')
       .map((entry) => entry.thinking ?? '')
       .join('');
+    const reasoningDetails = (payload.content ?? []).filter(
+      (entry) =>
+        entry.type === 'thinking' || entry.type === 'redacted_thinking',
+    );
     const promptTokens = payload.usage?.input_tokens;
     const completionTokens = payload.usage?.output_tokens;
 
@@ -176,6 +182,9 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
         role: payload.role ?? 'assistant',
         content: textContent,
         reasoning: reasoning || undefined,
+        reasoningDetails: reasoningDetails.length
+          ? reasoningDetails
+          : undefined,
       },
       finishReason: payload.stop_reason ?? null,
       usage: {
@@ -223,7 +232,7 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
   ): Promise<{ inputTokens: number }> {
     const { system, messages } = this.buildAnthropicPayload(request);
-    const thinking = this.resolveThinkingConfig(request.providerOptions);
+    const thinking = this.resolveThinkingConfig(request);
 
     const response = await this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}/v1/messages/count_tokens`,
@@ -268,7 +277,7 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
     stream: boolean,
   ): Promise<Response> {
     const { system, messages } = this.buildAnthropicPayload(request);
-    const thinking = this.resolveThinkingConfig(request.providerOptions);
+    const thinking = this.resolveThinkingConfig(request);
     const maxTokens = this.resolveMaxTokens(request, thinking);
 
     return this.fetchWithTimeout(
@@ -286,6 +295,9 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
           messages,
           max_tokens: maxTokens,
           ...(thinking !== undefined ? { thinking } : {}),
+          ...(request.reasoning?.effort
+            ? { output_config: { effort: request.reasoning.effort } }
+            : {}),
           stream,
         }),
       },
@@ -308,9 +320,30 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
   }
 
   private resolveThinkingConfig(
-    providerOptions: GatewayChatProviderOptions | undefined,
+    request: GatewayChatRequest,
   ): AnthropicThinkingConfig | undefined {
-    const extendedThinking = providerOptions?.anthropic?.extendedThinking;
+    if (request.reasoning?.enabled === false) {
+      return { type: 'disabled' };
+    }
+    if (
+      request.reasoning?.enabled === true ||
+      request.reasoning?.effort !== undefined
+    ) {
+      return {
+        type: 'adaptive',
+        display:
+          request.reasoning.includeOutput === false ? 'omitted' : 'summarized',
+      };
+    }
+    if (request.reasoning?.budgetTokens !== undefined) {
+      return {
+        type: 'enabled',
+        budget_tokens: request.reasoning.budgetTokens,
+      };
+    }
+
+    const extendedThinking =
+      request.providerOptions?.anthropic?.extendedThinking;
 
     if (!extendedThinking) {
       return undefined;
@@ -366,7 +399,21 @@ export class AnthropicProviderAdapter implements LlmProviderAdapter {
       )
       .map((message) => ({
         role: message.role,
-        content: this.extractTextOnlyContent(message.content, message.role),
+        content:
+          message.role === 'assistant' &&
+          Array.isArray(message.reasoningDetails) &&
+          message.reasoningDetails.length
+            ? [
+                ...message.reasoningDetails,
+                {
+                  type: 'text',
+                  text: this.extractTextOnlyContent(
+                    message.content,
+                    message.role,
+                  ),
+                },
+              ]
+            : this.extractTextOnlyContent(message.content, message.role),
       }));
 
     if (messages.length === 0) {

@@ -14,6 +14,16 @@ import type {
 import { buildProviderChatHttpError } from '@lxp/provider-sdk';
 import { resolveAggregatorReasoningOptions } from '@lxp/model-family-capabilities';
 import type { ModelReasoningEffort } from '@lxp/domain';
+
+const OPENROUTER_REASONING_EFFORTS: ModelReasoningEffort[] = [
+  'max',
+  'xhigh',
+  'high',
+  'medium',
+  'low',
+  'minimal',
+  'none',
+];
 import {
   buildOpenRouterImageCatalog,
   buildKnownOpenRouterImageCatalog,
@@ -25,16 +35,6 @@ import { OpenRouterImageGenerationService } from './image/generation-service.js'
 import { buildOpenRouterVideoCatalog } from './video/catalog.js';
 import { OpenRouterVideoApiClient } from './video/api-client.js';
 import { OpenRouterVideoGenerationService } from './video/generation-service.js';
-
-const OPENROUTER_STANDARD_REASONING_EFFORTS: ModelReasoningEffort[] = [
-  'none',
-  'minimal',
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-];
 
 export class OpenRouterProviderAdapter implements LlmProviderAdapter {
   readonly capabilities = {
@@ -115,29 +115,30 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
 
     return buildOpenRouterModelCatalog(
       (payload.data ?? []).map((model) => {
-        const supportedEfforts =
+        const hasSupportedEfforts = Boolean(
           model.reasoning &&
           Object.prototype.hasOwnProperty.call(
             model.reasoning,
             'supported_efforts',
-          )
-            ? (model.reasoning.supported_efforts ??
-              OPENROUTER_STANDARD_REASONING_EFFORTS)
-            : undefined;
+          ),
+        );
+        const supportedEfforts = hasSupportedEfforts
+          ? (model.reasoning?.supported_efforts ?? OPENROUTER_REASONING_EFFORTS)
+          : undefined;
+        const supportsToggle =
+          model.reasoning?.mandatory !== true &&
+          supportedEfforts?.includes('none') === true;
 
         return {
           id: model.id,
           displayName: model.name ?? model.id,
-          ...(model.reasoning ||
-          model.supported_parameters?.includes('reasoning')
+          ...(model.reasoning
             ? {
                 capabilities: {
                   reasoning: {
                     supported: true,
                     controls: [
-                      ...(model.reasoning?.mandatory
-                        ? []
-                        : (['toggle'] as const)),
+                      ...(supportsToggle ? (['toggle'] as const) : []),
                       ...(supportedEfforts ? (['effort'] as const) : []),
                       ...(model.reasoning?.supports_max_tokens
                         ? (['budget'] as const)
@@ -153,6 +154,9 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
                     ...(typeof model.reasoning?.mandatory === 'boolean'
                       ? { mandatory: model.reasoning.mandatory }
                       : {}),
+                    ...(supportsToggle ? { supportsToggle: true } : {}),
+                    supportsOutputExclusion: true,
+                    semantic: 'reasoning-depth' as const,
                     source: {
                       kind: 'provider-api' as const,
                       providerId: this.providerId,
@@ -352,6 +356,22 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
       request.model,
       request.providerOptions,
     );
+    const canonicalReasoning = request.reasoning
+      ? {
+          ...(typeof request.reasoning.enabled === 'boolean'
+            ? { enabled: request.reasoning.enabled }
+            : {}),
+          ...(request.reasoning.effort
+            ? { effort: request.reasoning.effort }
+            : {}),
+          ...(request.reasoning.budgetTokens !== undefined
+            ? { max_tokens: request.reasoning.budgetTokens }
+            : {}),
+          ...(request.reasoning.includeOutput === false
+            ? { exclude: true }
+            : {}),
+        }
+      : reasoningOptions.reasoning;
     const effectiveMaxTokens =
       typeof reasoningOptions.minimumOutputTokens === 'number'
         ? Math.max(
@@ -371,15 +391,22 @@ export class OpenRouterProviderAdapter implements LlmProviderAdapter {
         },
         body: JSON.stringify({
           model: request.model,
-          messages: request.messages,
+          messages: request.messages.map((message) => ({
+            role: message.role,
+            content: message.content,
+            ...(message.reasoningContent
+              ? { reasoning_content: message.reasoningContent }
+              : {}),
+            ...(message.reasoningDetails !== undefined
+              ? { reasoning_details: message.reasoningDetails }
+              : {}),
+          })),
           stream,
           user: context.userId,
           ...(typeof effectiveMaxTokens === 'number'
             ? { max_tokens: effectiveMaxTokens }
             : {}),
-          ...(reasoningOptions.reasoning
-            ? { reasoning: reasoningOptions.reasoning }
-            : {}),
+          ...(canonicalReasoning ? { reasoning: canonicalReasoning } : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,

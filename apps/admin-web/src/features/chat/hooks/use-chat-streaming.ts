@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { supportsPreservedThinking } from '@lxp/domain';
 
 import { gatewayApiClient } from '../../../lib/api-client';
 import { getLocalizedErrorMessage } from '../../../i18n/errors';
@@ -18,6 +17,7 @@ import {
   saveConversation,
   type StoredConversation,
 } from '../../../lib/chat-store';
+import type { GatewayChatReasoningRequest } from '../../../lib/api-client.types';
 
 type UseChatStreamingOptions = {
   activeConversation: StoredConversation | null;
@@ -32,6 +32,10 @@ type UseChatStreamingOptions = {
   onSetChatError: (value: string | null) => void;
   onSetChatWarning: (value: string | null) => void;
   onStreamingChange?: (value: boolean) => void;
+  shouldReplayReasoning?: (conversation: StoredConversation) => boolean;
+  resolveReasoning?: (
+    conversation: StoredConversation,
+  ) => GatewayChatReasoningRequest | undefined;
 };
 
 export function useChatStreaming({
@@ -45,6 +49,8 @@ export function useChatStreaming({
   onSetChatError,
   onSetChatWarning,
   onStreamingChange,
+  shouldReplayReasoning,
+  resolveReasoning,
 }: UseChatStreamingOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
 
@@ -67,6 +73,7 @@ export function useChatStreaming({
     };
 
     let streamedReasoning = '';
+    const streamedReasoningDetails: unknown[] = [];
     let streamedContent = '';
 
     onSetChatError(null);
@@ -84,28 +91,33 @@ export function useChatStreaming({
     });
 
     try {
+      const reasoning = resolveReasoning?.(baseConversation);
       const streamResult = await gatewayApiClient.chatStream(
         {
           providerId: baseConversation.providerId,
           model: baseConversation.model,
-          maxOutputTokens: baseConversation.maxOutputTokens,
-          providerOptions: baseConversation.providerOptions,
+          reasoning,
+          providerOptions: reasoning
+            ? undefined
+            : baseConversation.providerOptions,
           stream: true,
           messages: buildGatewayMessages(baseConversation, {
             includeAssistantReasoning:
-              supportsPreservedThinking(
-                baseConversation.providerId,
-                baseConversation.model,
-              ) &&
-              baseConversation.providerOptions?.zai?.thinking?.type ===
-                'enabled' &&
-              baseConversation.providerOptions?.zai?.thinking?.clearThinking ===
-                false,
+              shouldReplayReasoning?.(baseConversation) ?? false,
           }),
         },
         {
-          onChunk: ({ reasoningDelta, contentDelta }) => {
+          onChunk: ({
+            reasoningDelta,
+            reasoningDetailsDelta,
+            contentDelta,
+          }) => {
             streamedReasoning += reasoningDelta ?? '';
+            if (Array.isArray(reasoningDetailsDelta)) {
+              streamedReasoningDetails.push(...reasoningDetailsDelta);
+            } else if (reasoningDetailsDelta !== undefined) {
+              streamedReasoningDetails.push(reasoningDetailsDelta);
+            }
             streamedContent += contentDelta ?? '';
             onConversationUpdated((current) =>
               current.map((conversation) => {
@@ -124,6 +136,9 @@ export function useChatStreaming({
                     return {
                       ...message,
                       reasoning: `${message.reasoning ?? ''}${reasoningDelta ?? ''}`,
+                      ...(streamedReasoningDetails.length
+                        ? { reasoningDetails: [...streamedReasoningDetails] }
+                        : {}),
                       content: `${message.content}${contentDelta ?? ''}`,
                     };
                   }),
@@ -142,6 +157,9 @@ export function useChatStreaming({
             ? {
                 ...message,
                 reasoning: streamedReasoning,
+                ...(streamedReasoningDetails.length
+                  ? { reasoningDetails: streamedReasoningDetails }
+                  : {}),
                 content: streamedContent,
                 finishReason: streamResult.finishReason ?? null,
               }

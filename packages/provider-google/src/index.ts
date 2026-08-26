@@ -81,7 +81,9 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
   async listModels(
     context: ProviderExecutionContext,
   ): Promise<ProviderModel[]> {
-    return buildGoogleModelCatalog(await this.imageApiClient.listModelIds(context));
+    return buildGoogleModelCatalog(
+      await this.imageApiClient.listModelIds(context),
+    );
   }
 
   async listImageCatalog(context: ProviderExecutionContext) {
@@ -200,6 +202,9 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
           messages: request.messages,
           stream,
           user: context.userId,
+          ...(request.reasoning?.effort
+            ? { reasoning_effort: request.reasoning.effort }
+            : {}),
         }),
       },
       stream ? null : this.requestTimeoutMs,

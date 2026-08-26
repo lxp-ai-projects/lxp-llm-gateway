@@ -73,7 +73,9 @@ class FakeGatewayService {
         ? lastContent
         : (lastContent ?? [])
             .map((part) =>
-              part.type === 'text' ? part.text : `[image:${part.image_url.url}]`,
+              part.type === 'text'
+                ? part.text
+                : `[image:${part.image_url.url}]`,
             )
             .join('\n');
 
@@ -84,6 +86,10 @@ class FakeGatewayService {
       message: {
         role: 'assistant' as const,
         content: `Echo: ${normalizedContent}`,
+        reasoning: 'Normalized reasoning',
+        reasoningDetails: [
+          { type: 'reasoning.text', text: 'Normalized reasoning' },
+        ],
       },
       finishReason: 'stop',
       usage: {
@@ -213,6 +219,10 @@ test('OpenAiCompatibleService maps chat completions to the OpenAI response shape
   assert.equal(response.object, 'chat.completion');
   assert.equal(response.model, 'nanogpt/z-ai/glm-4.6:thinking');
   assert.equal(response.choices[0]?.message.content, 'Echo: hello');
+  assert.equal(response.choices[0]?.message.reasoning, 'Normalized reasoning');
+  assert.deepEqual(response.choices[0]?.message.reasoning_details, [
+    { type: 'reasoning.text', text: 'Normalized reasoning' },
+  ]);
   assert.equal(response.usage?.total_tokens, 18);
 });
 
@@ -258,6 +268,53 @@ test('OpenAiCompatibleService forwards max completion tokens to the gateway chat
   assert.equal(capturedRequest?.maxOutputTokens, 321);
 });
 
+test('OpenAiCompatibleService preserves assistant reasoning replay fields', async () => {
+  let capturedMessages: unknown;
+
+  class CapturingGatewayService extends FakeGatewayService {
+    override async chat(request: Parameters<FakeGatewayService['chat']>[0]) {
+      capturedMessages = request.messages;
+      return super.chat(request);
+    }
+  }
+
+  const service = new OpenAiCompatibleService(
+    new CapturingGatewayService() as never,
+    new FakeProviderRegistryService() as never,
+    new FakeProviderCredentialService() as never,
+    new FakeIntegrationClientScopeService() as never,
+    new FakeTenantModelAccessRuleService() as never,
+  );
+
+  await service.createChatCompletion(
+    {
+      model: 'nanogpt/z-ai/glm-4.6:thinking',
+      messages: [
+        {
+          role: 'assistant',
+          content: 'Earlier answer',
+          reasoning_content: 'Earlier reasoning',
+          reasoning_details: [
+            { type: 'reasoning.text', text: 'Earlier reasoning' },
+          ],
+        },
+        { role: 'user', content: 'Continue' },
+      ],
+    },
+    buildAuthContext(),
+  );
+
+  assert.deepEqual(capturedMessages, [
+    {
+      role: 'assistant',
+      content: 'Earlier answer',
+      reasoningContent: 'Earlier reasoning',
+      reasoningDetails: [{ type: 'reasoning.text', text: 'Earlier reasoning' }],
+    },
+    { role: 'user', content: 'Continue' },
+  ]);
+});
+
 test('OpenAiCompatibleService rejects unsupported non-text message content payloads', async () => {
   const service = new OpenAiCompatibleService(
     new FakeGatewayService() as never,
@@ -272,7 +329,9 @@ test('OpenAiCompatibleService rejects unsupported non-text message content paylo
       service.createChatCompletion(
         {
           model: 'nanogpt/z-ai/glm-4.6:thinking',
-          messages: [{ role: 'user', content: { type: 'input_text', text: 'hi' } }],
+          messages: [
+            { role: 'user', content: { type: 'input_text', text: 'hi' } },
+          ],
         } as never,
         buildAuthContext(),
       ),
@@ -305,7 +364,10 @@ test('OpenAiCompatibleService preserves text-only content blocks for the gateway
     buildAuthContext(),
   );
 
-  assert.equal(response.choices[0]?.message.content, 'Echo: Hello\nfrom blocks');
+  assert.equal(
+    response.choices[0]?.message.content,
+    'Echo: Hello\nfrom blocks',
+  );
 });
 
 test('OpenAiCompatibleService preserves multimodal image attachments for the gateway seam', async () => {
@@ -376,7 +438,8 @@ test('OpenAiCompatibleService filters denied models for the active tenant', asyn
     activeTenantId: 'tenant-restricted',
   });
 
-  assert.deepEqual(response.data.map((entry) => entry.id), [
-    'nanogpt/z-ai/glm-4.6:thinking',
-  ]);
+  assert.deepEqual(
+    response.data.map((entry) => entry.id),
+    ['nanogpt/z-ai/glm-4.6:thinking'],
+  );
 });
