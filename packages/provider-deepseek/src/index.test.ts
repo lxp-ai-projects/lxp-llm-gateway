@@ -33,10 +33,7 @@ test('DeepSeekProviderAdapter lists current DeepSeek V4 models and excludes depr
     });
 
     assert.equal(calls[0]?.url, 'https://api.deepseek.com/models');
-    assertProviderModelIds(models, [
-      'deepseek-v4-flash',
-      'deepseek-v4-pro',
-    ]);
+    assertProviderModelIds(models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
     assert.equal(models[0]?.displayName, 'DeepSeek V4 Flash');
   } finally {
     globalThis.fetch = originalFetch;
@@ -74,6 +71,7 @@ test('DeepSeekProviderAdapter sends chat requests to the DeepSeek chat completio
       {
         model: 'deepseek-v4-flash',
         maxOutputTokens: 2048,
+        reasoning: { enabled: false, effort: 'high' },
         messages: [{ role: 'user', content: 'hello' }],
       },
       {
@@ -86,8 +84,12 @@ test('DeepSeekProviderAdapter sends chat requests to the DeepSeek chat completio
     assert.equal(calls[0]?.url, 'https://api.deepseek.com/chat/completions');
     const body = JSON.parse(String(calls[0]?.init?.body)) as {
       max_tokens?: number;
+      thinking?: { type?: string };
+      reasoning_effort?: string;
     };
     assert.equal(body.max_tokens, 2048);
+    assert.deepEqual(body.thinking, { type: 'disabled' });
+    assert.equal(body.reasoning_effort, undefined);
     assertBasicChatResponseContract({
       response,
       providerId: 'deepseek',
@@ -175,7 +177,10 @@ test('DeepSeekProviderAdapter returns the upstream stream body', async () => {
 
     const reader = stream.getReader();
     const firstChunk = await reader.read();
-    assert.match(new TextDecoder().decode(firstChunk.value), /"content":"hello"/);
+    assert.match(
+      new TextDecoder().decode(firstChunk.value),
+      /"content":"hello"/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

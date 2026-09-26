@@ -210,8 +210,7 @@ export function useVideoLab() {
 
   function buildRequestFromForm(): GatewayVideoRetryRequest {
     return {
-      providerId:
-        selectedProvider?.providerId as GatewayVideoRetryRequest['providerId'],
+      providerId: providerId as GatewayVideoRetryRequest['providerId'],
       model: modelId,
       prompt: prompt.trim(),
       durationSeconds: parseNumericValue(durationSeconds),
@@ -302,7 +301,7 @@ export function useVideoLab() {
   ]);
 
   useEffect(() => {
-    if (!activeJobQuery.data) {
+    if (!activeJobId || activeJobQuery.data?.id !== activeJobId) {
       return;
     }
 
@@ -310,7 +309,7 @@ export function useVideoLab() {
     if (isTerminalStatus(activeJobQuery.data.status)) {
       void queryClient.invalidateQueries({ queryKey: ['video-history'] });
     }
-  }, [activeJobQuery.data, queryClient]);
+  }, [activeJobId, activeJobQuery.data, queryClient]);
 
   useEffect(() => {
     if (!activeJob || isTerminalStatus(activeJob.status)) {
@@ -344,13 +343,18 @@ export function useVideoLab() {
 
       const retryProviderId =
         request.providerId ??
-        (selectedProvider?.providerId as GatewayVideoRetryRequest['providerId']);
+        (providerId as GatewayVideoRetryRequest['providerId']);
       const retryProvider = providers.find(
         (provider) => provider.providerId === retryProviderId,
       );
       const retryModel = retryProvider?.models.find(
         (model) => model.id === request.model,
       );
+      if (!retryModel) {
+        throw new VideoLabValidationError(
+          'videoRequestForm.errors.modelRequired',
+        );
+      }
       const retryCapabilities = retryModel?.capabilities;
       const retrySupportsReferenceImages =
         retryCapabilities?.supportsVideoReferenceImages !== false;
@@ -387,6 +391,11 @@ export function useVideoLab() {
           ? request.generateAudio
           : undefined,
       });
+    },
+    onMutate: () => {
+      setRequestError(null);
+      setSubmittedJob(null);
+      setActiveJobId(null);
     },
     onSuccess: (job) => {
       setRequestError(null);

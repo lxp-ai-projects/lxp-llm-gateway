@@ -2,6 +2,8 @@
   "videoResultsPanel.pollingNow": "Consultando ahora",
   "videoResultsPanel.pollingArmed": "Consulta preparada",
   "videoResultsPanel.status.queued": "En cola",
+  "videoResultsPanel.submitting": "Enviando solicitud de vídeo",
+  "videoResultsPanel.waitingForProvider": "Esperando a que el proveedor acepte la solicitud. El trabajo aparecerá aquí cuando responda.",
   "videoResultsPanel.status.running": "Renderizando",
   "videoResultsPanel.status.succeeded": "Completado",
   "videoResultsPanel.status.failed": "Fallido",

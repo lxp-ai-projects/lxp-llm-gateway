@@ -1,6 +1,4 @@
-import {
-  OpenAiCompatibleTextProviderAdapter,
-} from '@lxp/provider-sdk';
+import { OpenAiCompatibleTextProviderAdapter } from '@lxp/provider-sdk';
 
 export class MoonshotProviderAdapter extends OpenAiCompatibleTextProviderAdapter {
   constructor(
@@ -14,6 +12,18 @@ export class MoonshotProviderAdapter extends OpenAiCompatibleTextProviderAdapter
       displayName: 'Moonshot',
       defaultBaseUrl: baseUrl,
       requestTimeoutMs,
+      mapReasoningRequest: (request) => ({
+        ...(request.reasoning?.effort
+          ? { reasoning_effort: request.reasoning.effort }
+          : {}),
+        ...(request.reasoning?.enabled !== undefined
+          ? {
+              thinking: {
+                type: request.reasoning.enabled ? 'enabled' : 'disabled',
+              },
+            }
+          : {}),
+      }),
     });
   }
 }
@@ -23,7 +33,11 @@ function resolveMoonshotRequestTimeoutMs(
 ): number {
   const parsedTimeoutMs = Number(rawTimeoutMs ?? '90000');
 
-  if (!Number.isFinite(parsedTimeoutMs) || Number.isNaN(parsedTimeoutMs) || parsedTimeoutMs <= 0) {
+  if (
+    !Number.isFinite(parsedTimeoutMs) ||
+    Number.isNaN(parsedTimeoutMs) ||
+    parsedTimeoutMs <= 0
+  ) {
     return 90000;
   }
 

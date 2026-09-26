@@ -337,6 +337,8 @@ export class AdminService {
         defaultModel: null,
         defaultImageProviderId: null,
         defaultImageModel: null,
+        defaultVideoProviderId: null,
+        defaultVideoModel: null,
       });
       await this.userRepository.save(user);
     }
@@ -406,6 +408,8 @@ export class AdminService {
       defaultModel: null,
       defaultImageProviderId: null,
       defaultImageModel: null,
+      defaultVideoProviderId: null,
+      defaultVideoModel: null,
     });
     await this.userRepository.save(user);
     await this.superAdminBootstrapService.syncUserIfConfigured(user);
@@ -1851,6 +1855,8 @@ export class AdminService {
       defaultModel: user.defaultModel,
       defaultImageProviderId: user.defaultImageProviderId,
       defaultImageModel: user.defaultImageModel,
+      defaultVideoProviderId: user.defaultVideoProviderId,
+      defaultVideoModel: user.defaultVideoModel,
     };
   }
 
@@ -1899,6 +1905,14 @@ export class AdminService {
     const imageModelWasUpdated = Object.prototype.hasOwnProperty.call(
       dto,
       'defaultImageModel',
+    );
+    const videoProviderIdWasUpdated = Object.prototype.hasOwnProperty.call(
+      dto,
+      'defaultVideoProviderId',
+    );
+    const videoModelWasUpdated = Object.prototype.hasOwnProperty.call(
+      dto,
+      'defaultVideoModel',
     );
 
     if (providerIdWasUpdated) {
@@ -1955,6 +1969,33 @@ export class AdminService {
       }
     }
 
+    if (videoProviderIdWasUpdated) {
+      if (dto.defaultVideoProviderId === null) {
+        user.defaultVideoProviderId = null;
+        user.defaultVideoModel = null;
+      } else {
+        await this.assertActiveCredentialExists(
+          actor.activeTenantId,
+          user.id,
+          dto.defaultVideoProviderId as ProviderId,
+        );
+        user.defaultVideoProviderId = dto.defaultVideoProviderId ?? null;
+        if (!videoModelWasUpdated) {
+          user.defaultVideoModel = null;
+        }
+      }
+    }
+
+    if (videoModelWasUpdated) {
+      if (dto.defaultVideoModel === null) {
+        user.defaultVideoModel = null;
+      } else if (!user.defaultVideoProviderId) {
+        throw new ConflictException('Unable to update provider settings.');
+      } else {
+        user.defaultVideoModel = dto.defaultVideoModel?.trim() ?? null;
+      }
+    }
+
     await this.userRepository.save(user);
 
     return {
@@ -1965,6 +2006,8 @@ export class AdminService {
       defaultModel: user.defaultModel,
       defaultImageProviderId: user.defaultImageProviderId,
       defaultImageModel: user.defaultImageModel,
+      defaultVideoProviderId: user.defaultVideoProviderId,
+      defaultVideoModel: user.defaultVideoModel,
     };
   }
 

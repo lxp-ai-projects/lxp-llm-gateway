@@ -6,6 +6,7 @@ import {
 } from './api-base';
 import type {
   GatewayChatProviderOptions,
+  GatewayChatReasoningRequest,
   GatewayChatMessage,
   GatewayChatResponse,
   GatewayChatStreamChunk,
@@ -61,15 +62,19 @@ export const gatewayApiClient = {
     providerId?: string;
     model?: string;
     maxOutputTokens?: number;
+    reasoning?: GatewayChatReasoningRequest;
     providerOptions?: GatewayChatProviderOptions;
     stream: false;
     messages: GatewayChatMessage[];
   }): Promise<GatewayChatResponse> {
-    return request<GatewayChatResponse>(`${gatewayControlPlaneUrl}/api/v1/chat`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      timeoutMs: 90000,
-    });
+    return request<GatewayChatResponse>(
+      `${gatewayControlPlaneUrl}/api/v1/chat`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 90000,
+      },
+    );
   },
 
   async chatStream(
@@ -77,6 +82,7 @@ export const gatewayApiClient = {
       providerId?: string;
       model?: string;
       maxOutputTokens?: number;
+      reasoning?: GatewayChatReasoningRequest;
       providerOptions?: GatewayChatProviderOptions;
       stream: true;
       messages: GatewayChatMessage[];

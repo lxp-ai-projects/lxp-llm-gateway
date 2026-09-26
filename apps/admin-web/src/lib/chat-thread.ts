@@ -25,9 +25,17 @@ export function buildGatewayMessages(
       content: message.content,
       ...(options?.includeAssistantReasoning &&
       message.role === 'assistant' &&
-      typeof message.reasoning === 'string' &&
-      message.reasoning.trim()
-        ? { reasoningContent: message.reasoning }
+      (message.reasoningDetails !== undefined ||
+        (typeof message.reasoning === 'string' && message.reasoning.trim()))
+        ? {
+            ...(message.reasoningDetails !== undefined
+              ? { reasoningDetails: message.reasoningDetails }
+              : {}),
+            ...(typeof message.reasoning === 'string' &&
+            message.reasoning.trim()
+              ? { reasoningContent: message.reasoning }
+              : {}),
+          }
         : {}),
     })),
   ];

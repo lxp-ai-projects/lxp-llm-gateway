@@ -714,6 +714,8 @@ export const adminApiClient = {
     defaultModel?: string | null;
     defaultImageProviderId?: string | null;
     defaultImageModel?: string | null;
+    defaultVideoProviderId?: string | null;
+    defaultVideoModel?: string | null;
   }): Promise<ProviderSettingsSummary> {
     return request<ProviderSettingsSummary>(
       `${adminApiUrl}/api/v1/provider-settings`,

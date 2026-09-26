@@ -108,4 +108,26 @@ describe('chat-thread', () => {
       content: 'hello',
     });
   });
+
+  it('replays visible reasoning and opaque continuation state separately', () => {
+    const gatewayMessages = buildGatewayMessages(
+      {
+        ...baseConversation,
+        messages: [
+          {
+            ...baseConversation.messages[1]!,
+            reasoningDetails: [{ type: 'redacted_thinking', data: 'opaque' }],
+          },
+        ],
+      },
+      { includeAssistantReasoning: true },
+    );
+
+    expect(gatewayMessages[1]).toEqual({
+      role: 'assistant',
+      content: 'hello back',
+      reasoningContent: 'thinking',
+      reasoningDetails: [{ type: 'redacted_thinking', data: 'opaque' }],
+    });
+  });
 });

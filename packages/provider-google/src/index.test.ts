@@ -6,7 +6,10 @@ import { GoogleProviderAdapter } from './index';
 
 class GoogleProviderAdapterTestDouble extends GoogleProviderAdapter {
   constructor(
-    private readonly resolvedAddresses: Array<{ address: string; family: number }>,
+    private readonly resolvedAddresses: Array<{
+      address: string;
+      family: number;
+    }>,
   ) {
     super();
   }
@@ -15,6 +18,264 @@ class GoogleProviderAdapterTestDouble extends GoogleProviderAdapter {
     return Promise.resolve(this.resolvedAddresses);
   }
 }
+
+test('GoogleProviderAdapter exposes Veo and Omni video models', async () => {
+  const adapter = new GoogleProviderAdapter();
+  const catalog = await adapter.listVideoCatalog?.({
+    requestId: 'video-catalog',
+    userId: 'user-1',
+    providerAccess: { apiKey: 'google-token' },
+  });
+
+  assert.equal(adapter.capabilities.videoGeneration, true);
+  assert.deepEqual(
+    catalog?.models.map((model) => model.id),
+    [
+      'veo-3.1-generate-preview',
+      'veo-3.1-fast-generate-preview',
+      'veo-3.1-lite-generate-preview',
+      'gemini-omni-1.1-flash',
+    ],
+  );
+  assert.equal(
+    catalog?.models[0]?.capabilities.supportsVideoAudioGeneration,
+    false,
+  );
+});
+
+test('GoogleProviderAdapter submits and polls a Veo operation', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return new Response(
+      JSON.stringify(
+        calls.length === 1
+          ? { name: 'operations/veo-1', done: false }
+          : {
+              name: 'operations/veo-1',
+              done: true,
+              response: {
+                generateVideoResponse: {
+                  generatedSamples: [
+                    {
+                      video: {
+                        uri: 'https://generativelanguage.googleapis.com/v1beta/files/output-1:download',
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+      ),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new GoogleProviderAdapter();
+    const context = {
+      requestId: 'video-1',
+      userId: 'user-1',
+      providerAccess: { apiKey: 'google-token' },
+    };
+    const submitted = await adapter.submitVideoGeneration?.(
+      {
+        model: 'veo-3.1-generate-preview',
+        prompt: 'A mountain sunrise',
+        durationSeconds: 8,
+        resolution: '1080p',
+      },
+      context,
+    );
+    const polled = await adapter.getVideoGenerationJob?.(
+      'operations/veo-1',
+      context,
+    );
+
+    assert.equal(submitted?.status, 'running');
+    assert.equal(polled?.status, 'succeeded');
+    assert.equal(
+      calls[0]?.url,
+      'https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning',
+    );
+    assert.equal(
+      calls[1]?.url,
+      'https://generativelanguage.googleapis.com/v1beta/operations/veo-1',
+    );
+    assert.equal(
+      (calls[0]?.init?.headers as Record<string, string>)['x-goog-api-key'],
+      'google-token',
+    );
+    assert.equal(
+      JSON.parse(String(calls[0]?.init?.body)).parameters.resolution,
+      '1080p',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('GoogleProviderAdapter submits Omni through interactions and waits for its file', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return new Response(
+      JSON.stringify(
+        calls.length === 1
+          ? { id: 'interaction-1', status: 'in_progress' }
+          : calls.length === 2
+            ? {
+                id: 'interaction-1',
+                status: 'completed',
+                steps: [
+                  {
+                    type: 'model_output',
+                    content: [
+                      {
+                        type: 'video',
+                        uri: 'files/omni-1',
+                      },
+                    ],
+                  },
+                ],
+              }
+            : {
+                name: 'files/omni-1',
+                state: 'ACTIVE',
+              },
+      ),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new GoogleProviderAdapter();
+    const context = {
+      requestId: 'video-2',
+      userId: 'user-1',
+      providerAccess: { apiKey: 'google-token' },
+    };
+    const submitted = await adapter.submitVideoGeneration?.(
+      {
+        model: 'gemini-omni-1.1-flash',
+        prompt: 'A rolling wave',
+        resolution: '720p',
+      },
+      context,
+    );
+    const polled = await adapter.getVideoGenerationJob?.(
+      'omni:interaction-1',
+      context,
+    );
+
+    assert.equal(submitted?.status, 'running');
+    assert.equal(polled?.status, 'succeeded');
+    assert.equal(
+      calls[0]?.url,
+      'https://generativelanguage.googleapis.com/v1beta/interactions',
+    );
+    assert.equal(
+      JSON.parse(String(calls[0]?.init?.body)).response_format.type,
+      'video',
+    );
+    assert.equal(
+      calls[1]?.url,
+      'https://generativelanguage.googleapis.com/v1beta/interactions/interaction-1',
+    );
+    assert.equal(
+      calls[2]?.url,
+      'https://generativelanguage.googleapis.com/v1beta/files/omni-1',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('GoogleProviderAdapter rejects unsupported Omni frame interpolation before dispatch', async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    throw new Error('Unexpected Google request.');
+  }) as typeof fetch;
+
+  try {
+    const adapter = new GoogleProviderAdapter();
+    await assert.rejects(
+      adapter.submitVideoGeneration(
+        {
+          model: 'gemini-omni-1.1-flash',
+          prompt: 'A mountain sunrise',
+          frameImages: [
+            {
+              frameType: 'last_frame',
+              image: { type: 'data_url', url: 'data:image/png;base64,cG5n' },
+            },
+          ],
+        },
+        {
+          requestId: 'video-invalid',
+          userId: 'user-1',
+          providerAccess: { apiKey: 'google-token' },
+        },
+      ),
+      /does not support these video parameters/,
+    );
+    assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('GoogleProviderAdapter downloads an Omni file when its URI is relative', async () => {
+  const calls: string[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL) => {
+    calls.push(String(url));
+    if (String(url).includes(':download')) {
+      return new Response('video-bytes', { status: 200 });
+    }
+    if (String(url).endsWith('/files/omni-2')) {
+      return new Response(JSON.stringify({ state: 'ACTIVE' }), { status: 200 });
+    }
+    return new Response(
+      JSON.stringify({
+        id: 'interaction-2',
+        status: 'completed',
+        steps: [
+          {
+            type: 'model_output',
+            content: [{ type: 'video', uri: 'files/omni-2' }],
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+
+  try {
+    const adapter = new GoogleProviderAdapter();
+    const stream = await adapter.downloadVideoOutput?.(
+      'omni:interaction-2',
+      0,
+      {
+        requestId: 'video-download',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'google-token' },
+      },
+    );
+
+    assert.equal(await new Response(stream).text(), 'video-bytes');
+    assert.equal(
+      calls.at(-1),
+      'https://generativelanguage.googleapis.com/v1beta/files/omni-2:download?alt=media',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('GoogleProviderAdapter lists chat and image models with provider-owned image metadata', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -64,10 +325,9 @@ test('GoogleProviderAdapter lists chat and image models with provider-owned imag
     assert.equal(flashImage.displayName, 'Nano Banana');
     assert.equal(flashImage.capabilities?.supportsImageGeneration, true);
     assert.equal(flashImage.capabilities?.supportsImageEditing, true);
-    assert.deepEqual(
-      flashImage.capabilities?.supportedImageResponseFormats,
-      ['b64_json'],
-    );
+    assert.deepEqual(flashImage.capabilities?.supportedImageResponseFormats, [
+      'b64_json',
+    ]);
     assert.deepEqual(flashImage.capabilities?.supportedImageResolutions, [
       { value: '1K', label: '1K' },
     ]);
@@ -75,26 +335,20 @@ test('GoogleProviderAdapter lists chat and image models with provider-owned imag
     assert.ok(proImage);
     assert.equal(proImage.displayName, 'Nano Banana Pro');
     assert.equal(proImage.capabilities?.maxReferenceImagesPerRequest, 14);
-    assert.deepEqual(
-      proImage.capabilities?.supportedImageResolutions,
-      [
-        { value: '1K', label: '1K' },
-        { value: '2K', label: '2K' },
-        { value: '4K', label: '4K' },
-      ],
-    );
+    assert.deepEqual(proImage.capabilities?.supportedImageResolutions, [
+      { value: '1K', label: '1K' },
+      { value: '2K', label: '2K' },
+      { value: '4K', label: '4K' },
+    ]);
 
     assert.ok(nanoBanana2);
     assert.equal(nanoBanana2.displayName, 'Nano Banana 2');
-    assert.deepEqual(
-      nanoBanana2.capabilities?.supportedImageResolutions,
-      [
-        { value: '512', label: '512' },
-        { value: '1K', label: '1K' },
-        { value: '2K', label: '2K' },
-        { value: '4K', label: '4K' },
-      ],
-    );
+    assert.deepEqual(nanoBanana2.capabilities?.supportedImageResolutions, [
+      { value: '512', label: '512' },
+      { value: '1K', label: '1K' },
+      { value: '2K', label: '2K' },
+      { value: '4K', label: '4K' },
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -188,6 +442,23 @@ test('GoogleProviderAdapter sends chat requests to the Gemini OpenAI-compatible 
     assert.equal(response.providerId, 'google');
     assert.equal(response.model, 'gemini-2.5-pro');
     assert.equal(response.message.content, 'hello from gemini');
+
+    await adapter.chat(
+      {
+        model: 'gemini-2.5-flash',
+        reasoning: { enabled: false },
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        requestId: 'request-2',
+        userId: 'user-1',
+        providerAccess: { apiKey: 'google-token' },
+      },
+    );
+    assert.equal(
+      JSON.parse(String(calls[1]?.init?.body)).reasoning_effort,
+      'none',
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -513,7 +784,10 @@ test('GoogleProviderAdapter fetches a remote HTTPS image reference before callin
     );
 
     assert.equal(calls[0]?.url, 'https://example.com/reference.png');
-    assert.equal(calls[1]?.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent');
+    assert.equal(
+      calls[1]?.url,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    );
     assert.deepEqual(JSON.parse(String(calls[1]?.init?.body)), {
       contents: [
         {

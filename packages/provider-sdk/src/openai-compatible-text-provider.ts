@@ -61,6 +61,9 @@ export interface OpenAiCompatibleTextProviderOptions {
     context: ProviderExecutionContext,
     stream: boolean,
   ) => Record<string, unknown>;
+  mapReasoningRequest?: (
+    request: GatewayChatRequest,
+  ) => Record<string, unknown>;
   mapModels?: (
     payload: OpenAiCompatibleModelListPayload,
     context: ProviderExecutionContext,
@@ -250,7 +253,7 @@ export class OpenAiCompatibleTextProviderAdapter implements LlmProviderAdapter {
     context: ProviderExecutionContext,
     stream: boolean,
   ): Promise<Response> {
-    const body = this.options.buildRequestBody
+    const baseBody = this.options.buildRequestBody
       ? this.options.buildRequestBody(request, context, stream)
       : {
           model: request.model,
@@ -259,6 +262,12 @@ export class OpenAiCompatibleTextProviderAdapter implements LlmProviderAdapter {
           user: context.userId,
           max_tokens: request.maxOutputTokens,
         };
+    const body = {
+      ...baseBody,
+      ...(request.reasoning
+        ? (this.options.mapReasoningRequest?.(request) ?? {})
+        : {}),
+    };
 
     return this.fetchWithTimeout(
       `${this.resolveBaseUrl(context)}${this.chatCompletionsPath}`,
@@ -294,7 +303,7 @@ export class OpenAiCompatibleTextProviderAdapter implements LlmProviderAdapter {
               capabilities: {
                 reasoning: {
                   supported: reasoningSupported,
-                  controls: reasoningSupported ? ['toggle' as const] : [],
+                  controls: [],
                   source: {
                     kind: 'provider-api' as const,
                     providerId: this.providerId,

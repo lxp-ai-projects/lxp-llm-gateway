@@ -54,6 +54,12 @@ export class UserEntity {
   })
   defaultImageModel!: string | null;
 
+  @Column({ name: 'default_video_provider_id', type: 'varchar', length: 50, nullable: true })
+  defaultVideoProviderId!: ProviderId | null;
+
+  @Column({ name: 'default_video_model', type: 'varchar', length: 150, nullable: true })
+  defaultVideoModel!: string | null;
+
   @OneToMany(
     () => TenantMembershipEntity,
     (membership) => membership.user,

@@ -12,6 +12,7 @@ const {
   createOwnProviderCredentialMock,
   deleteOwnProviderCredentialMock,
   getImageCatalogMock,
+  getVideoCatalogMock,
   getModelsMock,
   getOwnProviderCredentialsMock,
   getOwnProviderSettingsMock,
@@ -64,6 +65,11 @@ const {
         ],
       },
     ],
+  })),
+  getVideoCatalogMock: vi.fn(async () => ({
+    providers: [{ providerId: 'nanogpt', displayName: 'NanoGPT', defaultModelId: 'video-model', models: [
+      { id: 'video-model', displayName: 'Video Model' },
+    ] }],
   })),
   getModelsMock: vi.fn(async () => ({
     providerId: 'nanogpt',
@@ -127,6 +133,7 @@ vi.mock('../../../lib/api-client', () => ({
     createOwnProviderCredential: createOwnProviderCredentialMock,
     deleteOwnProviderCredential: deleteOwnProviderCredentialMock,
     getOwnImageCatalog: getImageCatalogMock,
+    getOwnVideoCatalog: getVideoCatalogMock,
     getOwnModels: getModelsMock,
     getOwnProviderCredentials: getOwnProviderCredentialsMock,
     getOwnProviderSettings: getOwnProviderSettingsMock,
@@ -375,6 +382,8 @@ test('useProvidersController clears invalid default models and saves dirty defau
       defaultModel: null,
       defaultImageProviderId: null,
       defaultImageModel: null,
+      defaultVideoProviderId: null,
+      defaultVideoModel: null,
     }),
   );
 });

@@ -1,7 +1,8 @@
-import type { ProviderExecutionContext, ProviderModel } from '@lxp/provider-sdk';
-import {
-  OpenAiCompatibleTextProviderAdapter,
+import type {
+  ProviderExecutionContext,
+  ProviderModel,
 } from '@lxp/provider-sdk';
+import { OpenAiCompatibleTextProviderAdapter } from '@lxp/provider-sdk';
 
 const DEPRECATED_MODEL_IDS = new Set(['deepseek-chat', 'deepseek-reasoner']);
 
@@ -23,16 +24,27 @@ export class DeepSeekProviderAdapter extends OpenAiCompatibleTextProviderAdapter
       defaultBaseUrl: baseUrl,
       requestTimeoutMs,
       mapModels: (payload, context) => mapDeepSeekModels(payload, context),
+      mapReasoningRequest: (request) => ({
+        ...(request.reasoning?.enabled !== undefined
+          ? {
+              thinking: {
+                type: request.reasoning.enabled ? 'enabled' : 'disabled',
+              },
+            }
+          : {}),
+      }),
     });
   }
 }
 
 function mapDeepSeekModels(
-  payload: { data?: Array<{ id: string; name?: string }> } | Array<{ id: string; name?: string }>,
+  payload:
+    | { data?: Array<{ id: string; name?: string }> }
+    | Array<{ id: string; name?: string }>,
   context: ProviderExecutionContext,
 ): ProviderModel[] {
   void context;
-  const data = Array.isArray(payload) ? payload : payload.data ?? [];
+  const data = Array.isArray(payload) ? payload : (payload.data ?? []);
   return data
     .filter((model) => !DEPRECATED_MODEL_IDS.has(model.id))
     .map((model) => ({

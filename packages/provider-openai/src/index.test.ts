@@ -66,10 +66,15 @@ test('OpenAiProviderAdapter lists models from the OpenAI models endpoint and add
       { value: 'transparent', label: 'Transparent' },
     ]);
     assert.deepEqual(
-      imageModel.capabilities?.supportedImageModerations?.map((entry) => entry.value),
+      imageModel.capabilities?.supportedImageModerations?.map(
+        (entry) => entry.value,
+      ),
       ['auto', 'low'],
     );
-    assert.equal(imageModel.capabilities?.supportedImageInputFidelities, undefined);
+    assert.equal(
+      imageModel.capabilities?.supportedImageInputFidelities,
+      undefined,
+    );
     assert.deepEqual(imageModel.capabilities?.imageOutputCompressionRange, {
       min: 0,
       max: 100,
@@ -167,7 +172,8 @@ test('OpenAiProviderAdapter sends chat requests to the OpenAI chat completions e
     const adapter = new OpenAiProviderAdapter();
     const response = await adapter.chat(
       {
-        model: 'gpt-4o',
+        model: 'gpt-5.4',
+        reasoning: { effort: 'high' },
         messages: [{ role: 'user', content: 'hello' }],
       },
       {
@@ -178,8 +184,12 @@ test('OpenAiProviderAdapter sends chat requests to the OpenAI chat completions e
     );
 
     assert.equal(calls[0]?.url, 'https://api.openai.com/v1/chat/completions');
+    const body = JSON.parse(String(calls[0]?.init?.body)) as {
+      reasoning_effort?: string;
+    };
+    assert.equal(body.reasoning_effort, 'high');
     assert.equal(response.providerId, 'openai');
-    assert.equal(response.model, 'gpt-4o');
+    assert.equal(response.model, 'gpt-5.4');
     assert.equal(response.message.content, 'hello from openai');
     assert.equal(response.usage?.reasoningTokens, 4);
   } finally {

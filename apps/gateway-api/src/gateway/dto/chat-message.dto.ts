@@ -11,4 +11,8 @@ export class ChatMessageDto {
   @IsOptional()
   @IsString()
   reasoningContent?: string;
+
+  @IsOptional()
+  @Allow()
+  reasoningDetails?: unknown;
 }

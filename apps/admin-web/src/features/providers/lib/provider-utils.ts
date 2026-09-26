@@ -130,6 +130,20 @@ export function buildDefaultImageProviderOptions(
   );
 }
 
+export function buildDefaultVideoProviderOptions(
+  credentials: ProviderCredentialSummary[],
+  supportedProviders: Array<{ providerId: string; displayName: string }>,
+  videoCatalogProviders: Array<{ providerId: string }>,
+) {
+  const videoProviderIds = new Set(
+    videoCatalogProviders.map((provider) => provider.providerId),
+  );
+
+  return buildDefaultProviderOptions(credentials, supportedProviders).filter(
+    (provider) => videoProviderIds.has(provider.value),
+  );
+}
+
 export function buildDefaultModelOptions(
   models: Array<{ id: string; displayName: string }>,
 ) {

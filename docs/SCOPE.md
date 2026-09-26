@@ -79,11 +79,12 @@ The next seam expansion is intentionally incremental:
 - keep backend contract stabilization ahead of any new workspace UI surface
 - avoid implementing OpenRouter, xAI direct, and other future video transports all at once
 
-That staged rollout has now advanced to three native video-capable provider packages behind the seam:
+That staged rollout has now advanced to four video-capable provider packages behind the seam:
 
 - `packages/provider-openrouter` for OpenRouter video
 - `packages/provider-nanogpt` for NanoGPT video
 - `packages/provider-xai` for xAI native video
+- `packages/provider-google` for native Veo generation and Omni Interactions video
 
 The repository now treats multi-tenancy as a first-class architectural concern:
 
@@ -566,17 +567,22 @@ when it is absent or different. Evaluation Lab and PGS use separate clients and
 keys. The profile deadline propagates through `provider-sdk` to the provider
 transport, and an aborted request cannot emit success audit or usage telemetry.
 
-## Model-family reasoning routing
+## Chat reasoning capability hardening
 
-The shared seam now detects Claude, OpenAI reasoning, xAI Grok, and GLM model
-families independently of transport. NanoGPT and OpenRouter consume an explicit,
-fail-closed compatibility matrix without leaking request formats into
-`gateway-api`. Aggregator responses identify preflight token counting as
-unavailable, and safe structured upstream error fields cross the provider seam.
+Reasoning is modeled as an exact model-on-route capability, not inferred from a
+provider or model name. Canonical requests are validated locally and translated
+inside provider adapters. Legacy provider options remain migration inputs only.
 
 Chat model catalogs now carry provider-API-sourced reasoning metadata when the
 upstream catalog publishes it. Anthropic reads `capabilities.thinking`, NanoGPT
 requests detailed model capabilities, OpenRouter reads its per-model `reasoning`
 object, and Ollama supplements `/api/tags` with `/api/show`. Chat Lab uses this
 metadata instead of model-name heuristics. An omitted capability remains
-unknown and does not become either supported or unsupported by inference.
+unknown unless an exact reviewed route identity supplies documented evidence;
+it does not become either supported or unsupported by name inference.
+The `admin-api` catalog used by Chat Lab applies the same reviewed capability
+resolver as `gateway-api`. NanoGPT's documented exact GLM-5.3 routes combine
+Z.ai model semantics with NanoGPT's supported request vocabulary; unreviewed
+aliases and other aggregator routes retain their route-specific evidence.
+ADR-016 defines the reviewed registry, runtime-route precedence, and evidence
+requirements.

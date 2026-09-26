@@ -13,7 +13,8 @@ registration flag. See ADR-010 for hostname and proxy trust rules.
 The platform separates the data plane from the control plane.
 
 - `admin-web` talks to `admin-api`
-- `admin-web` uses `admin-api` as the same-origin control-plane facade for protected admin operations such as provider credentials, provider settings, model discovery, and image catalog access
+- `admin-web` uses `admin-api` as the same-origin control-plane facade for protected admin operations such as provider credentials, provider settings, model discovery, and image/video catalog access
+- `admin-api` and `gateway-api` use the same reviewed chat reasoning resolver for their model catalogs; Chat Lab receives its effective route capabilities from `admin-api`
 - clients or trusted internal callers talk to `gateway-api`
 - trusted internal callers such as `Open WebUI` can use a thin OpenAI-compatible facade exposed by `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
@@ -277,7 +278,7 @@ The same posture now applies when `gateway-api` is called through the OpenAI-com
 
 The seam now supports image generation, image editing, and image-provider catalog listing through the shared adapter surface.
 
-The next media-generation capability is asynchronous video generation behind the same seam.
+The same seam now supports asynchronous video generation.
 
 The seam also now supports normalized multimodal chat inputs so that OpenAI-compatible clients can send image attachments without pushing client-specific payload rules into `gateway-api`.
 
@@ -375,7 +376,7 @@ The current image-provider implementation pattern is now explicit across `provid
 
 That pattern is the reference architecture for future image-capable providers.
 
-The same pattern now also applies to the current OpenRouter, NanoGPT, and xAI native video transports, with job submission, polling, and download services replacing synchronous image response handling where required.
+The same pattern now also applies to the current OpenRouter, NanoGPT, xAI, and Google video transports, with job submission, polling, and download services replacing synchronous image response handling where required. Google Veo uses long-running operations while Omni uses Interactions and file-state polling; both stay inside `provider-google`.
 
 The intent is:
 
@@ -456,11 +457,10 @@ and
 the PR14 audit and validation record is in
 `docs/delivery/pr14-provider-credential-stabilization.md`.
 
-Text reasoning follows the same family capability boundary as video. Domain
-detection and the explicit transport compatibility matrix are independent of
-provider selection, while NanoGPT and OpenRouter retain ownership of request
-serialization. Unsupported, ambiguous, mismatched, or lossy reasoning controls
-fail before dispatch. ADR-014 records the decision and evidence boundary.
+Text reasoning uses an exact model-on-route capability boundary. A reviewed
+native registry and runtime aggregator metadata remain independent of provider
+wire serialization. Unsupported, unknown, mandatory-disable, and invalid-effort
+requests fail before dispatch. ADR-016 supersedes the earlier heuristic pass.
 
 Model discovery adds a separate evidence boundary for Chat Lab. A normalized
 `ModelReasoningCapability` records support, available control styles, defaults,
@@ -468,4 +468,6 @@ and the provider API that supplied the claim. Anthropic, NanoGPT, OpenRouter,
 and Ollama populate it from their catalog endpoints. OpenAI-compatible adapters
 preserve an explicit `capabilities.reasoning` field if an upstream implements
 one, but they do not infer support from an ID when the standard `/v1/models`
-object is minimal. ADR-015 records this catalog-source decision.
+object is minimal. OpenRouter null efforts remain unknown, and Ollama thinking
+levels are distinct from boolean thinking. ADR-016 records the hardened source
+and precedence decision.

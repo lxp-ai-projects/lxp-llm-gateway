@@ -21,6 +21,14 @@ class OpenAiCompatibleChatMessageDto {
   @IsOptional()
   @Allow()
   name?: unknown;
+
+  @IsOptional()
+  @IsString()
+  reasoning_content?: string;
+
+  @IsOptional()
+  @Allow()
+  reasoning_details?: unknown;
 }
 
 export class OpenAiCompatibleChatCompletionsRequestDto {

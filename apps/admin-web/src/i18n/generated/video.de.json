@@ -2,6 +2,8 @@
   "videoResultsPanel.pollingNow": "Abfrage läuft",
   "videoResultsPanel.pollingArmed": "Abfrage bereit",
   "videoResultsPanel.status.queued": "Eingereiht",
+  "videoResultsPanel.submitting": "Videoanfrage wird gesendet",
+  "videoResultsPanel.waitingForProvider": "Warten auf die Annahme durch den Anbieter. Der Auftrag erscheint hier, sobald er antwortet.",
   "videoResultsPanel.status.running": "Wird gerendert",
   "videoResultsPanel.status.succeeded": "Erfolgreich",
   "videoResultsPanel.status.failed": "Fehlgeschlagen",

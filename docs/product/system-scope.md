@@ -27,7 +27,7 @@ out of scope.
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
 - Phase 2 provider-seam expansion for image generation, image editing, and provider-owned image catalogs
-- the next provider-seam expansion for asynchronous video generation and provider-owned video catalogs
+- asynchronous video generation and provider-owned video catalogs behind the provider seam
 - normalized multimodal chat content in the shared seam for text and `image_url` blocks
 
 ## Out of Scope for Phase 1
@@ -88,7 +88,7 @@ The repository now contains:
 - CI quality gates for typecheck, test, and build
 - a local quickstart path that keeps Docker Compose as the runtime entrypoint and avoids a setup-only framework
 - an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
-- operator-configurable gateway defaults for both chat and image generation/editing, with separate provider/model pairs
+- operator-configurable gateway defaults for chat, image generation/editing, and video generation, with separate provider/model pairs
 - a local Open WebUI use case that is intentionally trusted and compose-driven
 - a production Open WebUI posture that keeps identity injection inside a trusted proxy boundary
 
@@ -118,12 +118,12 @@ The next planned capability expansion is:
 - deployment hardening if Open WebUI identity correlation evolves into a full shared-identity story across both UIs
 - broader provider-by-provider multimodal chat support for image attachments behind the existing seam
 - a reusable media-generation foundation that starts with OpenRouter-backed image-to-video and now also supports NanoGPT-backed Kling-family video routing while remaining text-to-video compatible at the seam
-- a reusable media-generation foundation that now supports OpenRouter-backed video, NanoGPT-backed video, and xAI native video behind the same provider seam
+- a reusable media-generation foundation that now supports OpenRouter-backed video, NanoGPT-backed video, xAI native video, and Google Veo/Omni video behind the same provider seam
 - a reusable model-family capability layer so Kling-family video rules can be attached through OpenRouter and NanoGPT without duplicating them in `gateway-api`
 - a shared native Kling foundation inside model-family-capabilities, including conservative native specs, capability intersection, and diagnostics for provider gaps or unsafe defaults
 - asynchronous video jobs with normalized statuses, polling, result download, and ledger attribution
 - application-owned artifact ingestion so provider-owned video URLs are never exposed as durable frontend references
-- future direct video integrations beyond the current OpenRouter, NanoGPT, and xAI native paths after those pipelines are proven end to end
+- future direct video integrations beyond the current OpenRouter, NanoGPT, xAI, and Google paths after those pipelines are proven end to end
 
 Current image-provider posture is:
 
@@ -192,16 +192,17 @@ resolved from the key. Evaluation Lab and PGS are provisioned as distinct
 clients with distinct keys, and the Gateway deadline actively cancels provider
 transport rather than only abandoning the local wait.
 
-## Model-family reasoning
+## Chat reasoning
 
-Claude, OpenAI reasoning, xAI Grok, and GLM controls are modeled as properties of
-the underlying model family. Verified NanoGPT and OpenRouter mappings translate
-those controls inside their adapters; unsupported or lossy combinations are
-rejected instead of silently ignored. Aggregator token-count fidelity and safe
-structured provider error metadata are explicit in normalized responses.
+Reasoning controls are properties of an exact model on an exact route. The
+Gateway validates a canonical request and rejects unknown, mandatory-disable,
+or unsupported-effort combinations instead of silently changing them.
 
 Chat Lab reasoning controls are projected from live model catalog metadata.
+The same reviewed resolver projects both the `admin-api` catalog used by Chat
+Lab and the `gateway-api` catalog and request validation.
 Native provider capability fields are authoritative when present; aggregator
 catalog fields describe the effective routed capability. Missing API metadata
-is shown as unknown, so aliases and future model names are never classified by
+is shown as unknown unless an exact reviewed route identity supplies documented
+evidence, so aliases and future model names are never classified by
 UI copy or regular expressions alone.

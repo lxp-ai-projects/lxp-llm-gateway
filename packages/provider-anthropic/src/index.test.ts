@@ -199,7 +199,7 @@ test('AnthropicProviderAdapter maps adaptive extended thinking for Anthropic req
       model: 'claude-sonnet-4-6',
       stop_reason: 'end_turn',
       content: [
-        { type: 'thinking', thinking: 'Plan' },
+        { type: 'thinking', thinking: 'Plan', signature: 'opaque-signature' },
         { type: 'text', text: 'Done' },
       ],
       usage: {
@@ -211,7 +211,7 @@ test('AnthropicProviderAdapter maps adaptive extended thinking for Anthropic req
 
   try {
     const adapter = new AnthropicProviderAdapter();
-    await adapter.chat(
+    const response = await adapter.chat(
       {
         model: 'claude-sonnet-4-6',
         providerOptions: {
@@ -239,6 +239,13 @@ test('AnthropicProviderAdapter maps adaptive extended thinking for Anthropic req
       type: 'adaptive',
       display: 'summarized',
     });
+    assert.deepEqual(response.message.reasoningDetails, [
+      {
+        type: 'thinking',
+        thinking: 'Plan',
+        signature: 'opaque-signature',
+      },
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -269,6 +276,7 @@ test('AnthropicProviderAdapter maps budgeted extended thinking and keeps max_tok
     await adapter.chat(
       {
         model: 'claude-opus-4-1-20250805',
+        reasoning: { enabled: true, effort: 'high', budgetTokens: 6000 },
         providerOptions: {
           anthropic: {
             extendedThinking: {
@@ -291,8 +299,10 @@ test('AnthropicProviderAdapter maps budgeted extended thinking and keeps max_tok
     const body = JSON.parse(String(calls[0]?.init?.body)) as {
       max_tokens?: number;
       thinking?: Record<string, unknown>;
+      output_config?: Record<string, unknown>;
     };
     assert.equal(body.max_tokens, 6001);
+    assert.deepEqual(body.output_config, { effort: 'high' });
     assert.deepEqual(body.thinking, {
       type: 'enabled',
       budget_tokens: 6000,

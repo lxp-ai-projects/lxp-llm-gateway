@@ -47,8 +47,6 @@ const VIDEO_HISTORY_PAGE_SIZE = 10;
 const BASE_POLL_DELAY_MS = 2000;
 const MAX_POLL_DELAY_MS = 30000;
 
-type ProviderId = import('@lxp/domain').ProviderId;
-
 @Injectable()
 export class VideoApplicationService {
   constructor(
@@ -102,12 +100,11 @@ export class VideoApplicationService {
       }
 
       try {
-        const providerAccess =
-          await this.providerCredentialService
-            .resolveProviderAccess(authContext, provider.providerId)
-            .catch(() => ({
-              headers: {},
-            }));
+        const providerAccess = await this.providerCredentialService
+          .resolveProviderAccess(authContext, provider.providerId)
+          .catch(() => ({
+            headers: {},
+          }));
         const catalog = await provider.listVideoCatalog({
           requestId: randomUUID(),
           userId: authContext.userId,
@@ -146,24 +143,36 @@ export class VideoApplicationService {
     request: GatewayVideoGenerationRequest,
     authContext: GatewayAuthContext,
   ): Promise<GatewayVideoGenerationJob> {
-    this.integrationClientScopeService.assertScope(authContext, 'video:generate');
-    if (!request.model?.trim()) {
-      throw new BadRequestException(
-        'A video model is required for this MVP backend slice.',
-      );
-    }
-
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'video:generate',
+    );
     const user = await this.resolveUser(
       authContext.activeTenantId,
       authContext.emailHash,
     );
-    const providerId = this.resolveProviderId(request.providerId);
+    const providerId = request.providerId ?? user.defaultVideoProviderId;
+    if (!providerId) {
+      throw new BadRequestException('A video provider is required.');
+    }
+    const model =
+      request.model?.trim() ||
+      (providerId === user.defaultVideoProviderId
+        ? user.defaultVideoModel
+        : null);
+    if (!model) {
+      throw new BadRequestException('A video model is required.');
+    }
+    request = { ...request, providerId, model };
     await this.tenantProviderConfigurationService.assertProviderEnabled(
       authContext.activeTenantId,
       providerId,
     );
     const provider = this.providerRegistry.getProvider(providerId);
-    if (!provider.capabilities.videoGeneration || !provider.submitVideoGeneration) {
+    if (
+      !provider.capabilities.videoGeneration ||
+      !provider.submitVideoGeneration
+    ) {
       throw new NotFoundException(
         `Provider ${provider.providerId} does not support video generation.`,
       );
@@ -171,9 +180,12 @@ export class VideoApplicationService {
 
     const mode = this.resolveMode(request);
     const startedAt = new Date();
+    let internalJob: MediaGenerationJobEntity | null = null;
+    let providerSubmissionStarted = false;
+    let submittedToProvider = false;
+    const requestId = randomUUID();
 
     try {
-      const requestId = randomUUID();
       const existingJob = await this.findJobByIdempotencyKey(
         authContext.activeTenantId,
         user.id,
@@ -182,7 +194,11 @@ export class VideoApplicationService {
       if (existingJob) {
         return this.mapJob(
           existingJob,
-          await this.loadAssetsForJob(authContext.activeTenantId, user.id, existingJob.id),
+          await this.loadAssetsForJob(
+            authContext.activeTenantId,
+            user.id,
+            existingJob.id,
+          ),
         );
       }
 
@@ -204,7 +220,7 @@ export class VideoApplicationService {
           )
         : undefined;
 
-      const internalJob = await this.tenantRlsService.withTenantLockContext(
+      internalJob = await this.tenantRlsService.withTenantLockContext(
         authContext.activeTenantId,
         async (manager) => {
           await this.tenantModelAccessRuleService.assertVideoModelAllowed({
@@ -287,6 +303,7 @@ export class VideoApplicationService {
         }
       }
 
+      providerSubmissionStarted = true;
       const providerResponse = await provider.submitVideoGeneration(
         {
           ...request,
@@ -301,12 +318,14 @@ export class VideoApplicationService {
           providerAccess,
         },
       );
+      submittedToProvider = true;
+      const internalJobId = internalJob.id;
 
       const persistedJob = await this.tenantRlsService.withTenantContext(
         authContext.activeTenantId,
         async (manager) => {
           const repository = manager.getRepository(MediaGenerationJobEntity);
-          const job = await repository.findOneByOrFail({ id: internalJob.id });
+          const job = await repository.findOneByOrFail({ id: internalJobId });
           job.providerJobId = providerResponse.id;
           job.status = providerResponse.status;
           job.providerMetadata = {
@@ -330,13 +349,21 @@ export class VideoApplicationService {
       );
 
       if (providerResponse.status === 'succeeded') {
-        await this.ingestJobOutputs(persistedJob, providerResponse, authContext);
+        await this.ingestJobOutputs(
+          persistedJob,
+          providerResponse,
+          authContext,
+        );
       }
 
       const latencyMs = Date.now() - startedAt.getTime();
       const mappedJob = this.mapJob(
         persistedJob,
-        await this.loadAssetsForJob(authContext.activeTenantId, user.id, persistedJob.id),
+        await this.loadAssetsForJob(
+          authContext.activeTenantId,
+          user.id,
+          persistedJob.id,
+        ),
       );
       await this.gatewayTelemetryService.recordVideoSuccess({
         authContext,
@@ -361,14 +388,34 @@ export class VideoApplicationService {
 
       await this.gatewayTelemetryService.recordVideoFailure({
         authContext,
-        requestId: randomUUID(),
+        requestId,
         providerId,
         model: request.model!,
         route: '/api/v1/videos/generations',
         latencyMs: Date.now() - startedAt.getTime(),
         promptLength: request.prompt.length,
-        error: error instanceof Error ? error.message : 'Unknown gateway error.',
+        error:
+          error instanceof Error ? error.message : 'Unknown gateway error.',
       });
+      if (internalJob && !submittedToProvider) {
+        const failedJobId = internalJob.id;
+        const failedJob = await this.tenantRlsService.withTenantContext(
+          authContext.activeTenantId,
+          async (manager) => {
+            const repository = manager.getRepository(MediaGenerationJobEntity);
+            const job = await repository.findOneByOrFail({ id: failedJobId });
+            job.status = 'failed';
+            job.errorMessage =
+              error instanceof Error ? error.message : 'Unknown gateway error.';
+            job.failedAt = new Date();
+            job.nextPollAfter = null;
+            return repository.save(job);
+          },
+        );
+        if (providerSubmissionStarted) {
+          return this.mapJob(failedJob, []);
+        }
+      }
       throw new BadGatewayException(
         error instanceof Error ? error.message : 'Unknown gateway error.',
       );
@@ -376,7 +423,10 @@ export class VideoApplicationService {
   }
 
   async getJob(jobId: string, authContext: GatewayAuthContext) {
-    this.integrationClientScopeService.assertScope(authContext, 'video:generate');
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'video:generate',
+    );
     const user = await this.resolveUser(
       authContext.activeTenantId,
       authContext.emailHash,
@@ -408,7 +458,10 @@ export class VideoApplicationService {
   }
 
   async listHistory(page: number, authContext: GatewayAuthContext) {
-    this.integrationClientScopeService.assertScope(authContext, 'video:generate');
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'video:generate',
+    );
     const user = await this.resolveUser(
       authContext.activeTenantId,
       authContext.emailHash,
@@ -460,7 +513,10 @@ export class VideoApplicationService {
   }
 
   async cancelJob(jobId: string, authContext: GatewayAuthContext) {
-    this.integrationClientScopeService.assertScope(authContext, 'video:generate');
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'video:generate',
+    );
     const user = await this.resolveUser(
       authContext.activeTenantId,
       authContext.emailHash,
@@ -483,7 +539,11 @@ export class VideoApplicationService {
     if (this.isTerminalStatus(job.status)) {
       return this.mapJob(
         job,
-        await this.loadAssetsForJob(authContext.activeTenantId, user.id, job.id),
+        await this.loadAssetsForJob(
+          authContext.activeTenantId,
+          user.id,
+          job.id,
+        ),
       );
     }
 
@@ -519,12 +579,19 @@ export class VideoApplicationService {
 
     return this.mapJob(
       cancelled,
-      await this.loadAssetsForJob(authContext.activeTenantId, user.id, cancelled.id),
+      await this.loadAssetsForJob(
+        authContext.activeTenantId,
+        user.id,
+        cancelled.id,
+      ),
     );
   }
 
   async deleteJob(jobId: string, authContext: GatewayAuthContext) {
-    this.integrationClientScopeService.assertScope(authContext, 'video:generate');
+    this.integrationClientScopeService.assertScope(
+      authContext,
+      'video:generate',
+    );
     const user = await this.resolveUser(
       authContext.activeTenantId,
       authContext.emailHash,
@@ -667,15 +734,18 @@ export class VideoApplicationService {
       );
 
     try {
-      const providerJob = await provider.getVideoGenerationJob(job.providerJobId, {
-        requestId: job.requestId,
-        userId: authContext.userId,
-        providerAccess,
-        metadata: {
-          requestedModel: job.model,
-          prompt: job.prompt,
+      const providerJob = await provider.getVideoGenerationJob(
+        job.providerJobId,
+        {
+          requestId: job.requestId,
+          userId: authContext.userId,
+          providerAccess,
+          metadata: {
+            requestedModel: job.model,
+            prompt: job.prompt,
+          },
         },
-      });
+      );
 
       return this.tenantRlsService.withTenantContext(
         authContext.activeTenantId,
@@ -695,8 +765,10 @@ export class VideoApplicationService {
           };
           current.errorMessage = providerJob.error ?? current.errorMessage;
 
-          const hasIngestibleOutputs = providerJob.outputs.some((output) =>
-            typeof output.contentUrl === 'string' && output.contentUrl.trim().length > 0,
+          const hasIngestibleOutputs = providerJob.outputs.some(
+            (output) =>
+              typeof output.contentUrl === 'string' &&
+              output.contentUrl.trim().length > 0,
           );
 
           if (
@@ -712,9 +784,14 @@ export class VideoApplicationService {
             return repository.findOneByOrFail({ id: current.id });
           }
 
-          if (providerJob.status === 'queued' || providerJob.status === 'running') {
+          if (
+            providerJob.status === 'queued' ||
+            providerJob.status === 'running'
+          ) {
             current.status = providerJob.status;
-            current.nextPollAfter = this.computeNextPollAfter(current.pollAttempts);
+            current.nextPollAfter = this.computeNextPollAfter(
+              current.pollAttempts,
+            );
             if (providerJob.status === 'running' && !current.startedAt) {
               current.startedAt = new Date();
             }
@@ -778,67 +855,70 @@ export class VideoApplicationService {
         provider.providerId,
       );
 
-    await this.tenantRlsService.withTenantContext(job.tenantId, async (manager) => {
-      const assetRepository = manager.getRepository(MediaAssetEntity);
+    await this.tenantRlsService.withTenantContext(
+      job.tenantId,
+      async (manager) => {
+        const assetRepository = manager.getRepository(MediaAssetEntity);
 
-      for (const [index, output] of providerJob.outputs.entries()) {
-        const existing = await assetRepository.findOne({
-          where: {
+        for (const [index, output] of providerJob.outputs.entries()) {
+          const existing = await assetRepository.findOne({
+            where: {
+              tenantId: job.tenantId,
+              userId: job.userId,
+              jobId: job.id,
+              outputIndex: index,
+            },
+          });
+          if (existing) {
+            continue;
+          }
+
+          const downloadVideoOutput = provider.downloadVideoOutput;
+          if (!downloadVideoOutput) {
+            return;
+          }
+
+          const stream = await downloadVideoOutput(job.providerJobId!, index, {
+            requestId: job.requestId,
+            userId: authContext.userId,
+            providerAccess,
+          });
+          const data = Buffer.from(await new Response(stream).arrayBuffer());
+          const assetId = randomUUID();
+          const mimeType = output.mimeType ?? 'video/mp4';
+          const stored = await this.mediaStorageService.writeVideoAsset({
+            tenantId: job.tenantId,
+            assetId,
+            mimeType,
+            data,
+          });
+
+          await assetRepository.save({
+            id: assetId,
             tenantId: job.tenantId,
             userId: job.userId,
             jobId: job.id,
+            kind: 'video',
+            sourceType: 'generated',
             outputIndex: index,
-          },
-        });
-        if (existing) {
-          continue;
+            label: `Generated video ${index + 1}`,
+            mimeType,
+            storageKey: stored.storageKey,
+            originalUrl: output.contentUrl ?? null,
+            byteSize: stored.byteSize,
+            durationSeconds:
+              typeof output.durationSeconds === 'number'
+                ? output.durationSeconds.toFixed(3)
+                : null,
+            width: output.width ?? null,
+            height: output.height ?? null,
+            sha256: stored.sha256,
+            isSaved: false,
+            providerMetadata: output.providerMetadata ?? null,
+          } as MediaAssetEntity);
         }
-
-        const downloadVideoOutput = provider.downloadVideoOutput;
-        if (!downloadVideoOutput) {
-          return;
-        }
-
-        const stream = await downloadVideoOutput(job.providerJobId!, index, {
-          requestId: job.requestId,
-          userId: authContext.userId,
-          providerAccess,
-        });
-        const data = Buffer.from(await new Response(stream).arrayBuffer());
-        const assetId = randomUUID();
-        const mimeType = output.mimeType ?? 'video/mp4';
-        const stored = await this.mediaStorageService.writeVideoAsset({
-          tenantId: job.tenantId,
-          assetId,
-          mimeType,
-          data,
-        });
-
-        await assetRepository.save({
-          id: assetId,
-          tenantId: job.tenantId,
-          userId: job.userId,
-          jobId: job.id,
-          kind: 'video',
-          sourceType: 'generated',
-          outputIndex: index,
-          label: `Generated video ${index + 1}`,
-          mimeType,
-          storageKey: stored.storageKey,
-          originalUrl: output.contentUrl ?? null,
-          byteSize: stored.byteSize,
-          durationSeconds:
-            typeof output.durationSeconds === 'number'
-              ? output.durationSeconds.toFixed(3)
-              : null,
-          width: output.width ?? null,
-          height: output.height ?? null,
-          sha256: stored.sha256,
-          isSaved: false,
-          providerMetadata: output.providerMetadata ?? null,
-        } as MediaAssetEntity);
-      }
-    });
+      },
+    );
   }
 
   private async loadAssetsForJob(
@@ -903,7 +983,9 @@ export class VideoApplicationService {
     userId: string,
   ): Promise<GatewayVideoReference[]> {
     return Promise.all(
-      images.map((image) => this.resolveGatewayReference(image, tenantId, userId)),
+      images.map((image) =>
+        this.resolveGatewayReference(image, tenantId, userId),
+      ),
     );
   }
 
@@ -924,7 +1006,9 @@ export class VideoApplicationService {
         }),
     );
     if (!asset) {
-      throw new NotFoundException(`Reference asset ${image.assetId} was not found.`);
+      throw new NotFoundException(
+        `Reference asset ${image.assetId} was not found.`,
+      );
     }
 
     return {
@@ -956,10 +1040,6 @@ export class VideoApplicationService {
       : 'text_to_video';
   }
 
-  private resolveProviderId(requestedProviderId?: ProviderId): ProviderId {
-    return requestedProviderId ?? 'openrouter';
-  }
-
   private async resolveVideoModelCatalogEntry(
     provider: ReturnType<ProviderRegistryService['getProvider']>,
     modelId: string,
@@ -977,10 +1057,7 @@ export class VideoApplicationService {
         providerAccess,
       });
 
-      return (
-        catalog.models.find((model) => model.id === modelId) ??
-        null
-      );
+      return catalog.models.find((model) => model.id === modelId) ?? null;
     } catch {
       return null;
     }
@@ -994,7 +1071,9 @@ export class VideoApplicationService {
     return new Date(Date.now() + delayMs);
   }
 
-  private isTerminalStatus(status: MediaGenerationJobEntity['status']): boolean {
+  private isTerminalStatus(
+    status: MediaGenerationJobEntity['status'],
+  ): boolean {
     return (
       status === 'succeeded' || status === 'failed' || status === 'cancelled'
     );
@@ -1143,10 +1222,3 @@ export class VideoApplicationService {
     return user;
   }
 }
-
-
-
-
-
-
-

@@ -22,7 +22,7 @@
     "@lxp/provider-sdk": "workspace:*"
   },
   "devDependencies": {
-    "tsx": "^4.0.0",
-    "typescript": "^5.9.2"
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
   }
 }
