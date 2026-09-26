@@ -7,34 +7,34 @@
     "@lxp/contracts": "workspace:*",
     "@lxp/domain": "workspace:*",
     "@lxp/model-family-capabilities": "workspace:*",
-    "@mantine/core": "^9.4.1",
-    "@mantine/hooks": "^9.4.1",
-    "@tabler/icons-react": "^3.44.0",
-    "@tanstack/react-query": "^5.101.2",
-    "i18next": "^25.5.2",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-i18next": "^16.0.0",
-    "react-router-dom": "^7.18.0"
+    "@mantine/core": "^9.6.2",
+    "@mantine/hooks": "^9.6.2",
+    "@tabler/icons-react": "^3.48.0",
+    "@tanstack/react-query": "^5.103.2",
+    "i18next": "^25.10.10",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-i18next": "^16.6.6",
+    "react-router-dom": "^7.18.4"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
     "dev": "vite --host --port 3003 --strictPort",
     "lint": "eslint src --ext .ts,.tsx",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.7.0",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "@vitest/coverage-v8": "3.2.4",
+    "@testing-library/jest-dom": "^6.10.0",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "@vitest/coverage-v8": "4.1.11",
     "jsdom": "^26.1.0",
-    "vite": "^7.0.0",
-    "vitest": "^3.0.0"
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
   }
 }
