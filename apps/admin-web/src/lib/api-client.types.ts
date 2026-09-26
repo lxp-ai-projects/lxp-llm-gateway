@@ -499,6 +499,8 @@ export type ProviderSettingsSummary = {
   defaultModel: string | null;
   defaultImageProviderId: string | null;
   defaultImageModel: string | null;
+  defaultVideoProviderId: string | null;
+  defaultVideoModel: string | null;
 };
 
 export type AdminUserSummary = {

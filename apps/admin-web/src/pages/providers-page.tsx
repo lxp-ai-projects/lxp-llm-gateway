@@ -36,6 +36,10 @@ export function ProvidersPage() {
     defaultImageModelOptions,
     defaultImageProviderId,
     defaultImageProviderOptions,
+    defaultVideoModel,
+    defaultVideoModelOptions,
+    defaultVideoProviderId,
+    defaultVideoProviderOptions,
     deleteCredential,
     deleteCredentialError,
     deleteCredentialSuccessMessage,
@@ -50,9 +54,11 @@ export function ProvidersPage() {
     isDefaultsPending,
     isModelLoading,
     isImageModelLoading,
+    isVideoModelLoading,
     label,
     imageModelErrorMessage,
     modelErrorMessage,
+    videoModelErrorMessage,
     onApiTokenChange,
     onBaseUrlChange,
     onCancelDeleteCredential,
@@ -60,6 +66,8 @@ export function ProvidersPage() {
     onDefaultProviderChange,
     onDefaultImageModelChange,
     onDefaultImageProviderChange,
+    onDefaultVideoModelChange,
+    onDefaultVideoProviderChange,
     onLabelChange,
     onProviderChange,
     providerId,
@@ -109,16 +117,24 @@ export function ProvidersPage() {
               defaultImageModelOptions={defaultImageModelOptions}
               defaultImageProviderId={defaultImageProviderId}
               defaultImageProviderOptions={defaultImageProviderOptions}
+              defaultVideoModel={defaultVideoModel}
+              defaultVideoModelOptions={defaultVideoModelOptions}
+              defaultVideoProviderId={defaultVideoProviderId}
+              defaultVideoProviderOptions={defaultVideoProviderOptions}
               isDirty={providerSettingsDirty}
               imageModelErrorMessage={imageModelErrorMessage}
               isImageModelLoading={isImageModelLoading}
+              isVideoModelLoading={isVideoModelLoading}
               isModelLoading={isModelLoading}
               isPending={isDefaultsPending}
               modelErrorMessage={modelErrorMessage}
+              videoModelErrorMessage={videoModelErrorMessage}
               onDefaultModelChange={onDefaultModelChange}
               onDefaultProviderChange={onDefaultProviderChange}
               onDefaultImageModelChange={onDefaultImageModelChange}
               onDefaultImageProviderChange={onDefaultImageProviderChange}
+              onDefaultVideoModelChange={onDefaultVideoModelChange}
+              onDefaultVideoProviderChange={onDefaultVideoProviderChange}
               onSubmit={handleDefaultsSubmit}
             />
           </Stack>

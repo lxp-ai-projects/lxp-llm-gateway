@@ -2,6 +2,8 @@
   "videoResultsPanel.pollingNow": "Interrogation en cours",
   "videoResultsPanel.pollingArmed": "Interrogation prête",
   "videoResultsPanel.status.queued": "En file",
+  "videoResultsPanel.submitting": "Soumission de la demande vidéo",
+  "videoResultsPanel.waitingForProvider": "En attente de la réponse du fournisseur. Le travail apparaîtra ici dès sa réponse.",
   "videoResultsPanel.status.running": "Rendu en cours",
   "videoResultsPanel.status.succeeded": "Réussi",
   "videoResultsPanel.status.failed": "Échec",

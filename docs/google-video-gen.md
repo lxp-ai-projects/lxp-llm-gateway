@@ -1,3 +1,17 @@
+# Google video generation — current implementation
+
+The Google adapter exposes Veo 3.1 (`veo-3.1-generate-preview`, `veo-3.1-fast-generate-preview`, `veo-3.1-lite-generate-preview`) and Gemini Omni 1.1 Flash (`gemini-omni-1.1-flash`) through the shared video seam. The Video Generation Lab receives these models from the Gateway catalog. The control plane stores a separate default video provider/model pair.
+
+Veo uses `models/{model}:predictLongRunning` with operation polling. Omni uses `interactions` with interaction retrieval and output-file state polling. Both support text-to-video and a single initial image in the current Gateway request shape. Veo accepts 4/6/8 seconds and 720p/1080p/4k, subject to model restrictions; Lite does not accept 4k, and higher resolutions require 8 seconds. Omni accepts 360p/720p/1080p/4k. Neither exposes an audio switch in the Lab; Veo audio is always on.
+
+Video extension, first/last-frame interpolation, multiple reference images, uploaded-video editing, and stateful Omni editing are **not yet represented** by the Gateway request contract or exposed by this adapter. Unsupported fields are rejected instead of being silently reinterpreted. Google model availability still depends on API-key entitlement.
+
+Sources: [Veo](https://ai.google.dev/gemini-api/docs/veo?hl=fr), [Omni](https://ai.google.dev/gemini-api/docs/omni?hl=fr), [Files API](https://ai.google.dev/api/files).
+
+## Archived implementation proposal
+
+The following proposal predates the current implementation and contains outdated model IDs and capabilities. It is retained only as historical planning context; the section above and the implementation are authoritative.
+
 Contexte : monorepo "lxp-llm-gateway" (packages/provider-*). Le package
 packages/provider-google/src contient aujourd'hui uniquement un module
 image/ (Imagen/Nano Banana). Il faut y ajouter la génération vidéo, avec
@@ -6,11 +20,13 @@ deux modèles Google distincts : Veo 3.1 et Gemini Omni Flash.
 Documentation officielle à utiliser comme source de vérité (vérifier chaque
 paramètre contre ces pages avant de coder — ne rien assumer par analogie
 avec un autre provider) :
+
 - Vue d'ensemble : https://ai.google.dev/gemini-api/docs/video
 - Veo 3.1 : https://ai.google.dev/gemini-api/docs/veo
 - Gemini Omni Flash : https://ai.google.dev/gemini-api/docs/omni
 
 IMPORTANT — ce sont deux API distinctes, pas deux variantes d'une même API :
+
 - Veo 3.1 : `client.models.generateVideos()` / REST
   `POST /v1beta/models/{model}:predictLongRunning`, job asynchrone à poller
   via `operation.done`. Suit le même pattern que
@@ -25,10 +41,11 @@ PR 1 — Ajouter Veo 3.1 dans packages/provider-google
 Créer packages/provider-google/src/video/ sur le même plan que
 packages/provider-nanogpt/src/video/ (api-client.ts, catalog.ts,
 generation-service.ts, request-mapper.ts, response-mapper.ts,
-__fixtures__/*.json, tests).
+**fixtures**/*.json, tests).
 
 Modèles à exposer (vérifier les IDs exacts contre la page Veo, ils
 changent de statut au fil du temps — ex. actuellement) :
+
 - veo-3.1-generate-preview
 - veo-3.1-fast-generate-preview
 - veo-3.1-lite-generate-preview
@@ -65,6 +82,7 @@ dont provider-openrouter/provider-nanogpt marquent déjà les modèles
 preview/stealth).
 
 Fonctionnalités à couvrir, en vérifiant chacune contre la doc :
+
 - Texte → vidéo, avec aspect_ratio (9:16/16:9 seulement — pas de contrôle
   de résolution/durée explicite documenté, contrairement à Veo)
 - Image → vidéo, avec le paramètre `task` optionnel
@@ -81,7 +99,9 @@ Fonctionnalités à couvrir, en vérifiant chacune contre la doc :
 - Livraison par URI (`response_format.delivery: "uri"`) pour les vidéos
   de plus de 4MB, avec le polling d'état de fichier ACTIVE/FAILED — ce
   polling est différent du polling d'opération Veo, ne pas fusionner la
-  logique
+  logique. L'URI peut être relative (`files/{id}`) ou absolue; extraire
+  l'identifiant et interroger `files/{id}`. Si le fichier est ACTIVE sans
+  `downloadUri`, utiliser `files/{id}:download?alt=media`.
 - Restriction : upload/édition d'images contenant des mineurs non supporté
   en EEA/CH/UK — restriction séparée de celle sur les vidéos, les deux
   doivent être respectées indépendamment

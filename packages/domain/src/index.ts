@@ -49,6 +49,15 @@ export const IMAGE_PROVIDER_IDS = [
 
 export type ImageProviderId = (typeof IMAGE_PROVIDER_IDS)[number];
 
+export const VIDEO_PROVIDER_IDS = [
+  'nanogpt',
+  'openrouter',
+  'google',
+  'xai',
+] as const satisfies readonly ProviderId[];
+
+export type VideoProviderId = (typeof VIDEO_PROVIDER_IDS)[number];
+
 export type TenantRole = 'tenant_admin' | 'operator' | 'user' | 'viewer';
 
 export type GlobalRole = 'super_admin';
@@ -199,13 +208,7 @@ export interface ImageModeCapabilityOptions {
 export type ModelReasoningControl = 'adaptive' | 'budget' | 'effort' | 'toggle';
 
 export type ModelReasoningEffort =
-  | 'none'
-  | 'minimal'
-  | 'low'
-  | 'medium'
-  | 'high'
-  | 'xhigh'
-  | 'max';
+  'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export interface ModelReasoningCapability {
   supported: boolean;
@@ -227,9 +230,7 @@ export interface ModelReasoningCapability {
     | 'opaque-signature'
     | 'full-assistant-message';
   semantic?:
-    | 'reasoning-depth'
-    | 'agent-count'
-    | 'other-provider-specific-semantic';
+    'reasoning-depth' | 'agent-count' | 'other-provider-specific-semantic';
   source: {
     kind: 'provider-api' | 'reviewed-registry' | 'route-intersection';
     providerId: ProviderId;
@@ -294,10 +295,7 @@ export interface GatewayRequestContext {
 }
 
 export type ReasoningModelFamily =
-  | 'anthropic-claude'
-  | 'openai-reasoning'
-  | 'xai-grok'
-  | 'zai-glm';
+  'anthropic-claude' | 'openai-reasoning' | 'xai-grok' | 'zai-glm';
 
 export type ThinkingRequestMapping =
   | 'anthropic-thinking'

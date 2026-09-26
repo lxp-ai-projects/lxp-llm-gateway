@@ -79,11 +79,12 @@ The next seam expansion is intentionally incremental:
 - keep backend contract stabilization ahead of any new workspace UI surface
 - avoid implementing OpenRouter, xAI direct, and other future video transports all at once
 
-That staged rollout has now advanced to three native video-capable provider packages behind the seam:
+That staged rollout has now advanced to four video-capable provider packages behind the seam:
 
 - `packages/provider-openrouter` for OpenRouter video
 - `packages/provider-nanogpt` for NanoGPT video
 - `packages/provider-xai` for xAI native video
+- `packages/provider-google` for native Veo generation and Omni Interactions video
 
 The repository now treats multi-tenancy as a first-class architectural concern:
 

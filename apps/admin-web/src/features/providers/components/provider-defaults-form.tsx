@@ -59,16 +59,24 @@ type ProviderDefaultsFormProps = {
   defaultImageModelOptions: Option[];
   defaultImageProviderId: string | null;
   defaultImageProviderOptions: Option[];
+  defaultVideoModel: string | null;
+  defaultVideoModelOptions: Option[];
+  defaultVideoProviderId: string | null;
+  defaultVideoProviderOptions: Option[];
   isDirty: boolean;
   isModelLoading: boolean;
   isImageModelLoading: boolean;
+  isVideoModelLoading: boolean;
   isPending: boolean;
   modelErrorMessage: string | null;
   imageModelErrorMessage: string | null;
+  videoModelErrorMessage: string | null;
   onDefaultModelChange: (value: string | null) => void;
   onDefaultProviderChange: (value: string | null) => void;
   onDefaultImageModelChange: (value: string | null) => void;
   onDefaultImageProviderChange: (value: string | null) => void;
+  onDefaultVideoModelChange: (value: string | null) => void;
+  onDefaultVideoProviderChange: (value: string | null) => void;
   onSubmit: React.FormEventHandler<HTMLFormElement>;
 };
 
@@ -81,16 +89,24 @@ export function ProviderDefaultsForm({
   defaultImageModelOptions,
   defaultImageProviderId,
   defaultImageProviderOptions,
+  defaultVideoModel,
+  defaultVideoModelOptions,
+  defaultVideoProviderId,
+  defaultVideoProviderOptions,
   isDirty,
   isModelLoading,
   isImageModelLoading,
+  isVideoModelLoading,
   isPending,
   modelErrorMessage,
   imageModelErrorMessage,
+  videoModelErrorMessage,
   onDefaultModelChange,
   onDefaultProviderChange,
   onDefaultImageModelChange,
   onDefaultImageProviderChange,
+  onDefaultVideoModelChange,
+  onDefaultVideoProviderChange,
   onSubmit,
 }: ProviderDefaultsFormProps) {
   const { t } = useTranslation('providers');
@@ -117,7 +133,7 @@ export function ProviderDefaultsForm({
             )}
           </Text>
           <Accordion
-            defaultValue={['chat-defaults', 'image-defaults']}
+            defaultValue={['chat-defaults', 'image-defaults', 'video-defaults']}
             multiple
             variant="separated"
           >
@@ -211,6 +227,87 @@ export function ProviderDefaultsForm({
                       title={t('providerDefaultsForm.modelCatalogNote')}
                     >
                       {t(pricingNote)}
+                    </Alert>
+                  ) : null}
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+            <Accordion.Item value="video-defaults">
+              <Accordion.Control>
+                {t('providerDefaultsForm.videosGen')}
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="sm">
+                  <Text c="dimmed" size="sm">
+                    {t('providerDefaultsForm.videoDefaultsDescription')}
+                  </Text>
+                  <label className="form-native-field">
+                    <HelpLabel
+                      label={t('providerDefaultsForm.defaultVideoProvider')}
+                      help={t('providerDefaultsForm.videoProviderHelp')}
+                    />
+                    <select
+                      aria-label={t(
+                        'providerDefaultsForm.defaultVideoProvider',
+                      )}
+                      className="form-native-select"
+                      data-testid="providers-default-video-provider"
+                      onChange={(event) =>
+                        onDefaultVideoProviderChange(
+                          event.currentTarget.value || null,
+                        )
+                      }
+                      value={defaultVideoProviderId ?? ''}
+                    >
+                      <option value="">
+                        {defaultVideoProviderOptions.length
+                          ? t('providerDefaultsForm.chooseActiveProvider')
+                          : t('providerDefaultsForm.addCredentialFirst')}
+                      </option>
+                      {defaultVideoProviderOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Select
+                    data={defaultVideoModelOptions}
+                    data-testid="providers-default-video-model"
+                    disabled={
+                      !defaultVideoProviderId ||
+                      isVideoModelLoading ||
+                      Boolean(videoModelErrorMessage)
+                    }
+                    label={
+                      <HelpLabel
+                        label={t('providerDefaultsForm.defaultVideoModel')}
+                        help={t('providerDefaultsForm.videoModelHelp')}
+                      />
+                    }
+                    limit={100}
+                    nothingFoundMessage={t(
+                      'providerDefaultsForm.noModelsFound',
+                    )}
+                    onChange={onDefaultVideoModelChange}
+                    placeholder={
+                      defaultVideoProviderId
+                        ? isVideoModelLoading
+                          ? t('providerDefaultsForm.loadingModels')
+                          : t('providerDefaultsForm.chooseDefaultModel')
+                        : t('providerDefaultsForm.chooseProviderFirst')
+                    }
+                    searchable
+                    selectFirstOptionOnChange
+                    value={defaultVideoModel}
+                  />
+                  {videoModelErrorMessage ? (
+                    <Alert
+                      color="red"
+                      icon={<IconAlertCircle size={18} />}
+                      title={t('providerDefaultsForm.modelLoadingFailed')}
+                    >
+                      {videoModelErrorMessage}
                     </Alert>
                   ) : null}
                 </Stack>

@@ -2,6 +2,8 @@
   "videoResultsPanel.pollingNow": "Polling now",
   "videoResultsPanel.pollingArmed": "Polling ready",
   "videoResultsPanel.status.queued": "Queued",
+  "videoResultsPanel.submitting": "Submitting video request",
+  "videoResultsPanel.waitingForProvider": "Waiting for the provider to accept the request. The job will appear here when it responds.",
   "videoResultsPanel.status.running": "Rendering",
   "videoResultsPanel.status.succeeded": "Succeeded",
   "videoResultsPanel.status.failed": "Failed",

@@ -9,6 +9,7 @@ const {
   createOwnProviderCredentialMock,
   deleteOwnProviderCredentialMock,
   getImageCatalogMock,
+  getVideoCatalogMock,
   getModelsMock,
   getOwnProviderCredentialsMock,
   getOwnProviderSettingsMock,
@@ -60,6 +61,16 @@ const {
             displayName: 'Gemini 3.1 Flash Image Preview',
           },
         ],
+      },
+    ],
+  })),
+  getVideoCatalogMock: vi.fn(async () => ({
+    providers: [
+      {
+        providerId: 'nanogpt',
+        displayName: 'NanoGPT',
+        defaultModelId: 'video-model',
+        models: [{ id: 'video-model', displayName: 'Video Model' }],
       },
     ],
   })),
@@ -130,6 +141,7 @@ vi.mock('../lib/api-client', () => ({
     createOwnProviderCredential: createOwnProviderCredentialMock,
     deleteOwnProviderCredential: deleteOwnProviderCredentialMock,
     getOwnImageCatalog: getImageCatalogMock,
+    getOwnVideoCatalog: getVideoCatalogMock,
     getOwnModels: getModelsMock,
     getOwnProviderCredentials: getOwnProviderCredentialsMock,
     getOwnProviderSettings: getOwnProviderSettingsMock,
@@ -142,6 +154,17 @@ beforeEach(() => {
   createOwnProviderCredentialMock.mockClear();
   deleteOwnProviderCredentialMock.mockClear();
   getImageCatalogMock.mockClear();
+  getVideoCatalogMock.mockClear();
+  getVideoCatalogMock.mockResolvedValue({
+    providers: [
+      {
+        providerId: 'nanogpt',
+        displayName: 'NanoGPT',
+        defaultModelId: 'video-model',
+        models: [{ id: 'video-model', displayName: 'Video Model' }],
+      },
+    ],
+  });
   getModelsMock.mockClear();
   getOwnProviderCredentialsMock.mockClear();
   getOwnProviderSettingsMock.mockClear();
@@ -572,6 +595,8 @@ test('ProvidersPage clears an invalid default model and saves gateway defaults',
       defaultModel: null,
       defaultImageProviderId: 'nanogpt',
       defaultImageModel: null,
+      defaultVideoProviderId: null,
+      defaultVideoModel: null,
     }),
   );
 });
@@ -600,7 +625,67 @@ test('ProvidersPage saves separate image gateway defaults', async () => {
       defaultModel: 'z-ai/glm-4.6:thinking',
       defaultImageProviderId: 'nanogpt',
       defaultImageModel: 'z-ai/glm-4.6:thinking',
+      defaultVideoProviderId: null,
+      defaultVideoModel: null,
     }),
+  );
+});
+
+test('ProvidersPage offers Google video defaults when its credential and catalog are available', async () => {
+  const user = userEvent.setup();
+  getOwnProviderCredentialsMock.mockResolvedValue([
+    {
+      id: 'google-credential',
+      userUuid: 'user-1',
+      providerId: 'google',
+      providerDisplayName: 'Google Gemini',
+      label: 'primary',
+      scope: 'user',
+      maskedHint: '***oken',
+      isActive: true,
+      createdAt: '2026-04-17T00:00:00.000Z',
+      updatedAt: '2026-04-17T00:00:00.000Z',
+      lastUsedAt: null,
+    },
+  ]);
+  getVideoCatalogMock.mockResolvedValue({
+    providers: [
+      {
+        providerId: 'google',
+        displayName: 'Google Gemini',
+        defaultModelId: 'veo-3.1-generate-preview',
+        models: [
+          { id: 'veo-3.1-generate-preview', displayName: 'Veo 3.1' },
+          { id: 'gemini-omni-1.1-flash', displayName: 'Gemini Omni 1.1 Flash' },
+        ],
+      },
+    ],
+  });
+
+  renderWithProviders(<ProvidersPage />);
+  const providerSelect = await screen.findByTestId(
+    'providers-default-video-provider',
+  );
+  await waitFor(() =>
+    expect(
+      within(providerSelect).getByRole('option', { name: 'Google Gemini' }),
+    ).toBeInTheDocument(),
+  );
+  fireEvent.change(providerSelect, { target: { value: 'google' } });
+  const modelSelect = screen.getByTestId('providers-default-video-model');
+  await waitFor(() => expect(modelSelect).not.toBeDisabled());
+  await user.type(modelSelect, 'Gemini Omni 1.1 Flash');
+  await user.keyboard('{Enter}');
+  await waitFor(() => expect(modelSelect).toHaveValue('Gemini Omni 1.1 Flash'));
+  await user.click(screen.getByRole('button', { name: 'Save defaults' }));
+
+  await waitFor(() =>
+    expect(updateOwnProviderSettingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultVideoProviderId: 'google',
+        defaultVideoModel: 'gemini-omni-1.1-flash',
+      }),
+    ),
   );
 });
 

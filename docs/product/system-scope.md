@@ -27,7 +27,7 @@ out of scope.
 - foundational documentation and API contract placeholders
 - incremental UI refactor work that keeps `admin-web` maintainable as feature depth increases
 - Phase 2 provider-seam expansion for image generation, image editing, and provider-owned image catalogs
-- the next provider-seam expansion for asynchronous video generation and provider-owned video catalogs
+- asynchronous video generation and provider-owned video catalogs behind the provider seam
 - normalized multimodal chat content in the shared seam for text and `image_url` blocks
 
 ## Out of Scope for Phase 1
@@ -88,7 +88,7 @@ The repository now contains:
 - CI quality gates for typecheck, test, and build
 - a local quickstart path that keeps Docker Compose as the runtime entrypoint and avoids a setup-only framework
 - an initial `Image Generation Lab` in `admin-web` backed by gateway image-generation and image-editing endpoints
-- operator-configurable gateway defaults for both chat and image generation/editing, with separate provider/model pairs
+- operator-configurable gateway defaults for chat, image generation/editing, and video generation, with separate provider/model pairs
 - a local Open WebUI use case that is intentionally trusted and compose-driven
 - a production Open WebUI posture that keeps identity injection inside a trusted proxy boundary
 
@@ -118,12 +118,12 @@ The next planned capability expansion is:
 - deployment hardening if Open WebUI identity correlation evolves into a full shared-identity story across both UIs
 - broader provider-by-provider multimodal chat support for image attachments behind the existing seam
 - a reusable media-generation foundation that starts with OpenRouter-backed image-to-video and now also supports NanoGPT-backed Kling-family video routing while remaining text-to-video compatible at the seam
-- a reusable media-generation foundation that now supports OpenRouter-backed video, NanoGPT-backed video, and xAI native video behind the same provider seam
+- a reusable media-generation foundation that now supports OpenRouter-backed video, NanoGPT-backed video, xAI native video, and Google Veo/Omni video behind the same provider seam
 - a reusable model-family capability layer so Kling-family video rules can be attached through OpenRouter and NanoGPT without duplicating them in `gateway-api`
 - a shared native Kling foundation inside model-family-capabilities, including conservative native specs, capability intersection, and diagnostics for provider gaps or unsafe defaults
 - asynchronous video jobs with normalized statuses, polling, result download, and ledger attribution
 - application-owned artifact ingestion so provider-owned video URLs are never exposed as durable frontend references
-- future direct video integrations beyond the current OpenRouter, NanoGPT, and xAI native paths after those pipelines are proven end to end
+- future direct video integrations beyond the current OpenRouter, NanoGPT, xAI, and Google paths after those pipelines are proven end to end
 
 Current image-provider posture is:
 

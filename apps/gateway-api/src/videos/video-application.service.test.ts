@@ -4,7 +4,10 @@ import { Readable } from 'node:stream';
 
 import type { GatewayVideoGenerationRequest } from '@lxp/contracts';
 import { attachKlingVideoFamilyToModel } from '@lxp/model-family-capabilities';
-import type { LlmProviderAdapter, ProviderExecutionContext } from '@lxp/provider-sdk';
+import type {
+  LlmProviderAdapter,
+  ProviderExecutionContext,
+} from '@lxp/provider-sdk';
 
 import { ImageAssetEntity } from '../persistence/entities/image-asset.entity';
 import { MediaAssetEntity } from '../persistence/entities/media-asset.entity';
@@ -82,7 +85,9 @@ class InMemoryRepository<T extends BaseEntity> {
   async findOne(options: { where: Record<string, unknown> }) {
     return (
       this.items.find((item) =>
-        Object.entries(options.where).every(([key, value]) => item[key] === value),
+        Object.entries(options.where).every(
+          ([key, value]) => item[key] === value,
+        ),
       ) ?? null
     );
   }
@@ -292,7 +297,9 @@ class FakeVideoProvider implements LlmProviderAdapter {
   downloadVideoOutput = async () => {
     this.downloadCalls += 1;
     const payload = new TextEncoder().encode('video-bytes');
-    return Readable.toWeb(Readable.from([payload])) as ReadableStream<Uint8Array>;
+    return Readable.toWeb(
+      Readable.from([payload]),
+    ) as ReadableStream<Uint8Array>;
   };
 
   cancelVideoGeneration = async () => {
@@ -553,7 +560,9 @@ function createVideoService(options?: {
     mediaStorageService,
     service: new VideoApplicationService(
       new InMemoryRepository(
-        options?.users ?? [{ id: 'user-1', emailHash: 'hash-1', status: 'active' }],
+        options?.users ?? [
+          { id: 'user-1', emailHash: 'hash-1', status: 'active' },
+        ],
       ) as never,
       new InMemoryRepository(
         options?.providers ?? [
@@ -572,7 +581,9 @@ function createVideoService(options?: {
       ) as never,
       providerRegistry as never,
       (options?.providerCredentialService ?? {
-        resolveProviderAccess: async () => ({ headers: { authorization: 'Bearer test' } }),
+        resolveProviderAccess: async () => ({
+          headers: { authorization: 'Bearer test' },
+        }),
         resolveProviderAccessWithSource: async () => ({
           providerAccess: { headers: { authorization: 'Bearer test' } },
           credentialScopeUsed: 'user' as const,
@@ -592,6 +603,55 @@ function createVideoService(options?: {
     ),
   };
 }
+
+test('VideoApplicationService applies video defaults when provider and model are omitted', async () => {
+  const { service, provider } = createVideoService({
+    users: [
+      {
+        id: 'user-1',
+        emailHash: 'hash-1',
+        status: 'active',
+        defaultVideoProviderId: 'openrouter',
+        defaultVideoModel: 'openrouter/kling-v1',
+      },
+    ],
+  });
+
+  const job = await service.submitVideoGeneration(
+    { prompt: 'A mountain sunrise' },
+    buildAuthContext(),
+  );
+
+  assert.equal(job.providerId, 'openrouter');
+  assert.equal(job.model, 'openrouter/kling-v1');
+  assert.equal(provider.submitCalls, 1);
+});
+
+test('VideoApplicationService keeps an explicitly selected video provider over the user default', async () => {
+  const { service, provider } = createVideoService({
+    users: [
+      {
+        id: 'user-1',
+        emailHash: 'hash-1',
+        status: 'active',
+        defaultVideoProviderId: 'xai',
+        defaultVideoModel: 'grok-video-1',
+      },
+    ],
+  });
+
+  const job = await service.submitVideoGeneration(
+    {
+      providerId: 'openrouter',
+      model: 'openrouter/kling-v1',
+      prompt: 'A mountain sunrise',
+    },
+    buildAuthContext(),
+  );
+
+  assert.equal(job.providerId, 'openrouter');
+  assert.equal(provider.submittedRequests[0]?.providerId, 'openrouter');
+});
 
 test('VideoApplicationService reuses an existing job for the same tenant/user idempotency key', async () => {
   const existingCreatedAt = new Date('2026-05-07T12:00:00.000Z');
@@ -644,38 +704,39 @@ test('VideoApplicationService reuses an existing job for the same tenant/user id
 
 test('VideoApplicationService polls a provider job once, ingests the application-owned output, and avoids duplicate assets on later reads', async () => {
   const stalePollTime = new Date(Date.now() - 60_000);
-  const { service, provider, mediaAssets, mediaStorageService } = createVideoService({
-    mediaJobs: [
-      {
-        id: 'video-job-1',
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        requestId: 'request-video-1',
-        providerId: 'openrouter',
-        capability: 'video',
-        mode: 'text_to_video',
-        model: 'openrouter/kling-v1',
-        prompt: 'Animate this still frame',
-        status: 'running',
-        providerJobId: 'provider-job-1',
-        idempotencyKey: null,
-        requestPayload: { prompt: 'Animate this still frame' },
-        sourceAssetId: null,
-        providerMetadata: null,
-        errorMessage: null,
-        submissionAttempts: 1,
-        pollAttempts: 0,
-        nextPollAfter: stalePollTime,
-        lastPolledAt: null,
-        startedAt: new Date('2026-05-07T12:00:00.000Z'),
-        completedAt: null,
-        failedAt: null,
-        cancelledAt: null,
-        createdAt: new Date('2026-05-07T12:00:00.000Z'),
-        updatedAt: new Date('2026-05-07T12:00:00.000Z'),
-      },
-    ],
-  });
+  const { service, provider, mediaAssets, mediaStorageService } =
+    createVideoService({
+      mediaJobs: [
+        {
+          id: 'video-job-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          requestId: 'request-video-1',
+          providerId: 'openrouter',
+          capability: 'video',
+          mode: 'text_to_video',
+          model: 'openrouter/kling-v1',
+          prompt: 'Animate this still frame',
+          status: 'running',
+          providerJobId: 'provider-job-1',
+          idempotencyKey: null,
+          requestPayload: { prompt: 'Animate this still frame' },
+          sourceAssetId: null,
+          providerMetadata: null,
+          errorMessage: null,
+          submissionAttempts: 1,
+          pollAttempts: 0,
+          nextPollAfter: stalePollTime,
+          lastPolledAt: null,
+          startedAt: new Date('2026-05-07T12:00:00.000Z'),
+          completedAt: null,
+          failedAt: null,
+          cancelledAt: null,
+          createdAt: new Date('2026-05-07T12:00:00.000Z'),
+          updatedAt: new Date('2026-05-07T12:00:00.000Z'),
+        },
+      ],
+    });
 
   const firstRead = await service.getJob('video-job-1', buildAuthContext());
   const secondRead = await service.getJob('video-job-1', buildAuthContext());
@@ -784,7 +845,10 @@ test('VideoApplicationService refreshes non-terminal history jobs and returns th
 
   assert.equal(history.items[0]?.status, 'succeeded');
   assert.equal(history.items[0]?.outputs.length, 1);
-  assert.match(history.items[0]?.outputs[0]?.contentUrl ?? '', /\/api\/v1\/videos\/assets\/.+\/content/);
+  assert.match(
+    history.items[0]?.outputs[0]?.contentUrl ?? '',
+    /\/api\/v1\/videos\/assets\/.+\/content/,
+  );
   assert.equal(provider.pollCalls, 1);
   assert.equal(provider.downloadCalls, 1);
 });
@@ -846,73 +910,77 @@ test('VideoApplicationService resolves uploaded image assets before provider sub
 });
 
 test('VideoApplicationService deletes a terminal job and its ingested application assets', async () => {
-  const { service, mediaAssets, mediaJobs, mediaStorageService } = createVideoService({
-    mediaJobs: [
-      {
-        id: 'video-job-delete-1',
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        requestId: 'request-video-delete-1',
-        providerId: 'openrouter',
-        capability: 'video',
-        mode: 'image_to_video',
-        model: 'openrouter/kling-v1',
-        prompt: 'Delete this cancelled job',
-        status: 'cancelled',
-        providerJobId: 'provider-job-delete-1',
-        idempotencyKey: null,
-        requestPayload: {
+  const { service, mediaAssets, mediaJobs, mediaStorageService } =
+    createVideoService({
+      mediaJobs: [
+        {
+          id: 'video-job-delete-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          requestId: 'request-video-delete-1',
           providerId: 'openrouter',
+          capability: 'video',
+          mode: 'image_to_video',
           model: 'openrouter/kling-v1',
           prompt: 'Delete this cancelled job',
-          referenceImages: [{ type: 'asset', assetId: 'image-asset-1' }],
+          status: 'cancelled',
+          providerJobId: 'provider-job-delete-1',
+          idempotencyKey: null,
+          requestPayload: {
+            providerId: 'openrouter',
+            model: 'openrouter/kling-v1',
+            prompt: 'Delete this cancelled job',
+            referenceImages: [{ type: 'asset', assetId: 'image-asset-1' }],
+          },
+          sourceAssetId: 'image-asset-1',
+          providerMetadata: null,
+          errorMessage: null,
+          submissionAttempts: 1,
+          pollAttempts: 1,
+          nextPollAfter: null,
+          lastPolledAt: new Date('2026-05-07T12:00:08.000Z'),
+          startedAt: new Date('2026-05-07T12:00:00.000Z'),
+          completedAt: null,
+          failedAt: null,
+          cancelledAt: new Date('2026-05-07T12:00:08.000Z'),
+          createdAt: new Date('2026-05-07T12:00:00.000Z'),
+          updatedAt: new Date('2026-05-07T12:00:08.000Z'),
         },
-        sourceAssetId: 'image-asset-1',
-        providerMetadata: null,
-        errorMessage: null,
-        submissionAttempts: 1,
-        pollAttempts: 1,
-        nextPollAfter: null,
-        lastPolledAt: new Date('2026-05-07T12:00:08.000Z'),
-        startedAt: new Date('2026-05-07T12:00:00.000Z'),
-        completedAt: null,
-        failedAt: null,
-        cancelledAt: new Date('2026-05-07T12:00:08.000Z'),
-        createdAt: new Date('2026-05-07T12:00:00.000Z'),
-        updatedAt: new Date('2026-05-07T12:00:08.000Z'),
-      },
-    ],
-    mediaAssets: [
-      {
-        id: 'video-asset-delete-1',
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        jobId: 'video-job-delete-1',
-        kind: 'video',
-        sourceType: 'generated',
-        outputIndex: 0,
-        label: 'Generated video 1',
-        mimeType: 'video/mp4',
-        storageKey: 'tenant-1/video-asset-delete-1.mp4',
-        originalUrl: 'https://provider.example/video-delete-1.mp4',
-        byteSize: 11,
-        durationSeconds: '5.000',
-        width: 1280,
-        height: 720,
-        sha256: 'sha256-video',
-        isSaved: false,
-        providerMetadata: null,
-        createdAt: new Date('2026-05-07T12:00:08.000Z'),
-        updatedAt: new Date('2026-05-07T12:00:08.000Z'),
-      },
-    ],
-  });
+      ],
+      mediaAssets: [
+        {
+          id: 'video-asset-delete-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          jobId: 'video-job-delete-1',
+          kind: 'video',
+          sourceType: 'generated',
+          outputIndex: 0,
+          label: 'Generated video 1',
+          mimeType: 'video/mp4',
+          storageKey: 'tenant-1/video-asset-delete-1.mp4',
+          originalUrl: 'https://provider.example/video-delete-1.mp4',
+          byteSize: 11,
+          durationSeconds: '5.000',
+          width: 1280,
+          height: 720,
+          sha256: 'sha256-video',
+          isSaved: false,
+          providerMetadata: null,
+          createdAt: new Date('2026-05-07T12:00:08.000Z'),
+          updatedAt: new Date('2026-05-07T12:00:08.000Z'),
+        },
+      ],
+    });
   mediaStorageService.stored.set(
     'tenant-1/video-asset-delete-1.mp4',
     Buffer.from('video-bytes'),
   );
 
-  const result = await service.deleteJob('video-job-delete-1', buildAuthContext());
+  const result = await service.deleteJob(
+    'video-job-delete-1',
+    buildAuthContext(),
+  );
 
   assert.deepEqual(result, { deleted: true });
   assert.equal((await mediaJobs.find()).length, 0);
@@ -942,7 +1010,10 @@ test('VideoApplicationService returns video catalog entries even when provider c
     catalog.providers[0]?.models[0]?.capabilities?.supportsVideoGeneration,
     true,
   );
-  assert.equal(catalog.providers[0]?.models[0]?.family?.profileId, 'kling-video-family');
+  assert.equal(
+    catalog.providers[0]?.models[0]?.family?.profileId,
+    'kling-video-family',
+  );
 });
 
 test('VideoApplicationService filters video catalog models denied for the active tenant', async () => {
@@ -1017,6 +1088,27 @@ test('VideoApplicationService rejects unsupported Kling-family requests before c
   assert.equal(provider.submitCalls, 0);
 });
 
+test('VideoApplicationService returns a failed job when provider submission fails', async () => {
+  const { service, provider, mediaJobs } = createVideoService();
+  provider.submitVideoGeneration = async () => {
+    throw new Error('Provider rejected the video request.');
+  };
+
+  const job = await service.submitVideoGeneration(
+    {
+      providerId: 'openrouter',
+      model: 'openrouter/kling-v1',
+      prompt: 'A rainy street at night',
+    },
+    buildAuthContext(),
+  );
+
+  assert.equal(job.status, 'failed');
+  assert.equal(job.error, 'Provider rejected the video request.');
+  assert.equal((await mediaJobs.find())[0]?.status, 'failed');
+  assert.ok((await mediaJobs.find())[0]?.failedAt);
+});
+
 test('VideoApplicationService reads back stored application-owned video assets', async () => {
   const { service, mediaStorageService } = createVideoService({
     mediaAssets: [
@@ -1058,5 +1150,3 @@ test('VideoApplicationService reads back stored application-owned video assets',
   assert.equal(assetContent.data.toString('utf8'), 'video-bytes');
   assert.equal(mediaStorageService.readCalls, 1);
 });
-
-

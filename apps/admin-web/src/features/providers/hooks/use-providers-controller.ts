@@ -9,6 +9,7 @@ import { useRuntimeConfig } from '../../../lib/use-runtime-config';
 import {
   buildDefaultModelOptions,
   buildDefaultImageProviderOptions,
+  buildDefaultVideoProviderOptions,
   buildDefaultProviderOptions,
   buildProviderOptions,
   resolveProviderDisplayName,
@@ -65,6 +66,12 @@ export function useProvidersController() {
   const [defaultImageModel, setDefaultImageModel] = useState<string | null>(
     null,
   );
+  const [defaultVideoProviderId, setDefaultVideoProviderId] = useState<
+    string | null
+  >(null);
+  const [defaultVideoModel, setDefaultVideoModel] = useState<string | null>(
+    null,
+  );
 
   const credentialsQuery = useQuery({
     queryKey: ['own-provider-credentials'],
@@ -77,6 +84,10 @@ export function useProvidersController() {
   const imageCatalogQuery = useQuery({
     queryKey: ['image-catalog-for-provider-settings'],
     queryFn: () => adminApiClient.getOwnImageCatalog(),
+  });
+  const videoCatalogQuery = useQuery({
+    queryKey: ['video-catalog-for-provider-settings'],
+    queryFn: () => adminApiClient.getOwnVideoCatalog(),
   });
 
   const supportedProviders = runtimeConfigQuery.data?.supportedProviders ?? [];
@@ -102,6 +113,10 @@ export function useProvidersController() {
       providerSettingsQuery.data.defaultImageProviderId,
     );
     setDefaultImageModel(providerSettingsQuery.data.defaultImageModel);
+    setDefaultVideoProviderId(
+      providerSettingsQuery.data.defaultVideoProviderId ?? null,
+    );
+    setDefaultVideoModel(providerSettingsQuery.data.defaultVideoModel ?? null);
   }, [providerSettingsQuery.data]);
 
   const defaultProviderOptions = useMemo(() => {
@@ -121,6 +136,19 @@ export function useProvidersController() {
     imageCatalogQuery.data?.providers,
     supportedProviders,
   ]);
+  const defaultVideoProviderOptions = useMemo(
+    () =>
+      buildDefaultVideoProviderOptions(
+        credentialsQuery.data ?? [],
+        supportedProviders,
+        videoCatalogQuery.data?.providers ?? [],
+      ),
+    [
+      credentialsQuery.data,
+      supportedProviders,
+      videoCatalogQuery.data?.providers,
+    ],
+  );
 
   const modelsQuery = useQuery({
     queryKey: ['provider-models', defaultProviderId],
@@ -175,6 +203,22 @@ export function useProvidersController() {
     imageCatalogQuery.data,
     imageCatalogQuery.isPending,
   ]);
+
+  useEffect(() => {
+    if (!defaultVideoProviderId) {
+      setDefaultVideoModel(null);
+      return;
+    }
+    const models = videoCatalogQuery.data?.providers.find(
+      (provider) => provider.providerId === defaultVideoProviderId,
+    )?.models;
+    if (
+      models?.length &&
+      !models.some((entry) => entry.id === defaultVideoModel)
+    ) {
+      setDefaultVideoModel(null);
+    }
+  }, [defaultVideoProviderId, defaultVideoModel, videoCatalogQuery.data]);
 
   const upsertCredentialMutation = useMutation({
     mutationFn: () => {
@@ -252,6 +296,10 @@ export function useProvidersController() {
         defaultImageModel: defaultImageProviderId
           ? (defaultImageModel ?? null)
           : null,
+        defaultVideoProviderId: defaultVideoProviderId ?? null,
+        defaultVideoModel: defaultVideoProviderId
+          ? (defaultVideoModel ?? null)
+          : null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -267,7 +315,11 @@ export function useProvidersController() {
     defaultImageProviderId !==
       (providerSettingsQuery.data?.defaultImageProviderId ?? null) ||
     defaultImageModel !==
-      (providerSettingsQuery.data?.defaultImageModel ?? null);
+      (providerSettingsQuery.data?.defaultImageModel ?? null) ||
+    defaultVideoProviderId !==
+      (providerSettingsQuery.data?.defaultVideoProviderId ?? null) ||
+    defaultVideoModel !==
+      (providerSettingsQuery.data?.defaultVideoModel ?? null);
 
   function resetCredentialForm() {
     setEditingCredentialId(null);
@@ -344,6 +396,11 @@ export function useProvidersController() {
   const defaultImageModelOptions = buildDefaultModelOptions(
     imageCatalogQuery.data?.providers.find(
       (provider) => provider.providerId === defaultImageProviderId,
+    )?.models ?? [],
+  );
+  const defaultVideoModelOptions = buildDefaultModelOptions(
+    videoCatalogQuery.data?.providers.find(
+      (provider) => provider.providerId === defaultVideoProviderId,
     )?.models ?? [],
   );
 
@@ -424,6 +481,10 @@ export function useProvidersController() {
     defaultImageModelOptions,
     defaultImageProviderId,
     defaultImageProviderOptions,
+    defaultVideoModel,
+    defaultVideoModelOptions,
+    defaultVideoProviderId,
+    defaultVideoProviderOptions,
     deleteCredential: () => {
       if (!credentialDeleteTarget) {
         return;
@@ -449,12 +510,16 @@ export function useProvidersController() {
     isDefaultsPending: saveDefaultsMutation.isPending,
     isModelLoading: modelsQuery.isPending,
     isImageModelLoading: imageCatalogQuery.isPending,
+    isVideoModelLoading: videoCatalogQuery.isPending,
     label,
     modelErrorMessage: modelsQuery.isError
       ? getLocalizedErrorMessage(modelsQuery.error)
       : null,
     imageModelErrorMessage: imageCatalogQuery.isError
       ? getLocalizedErrorMessage(imageCatalogQuery.error)
+      : null,
+    videoModelErrorMessage: videoCatalogQuery.isError
+      ? getLocalizedErrorMessage(videoCatalogQuery.error)
       : null,
     onApiTokenChange: (value: string) => {
       setApiToken(value);
@@ -494,6 +559,12 @@ export function useProvidersController() {
     onDefaultImageProviderChange: (value: string | null) => {
       setDefaultImageProviderId(value);
       setDefaultImageModel(null);
+    },
+    onDefaultVideoModelChange: (value: string | null) =>
+      setDefaultVideoModel(value),
+    onDefaultVideoProviderChange: (value: string | null) => {
+      setDefaultVideoProviderId(value);
+      setDefaultVideoModel(null);
     },
     onLabelChange: (value: string) => {
       setLabel(value);

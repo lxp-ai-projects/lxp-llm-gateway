@@ -1468,6 +1468,36 @@ test('AdminService updates image defaults separately from chat defaults', async 
   assert.equal(settings.defaultImageModel, 'mistral-medium');
 });
 
+test('AdminService stores video defaults separately from chat and image defaults', async () => {
+  const { actor, service } = createAdminService();
+  const createdUser = await service.createUser(actor, {
+    email: 'patrick@example.com',
+    password: 'Sup3rS3cret!',
+    displayName: 'Patrick',
+  });
+
+  await service.storeProviderCredentialForActor(actor, {
+    userUuid: createdUser.userUuid,
+    providerId: 'google',
+    label: 'primary',
+    apiToken: 'google-secret-token',
+  });
+
+  const settings = await service.updateProviderSettingsForUser(
+    actor,
+    createdUser.userUuid,
+    {
+      defaultVideoProviderId: 'google',
+      defaultVideoModel: 'veo-3.1-generate-preview',
+    },
+  );
+
+  assert.equal(settings.defaultProviderId, null);
+  assert.equal(settings.defaultImageProviderId, null);
+  assert.equal(settings.defaultVideoProviderId, 'google');
+  assert.equal(settings.defaultVideoModel, 'veo-3.1-generate-preview');
+});
+
 test('AdminService updates a user password', async () => {
   const { actor, service, repositories } = createAdminService();
   const createdUser = await service.createUser(actor, {

@@ -60,9 +60,20 @@ export function VideoResultsPanel({
         </Group>
 
         {!job ? (
-          <Alert color="gray" title={t('videoResultsPanel.noVideoJobYet')}>
-            {t('videoResultsPanel.submitARequestToCreateAnAsync')}
-          </Alert>
+          videoLab.generateMutation.isPending ? (
+            <Alert color="blue" title={t('videoResultsPanel.submitting')}>
+              <Group gap="sm">
+                <Loader size="sm" />
+                <Text size="sm">
+                  {t('videoResultsPanel.waitingForProvider')}
+                </Text>
+              </Group>
+            </Alert>
+          ) : (
+            <Alert color="gray" title={t('videoResultsPanel.noVideoJobYet')}>
+              {t('videoResultsPanel.submitARequestToCreateAnAsync')}
+            </Alert>
+          )
         ) : (
           <Stack gap="md">
             <Group gap="xs" wrap="wrap">

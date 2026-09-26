@@ -19,6 +19,9 @@ import {
 import { GoogleImageApiClient } from './image/api-client.js';
 import { GoogleImageEditService } from './image/edit-service.js';
 import { GoogleImageGenerationService } from './image/generation-service.js';
+import { GoogleVideoApiClient } from './video/api-client.js';
+import { buildGoogleVideoCatalog } from './video/catalog.js';
+import { GoogleVideoGenerationService } from './video/generation-service.js';
 
 const GOOGLE_OPENAI_BASE_URL =
   process.env.GOOGLE_BASE_URL ??
@@ -39,6 +42,7 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
     modelCatalog: true,
     imageGeneration: true,
     imageEditing: true,
+    videoGeneration: true,
   } as const;
 
   private readonly baseUrl: string;
@@ -47,6 +51,7 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
   private readonly imageApiClient: GoogleImageApiClient;
   private readonly imageGenerationService: GoogleImageGenerationService;
   private readonly imageEditService: GoogleImageEditService;
+  private readonly videoGenerationService: GoogleVideoGenerationService;
 
   constructor(
     baseUrl = GOOGLE_OPENAI_BASE_URL,
@@ -70,6 +75,10 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
       this.requestTimeoutMs,
       GOOGLE_MAX_INLINE_REFERENCE_BYTES,
     );
+    this.videoGenerationService = new GoogleVideoGenerationService(
+      new GoogleVideoApiClient(this.nativeBaseUrl, this.requestTimeoutMs),
+      (hostname) => this.lookupHostname(hostname),
+    );
   }
 
   readonly providerId = 'google' as LlmProviderAdapter['providerId'];
@@ -89,6 +98,11 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
   async listImageCatalog(context: ProviderExecutionContext) {
     void context;
     return buildGoogleImageCatalog(buildGoogleModelCatalog([]));
+  }
+
+  async listVideoCatalog(context: ProviderExecutionContext) {
+    void context;
+    return buildGoogleVideoCatalog();
   }
 
   async chat(
@@ -182,6 +196,26 @@ export class GoogleProviderAdapter implements LlmProviderAdapter {
   ) {
     return this.imageEditService.execute(request, context);
   }
+
+  async submitVideoGeneration(
+    request: import('@lxp/contracts').GatewayVideoGenerationRequest,
+    context: ProviderExecutionContext,
+  ) {
+    return this.videoGenerationService.submit(request, context);
+  }
+
+  async getVideoGenerationJob(
+    jobId: string,
+    context: ProviderExecutionContext,
+  ) {
+    return this.videoGenerationService.getJob(jobId, context);
+  }
+
+  downloadVideoOutput = (
+    jobId: string,
+    outputIndex: number,
+    context: ProviderExecutionContext,
+  ) => this.videoGenerationService.downloadOutput(jobId, outputIndex, context);
 
   private dispatchChatRequest(
     request: GatewayChatRequest,

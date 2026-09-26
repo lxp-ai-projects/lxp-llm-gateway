@@ -106,7 +106,8 @@ const {
               profileId: 'kling-video-family',
               modality: 'video',
               displayName: 'Kling Video',
-              summary: 'Reusable Kling-family video capability profile for direct and aggregator transports.',
+              summary:
+                'Reusable Kling-family video capability profile for direct and aggregator transports.',
               video: {
                 generationModes: [
                   'text-to-video',
@@ -356,7 +357,106 @@ test('VideoGenerationPage renders providers, request controls, and history from 
   expect(screen.getByText('No video job yet')).toBeInTheDocument();
   expect(screen.getByText('Video history')).toBeInTheDocument();
   expect(screen.getByText('Uploaded reference catalog')).toBeInTheDocument();
-  expect(screen.getByTestId('video-reference-catalog-open')).toBeInTheDocument();
+  expect(
+    screen.getByTestId('video-reference-catalog-open'),
+  ).toBeInTheDocument();
+});
+
+test('VideoGenerationPage sends Google explicitly and does not show an old xAI job after a failed attempt', async () => {
+  const user = userEvent.setup();
+  window.localStorage.setItem(
+    VIDEO_LAB_DRAFT_STORAGE_KEY,
+    JSON.stringify({ activeJobId: 'old-xai-job' }),
+  );
+  getVideoCatalogMock.mockResolvedValueOnce({
+    providers: [
+      {
+        providerId: 'xai',
+        displayName: 'xAI',
+        defaultModelId: 'grok-video-1',
+        models: [{ id: 'grok-video-1', displayName: 'Grok Video 1' }],
+      },
+      {
+        providerId: 'google',
+        displayName: 'Google Gemini',
+        defaultModelId: 'veo-3.1-generate-preview',
+        models: [{ id: 'veo-3.1-generate-preview', displayName: 'Veo 3.1' }],
+      },
+    ],
+  } as never);
+  getVideoJobMock.mockResolvedValueOnce({
+    id: 'old-xai-job',
+    requestId: 'old-xai-request',
+    providerId: 'xai',
+    model: 'grok-video-1',
+    prompt: 'Old prompt',
+    status: 'failed',
+    createdAt: '2026-05-07T12:00:00.000Z',
+    outputs: [],
+  } as never);
+  generateVideoMock.mockRejectedValueOnce(new Error('Google request failed'));
+
+  renderWithProviders(<VideoGenerationPage />);
+  expect(
+    await screen.findByText('old-xai-request', { exact: false }),
+  ).toBeInTheDocument();
+  const catalog = await getVideoCatalogMock.mock.results[0]?.value;
+  expect(
+    catalog.providers.map(
+      (provider: { providerId: string }) => provider.providerId,
+    ),
+  ).toContain('google');
+
+  const providerSelect = screen.getByTestId('video-provider-select');
+  await user.click(providerSelect);
+  await user.keyboard('{ArrowDown}{Enter}');
+  await waitFor(() => expect(providerSelect).toHaveValue('Google Gemini'));
+  await waitFor(() =>
+    expect(screen.getByTestId('video-model-select')).toHaveValue('Veo 3.1'),
+  );
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'A mountain sunrise' },
+  });
+  await user.click(screen.getByTestId('video-submit'));
+
+  await waitFor(() =>
+    expect(generateVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'google',
+        model: 'veo-3.1-generate-preview',
+      }),
+    ),
+  );
+  expect(await screen.findByText('Video request failed')).toBeInTheDocument();
+  expect(screen.getByText('No video job yet')).toBeInTheDocument();
+});
+
+test('VideoGenerationPage shows submission progress while the provider request is pending', async () => {
+  const user = userEvent.setup();
+  const defaultGenerate = generateVideoMock.getMockImplementation()!;
+  let finishSubmission!: () => void;
+  generateVideoMock.mockImplementationOnce(async () => {
+    await new Promise<void>((resolve) => {
+      finishSubmission = resolve;
+    });
+    return defaultGenerate();
+  });
+
+  renderWithProviders(<VideoGenerationPage />);
+  await screen.findByRole('heading', { name: 'Video Generation Lab' });
+  fireEvent.change(screen.getByLabelText('Prompt'), {
+    target: { value: 'A mountain sunrise' },
+  });
+  await user.click(screen.getByTestId('video-submit'));
+
+  expect(
+    await screen.findByText('Submitting video request'),
+  ).toBeInTheDocument();
+  expect(screen.queryByText('No video job yet')).not.toBeInTheDocument();
+  finishSubmission();
+  expect(
+    await screen.findByText('request-video-1', { exact: false }),
+  ).toBeInTheDocument();
 });
 
 test('VideoGenerationPage restores the saved draft after a remount-like refresh', async () => {
@@ -396,7 +496,6 @@ test('VideoGenerationPage restores the saved draft after a remount-like refresh'
   expect(screen.getAllByText('1 / 3 selected').length).toBeGreaterThan(0);
 });
 
-
 test('VideoGenerationPage turns pasted data URLs into reusable image assets before video submission', async () => {
   const user = userEvent.setup();
   renderWithProviders(<VideoGenerationPage />);
@@ -428,7 +527,6 @@ test('VideoGenerationPage turns pasted data URLs into reusable image assets befo
     ),
   );
 });
-
 
 test('VideoGenerationPage lets a long URL reference be removed from the selected list', async () => {
   const user = userEvent.setup();
@@ -493,9 +591,15 @@ test('VideoGenerationPage lets a removed shared asset reference be selected agai
 
   await screen.findByRole('heading', { name: 'Video Generation Lab' });
   await user.click(screen.getByTestId('video-reference-catalog-open'));
-  await user.click(await screen.findByTestId('video-reference-catalog-use-asset-upload-catalog-1'));
+  await user.click(
+    await screen.findByTestId(
+      'video-reference-catalog-use-asset-upload-catalog-1',
+    ),
+  );
 
-  expect((await screen.findAllByText('Storyboard still')).length).toBeGreaterThan(0);
+  expect(
+    (await screen.findAllByText('Storyboard still')).length,
+  ).toBeGreaterThan(0);
   expect(screen.getAllByText('1 / 3 selected').length).toBeGreaterThan(0);
   expect(screen.getByRole('button', { name: 'Selected' })).toBeDisabled();
 
@@ -504,19 +608,25 @@ test('VideoGenerationPage lets a removed shared asset reference be selected agai
   await waitFor(() => {
     expect(screen.getAllByText('0 / 3 selected').length).toBeGreaterThan(0);
   });
-  expect(await screen.findByTestId('video-reference-catalog-use-asset-upload-catalog-1')).toBeEnabled();
+  expect(
+    await screen.findByTestId(
+      'video-reference-catalog-use-asset-upload-catalog-1',
+    ),
+  ).toBeEnabled();
 
-  await user.click(screen.getByTestId('video-reference-catalog-use-asset-upload-catalog-1'));
+  await user.click(
+    screen.getByTestId('video-reference-catalog-use-asset-upload-catalog-1'),
+  );
 
-  expect((await screen.findAllByText('Storyboard still')).length).toBeGreaterThan(0);
+  expect(
+    (await screen.findAllByText('Storyboard still')).length,
+  ).toBeGreaterThan(0);
   expect(screen.getAllByText('1 / 3 selected').length).toBeGreaterThan(0);
   expect(screen.getByRole('button', { name: 'Selected' })).toBeDisabled();
 });
 
-test(
-  'VideoGenerationPage polls the active job until a terminal succeeded state is returned',
-  async () => {
-    const user = userEvent.setup();
+test('VideoGenerationPage polls the active job until a terminal succeeded state is returned', async () => {
+  const user = userEvent.setup();
   getVideoJobMock
     .mockResolvedValueOnce({
       id: 'video-job-1',
@@ -603,17 +713,19 @@ test(
   await waitFor(() => expect(getVideoJobMock).toHaveBeenCalledTimes(1));
   expect(await screen.findByText('Estimated')).toBeInTheDocument();
   expect(
-    screen.getByText('Estimate based on 1 previous run for this provider and model.'),
+    screen.getByText(
+      'Estimate based on 1 previous run for this provider and model.',
+    ),
   ).toBeInTheDocument();
-  expect(screen.getByRole('progressbar', { name: 'Video rendering progress' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('progressbar', { name: 'Video rendering progress' }),
+  ).toBeInTheDocument();
   await new Promise((resolve) => window.setTimeout(resolve, 3200));
   await waitFor(() => expect(getVideoJobMock).toHaveBeenCalledTimes(2));
   expect(await screen.findByText('Generation completed')).toBeInTheDocument();
   expect(screen.getByText('completed')).toBeInTheDocument();
   expect(await screen.findAllByText('Output 1')).not.toHaveLength(0);
-  },
-  12000,
-);
+}, 12000);
 
 test('VideoGenerationPage cancels a non-terminal job from the results panel', async () => {
   const user = userEvent.setup();
@@ -663,7 +775,9 @@ test('VideoGenerationPage cancels a non-terminal job from the results panel', as
   await waitFor(() =>
     expect(cancelVideoJobMock).toHaveBeenCalledWith('video-job-1'),
   );
-  expect((await screen.findAllByText('Generation cancelled')).length).toBeGreaterThan(0);
+  expect(
+    (await screen.findAllByText('Generation cancelled')).length,
+  ).toBeGreaterThan(0);
   expect(screen.getByRole('button', { name: 'Cancel job' })).toBeDisabled();
 });
 
@@ -687,7 +801,9 @@ test('VideoGenerationPage retries a history job by repopulating the form and sub
       }),
     ),
   );
-  expect(await screen.findByDisplayValue('History video prompt 1')).toBeInTheDocument();
+  expect(
+    await screen.findByDisplayValue('History video prompt 1'),
+  ).toBeInTheDocument();
 });
 
 test('VideoGenerationPage deletes a terminal job from the results panel', async () => {
@@ -695,20 +811,16 @@ test('VideoGenerationPage deletes a terminal job from the results panel', async 
   renderWithProviders(<VideoGenerationPage />);
 
   await screen.findByRole('heading', { name: 'Video Generation Lab' });
-  await user.click(await screen.findByRole('button', { name: 'Load in results' }));
+  await user.click(
+    await screen.findByRole('button', { name: 'Load in results' }),
+  );
   await user.click(await screen.findByRole('button', { name: 'Delete job' }));
 
-  await waitFor(() => expect(deleteVideoJobMock).toHaveBeenCalledWith('history-video-job-1'));
+  await waitFor(() =>
+    expect(deleteVideoJobMock).toHaveBeenCalledWith('history-video-job-1'),
+  );
   expect(await screen.findByText('No video job yet')).toBeInTheDocument();
 });
-
-
-
-
-
-
-
-
 
 test('VideoGenerationPage model selector supports catalog search', async () => {
   const user = userEvent.setup();

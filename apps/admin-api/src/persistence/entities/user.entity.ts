@@ -86,6 +86,22 @@ export class UserEntity {
   })
   defaultImageModel!: string | null;
 
+  @Column({
+    name: 'default_video_provider_id',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  defaultVideoProviderId!: ProviderId | null;
+
+  @Column({
+    name: 'default_video_model',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  defaultVideoModel!: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
@@ -95,10 +111,7 @@ export class UserEntity {
   @OneToMany(() => UserRoleEntity, (userRole) => userRole.user)
   roles!: UserRoleEntity[];
 
-  @OneToMany(
-    () => TenantMembershipEntity,
-    (membership) => membership.user,
-  )
+  @OneToMany(() => TenantMembershipEntity, (membership) => membership.user)
   tenantMemberships!: TenantMembershipEntity[];
 
   @OneToMany(
