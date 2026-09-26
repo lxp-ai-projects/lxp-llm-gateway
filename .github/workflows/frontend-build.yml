@@ -51,7 +51,7 @@ jobs:
         run: pnpm exec turbo run typecheck --filter=@lxp/admin-web
 
       - name: Test frontend scope
-        run: pnpm exec turbo run test --filter=@lxp/admin-web
+        run: pnpm exec turbo run test --filter=@lxp/admin-web --concurrency=1
 
       - name: Coverage frontend scope
         continue-on-error: true
