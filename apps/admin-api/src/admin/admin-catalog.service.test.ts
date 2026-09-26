@@ -112,6 +112,7 @@ function withEnv(
 }
 
 function createAdminCatalogService(options?: {
+  providerId?: 'openai' | 'zai' | 'nanogpt';
   defaultProviderId?: 'openai' | null;
   configuration?: {
     credentialMode?: 'hybrid' | 'platform_default' | 'user_byok' | 'tenant_byok';
@@ -133,6 +134,8 @@ function createAdminCatalogService(options?: {
   };
   includeConfiguration?: boolean;
 }) {
+  const providerId = options?.providerId ?? 'openai';
+  const providerEntityId = `provider-${providerId}`;
   process.env.LXP_ENCRYPTION_MASTER_KEY =
     'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
   process.env.LXP_ENCRYPTION_KEY_VERSION = '1';
@@ -175,9 +178,9 @@ function createAdminCatalogService(options?: {
   ]);
   const providerRepository = createRepositoryMock([
     {
-      id: 'provider-openai',
-      providerId: 'openai',
-      displayName: 'OpenAI',
+      id: providerEntityId,
+      providerId,
+      displayName: providerId,
       status: options?.providerStatus ?? 'active',
     },
   ]);
@@ -188,7 +191,7 @@ function createAdminCatalogService(options?: {
           {
             id: 'config-openai',
             tenantId: actor.activeTenantId,
-            providerId: 'provider-openai',
+            providerId: providerEntityId,
             enabled: options?.configuration?.enabled ?? true,
             defaultTextModel: null,
             defaultImageModel: null,
@@ -215,7 +218,7 @@ function createAdminCatalogService(options?: {
       id: 'credential-1',
       tenantId: actor.activeTenantId,
       userId: 'user-1',
-      providerId: 'provider-openai',
+      providerId: providerEntityId,
       scope: 'user',
       isActive: true,
       encryptedSecret: encrypted.ciphertext,
@@ -235,7 +238,7 @@ function createAdminCatalogService(options?: {
       id: 'credential-tenant-1',
       tenantId: actor.activeTenantId,
       userId: null,
-      providerId: 'provider-openai',
+      providerId: providerEntityId,
       scope: 'tenant',
       isActive: true,
       encryptedSecret: encrypted.ciphertext,
@@ -287,6 +290,57 @@ async function withMockedFetch<T>(
     globalThis.fetch = previousFetch;
   }
 }
+
+test('AdminCatalogService exposes reviewed Z.ai reasoning to Chat Lab', async () => {
+  const { actor, service } = createAdminCatalogService({
+    providerId: 'zai',
+    userCredentialPayload: { apiKey: 'zai-secret' },
+  });
+
+  await withMockedFetch(
+    (async () =>
+      new Response(JSON.stringify({ data: [{ id: 'glm-5.3' }] }), {
+        status: 200,
+      })) as typeof fetch,
+    async () => {
+      const result = await service.listOwnModels(actor, 'zai');
+      assert.deepEqual(
+        result.models[0]?.capabilities?.reasoning?.supportedEfforts,
+        ['low', 'high', 'max'],
+      );
+      assert.equal(result.models[0]?.capabilities?.reasoning?.mandatory, true);
+    },
+  );
+});
+
+test('AdminCatalogService reconciles documented NanoGPT GLM routes', async () => {
+  const { actor, service } = createAdminCatalogService({
+    providerId: 'nanogpt',
+    userCredentialPayload: { apiKey: 'nanogpt-secret' },
+  });
+
+  await withMockedFetch(
+    (async () =>
+      new Response(
+        JSON.stringify({
+          data: [
+            { id: 'z-ai/glm-5.3', capabilities: { reasoning: false } },
+            { id: 'z-ai/glm-unknown', capabilities: { reasoning: false } },
+          ],
+        }),
+        { status: 200 },
+      )) as typeof fetch,
+    async () => {
+      const result = await service.listOwnModels(actor, 'nanogpt');
+      assert.deepEqual(
+        result.models[0]?.capabilities?.reasoning?.supportedEfforts,
+        ['low', 'high'],
+      );
+      assert.equal(result.models[0]?.capabilities?.reasoning?.mandatory, true);
+      assert.equal(result.models[1]?.capabilities?.reasoning?.supported, false);
+    },
+  );
+});
 
 test('AdminCatalogService rejects unsafe custom provider base URLs before adapter fetch', async () => {
   const { actor, service } = createAdminCatalogService({

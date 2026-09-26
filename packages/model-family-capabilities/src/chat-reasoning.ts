@@ -16,6 +16,16 @@ type RegistryEntry = Omit<ModelReasoningCapability, 'source'> & {
 
 const REVIEWED_AT = '2026-08-25';
 
+const NANOGPT_REVIEWED_ZAI_ROUTES = new Map([
+  ['z-ai/glm-5.3', 'glm-5.3'],
+  ['z-ai/glm-5.3:thinking', 'glm-5.3'],
+  ['z-ai/glm-5.3-flash', 'glm-5.3-flash'],
+]);
+const NANOGPT_REASONING_EFFORTS: readonly ModelReasoningEffort[] = [
+  'low',
+  'high',
+];
+
 const toggle: Pick<
   ModelReasoningCapability,
   'supported' | 'controls' | 'supportsToggle' | 'defaultEnabled' | 'semantic'
@@ -359,7 +369,7 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
   },
   {
     providerId: 'zai',
-    modelIds: ['glm-5.3'],
+    modelIds: ['glm-5.3', 'glm-5.3-flash'],
     ...effort(['low', 'high', 'max']),
     defaultEffort: 'max',
     defaultEnabled: true,
@@ -367,7 +377,7 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
     outputKind: 'reasoning-text',
     replayRequirement: 'reasoning-content',
     semantic: 'reasoning-depth',
-    sourceUrl: 'https://docs.z.ai/guides/capabilities/thinking-mode',
+    sourceUrl: 'https://docs.z.ai/api-reference/llm/chat-completion',
   },
   {
     providerId: 'zai',
@@ -451,7 +461,32 @@ export function resolveChatReasoningCapability(
   modelId: string,
   runtimeCapability: ModelReasoningCapability | undefined,
 ): ModelReasoningCapability | undefined {
-  if (providerId === 'openrouter' || providerId === 'nanogpt') {
+  if (providerId === 'nanogpt') {
+    const nativeModelId = NANOGPT_REVIEWED_ZAI_ROUTES.get(modelId);
+    const reviewed = nativeModelId
+      ? lookupNativeChatReasoningCapability('zai', nativeModelId)
+      : undefined;
+    if (reviewed?.supported) {
+      return {
+        supported: true,
+        controls: ['effort'],
+        supportedEfforts: reviewed.supportedEfforts?.filter(
+          (value) => NANOGPT_REASONING_EFFORTS.includes(value),
+        ),
+        mandatory: reviewed.mandatory,
+        outputKind: 'reasoning-text',
+        source: {
+          kind: 'route-intersection',
+          providerId,
+          modelId,
+          url: reviewed.source.url,
+          reviewedAt: reviewed.source.reviewedAt,
+        },
+      };
+    }
+    return runtimeCapability;
+  }
+  if (providerId === 'openrouter') {
     return runtimeCapability;
   }
 

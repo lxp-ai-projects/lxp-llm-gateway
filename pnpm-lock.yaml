@@ -41,6 +41,9 @@ importers:
       '@lxp/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@lxp/model-family-capabilities':
+        specifier: workspace:*
+        version: link:../../packages/model-family-capabilities
       '@lxp/provider-anthropic':
         specifier: workspace:*
         version: link:../../packages/provider-anthropic

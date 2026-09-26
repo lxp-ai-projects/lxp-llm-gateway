@@ -577,6 +577,11 @@ upstream catalog publishes it. Anthropic reads `capabilities.thinking`, NanoGPT
 requests detailed model capabilities, OpenRouter reads its per-model `reasoning`
 object, and Ollama supplements `/api/tags` with `/api/show`. Chat Lab uses this
 metadata instead of model-name heuristics. An omitted capability remains
-unknown and does not become either supported or unsupported by inference.
+unknown unless an exact reviewed route identity supplies documented evidence;
+it does not become either supported or unsupported by name inference.
+The `admin-api` catalog used by Chat Lab applies the same reviewed capability
+resolver as `gateway-api`. NanoGPT's documented exact GLM-5.3 routes combine
+Z.ai model semantics with NanoGPT's supported request vocabulary; unreviewed
+aliases and other aggregator routes retain their route-specific evidence.
 ADR-016 defines the reviewed registry, runtime-route precedence, and evidence
 requirements.

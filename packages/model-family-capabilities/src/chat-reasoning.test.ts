@@ -147,6 +147,56 @@ test('Ollama reviewed controls require runtime thinking support', () => {
   );
 });
 
+test('NanoGPT uses exact documented GLM identity with route-safe controls', () => {
+  const route = {
+    supported: false,
+    controls: [],
+    source: {
+      kind: 'provider-api' as const,
+      providerId: 'nanogpt' as const,
+      modelId: 'z-ai/glm-5.3',
+    },
+  };
+  const capability = resolveChatReasoningCapability(
+    'nanogpt',
+    'z-ai/glm-5.3',
+    route,
+  );
+  assert.equal(capability?.supported, true);
+  assert.equal(capability?.mandatory, true);
+  assert.deepEqual(capability?.supportedEfforts, ['low', 'high']);
+  assert.equal(capability?.source.kind, 'route-intersection');
+  assert.throws(() =>
+    validateChatReasoningRequest(
+      { effort: 'max' },
+      capability,
+      'nanogpt/z-ai/glm-5.3',
+    ),
+  );
+  assert.equal(
+    resolveChatReasoningCapability('nanogpt', 'z-ai/glm-5.3-alias', route),
+    route,
+  );
+  assert.deepEqual(
+    resolveChatReasoningCapability('nanogpt', 'z-ai/glm-5.3:thinking', route)
+      ?.supportedEfforts,
+    ['low', 'high'],
+  );
+  assert.deepEqual(
+    resolveChatReasoningCapability('nanogpt', 'z-ai/glm-5.3-flash', route)
+      ?.supportedEfforts,
+    ['low', 'high'],
+  );
+  assert.equal(
+    resolveChatReasoningCapability('openrouter', 'z-ai/glm-5.3', route),
+    route,
+  );
+  assert.equal(
+    resolveChatReasoningCapability('ollama', 'glm-5.3:latest', undefined),
+    undefined,
+  );
+});
+
 test('conditional Anthropic disable rules are validated without wildcard matching', () => {
   const capability = lookupNativeChatReasoningCapability(
     'anthropic',

@@ -199,7 +199,10 @@ Gateway validates a canonical request and rejects unknown, mandatory-disable,
 or unsupported-effort combinations instead of silently changing them.
 
 Chat Lab reasoning controls are projected from live model catalog metadata.
+The same reviewed resolver projects both the `admin-api` catalog used by Chat
+Lab and the `gateway-api` catalog and request validation.
 Native provider capability fields are authoritative when present; aggregator
 catalog fields describe the effective routed capability. Missing API metadata
-is shown as unknown, so aliases and future model names are never classified by
+is shown as unknown unless an exact reviewed route identity supplies documented
+evidence, so aliases and future model names are never classified by
 UI copy or regular expressions alone.

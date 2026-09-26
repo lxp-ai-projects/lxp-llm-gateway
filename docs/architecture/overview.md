@@ -14,6 +14,7 @@ The platform separates the data plane from the control plane.
 
 - `admin-web` talks to `admin-api`
 - `admin-web` uses `admin-api` as the same-origin control-plane facade for protected admin operations such as provider credentials, provider settings, model discovery, and image catalog access
+- `admin-api` and `gateway-api` use the same reviewed chat reasoning resolver for their model catalogs; Chat Lab receives its effective route capabilities from `admin-api`
 - clients or trusted internal callers talk to `gateway-api`
 - trusted internal callers such as `Open WebUI` can use a thin OpenAI-compatible facade exposed by `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`

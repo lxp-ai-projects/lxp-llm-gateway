@@ -894,7 +894,7 @@ test('GatewayService projects exact documented Z.AI reasoning capabilities', asy
       kind: 'reviewed-registry',
       providerId: 'zai',
       modelId: 'glm-5.3',
-      url: 'https://docs.z.ai/guides/capabilities/thinking-mode',
+      url: 'https://docs.z.ai/api-reference/llm/chat-completion',
       reviewedAt: '2026-08-25',
     },
   });

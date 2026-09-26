@@ -12,6 +12,7 @@ import {
 import type { Response as ExpressResponse } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { ProviderId, TenantRole, GlobalRole } from '@lxp/domain';
+import { resolveChatReasoningCapability } from '@lxp/model-family-capabilities';
 import type {
   LlmProviderAdapter,
   ProviderAccessConfig,
@@ -146,11 +147,24 @@ export class AdminCatalogService {
     }
 
     try {
-      const models = await this.listProviderModelsWithTimeout(
+      const listedModels = await this.listProviderModelsWithTimeout(
         provider,
         user.id,
         providerAccess,
       );
+      const models = listedModels.map((model) => {
+        const reasoning = resolveChatReasoningCapability(
+          provider.providerId,
+          model.id,
+          model.capabilities?.reasoning,
+        );
+        return reasoning
+          ? {
+              ...model,
+              capabilities: { ...model.capabilities, reasoning },
+            }
+          : model;
+      });
 
       return {
         providerId: provider.providerId,
