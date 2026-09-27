@@ -127,6 +127,7 @@
   "providerCredentialForm.validation.tokenRequired.mistral": "Les identifiants Mistral nécessitent un jeton API.",
   "providerCredentialForm.validation.tokenRequired.deepseek": "Les identifiants DeepSeek nécessitent un jeton API.",
   "providerCredentialForm.validation.tokenRequired.moonshot": "Les identifiants Moonshot / Kimi nécessitent un jeton API.",
+  "providerCredentialForm.validation.tokenRequired.augure": "Les identifiants Augure nécessitent un jeton API.",
   "providerCredentialForm.validation.tokenRequired.zai": "Les identifiants Z.ai nécessitent un jeton API.",
   "providerCredentialForm.validation.ollamaBaseUrl": "L’URL de base Ollama doit être une URL absolue valide.",
   "providerCredentialForm.validation.ollamaCloudTokenRequired": "Les identifiants Ollama Cloud sur ollama.com nécessitent un jeton API."

@@ -18,7 +18,7 @@ out of scope.
 - admin web application
 - shared contracts and domain packages
 - provider abstraction package
-- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai
+- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, Augure, and Z.ai; Augure awaits credentialed QA
 - user, role, and provider credential foundations
 - local development infrastructure
 - a Docker Compose based local quickstart foundation for beta testers and first local runs
@@ -32,7 +32,7 @@ out of scope.
 
 ## Out of Scope for Phase 1
 
-- additional providers beyond NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai
+- additional providers beyond NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, Augure, and Z.ai
 - billing and analytics
 - quota enforcement
 - policy engines
@@ -45,7 +45,7 @@ out of scope.
 - the apps and packages are operational, not placeholders
 - the core architecture boundaries are documented
 - the provider seam is explicit
-- NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai can be selected transparently through the same gateway contract
+- NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, Augure, and Z.ai can be selected transparently through the same gateway contract
 - the repository is ready for iterative feature implementation
 - the admin SPA remains operable on mobile and desktop without accumulating oversized, multi-responsibility modules as the feature surface grows
 
@@ -83,7 +83,7 @@ The repository now contains:
 - an initial `super_admin` tenant administration surface for cross-tenant listing, tenant policy editing, and membership visibility
 - tenant policy editing is now available in the `super_admin` tenant-control surface, while the current limiter remains intentionally app-level rather than globally distributed
 - shared-seam chat requests that can now carry either plain text content or normalized multimodal content blocks
-- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, and Z.ai behind `packages/provider-sdk`
+- working provider integrations for NanoGPT, OpenRouter, Ollama, Groq, Google Gemini, xAI Grok, OpenAI, Anthropic Claude, Mistral, DeepSeek, Moonshot / Kimi, Augure, and Z.ai behind `packages/provider-sdk`; Augure has not yet passed credentialed QA
 - frontend feature modules under `src/features/*`
 - CI quality gates for typecheck, test, and build
 - a local quickstart path that keeps Docker Compose as the runtime entrypoint and avoids a setup-only framework
@@ -137,6 +137,7 @@ Current image-provider posture is:
 Current provider onboarding posture for the newest text providers is:
 
 - `Moonshot / Kimi` is treated as OpenAI-compatible for chat, model listing, and streaming
+- `Augure` uses the shared OpenAI-compatible text adapter for chat, model listing, and streaming; it omits LXP's internal user identifier upstream
 - `Z.ai` chat is routed through the shared OpenAI-compatible adapter path, while image generation remains native to `provider-zai`
 - `Z.ai` model discovery currently attempts `GET /models` as a best-effort compatibility probe even though the official API reference does not document that endpoint; the gateway docs should continue to call that out explicitly
 

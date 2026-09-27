@@ -6,6 +6,7 @@ import { GroqProviderAdapter } from '@lxp/provider-groq';
 import { GoogleProviderAdapter } from '@lxp/provider-google';
 import { OpenAiProviderAdapter } from '@lxp/provider-openai';
 import { AnthropicProviderAdapter } from '@lxp/provider-anthropic';
+import { AugureProviderAdapter } from '@lxp/provider-augure';
 import { XaiProviderAdapter } from '@lxp/provider-xai';
 import { MistralProviderAdapter } from '@lxp/provider-mistral';
 import { DeepSeekProviderAdapter } from '@lxp/provider-deepseek';
@@ -127,6 +128,7 @@ import { IntegrationClientDiagnosticsController } from '../integration-client-di
         new GoogleProviderAdapter(),
         new OpenAiProviderAdapter(),
         new AnthropicProviderAdapter(),
+        new AugureProviderAdapter(),
         new XaiProviderAdapter(),
         new MistralProviderAdapter(),
         new DeepSeekProviderAdapter(),

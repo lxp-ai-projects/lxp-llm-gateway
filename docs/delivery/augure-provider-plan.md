@@ -1,6 +1,6 @@
 # Augure text provider: implementation plan
 
-Status: proposed for review; no provider implementation is included. Source baseline: repository `main` inspected on 2026-09-27 and [Augure API documentation](https://augureai.ca/docs/api) inspected on the same date. Confirm the local branch and migration sequence before implementation.
+Status: approved implementation baseline for `feature/provider-augure`. [Augure API documentation](https://augureai.ca/docs/api) was reviewed on 2026-09-27. The local migration sequence was checked before implementation.
 
 ## 1. Current architecture findings
 
@@ -27,13 +27,13 @@ The admin web receives the provider list from the backend and sorts it generical
 
 ### Unknown
 
-- Augure does not document the shared adapter's automatic `user` field. Probe with and without it. If rejected, use `buildRequestBody` in Augure to omit `user` while retaining the shared HTTP client and other fields.
+- Augure does not require a `user` field. LXP intentionally omits its internal user identifier from Augure requests. Authorization, tenant isolation, audit, and usage accounting remain inside LXP.
 - The docs do not specify a reasoning request control, reasoning response fields, JSON-schema/structured-output parameters, tool-call request/response contract, or aliases in a live `/models` result. Do not claim support for these on compatibility language alone.
 - LXP has a canonical `outputFormat: 'json'`, but the common adapter does not map it. Structured evaluation on Augure needs its own explicit compatibility decision and test; do not silently advertise it.
 
 ## 3. Proposed design
 
-Create `@lxp/provider-augure` with a small `AugureProviderAdapter extends OpenAiCompatibleTextProviderAdapter`. Set provider ID/display name, default URL, and validated request timeout (follow Moonshot's defensive timeout parsing). Keep the shared default paths, Bearer header, model discovery, response normalization, and streaming. Do not add a second HTTP client. Add `buildRequestBody` only if the `user` probe fails. Add `mapModels` only if live discovery returns aliases that should be removed; filter only documented `gpt-*` compatibility aliases, preserving any future native model IDs. Do not hardcode a catalog.
+Create `@lxp/provider-augure` with a small `AugureProviderAdapter extends OpenAiCompatibleTextProviderAdapter`. Set provider ID/display name, default URL, and validated request timeout (follow Moonshot's defensive timeout parsing). Keep the shared default paths, Bearer header, model discovery, response normalization, and streaming. Do not add a second HTTP client. Use `buildRequestBody` to omit LXP's internal `user` identifier. Filter only the four documented `gpt-*` compatibility aliases from discovered models, preserving future native model IDs. Do not hardcode a catalog.
 
 ## 4. File-by-file change plan
 
@@ -41,7 +41,7 @@ Create `@lxp/provider-augure` with a small `AugureProviderAdapter extends OpenAi
 | --- | --- |
 | `packages/domain/src/index.ts` | Add `augure` to `PROVIDER_IDS` and `Augure` to `PROVIDER_DISPLAY_NAMES`; leave image/video ID lists unchanged. |
 | `packages/provider-augure/package.json`, `packages/provider-augure/tsconfig.json` | Add the workspace package using Moonshot's build/test layout and existing dependencies. |
-| `packages/provider-augure/src/index.ts` | Add the minimal adapter, default URL, timeout parsing, narrowly selected metadata mapping, and conditional model filtering/request-body mapping if probes require them. |
+| `packages/provider-augure/src/index.ts` | Add the minimal adapter, default URL, timeout parsing, narrowly selected metadata mapping, alias filtering, and request-body mapping that omits `user`. |
 | `packages/provider-augure/src/index.test.ts` | Add mocked-fetch tests for the provider behavior below. |
 | `apps/gateway-api/package.json`, `apps/gateway-api/src/gateway/gateway.module.ts` | Declare the package and instantiate it at the existing composition root. |
 | `apps/admin-api/package.json`, `apps/admin-api/src/admin/admin-catalog.service.ts` | Add package/build preparation, admin catalog adapter registration, and platform access mapping. |
@@ -73,9 +73,9 @@ The shared `collectDefaultProviderMetadata()` retains only `id`, `object`, `crea
 
 ## 8. Testing plan
 
-Use `node:test` and mocked `globalThis.fetch`, following DeepSeek/Moonshot. Cover provider ID/display name, URL/default paths, Bearer header, `/models` mapping and conditional alias filtering, chat body (`model`, `messages`, `stream`, `max_tokens`, `user` decision), non-stream content/finish reason, usage, `_augure` preservation and invalid metadata rejection, raw SSE delta/`[DONE]`, OpenAI-format errors, timeout, and custom base URL. Test that reasoning controls and unsupported output constraints are not advertised. Add focused gateway/admin registry and platform/BYOK tests only where enumerations or validation changed; assert admin SSRF allowlist rejects unrelated hosts and HTTP.
+Use `node:test` and mocked `globalThis.fetch`, following DeepSeek/Moonshot. Cover provider ID/display name, URL/default paths, Bearer header, `/models` mapping and alias filtering, chat body (`model`, `messages`, `stream`, `max_tokens`) with explicit absence of `user`, non-stream content/finish reason, usage, `_augure` preservation and invalid metadata rejection, raw SSE delta/`[DONE]`, OpenAI-format errors, timeout, and custom base URL. Test that reasoning controls and unsupported output constraints are not advertised. Add focused gateway/admin registry and platform/BYOK tests only where enumerations or validation changed; assert admin SSRF allowlist rejects unrelated hosts and HTTP.
 
-No real key in CI. Before accepting compatibility, run optional credentialed smoke probes outside CI: `/models` alias behavior; a minimal chat with/without `user`; `max_tokens`; one text/image-part request; SSE with and without `include_usage`; and, only if relevant to product scope, provider JSON-output/tool contract. Record sanitized request shapes/statuses without prompts or credentials.
+No real key in CI. Credentialed QA should check `/models` alias behavior, a minimal chat without `user`, `max_tokens`, one text/image-part request, SSE, non-stream provenance metadata, and a representative `rosedale-1` or `ossington-5` request to verify that the 90-second default does not end normal reasoning work prematurely. Record sanitized statuses without prompts or credentials.
 
 ## 9. Documentation changes
 
@@ -83,13 +83,13 @@ Keep this delivery plan and its companion product requirements/ADR as proposed u
 
 ## 10. Risks / open questions
 
-1. `user` may be rejected despite broad OpenAI compatibility; decide from a live probe, then use the adapter's request-body hook only if necessary.
+1. Live model listing may differ from the published example; confirm aliases and native model availability with a credentialed smoke test.
 2. The `/models` sample excludes aliases, but an authenticated catalog may include them; filter only observed compatibility aliases to avoid duplicate choices.
 3. The generic adapter sends no `stream_options.include_usage`, so streamed usage may be unavailable. Do not add a common-adapter change solely for this provider without a gateway need.
 4. Augure's 300-second request limit and LXP's 90-second default may affect slow reasoning calls; measure and document an operator override.
 5. Structured evaluation's canonical JSON constraint currently has no shared OpenAI-compatible mapping. Exclude Augure from claims of structured-output support until verified and implemented within the existing seam.
 6. Exact tool calls, reasoning controls, output reasoning fields, and PDF parts are outside the current generic LXP text contract or undocumented by Augure. Treat them as future work.
-7. Recheck local scaffold and latest migration number: repository inspection used current GitHub `main` because local shell process startup was unavailable during planning.
+7. Credentialed QA remains necessary before claiming verified live Augure support.
 
 ## 11. Proposed PR breakdown
 
@@ -97,9 +97,9 @@ One focused implementation PR is reasonable: provider package, registration, cre
 
 ## 12. Acceptance criteria before implementation
 
-- [ ] Confirm local branch state, existing `packages/provider-augure` scaffold, and next migration number.
+- [x] Confirm local branch state, package scaffold status, and next migration number.
 - [ ] Approve provider ID/name, existing adapter reuse, discovery/alias policy, metadata whitelist, and `auto` capability policy.
-- [ ] Decide `user` compatibility from a sanitized Augure probe or document why it remains unverified.
+- [x] Omit the internal `user` identifier by design and assert its absence in mocked request tests.
 - [ ] Confirm no undocumented reasoning controls, tools, PDF, image generation, or embeddings enter the provider PR.
 - [ ] Confirm the exact documentation and test files listed above against local `rg` results.
 - [ ] Confirm no real Augure credentials are required for CI.

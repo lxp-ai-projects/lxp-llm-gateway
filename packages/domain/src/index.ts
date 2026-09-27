@@ -10,6 +10,7 @@ export const PROVIDER_IDS = [
   'mistral',
   'deepseek',
   'moonshot',
+  'augure',
   'zai',
 ] as const;
 
@@ -27,6 +28,7 @@ export const PROVIDER_DISPLAY_NAMES: Record<ProviderId, string> = {
   mistral: 'Mistral',
   deepseek: 'DeepSeek',
   moonshot: 'Moonshot / Kimi',
+  augure: 'Augure',
   zai: 'Z.ai',
 };
 

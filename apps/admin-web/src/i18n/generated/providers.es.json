@@ -127,6 +127,7 @@
   "providerCredentialForm.validation.tokenRequired.mistral": "Las credenciales de Mistral requieren un token de API.",
   "providerCredentialForm.validation.tokenRequired.deepseek": "Las credenciales de DeepSeek requieren un token de API.",
   "providerCredentialForm.validation.tokenRequired.moonshot": "Las credenciales de Moonshot / Kimi requieren un token de API.",
+  "providerCredentialForm.validation.tokenRequired.augure": "Las credenciales de Augure requieren un token de API.",
   "providerCredentialForm.validation.tokenRequired.zai": "Las credenciales de Z.ai requieren un token de API.",
   "providerCredentialForm.validation.ollamaBaseUrl": "La URL base de Ollama debe ser una URL absoluta válida.",
   "providerCredentialForm.validation.ollamaCloudTokenRequired": "Las credenciales de Ollama Cloud en ollama.com requieren un token de API."

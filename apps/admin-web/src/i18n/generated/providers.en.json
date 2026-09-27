@@ -127,6 +127,7 @@
   "providerCredentialForm.validation.tokenRequired.mistral": "Mistral credentials require an API token.",
   "providerCredentialForm.validation.tokenRequired.deepseek": "DeepSeek credentials require an API token.",
   "providerCredentialForm.validation.tokenRequired.moonshot": "Moonshot / Kimi credentials require an API token.",
+  "providerCredentialForm.validation.tokenRequired.augure": "Augure credentials require an API token.",
   "providerCredentialForm.validation.tokenRequired.zai": "Z.ai credentials require an API token.",
   "providerCredentialForm.validation.ollamaBaseUrl": "Ollama base URL must be a valid absolute URL.",
   "providerCredentialForm.validation.ollamaCloudTokenRequired": "Ollama cloud credentials on ollama.com require an API token."

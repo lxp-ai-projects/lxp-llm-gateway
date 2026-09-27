@@ -1,6 +1,6 @@
 # Augure text provider requirements
 
-Status: proposed for review. This records the intended product behavior, not an implemented or QA-verified integration. See `docs/delivery/augure-provider-plan.md` for the file-by-file plan and unresolved API probes.
+Status: approved requirements; implementation is not yet QA-verified. See `docs/delivery/augure-provider-plan.md` for the integration details and live QA checklist.
 
 ## Purpose
 
@@ -14,6 +14,7 @@ Allow an authorized LXP tenant or user to choose Augure for text chat through th
 4. Preserve safe admin model discovery with HTTPS and an Augure host allowlist. Keep custom base-URL overrides subject to existing policy.
 5. Show reasoning capability only for exact reviewed model IDs, without controls absent from the Augure API contract. Treat `auto` as a dynamic route with unknown static reasoning capability.
 6. Preserve provider ID and selected model in existing usage and audit records. Do not change LXP's provider-neutral telemetry schema.
+7. Omit LXP's internal `user` identifier from Augure requests. Keep authorization, tenant isolation, audit, and usage accounting inside LXP.
 
 ## Out of scope for the first implementation
 
@@ -21,7 +22,7 @@ Tool/function calling, PDF/file parts, media generation, embeddings, provider-sp
 
 ## Verification requirements
 
-Mocked network tests must cover model discovery, Bearer auth, chat/usage mapping, SSE, errors, timeout, base-URL override, and `_augure` metadata. Credentialed probes must settle the shared adapter's automatic `user` field and actual alias discovery before the implementation is declared compatible. No real key is required in CI. A provider is “implemented” after these checks; “QA-verified” requires separate end-to-end confirmation.
+Mocked network tests must cover model discovery, Bearer auth, the absence of `user`, chat/usage mapping, SSE, errors, timeout, base-URL override, and `_augure` metadata. No real key is required in CI. Credentialed QA must check actual alias discovery and at least one representative reasoning request on `rosedale-1` or `ossington-5` against the 90-second default before claiming live verification.
 
 ## Source
 

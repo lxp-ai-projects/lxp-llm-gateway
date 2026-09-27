@@ -6,6 +6,7 @@
     "@lxp/contracts": "workspace:*",
     "@lxp/domain": "workspace:*",
     "@lxp/model-family-capabilities": "workspace:*",
+    "@lxp/provider-augure": "workspace:*",
     "@lxp/provider-anthropic": "workspace:*",
     "@lxp/provider-deepseek": "workspace:*",
     "@lxp/provider-google": "workspace:*",

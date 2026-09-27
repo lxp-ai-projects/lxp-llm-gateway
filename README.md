@@ -61,7 +61,7 @@ The repository now includes:
 | Status         | Meaning                                                                                                                                      | Current providers                                                                                              |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `Tested (QA)`  | Tested by the development team and currently confirmed to work in `lxp-llm-gateway`.                                                         | Anthropic Claude, Deepseek, Google Gemini, Groq, Moonshot, NanoGPT, Ollama, OpenAI, OpenRouter, xAI Grok, z.AI |
-| `Not yet QA'd` | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. |                                                                                                                |
+| `Not yet QA'd` | Implemented, but not yet formally exercised by the development team. It may still work, but treat it as potentially unstable until verified. | Augure |
 
 Image-model compatibility by provider is documented in:
 

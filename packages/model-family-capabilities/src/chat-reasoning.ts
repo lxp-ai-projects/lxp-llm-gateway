@@ -151,6 +151,13 @@ const NATIVE_REASONING_REGISTRY: readonly RegistryEntry[] = [
       'https://platform.claude.com/docs/en/build-with-claude/extended-thinking',
   },
   {
+    providerId: 'augure',
+    modelIds: ['ossington-5', 'rosedale-1', 'ossington-4-1'],
+    supported: true,
+    controls: [],
+    sourceUrl: 'https://augureai.ca/docs/api',
+  },
+  {
     providerId: 'deepseek',
     modelIds: ['deepseek-v4-flash', 'deepseek-v4-pro'],
     ...toggle,

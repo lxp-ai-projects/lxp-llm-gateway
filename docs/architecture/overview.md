@@ -18,7 +18,7 @@ The platform separates the data plane from the control plane.
 - clients or trusted internal callers talk to `gateway-api`
 - trusted internal callers such as `Open WebUI` can use a thin OpenAI-compatible facade exposed by `gateway-api`
 - `gateway-api` talks to provider adapters through `provider-sdk`
-- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-google`, `provider-xai`, `provider-openai`, `provider-anthropic`, `provider-mistral`, `provider-deepseek`, `provider-moonshot`, and `provider-zai` are concrete provider implementations behind the same seam
+- `provider-nanogpt`, `provider-openrouter`, `provider-ollama`, `provider-groq`, `provider-google`, `provider-xai`, `provider-openai`, `provider-anthropic`, `provider-mistral`, `provider-deepseek`, `provider-moonshot`, `provider-augure`, and `provider-zai` are concrete provider implementations behind the same seam
 
 The seam is evolving from a chat-only adapter into a capability-oriented provider surface.
 
@@ -86,6 +86,7 @@ Protected browser control-plane calls should stay on the admin origin through `a
 - `provider-mistral` implements Mistral behind the seam
 - `provider-deepseek` implements DeepSeek behind the seam
 - `provider-moonshot` implements Moonshot / Kimi behind the seam
+- `provider-augure` implements Augure text chat behind the shared OpenAI-compatible adapter; credentialed QA remains pending
 - `provider-zai` implements Z.ai behind the seam
 
 `provider-sdk` should remain capability-oriented rather than provider-shaped.
@@ -257,6 +258,7 @@ This allows:
 - `Mistral` to use bearer-token auth through its chat completions and models endpoints
 - `DeepSeek` to use bearer-token auth through its OpenAI-compatible models and chat completions endpoints
 - `Moonshot / Kimi` to use bearer-token auth through its OpenAI-compatible models and chat completions endpoints
+- `Augure` to use bearer-token auth through its OpenAI-compatible models and chat completions endpoints while omitting LXP's internal user identifier upstream
 - `Z.ai` to use bearer-token auth through an OpenAI-compatible chat endpoint plus a native image-generation endpoint
 - `Ollama` to use either a local/runtime endpoint or Ollama Cloud with bearer auth
 

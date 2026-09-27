@@ -18,6 +18,7 @@ import type {
   ProviderAccessConfig,
 } from '@lxp/provider-sdk';
 import { AnthropicProviderAdapter } from '@lxp/provider-anthropic';
+import { AugureProviderAdapter } from '@lxp/provider-augure';
 import { DeepSeekProviderAdapter } from '@lxp/provider-deepseek';
 import { GoogleProviderAdapter } from '@lxp/provider-google';
 import { GroqProviderAdapter } from '@lxp/provider-groq';
@@ -83,6 +84,7 @@ const ADMIN_LLM_PROVIDERS: LlmProviderAdapter[] = [
   new GoogleProviderAdapter(),
   new OpenAiProviderAdapter(),
   new AnthropicProviderAdapter(),
+  new AugureProviderAdapter(),
   new XaiProviderAdapter(),
   new MistralProviderAdapter(),
   new DeepSeekProviderAdapter(),
@@ -547,6 +549,10 @@ export class AdminCatalogService {
       anthropic: {
         apiKey: process.env.ANTHROPIC_API_KEY,
         baseUrl: process.env.ANTHROPIC_BASE_URL,
+      },
+      augure: {
+        apiKey: process.env.AUGURE_API_KEY,
+        baseUrl: process.env.AUGURE_BASE_URL,
       },
       google: {
         apiKey: process.env.GOOGLE_API_KEY,

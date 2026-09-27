@@ -52,6 +52,7 @@ Phase 1 includes:
   - `Mistral`
   - `DeepSeek`
   - `Moonshot / Kimi`
+  - `Augure`
   - `Z.ai`
 - local development infrastructure with Redis or Valkey
 - a Docker Compose based local quickstart foundation that can start the runtime apps plus required infrastructure with minimal manual setup
@@ -63,7 +64,7 @@ Phase 1 includes:
 
 Phase 1 does not include:
 
-- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, `Anthropic Claude`, `Mistral`, `DeepSeek`, `Moonshot / Kimi`, and `Z.ai`
+- a broad provider marketplace beyond `NanoGPT`, `OpenRouter`, `Ollama`, `Groq`, `Google Gemini`, `xAI Grok`, `OpenAI`, `Anthropic Claude`, `Mistral`, `DeepSeek`, `Moonshot / Kimi`, `Augure`, and `Z.ai`
 - quota engines
 - policy engines
 - advanced billing or cost governance
@@ -279,6 +280,7 @@ The seam should evolve by adding new capability contracts, not by teaching `gate
 Current provider posture for the newest additions is intentionally mixed by capability:
 
 - `Moonshot / Kimi` is integrated as an OpenAI-compatible text provider behind the shared text adapter seam
+- `Augure` is implemented as an OpenAI-compatible text provider behind the shared adapter; credentialed QA remains pending
 - `Z.ai` uses the shared OpenAI-compatible text path for chat, plus a provider-owned native image-generation path behind `packages/provider-zai`
 - `Z.ai` model listing currently attempts `GET /models` even though that endpoint is not explicitly documented in the official API reference; the local image catalog therefore keeps a static fallback for known image models
 
@@ -297,6 +299,7 @@ Concrete provider implementations currently shipped in Phase 1:
 - `packages/provider-mistral`
 - `packages/provider-deepseek`
 - `packages/provider-moonshot`
+- `packages/provider-augure`
 - `packages/provider-zai`
 
 Each package owns:

@@ -135,6 +135,13 @@ Open `http://localhost:3003` and sign in with the admin you just created.
 Use the existing BYOK workflow in the Admin UI to add at least one provider
 credential for that user.
 
+For Augure, select `Augure` and store an Augure API key. Its default endpoint is
+`https://api.augureai.ca/v1`; no base URL override is needed for normal access.
+For a directly run API process using platform credentials, configure
+`AUGURE_API_KEY` and optionally `AUGURE_BASE_URL` and
+`AUGURE_REQUEST_TIMEOUT_MS`. The default non-stream timeout is 90 seconds.
+Augure has not yet passed credentialed end-to-end QA.
+
 ### 4. Verify the OpenAI-compatible model list
 
 ```bash
