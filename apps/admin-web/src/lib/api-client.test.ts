@@ -52,6 +52,7 @@ test('adminApiClient.getRuntimeConfig falls back to safe defaults when the reque
       { providerId: 'mistral', displayName: 'Mistral' },
       { providerId: 'deepseek', displayName: 'DeepSeek' },
       { providerId: 'moonshot', displayName: 'Moonshot / Kimi' },
+      { providerId: 'augure', displayName: 'Augure' },
       { providerId: 'zai', displayName: 'Z.ai' },
     ],
   });

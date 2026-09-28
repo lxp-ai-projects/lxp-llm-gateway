@@ -193,7 +193,8 @@ test('returns undefined metadata when no allowed fields are present', async () =
 test('passes through SSE deltas and the DONE marker without adding user', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];
-  const wire = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\ndata: [DONE]\n\n';
+  const wire =
+    'data: {"choices":[{"delta":{"content":"hi"}}]}\n\ndata: [DONE]\n\n';
   globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
     calls.push({ url: String(url), init });
     return new Response(wire, {
@@ -221,7 +222,10 @@ test('passes through SSE deltas and the DONE marker without adding user', async 
 test('surfaces OpenAI-format errors', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () =>
-    createJsonResponse({ error: { message: 'Invalid API key provided' } }, 401)) as typeof fetch;
+    createJsonResponse(
+      { error: { message: 'Invalid API key provided' } },
+      401,
+    )) as typeof fetch;
   try {
     await assert.rejects(
       () =>

@@ -32,7 +32,9 @@ export class AugureProviderAdapter extends OpenAiCompatibleTextProviderAdapter {
   }
 }
 
-function resolveAugureRequestTimeoutMs(rawTimeoutMs: string | undefined): number {
+function resolveAugureRequestTimeoutMs(
+  rawTimeoutMs: string | undefined,
+): number {
   const parsedTimeoutMs = Number(rawTimeoutMs ?? '90000');
   return Number.isFinite(parsedTimeoutMs) && parsedTimeoutMs > 0
     ? parsedTimeoutMs
@@ -55,8 +57,18 @@ function buildAugureRequestBody(
 
 function mapAugureModels(
   payload:
-    | { data?: Array<{ id: string; name?: string; capabilities?: { reasoning?: boolean | { supported?: boolean } } }> }
-    | Array<{ id: string; name?: string; capabilities?: { reasoning?: boolean | { supported?: boolean } } }>,
+    | {
+        data?: Array<{
+          id: string;
+          name?: string;
+          capabilities?: { reasoning?: boolean | { supported?: boolean } };
+        }>;
+      }
+    | Array<{
+        id: string;
+        name?: string;
+        capabilities?: { reasoning?: boolean | { supported?: boolean } };
+      }>,
   context: ProviderExecutionContext,
 ): ProviderModel[] {
   void context;
@@ -97,7 +109,10 @@ function mapAugureProviderMetadata(
   const metadata = Object.fromEntries(
     Object.entries(payload).filter(
       ([key]) =>
-        key === 'id' || key === 'object' || key === 'created' || key.startsWith('x_'),
+        key === 'id' ||
+        key === 'object' ||
+        key === 'created' ||
+        key.startsWith('x_'),
     ),
   );
   const augure = payload._augure;
