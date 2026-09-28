@@ -171,6 +171,7 @@ export function validateProviderCredentialInput(input: {
   baseUrl: string;
 }): string | null {
   const requiresApiToken =
+    input.providerId === 'augure' ||
     input.providerId === 'google' ||
     input.providerId === 'xai' ||
     input.providerId === 'openai' ||

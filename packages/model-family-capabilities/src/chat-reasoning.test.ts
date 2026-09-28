@@ -38,6 +38,27 @@ test('native registry matches only exact reviewed model IDs', () => {
   );
 });
 
+test('Augure reasoning is reviewed only for exact models and has no controls', () => {
+  for (const modelId of ['ossington-5', 'rosedale-1', 'ossington-4-1']) {
+    const capability = lookupNativeChatReasoningCapability('augure', modelId);
+    assert.equal(capability?.supported, true);
+    assert.deepEqual(capability?.controls, []);
+    assert.throws(() =>
+      validateChatReasoningRequest(
+        { effort: 'high' },
+        capability,
+        `augure/${modelId}`,
+      ),
+    );
+  }
+  for (const modelId of ['auto', 'ossington-4', 'tofino-3']) {
+    assert.equal(
+      lookupNativeChatReasoningCapability('augure', modelId),
+      undefined,
+    );
+  }
+});
+
 test('DeepSeek exposes proven toggle semantics but no effort controls', () => {
   const capability = lookupNativeChatReasoningCapability(
     'deepseek',

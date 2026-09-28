@@ -348,6 +348,10 @@ export class ProviderCredentialService {
         apiKey: process.env.ANTHROPIC_API_KEY,
         baseUrl: process.env.ANTHROPIC_BASE_URL,
       },
+      augure: {
+        apiKey: process.env.AUGURE_API_KEY,
+        baseUrl: process.env.AUGURE_BASE_URL,
+      },
       google: {
         apiKey: process.env.GOOGLE_API_KEY,
         baseUrl: process.env.GOOGLE_BASE_URL,

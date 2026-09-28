@@ -4,6 +4,7 @@ import type { ProviderAccessConfig } from '@lxp/provider-sdk';
 
 const CATALOG_SAFE_HOSTS: Record<ProviderId, string[]> = {
   anthropic: ['api.anthropic.com'],
+  augure: ['api.augureai.ca'],
   deepseek: ['api.deepseek.com'],
   google: ['generativelanguage.googleapis.com'],
   groq: ['api.groq.com'],
@@ -29,7 +30,8 @@ export function assertProviderAccessIsValid(
   providerAccess: ProviderAccessConfig,
 ): void {
   if (
-    (providerId === 'google' ||
+    (providerId === 'augure' ||
+      providerId === 'google' ||
       providerId === 'xai' ||
       providerId === 'openai' ||
       providerId === 'anthropic' ||
@@ -38,8 +40,10 @@ export function assertProviderAccessIsValid(
     !providerAccess.apiKey
   ) {
     throw new BadRequestException(
-      providerId === 'google'
-        ? 'Google Gemini credentials require an API token.'
+      providerId === 'augure'
+        ? 'Augure credentials require an API token.'
+        : providerId === 'google'
+          ? 'Google Gemini credentials require an API token.'
         : providerId === 'xai'
           ? 'xAI Grok credentials require an API token.'
           : providerId === 'openai'
