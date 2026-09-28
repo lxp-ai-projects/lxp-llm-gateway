@@ -26,9 +26,21 @@ export class AugureProviderAdapter extends OpenAiCompatibleTextProviderAdapter {
       requestTimeoutMs,
       buildRequestBody: (request, context, stream) =>
         buildAugureRequestBody(request, context, stream),
-      mapModels: (payload, context) => mapAugureModels(payload, context),
       mapProviderMetadata: (payload) => mapAugureProviderMetadata(payload),
     });
+  }
+
+  async listModels(
+    context: ProviderExecutionContext,
+  ): Promise<ProviderModel[]> {
+    const models = await super.listModels(context);
+    return models
+      .filter((model) => !COMPATIBILITY_ALIASES.has(model.id))
+      .map((model) =>
+        model.id === 'auto'
+          ? { id: model.id, displayName: model.displayName }
+          : model,
+      );
   }
 }
 
@@ -53,54 +65,6 @@ function buildAugureRequestBody(
     stream,
     max_tokens: request.maxOutputTokens,
   };
-}
-
-function mapAugureModels(
-  payload:
-    | {
-        data?: Array<{
-          id: string;
-          name?: string;
-          capabilities?: { reasoning?: boolean | { supported?: boolean } };
-        }>;
-      }
-    | Array<{
-        id: string;
-        name?: string;
-        capabilities?: { reasoning?: boolean | { supported?: boolean } };
-      }>,
-  context: ProviderExecutionContext,
-): ProviderModel[] {
-  void context;
-  const data = Array.isArray(payload) ? payload : (payload.data ?? []);
-  return data
-    .filter((model) => !COMPATIBILITY_ALIASES.has(model.id))
-    .map((model) => {
-      const declaredReasoning = model.capabilities?.reasoning;
-      const reasoningSupported =
-        typeof declaredReasoning === 'boolean'
-          ? declaredReasoning
-          : declaredReasoning?.supported;
-      return {
-        id: model.id,
-        displayName: model.name ?? model.id,
-        ...(model.id !== 'auto' && typeof reasoningSupported === 'boolean'
-          ? {
-              capabilities: {
-                reasoning: {
-                  supported: reasoningSupported,
-                  controls: [],
-                  source: {
-                    kind: 'provider-api' as const,
-                    providerId: 'augure' as const,
-                    modelId: model.id,
-                  },
-                },
-              },
-            }
-          : {}),
-      };
-    });
 }
 
 function mapAugureProviderMetadata(
